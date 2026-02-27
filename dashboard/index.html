@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+ <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
+            </div>
+
+    <nav class="menu">
+        <a href="../inicio/index.html" class="menu-item">
+            <i class="fas fa-home"></i>
+            <span>Início</span>
+        </a>
+        <a href="./index.html" class="menu-item active">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="../calendario/index.html" class="menu-item">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Calendário</span>
+        </a>
+        <a href="../tarefas/index.html" class="menu-item">
+            <i class="fas fa-tasks"></i>
+            <span>Tarefas</span>
+        </a>
+        <a href="../anotacoes/index.html" class="menu-item">
+            <i class="fas fa-sticky-note"></i>
+            <span>Anotações</span>
+        </a>
+    </nav>
+
+    <div class="menu-bottom">
+        <a href="#" class="menu-item">
+            <i class="fas fa-users"></i>
+            <span>Comunidade</span>
+        </a>
+        <a href="#" class="menu-item">
+            <i class="fas fa-question-circle"></i>
+            <span>Ajuda</span>
+        </a>
+    </div>
+    
+    <!-- Botão de Logout -->
+    <div class="logout-section">
+        <button class="logout-btn" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Sair da Conta</span>
+        </button>
+    </div>
+</aside>
+<!-- ✅ Fim da Sidebar (sem tag duplicada!) -->
+
+<!-- Main Content -->
+<main class="main-content">
+    <!-- Header -->
+    <header class="header">
+        <h2>Bem-vindo, Alex!</h2>
+        <div class="header-icons">
+            <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+            <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+        </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card bg-purple">
+            <div class="stat-info"><h3>4</h3><p>Disciplinas</p></div>
+            <i class="fa-solid fa-book stat-icon"></i>
+        </div>
+        <div class="stat-card bg-blue">
+            <div class="stat-info"><h3>23</h3><p>Tarefas Pendentes</p></div>
+            <i class="fa-solid fa-clipboard-list stat-icon"></i>
+        </div>
+        <div class="stat-card bg-orange">
+            <div class="stat-info"><h3>45h</h3><p>Horas Estudadas</p></div>
+            <i class="fa-regular fa-clock stat-icon"></i>
+        </div>
+        <div class="stat-card bg-green">
+            <div class="stat-info"><h3>8.4</h3><p>Média Geral</p></div>
+            <i class="fa-solid fa-star stat-icon"></i>
+        </div>
+    </div>
+
+    <!-- Middle Section -->
+    <div class="middle-grid">
+        <!-- Performance Chart -->
+        <div class="card">
+            <h3>Desempenho por Disciplina</h3>
+            <div class="bar-chart">
+                <div class="bar-item">
+                    <div class="bar-icon bg-icon-purple"><i class="fa-solid fa-code"></i></div>
+                    <div class="bar-container"><div class="bar-fill fill-purple" style="width: 85%;"></div></div>
+                    <span class="bar-value">8.5</span>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-icon bg-icon-purple"><i class="fa-solid fa-flask"></i></div>
+                    <div class="bar-container"><div class="bar-fill fill-purple" style="width: 70%;"></div></div>
+                    <span class="bar-value">7.0</span>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-icon bg-icon-yellow"><i class="fa-solid fa-pen-nib"></i></div>
+                    <div class="bar-container"><div class="bar-fill fill-yellow" style="width: 90%;"></div></div>
+                    <span class="bar-value">9.0</span>
+                </div>
+                <div class="bar-item">
+                    <div class="bar-icon bg-icon-yellow"><i class="fa-solid fa-calculator"></i></div>
+                    <div class="bar-container"><div class="bar-fill fill-yellow" style="width: 60%;"></div></div>
+                    <span class="bar-value">6.0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <h3>Atividade Recente</h3>
+            <div class="activity-list">
+                <div class="activity-item">
+                    <div class="activity-icon"><i class="fa-solid fa-file-lines"></i></div>
+                    <div class="activity-text"><h4>Trabalho de História</h4><p>Entregue hoje</p></div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon"><i class="fa-solid fa-video"></i></div>
+                    <div class="activity-text"><h4>Aula de Física</h4><p>Assistida ontem</p></div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon"><i class="fa-solid fa-check-circle"></i></div>
+                    <div class="activity-text"><h4>Quiz de Inglês</h4><p>Concluído</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Access -->
+    <div class="quick-access-grid">
+        <a href="../inicio/index.html" class="access-btn">
+            <div class="access-icon" style="background: #E0F2FE; color: #0EA5E9;"><i class="fa-solid fa-house"></i></div>
+            <span>Painel Inicial</span>
+        </a>
+        <a href="./index.html" class="access-btn">
+            <div class="access-icon" style="background: #FEF3C7; color: #D97706;"><i class="fa-solid fa-chart-pie"></i></div>
+            <span>Dashboard</span>
+        </a>
+        <a href="../calendario/index.html" class="access-btn">
+            <div class="access-icon" style="background: #DCFCE7; color: #16A34A;"><i class="fa-solid fa-calendar"></i></div>
+            <span>Calendário</span>
+        </a>
+        <a href="../tarefas/index.html" class="access-btn">
+            <div class="access-icon" style="background: #FEE2E2; color: #DC2626;"><i class="fa-solid fa-list-check"></i></div>
+            <span>Tarefas</span>
+        </a>
+        <a href="../anotacoes/index.html" class="access-btn">
+            <div class="access-icon" style="background: #F3E8FF; color: #9333EA;"><i class="fa-solid fa-note-sticky"></i></div>
+            <span>Anotações</span>
+        </a>
+    </div>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
