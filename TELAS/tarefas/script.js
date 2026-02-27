@@ -1,46 +1,96 @@
-// ===== VERIFICAÇÃO DE LOGIN =====
+// ===== VERIFICAÇÃO DE LOGIN E CARREGAMENTO DO NOME =====
 window.addEventListener('DOMContentLoaded', () => {
     const usuario = localStorage.getItem('usuarioLogado');
+    
     if (!usuario) {
         window.location.href = '../login/index.html';
         return;
     }
+    
     try {
         const userData = JSON.parse(usuario);
-        const titulo = document.querySelector('.header h1');
-        if (titulo && userData.nome) {
-            titulo.textContent = `Bem-vindo, ${userData.nome}!`;
+        
+        // Verificar se os dados do usuário existem
+        if (userData && userData.nome) {
+            // Atualizar título principal
+            const tituloElement = document.getElementById('userNameDisplay');
+            if (tituloElement) {
+                tituloElement.textContent = userData.nome;
+            }
+            
+            // Atualizar nome no perfil
+            const nomeProfile = document.getElementById('userNameProfile');
+            if (nomeProfile) {
+                nomeProfile.textContent = userData.nome;
+            }
+            
+            // Atualizar avatar com as iniciais
+            const avatarElement = document.getElementById('userAvatar');
+            if (avatarElement) {
+                // Pegar iniciais (primeira letra do nome)
+                const iniciais = userData.nome
+                    .split(' ')
+                    .map(palavra => palavra.charAt(0))
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase();
+                
+                avatarElement.textContent = iniciais || userData.nome.charAt(0).toUpperCase();
+            }
+            
+            console.log('Usuário carregado:', userData.nome); // Para debug
+        } else {
+            console.warn('Dados do usuário incompletos:', userData);
         }
-    } catch(e) {}
+    } catch(e) {
+        console.error('Erro ao carregar usuário:', e);
+    }
 });
 
 // ===== LOGOUT =====
 function logout() {
     if (confirm('Deseja sair?')) {
         localStorage.removeItem('usuarioLogado');
+        
+        // Se estiver usando Firebase, fazer logout também
+        if (window.firebase && firebase.auth) {
+            firebase.auth().signOut().catch(console.error);
+        }
+        
         window.location.href = '../login/index.html';
     }
 }
 
-// ===== MENU ATIVO =====
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', function() {
-        if (this.href && !this.href.endsWith('#')) {
-            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-            this.classList.add('active');
+// ===== MENU ATIVO (destacar página atual) =====
+document.addEventListener('DOMContentLoaded', function() {
+    const currentPage = window.location.pathname;
+    const menuItems = document.querySelectorAll('.menu-item');
+    
+    menuItems.forEach(item => {
+        const href = item.getAttribute('href');
+        if (href && currentPage.includes(href.replace('../', '').replace('./', ''))) {
+            item.classList.add('active');
         }
+        
+        // Evento de clique para navegação (sem bloquear)
+        item.addEventListener('click', function() {
+            // Remover active de todos
+            menuItems.forEach(i => i.classList.remove('active'));
+            // Adicionar active no clicado
+            this.classList.add('active');
+            // Não previne o comportamento padrão - o link funciona normalmente
+        });
     });
 });
 
-// ===== SEU CÓDIGO ORIGINAL (PRESERVADO) =====
-const navItems = document.querySelectorAll('.nav-item');
+// ===== FILTROS DE TAREFAS (SEU CÓDIGO ORIGINAL PRESERVADO) =====
 const filterItems = document.querySelectorAll('.filter-item');
 const taskCheckboxes = document.querySelectorAll('.task-checkbox');
 const favoriteButtons = document.querySelectorAll('.task-btn.favorite');
-const newTaskButton = document.querySelector('.btn-new-task');
 const searchInput = document.querySelector('.search-box input');
 const filterSelect = document.querySelector('.filter-select');
 
+// Filtros
 filterItems.forEach(item => {
     item.addEventListener('click', function() {
         filterItems.forEach(filter => {
@@ -51,6 +101,7 @@ filterItems.forEach(item => {
     });
 });
 
+// Checkboxes de tarefas
 taskCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
         const taskItem = this.closest('.task-item');
@@ -66,6 +117,7 @@ taskCheckboxes.forEach(checkbox => {
     });
 });
 
+// Botões de favorito
 favoriteButtons.forEach(btn => {
     btn.addEventListener('click', function() {
         this.classList.toggle('active');
@@ -78,61 +130,73 @@ favoriteButtons.forEach(btn => {
     });
 });
 
+// Função para atualizar estatísticas
 function updateStats(action) {
     const statNumber = document.querySelector('.stat-card.completed .stat-number');
-    let currentCount = parseInt(statNumber.textContent);
-    if (action === 'completed') {
-        statNumber.textContent = currentCount + 1;
-    } else {
-        statNumber.textContent = Math.max(0, currentCount - 1);
+    if (statNumber) {
+        let currentCount = parseInt(statNumber.textContent);
+        if (action === 'completed') {
+            statNumber.textContent = currentCount + 1;
+        } else {
+            statNumber.textContent = Math.max(0, currentCount - 1);
+        }
     }
 }
 
-searchInput.addEventListener('input', function(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const tasks = document.querySelectorAll('.task-item');
-    tasks.forEach(task => {
-        const title = task.querySelector('h4').textContent.toLowerCase();
-        const description = task.querySelector('p').textContent.toLowerCase();
-        if (title.includes(searchTerm) || description.includes(searchTerm)) {
-            task.style.display = 'flex';
-        } else {
-            task.style.display = 'none';
-        }
+// Busca de tarefas
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const tasks = document.querySelectorAll('.task-item');
+        tasks.forEach(task => {
+            const title = task.querySelector('h4').textContent.toLowerCase();
+            const description = task.querySelector('p').textContent.toLowerCase();
+            if (title.includes(searchTerm) || description.includes(searchTerm)) {
+                task.style.display = 'flex';
+            } else {
+                task.style.display = 'none';
+            }
+        });
     });
-});
+}
 
-filterSelect.addEventListener('change', function() {
-    const tasks = document.querySelectorAll('.task-item');
-    const tasksArray = Array.from(tasks);
-    switch(this.value) {
-        case 'Por prazo':
-            tasksArray.sort((a, b) => {
-                const dateA = new Date(a.querySelector('.task-date').textContent);
-                const dateB = new Date(b.querySelector('.task-date').textContent);
-                return dateA - dateB;
-            });
-            break;
-        case 'Por disciplina':
-            tasksArray.sort((a, b) => {
-                const subjectA = a.querySelector('.task-subject').textContent;
-                const subjectB = b.querySelector('.task-subject').textContent;
-                return subjectA.localeCompare(subjectB);
-            });
-            break;
-        case 'Por prioridade':
-            const priorityOrder = { 'Urgente': 1, 'Alta': 2, 'Média': 3, 'Normal': 4 };
-            tasksArray.sort((a, b) => {
-                const priorityA = priorityOrder[a.querySelector('.task-priority').textContent.trim()] || 5;
-                const priorityB = priorityOrder[b.querySelector('.task-priority').textContent.trim()] || 5;
-                return priorityA - priorityB;
-            });
-            break;
-    }
-    const taskList = document.querySelector('.task-list');
-    tasksArray.forEach(task => taskList.appendChild(task));
-});
+// Ordenação de tarefas
+if (filterSelect) {
+    filterSelect.addEventListener('change', function() {
+        const tasks = document.querySelectorAll('.task-item');
+        const tasksArray = Array.from(tasks);
+        
+        switch(this.value) {
+            case 'Por prazo':
+                tasksArray.sort((a, b) => {
+                    const dateA = new Date(a.querySelector('.task-date')?.textContent || '0');
+                    const dateB = new Date(b.querySelector('.task-date')?.textContent || '0');
+                    return dateA - dateB;
+                });
+                break;
+            case 'Por disciplina':
+                tasksArray.sort((a, b) => {
+                    const subjectA = a.querySelector('.task-subject')?.textContent || '';
+                    const subjectB = b.querySelector('.task-subject')?.textContent || '';
+                    return subjectA.localeCompare(subjectB);
+                });
+                break;
+            case 'Por prioridade':
+                const priorityOrder = { 'Urgente': 1, 'Alta': 2, 'Média': 3, 'Normal': 4 };
+                tasksArray.sort((a, b) => {
+                    const priorityA = priorityOrder[a.querySelector('.task-priority')?.textContent.trim()] || 5;
+                    const priorityB = priorityOrder[b.querySelector('.task-priority')?.textContent.trim()] || 5;
+                    return priorityA - priorityB;
+                });
+                break;
+        }
+        
+        const taskList = document.querySelector('.task-list');
+        tasksArray.forEach(task => taskList.appendChild(task));
+    });
+}
 
+// ===== ANIMAÇÕES =====
 function animateValue(element, start, end, duration) {
     let startTimestamp = null;
     const step = (timestamp) => {
@@ -146,15 +210,19 @@ function animateValue(element, start, end, duration) {
     window.requestAnimationFrame(step);
 }
 
+// Animação dos números das estatísticas
 window.addEventListener('load', () => {
     const statNumbers = document.querySelectorAll('.stat-number');
     statNumbers.forEach(stat => {
         const finalValue = parseInt(stat.textContent);
-        stat.textContent = '0';
-        animateValue(stat, 0, finalValue, 1000);
+        if (!isNaN(finalValue)) {
+            stat.textContent = '0';
+            animateValue(stat, 0, finalValue, 1000);
+        }
     });
 });
 
+// Hover effect nas tarefas
 const taskItems = document.querySelectorAll('.task-item');
 taskItems.forEach(item => {
     item.addEventListener('mouseenter', function() {
@@ -165,9 +233,7 @@ taskItems.forEach(item => {
     });
 });
 
-console.log('%c📚 Painel do Aluno', 'color: #6c5ce7; font-size: 20px; font-weight: bold;');
-console.log('%cSistema de gerenciamento de tarefas estudantis', 'color: #636e72; font-size: 12px;');
-
+// ===== MODAL NOVA TAREFA (SEU CÓDIGO ORIGINAL) =====
 // Variáveis globais
 let prioridadeSelecionada = 'media';
 let subtasks = [];
@@ -176,7 +242,7 @@ function abrirModal() {
     const modal = document.getElementById('modalNovaTarefa');
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    document.getElementById('nomeTarefa').focus();
+    document.getElementById('nomeTarefa')?.focus();
 }
 
 function fecharModal() {
@@ -186,9 +252,20 @@ function fecharModal() {
     limparFormulario();
 }
 
+// Fechar modal clicando fora
 document.getElementById('modalNovaTarefa')?.addEventListener('click', function(e) {
     if (e.target === this) {
         fecharModal();
+    }
+});
+
+// Tecla ESC para fechar modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('modalNovaTarefa');
+        if (modal && modal.classList.contains('active')) {
+            fecharModal();
+        }
     }
 });
 
@@ -197,7 +274,10 @@ function selecionarPrioridade(prioridade) {
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`.priority-btn[data-priority="${prioridade}"]`).classList.add('active');
+    const selectedBtn = document.querySelector(`.priority-btn[data-priority="${prioridade}"]`);
+    if (selectedBtn) {
+        selectedBtn.classList.add('active');
+    }
 }
 
 function formatarData(input) {
@@ -246,13 +326,18 @@ function removerSubtarefa(id) {
 }
 
 function limparFormulario() {
-    document.getElementById('formNovaTarefa').reset();
-    document.getElementById('subtasksContainer').innerHTML = '';
+    const form = document.getElementById('formNovaTarefa');
+    if (form) form.reset();
+    
+    const container = document.getElementById('subtasksContainer');
+    if (container) container.innerHTML = '';
+    
     subtasks = [];
     prioridadeSelecionada = 'media';
     selecionarPrioridade('media');
 }
 
+// Funções auxiliares para tarefas
 function getCorDisciplina(disciplina) {
     const cores = {
         matematica: '#9b59b6', portugues: '#3498db', historia: '#e74c3c',
@@ -281,12 +366,14 @@ function getTextoPrioridade(prioridade) {
     return textos[prioridade] || 'Normal';
 }
 
+// Submit do formulário
 document.getElementById('formNovaTarefa')?.addEventListener('submit', function(e) {
     e.preventDefault();
-    const nome = document.getElementById('nomeTarefa').value.trim();
-    const descricao = document.getElementById('descricaoTarefa').value.trim();
-    const prazo = document.getElementById('prazoTarefa').value.trim();
-    const disciplina = document.getElementById('disciplinaTarefa').value;
+    
+    const nome = document.getElementById('nomeTarefa')?.value.trim();
+    const descricao = document.getElementById('descricaoTarefa')?.value.trim();
+    const prazo = document.getElementById('prazoTarefa')?.value.trim();
+    const disciplina = document.getElementById('disciplinaTarefa')?.value;
     
     if (!nome) {
         alert('Por favor, preencha o nome da tarefa.');
@@ -294,10 +381,15 @@ document.getElementById('formNovaTarefa')?.addEventListener('submit', function(e
     }
     
     const novaTarefa = {
-        id: Date.now(), nome: nome, descricao: descricao,
-        prioridade: prioridadeSelecionada, prazo: prazo,
-        disciplina: disciplina, subtasks: subtasks,
-        concluida: false, dataCriacao: new Date().toISOString()
+        id: Date.now(),
+        nome: nome,
+        descricao: descricao || '',
+        prioridade: prioridadeSelecionada,
+        prazo: prazo || '',
+        disciplina: disciplina || 'outros',
+        subtasks: [...subtasks],
+        concluida: false,
+        dataCriacao: new Date().toISOString()
     };
     
     adicionarTarefaNaLista(novaTarefa);
@@ -358,12 +450,14 @@ function toggleTarefa(id) {
     const taskItem = document.querySelector(`.task-item[data-id="${id}"]`);
     if (taskItem) {
         const checkbox = taskItem.querySelector('.task-checkbox');
+        const h4 = taskItem.querySelector('h4');
+        
         if (checkbox.checked) {
             taskItem.style.opacity = '0.6';
-            taskItem.querySelector('h4').style.textDecoration = 'line-through';
+            if (h4) h4.style.textDecoration = 'line-through';
         } else {
             taskItem.style.opacity = '1';
-            taskItem.querySelector('h4').style.textDecoration = 'none';
+            if (h4) h4.style.textDecoration = 'none';
         }
     }
 }
@@ -371,10 +465,8 @@ function toggleTarefa(id) {
 function toggleFavorite(btn) {
     btn.classList.toggle('active');
     const icon = btn.querySelector('i');
-    if (btn.classList.contains('active')) {
-        icon.style.color = '#fdcb6e';
-    } else {
-        icon.style.color = '';
+    if (icon) {
+        icon.style.color = btn.classList.contains('active') ? '#fdcb6e' : '';
     }
 }
 
@@ -407,22 +499,18 @@ function mostrarNotificacao(mensagem, tipo = 'success') {
     }, 3000);
 }
 
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from { transform: translateX(400px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-`;
-document.head.appendChild(style);
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            const modal = document.getElementById('modalNovaTarefa');
-            if (modal && modal.classList.contains('active')) {
-                fecharModal();
-            }
+// Adicionar estilo para notificações se não existir
+if (!document.querySelector('#notification-style')) {
+    const style = document.createElement('style');
+    style.id = 'notification-style';
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-    });
-});
+    `;
+    document.head.appendChild(style);
+}
+
+console.log('%c📚 Painel de Tarefas', 'color: #6c5ce7; font-size: 20px; font-weight: bold;');
+console.log('%cSistema carregado com sucesso!', 'color: #00b894; font-size: 14px;');
