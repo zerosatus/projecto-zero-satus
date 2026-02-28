@@ -19,3 +19,5 @@ este è o codigo qnd fores a usar via termux ao fazer upload de pasta etc
 link de conversa para usar terminar ao fazer alterações 
 :https://g.co/gemini/share/5d7195c60154
 
+adicionado tela de usuario e botao para acessar o perfil
+

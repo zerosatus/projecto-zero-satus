@@ -64,10 +64,58 @@
         <main class="main-content">
             <!-- Header -->
             <header class="header">
-                <div class="welcome">
-                    <h1>Bem-vindo, Alex! <i class="fas fa-hand-sparkles"></i></h1>
-                    <p>Visão Geral</p>
+                <!-- Profile Quick View Card -->
+<div class="profile-quick-view">
+    <div class="profile-card-mini">
+        <div class="profile-header-mini">
+            <div class="profile-avatar-mini">
+                <img src="https://i.pravatar.cc/150?img=12" alt="Perfil" id="miniAvatar">
+                <div class="status-indicator online"></div>
+            </div>
+            <div class="profile-info-mini">
+                <h3 id="miniName">João Silva</h3>
+                <p class="profile-email-mini" id="miniEmail">joao.silva@email.com</p>
+                <div class="profile-badge-mini">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Aluno Premium</span>
                 </div>
+            </div>
+        </div>
+        
+        <div class="profile-stats-mini">
+            <div class="stat-mini">
+                <i class="fas fa-tasks"></i>
+                <span class="stat-value-mini" id="statTarefas">156</span>
+                <span class="stat-label-mini">Tarefas</span>
+            </div>
+            <div class="stat-mini">
+                <i class="fas fa-check-circle"></i>
+                <span class="stat-value-mini" id="statConclusao">89%</span>
+                <span class="stat-label-mini">Conclusão</span>
+            </div>
+            <div class="stat-mini">
+                <i class="fas fa-clock"></i>
+                <span class="stat-value-mini" id="statHoras">45h</span>
+                <span class="stat-label-mini">Estudo</span>
+            </div>
+        </div>
+        
+        <div class="profile-progress-mini">
+            <div class="progress-header">
+                <span>Progresso Semanal</span>
+                <span class="progress-value" id="progressValue">75%</span>
+            </div>
+            <div class="progress-bar-mini">
+                <div class="progress-fill-mini" id="progressFill" style="width: 75%"></div>
+            </div>
+        </div>
+        
+        <button class="btn-view-profile" onclick="window.location.href='../perfil/index.html'">
+            <i class="fas fa-user"></i>
+            <span>Ver Perfil Completo</span>
+        </button>
+    </div>
+</div>
                 
                 <!-- Calendar Widget -->
                 <div class="calendar-widget">

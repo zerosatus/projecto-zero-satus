@@ -1,0 +1,269 @@
+/* --- style.css --- */
+
+:root {
+    --bg-color: #0f1115;
+    --card-bg: #1a1d24;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --accent-purple: #8b5cf6;
+    --accent-green: #10b981;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --border-color: #2d3748;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.mobile-container {
+    width: 100%;
+    max-width: 375px;
+    height: 812px;
+    background-color: var(--bg-color);
+    border-radius: 30px;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    padding-bottom: 80px; /* Espaço para a barra de navegação */
+}
+
+/* Barra de rolagem personalizada */
+.mobile-container::-webkit-scrollbar {
+    width: 5px;
+}
+.mobile-container::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+    border-radius: 10px;
+}
+
+/* Cabeçalho */
+header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
+    z-index: 10;
+}
+
+.greeting h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.greeting p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.profile-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--accent-purple);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+/* Cards de Resumo */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 0 20px 20px;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.card-icon {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+.card-icon.tarefas { color: var(--accent-purple); }
+.card-icon.concluidas { color: var(--accent-green); }
+.card-icon.pendentes { color: var(--accent-orange); }
+
+.card-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: block;
+}
+
+.card-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* Seções Gerais */
+section {
+    padding: 10px 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.edit-btn {
+    color: var(--accent-purple);
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Horário Semanal */
+.schedule-grid {
+    display: grid;
+    grid-template-columns: 50px repeat(5, 1fr);
+    gap: 5px;
+    text-align: center;
+    font-size: 0.7rem;
+}
+
+.day-header {
+    color: var(--text-secondary);
+    padding: 5px;
+}
+
+.class-block {
+    border-radius: 5px;
+    padding: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.class-block:hover {
+    transform: scale(1.05);
+}
+
+/* Cores das matérias */
+.matematica { background-color: #6366f1; }
+.portugues { background-color: #ec4899; }
+.fisica { background-color: #ef4444; }
+.historia { background-color: #f59e0b; }
+.quimica { background-color: #10b981; }
+.biologia { background-color: #3b82f6; }
+.ingles { background-color: #8b5cf6; }
+.geografia { background-color: #a855f7; }
+.educacao-fisica { background-color: #14b8a6; }
+.arte { background-color: #f97316; }
+
+/* Próximas Aulas e Notificações */
+.list-item {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.list-item:hover {
+    background-color: #252a33;
+}
+
+.item-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.item-icon.matematica { background-color: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.item-icon.portugues { background-color: rgba(236, 72, 153, 0.2); color: #ec4899; }
+.item-icon.quimica { background-color: rgba(16, 185, 129, 0.2); color: #10b981; }
+.item-icon.historia { background-color: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.item-icon.notification { background-color: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+
+.item-info {
+    flex-grow: 1;
+}
+
+.item-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.item-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.item-arrow {
+    color: var(--text-secondary);
+}
+
+/* Barra de Navegação Inferior */
+.bottom-nav {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-radius: 0 0 30px 30px;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.nav-item ion-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-item.active {
+    color: var(--accent-purple);
+}

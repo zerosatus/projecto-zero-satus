@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno</title>
+    <!-- Importando ícones da biblioteca Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <!-- Vinculando a folha de estilos CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="mobile-container">
+        <header>
+            <div class="greeting">
+                <h1 id="user-name">José</h1>
+                <p>Bem-vindo de volta 👋</p>
+            </div>
+            <div class="profile-icon">
+                <ion-icon name="notifications-outline"></ion-icon>
+            </div>
+        </header>
+
+        <section class="summary-cards">
+            <div class="card">
+                <div class="card-icon tarefas"><ion-icon name="book-outline"></ion-icon></div>
+                <span class="card-number">12</span>
+                <span class="card-label">Tarefas</span>
+            </div>
+            <div class="card">
+                <div class="card-icon concluidas"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+                <span class="card-number">8</span>
+                <span class="card-label">Concluídas</span>
+            </div>
+            <div class="card">
+                <div class="card-icon pendentes"><ion-icon name="time-outline"></ion-icon></div>
+                <span class="card-number">5</span>
+                <span class="card-label">Pendentes</span>
+            </div>
+        </section>
+
+        <section class="schedule-section">
+            <div class="section-header">
+                <h2 class="section-title">Horário Semanal</h2>
+                <span class="edit-btn"><ion-icon name="create-outline"></ion-icon> Editar</span>
+            </div>
+            <div class="schedule-grid">
+                <div class="day-header">Seg</div>
+                <div class="day-header">Ter</div>
+                <div class="day-header">Qua</div>
+                <div class="day-header">Qui</div>
+                <div class="day-header">Sex</div>
+                
+                <!-- Exemplo de horário (simplificado) -->
+                <div class="class-block matematica">Mat.</div>
+                <div class="class-block portugues">Port.</div>
+                <div class="class-block fisica">Fís.</div>
+                <div class="class-block historia">Hist.</div>
+                <div class="class-block quimica">Quím.</div>
+            </div>
+        </section>
+
+        <section class="next-classes-section">
+            <div class="section-header">
+                <h2 class="section-title">Próximas Aulas</h2>
+                <span class="edit-btn">Ver todas</span>
+            </div>
+            <div id="classes-list">
+                <!-- As aulas serão inseridas aqui pelo JavaScript -->
+            </div>
+        </section>
+
+        <section class="notifications-section">
+            <div class="section-header">
+                <h2 class="section-title">Notificações</h2>
+                <span class="edit-btn">Ver todas</span>
+            </div>
+            <div id="notifications-list">
+                <!-- As notificações serão inseridas aqui pelo JavaScript -->
+            </div>
+        </section>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active">
+                <ion-icon name="home"></ion-icon>
+                <span>Início</span>
+            </div>
+            <div class="nav-item">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Calendário</span>
+            </div>
+            <div class="nav-item">
+                <ion-icon name="stats-chart-outline"></ion-icon>
+                <span>Desempenho</span>
+            </div>
+            <div class="nav-item">
+                <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+                <span>Mensagens</span>
+            </div>
+            <div class="nav-item">
+                <ion-icon name="person-outline"></ion-icon>
+                <span>Perfil</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Vinculando o script JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>

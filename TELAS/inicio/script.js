@@ -222,3 +222,75 @@ document.addEventListener('DOMContentLoaded', () => {
     new StudyChart();
     new StudyTimer();
 });
+// ===== ATUALIZAR DADOS DO MINI PERFIL =====
+function atualizarMiniPerfil() {
+    const usuario = localStorage.getItem('usuarioLogado');
+    if (usuario) {
+        try {
+            const userData = JSON.parse(usuario);
+            
+            // Atualizar nome e email
+            if (userData.nome) {
+                document.getElementById('miniName').textContent = userData.nome;
+            }
+            if (userData.email) {
+                document.getElementById('miniEmail').textContent = userData.email;
+            }
+            
+            // Atualizar avatar se existir
+            if (userData.avatar) {
+                document.getElementById('miniAvatar').src = userData.avatar;
+            }
+        } catch (e) {
+            console.error('Erro ao carregar mini perfil:', e);
+        }
+    }
+}
+
+// ===== ATUALIZAR ESTATÍSTICAS =====
+function atualizarEstatisticasMini() {
+    // Simular dados - em produção, viriam do backend/localStorage
+    const stats = {
+        tarefas: 156,
+        conclusao: 89,
+        horasEstudo: 45,
+        progressoSemanal: 75
+    };
+    
+    // Atualizar valores com animação
+    animateValue('statTarefas', 0, stats.tarefas, 1000);
+    animateValue('statConclusao', 0, stats.conclusao, 1000, '%');
+    animateValue('statHoras', 0, stats.horasEstudo, 1000, 'h');
+    
+    // Atualizar barra de progresso
+    setTimeout(() => {
+        document.getElementById('progressFill').style.width = stats.progressoSemanal + '%';
+        document.getElementById('progressValue').textContent = stats.progressoSemanal + '%';
+    }, 500);
+}
+
+// ===== ANIMAR VALORES =====
+function animateValue(elementId, start, end, duration, suffix = '') {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        element.textContent = value + suffix;
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
+// ===== CHAMAR FUNÇÕES AO CARREGAR =====
+window.addEventListener('DOMContentLoaded', () => {
+    atualizarMiniPerfil();
+    atualizarEstatisticasMini();
+    
+    // ... resto do código existente
+});
