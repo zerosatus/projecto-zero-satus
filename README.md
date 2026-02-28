@@ -19,4 +19,10 @@ este è o codigo qnd fores a usar via termux ao fazer upload de pasta etc
 link de conversa para usar terminar ao fazer alterações 
 :https://g.co/gemini/share/5d7195c60154
 
+<<<<<<< HEAD
 adicionado tela de usuario e botao para acessar o perfil
+=======
+
+28 de 2 2026
+A tela de login ja é completamente funcional e ja fiz toda base de dados necessaria no firebase que inclui (tarefas,anotacoes testes agendas e essas cenas) so falta vincular e alterar todo java para que vincule se a base de dados e alterar as regras da base de dados para que seja um pouco segura vams ass dizer.
+>>>>>>> 6580a41d595504da5aa45e25e4985591dce44ca9
