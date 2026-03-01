@@ -1,5 +1,68 @@
 document.addEventListener('DOMContentLoaded', () => {
     
+    // ==================== VERIFICAÇÃO DE LOGIN E CARREGAMENTO DO USUÁRIO ====================
+    const usuario = localStorage.getItem('usuarioLogado');
+    
+    if (!usuario) {
+        window.location.href = '../login/index.html';
+        return;
+    }
+    
+    let userData = null;
+    try {
+        userData = JSON.parse(usuario);
+        console.log('Usuário logado:', userData);
+        
+        // Atualizar saudação com o nome do usuário
+        const greetingName = document.querySelector('.greeting h1');
+        const profileName = document.querySelector('.profile-name');
+        const profileEmail = document.querySelector('.profile-email');
+        const profileAvatar = document.querySelector('.profile-avatar span');
+        
+        if (userData.nome) {
+            // Extrair primeiro nome para saudação
+            const primeiroNome = userData.nome.split(' ')[0];
+            if (greetingName) greetingName.textContent = primeiroNome;
+            
+            // Nome completo no perfil
+            if (profileName) profileName.textContent = userData.nome;
+            
+            // Iniciais para avatar
+            if (profileAvatar) {
+                const iniciais = userData.nome
+                    .split(' ')
+                    .map(palavra => palavra.charAt(0))
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase();
+                profileAvatar.textContent = iniciais;
+            }
+        }
+        
+        if (userData.email && profileEmail) {
+            profileEmail.textContent = userData.email;
+        }
+        
+    } catch(e) {
+        console.error('Erro ao carregar usuário:', e);
+        window.location.href = '../login/index.html';
+        return;
+    }
+    
+    // ==================== LOGOUT ====================
+    function logout() {
+        if (confirm('Deseja realmente sair?')) {
+            localStorage.removeItem('usuarioLogado');
+            window.location.href = '../login/index.html';
+        }
+    }
+    
+    // Adicionar evento de logout ao item do menu
+    const logoutItem = document.querySelector('.menu-item.logout');
+    if (logoutItem) {
+        logoutItem.addEventListener('click', logout);
+    }
+    
     // ==================== HORÁRIO ====================
     let weeklySchedule = {
         'Seg': [
@@ -58,6 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSchedule() {
         const grid = document.getElementById('schedule-grid');
+        if (!grid) return;
+        
         let html = '<div class="day-header">Hora</div>';
         days.forEach(day => html += `<div class="day-header">${day}</div>`);
 
@@ -77,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderEditSchedule() {
         const grid = document.getElementById('edit-schedule-grid');
+        if (!grid) return;
+        
         let html = '<div class="day-header">Hora</div>';
         days.forEach(day => html += `<div class="day-header">${day}</div>`);
 
@@ -95,22 +162,24 @@ document.addEventListener('DOMContentLoaded', () => {
         attachEditEvents();
     }
 
-    toggleBtn.addEventListener('click', () => {
-        editModal.classList.add('active');
-        renderEditSchedule();
-    });
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            editModal.classList.add('active');
+            renderEditSchedule();
+        });
+    }
 
-    btnBack.addEventListener('click', () => {
+    btnBack?.addEventListener('click', () => {
         editModal.classList.remove('active');
         renderSchedule();
     });
 
-    btnSave.addEventListener('click', () => {
+    btnSave?.addEventListener('click', () => {
         editModal.classList.remove('active');
         renderSchedule();
     });
 
-    btnAddTime.addEventListener('click', () => {
+    btnAddTime?.addEventListener('click', () => {
         const newTime = newTimeInput.value;
         if (newTime && !timeSlots.includes(newTime)) {
             timeSlots.push(newTime);
@@ -122,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    btnCancelTime.addEventListener('click', () => {
+    btnCancelTime?.addEventListener('click', () => {
         newTimeInput.value = '11:00';
     });
 
@@ -201,6 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderClasses() {
         const list = document.getElementById('classes-list');
+        if (!list) return;
+        
         let html = '';
         nextClasses.forEach(item => {
             html += `<div class="list-item">
@@ -224,6 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderNotifications() {
         const list = document.getElementById('notifications-list');
+        if (!list) return;
+        
         let html = '';
         notifications.forEach(item => {
             html += `<div class="list-item notification-item ${item.type}">
@@ -259,6 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function renderCalendar() {
+        if (!calendarDays || !currentMonthYear || !eventsDate) return;
+        
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         
@@ -295,7 +370,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderEvents() {
+        if (!eventsList || !eventsDate) return;
+        
         const dayEvents = events[selectedDay] || [];
+        eventsDate.textContent = `Eventos do dia ${selectedDay}`;
+        
         if (dayEvents.length === 0) {
             eventsList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhum evento neste dia</p>';
             return;
@@ -314,12 +393,12 @@ document.addEventListener('DOMContentLoaded', () => {
         eventsList.innerHTML = html;
     }
 
-    prevMonthBtn.addEventListener('click', () => {
+    prevMonthBtn?.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
         renderCalendar();
     });
 
-    nextMonthBtn.addEventListener('click', () => {
+    nextMonthBtn?.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() + 1);
         renderCalendar();
     });
@@ -342,6 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     function renderTasks() {
+        if (!tasksList) return;
+        
         let filteredTasks = tasks;
         
         if (currentTaskFilter === 'pendentes') {
@@ -401,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    btnAddTask.addEventListener('click', () => {
+    btnAddTask?.addEventListener('click', () => {
         const title = prompt('Nome da tarefa:');
         if (title) {
             const subject = prompt('Matéria:');
@@ -436,6 +517,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     function renderNotes(searchTerm = '') {
+        if (!notesGrid) return;
+        
         let filteredNotes = notes;
         
         if (searchTerm) {
@@ -466,11 +549,11 @@ document.addEventListener('DOMContentLoaded', () => {
         notesGrid.innerHTML = html;
     }
 
-    notesSearchInput.addEventListener('input', (e) => {
+    notesSearchInput?.addEventListener('input', (e) => {
         renderNotes(e.target.value);
     });
 
-    btnAddNote.addEventListener('click', () => {
+    btnAddNote?.addEventListener('click', () => {
         const title = prompt('Título da anotação:');
         if (title) {
             const subject = prompt('Matéria:');
@@ -489,19 +572,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ==================== PERFIL ====================
     const profileView = document.getElementById('profile-view');
-    const menuItems = document.querySelectorAll('.menu-item');
+    const menuItems = document.querySelectorAll('.menu-item:not(.logout)');
 
     menuItems.forEach(item => {
         item.addEventListener('click', () => {
             const text = item.querySelector('span').textContent;
-            
-            if (item.classList.contains('logout')) {
-                if (confirm('Deseja realmente sair da conta?')) {
-                    alert('Logout realizado!');
-                }
-                return;
-            }
-            
             alert(`Abrindo: ${text}`);
         });
     });
@@ -523,43 +598,53 @@ document.addEventListener('DOMContentLoaded', () => {
             const view = item.dataset.view;
             
             if (view === 'home') {
-                homeView.classList.remove('hidden');
-                calendarView.classList.add('hidden');
-                tasksViewNav.classList.add('hidden');
-                notesViewNav.classList.add('hidden');
-                profileViewNav.classList.add('hidden');
-                homeOnlySections.forEach(section => section.style.display = 'block');
+                homeView?.classList.remove('hidden');
+                calendarView?.classList.add('hidden');
+                tasksViewNav?.classList.add('hidden');
+                notesViewNav?.classList.add('hidden');
+                profileViewNav?.classList.add('hidden');
+                homeOnlySections.forEach(section => {
+                    if (section) section.style.display = 'block';
+                });
             } else if (view === 'calendar') {
-                homeView.classList.add('hidden');
-                calendarView.classList.remove('hidden');
-                tasksViewNav.classList.add('hidden');
-                notesViewNav.classList.add('hidden');
-                profileViewNav.classList.add('hidden');
-                homeOnlySections.forEach(section => section.style.display = 'none');
+                homeView?.classList.add('hidden');
+                calendarView?.classList.remove('hidden');
+                tasksViewNav?.classList.add('hidden');
+                notesViewNav?.classList.add('hidden');
+                profileViewNav?.classList.add('hidden');
+                homeOnlySections.forEach(section => {
+                    if (section) section.style.display = 'none';
+                });
                 renderCalendar();
             } else if (view === 'tasks') {
-                homeView.classList.add('hidden');
-                calendarView.classList.add('hidden');
-                tasksViewNav.classList.remove('hidden');
-                notesViewNav.classList.add('hidden');
-                profileViewNav.classList.add('hidden');
-                homeOnlySections.forEach(section => section.style.display = 'none');
+                homeView?.classList.add('hidden');
+                calendarView?.classList.add('hidden');
+                tasksViewNav?.classList.remove('hidden');
+                notesViewNav?.classList.add('hidden');
+                profileViewNav?.classList.add('hidden');
+                homeOnlySections.forEach(section => {
+                    if (section) section.style.display = 'none';
+                });
                 renderTasks();
             } else if (view === 'notes') {
-                homeView.classList.add('hidden');
-                calendarView.classList.add('hidden');
-                tasksViewNav.classList.add('hidden');
-                notesViewNav.classList.remove('hidden');
-                profileViewNav.classList.add('hidden');
-                homeOnlySections.forEach(section => section.style.display = 'none');
+                homeView?.classList.add('hidden');
+                calendarView?.classList.add('hidden');
+                tasksViewNav?.classList.add('hidden');
+                notesViewNav?.classList.remove('hidden');
+                profileViewNav?.classList.add('hidden');
+                homeOnlySections.forEach(section => {
+                    if (section) section.style.display = 'none';
+                });
                 renderNotes();
             } else if (view === 'profile') {
-                homeView.classList.add('hidden');
-                calendarView.classList.add('hidden');
-                tasksViewNav.classList.add('hidden');
-                notesViewNav.classList.add('hidden');
-                profileViewNav.classList.remove('hidden');
-                homeOnlySections.forEach(section => section.style.display = 'none');
+                homeView?.classList.add('hidden');
+                calendarView?.classList.add('hidden');
+                tasksViewNav?.classList.add('hidden');
+                notesViewNav?.classList.add('hidden');
+                profileViewNav?.classList.remove('hidden');
+                homeOnlySections.forEach(section => {
+                    if (section) section.style.display = 'none';
+                });
             }
         });
     });
