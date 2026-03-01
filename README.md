@@ -47,5 +47,5 @@ terminei a primeira pagina de mobile
 **git restore [arquivo]**: Desfaz as mudanças de um arquivo e volta ao original.
 
 **git commit --amend**: Edita a mensagem do seu último commit.
-<git checkout -b [nome]>: Cria uma "cópia" do projeto para testar coisas novas.
-<git checkout main>: Volta para a versão principal e segura do código.
+**git checkout -b [nome]**: Cria uma "cópia" do projeto para testar coisas novas.
+**git checkout main**: Volta para a versão principal e segura do código.
