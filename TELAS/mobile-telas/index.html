@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Aluno</title>
-    <!-- Importando ícones da biblioteca Ionicons -->
+    <title>Painel do Aluno Mobile</title>
+    <!-- Ícones -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <!-- Vinculando a folha de estilos CSS -->
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,11 +15,12 @@
     <div class="mobile-container">
         <header>
             <div class="greeting">
-                <h1 id="user-name">José</h1>
+                <h1>Jose</h1>
                 <p>Bem-vindo de volta 👋</p>
             </div>
             <div class="profile-icon">
                 <ion-icon name="notifications-outline"></ion-icon>
+                <span class="notification-badge">8</span>
             </div>
         </header>
 
@@ -26,7 +28,7 @@
             <div class="card">
                 <div class="card-icon tarefas"><ion-icon name="book-outline"></ion-icon></div>
                 <span class="card-number">12</span>
-                <span class="card-label">Tarefas</span>
+                <span class="card-label">Disciplinas</span>
             </div>
             <div class="card">
                 <div class="card-icon concluidas"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
@@ -43,21 +45,14 @@
         <section class="schedule-section">
             <div class="section-header">
                 <h2 class="section-title">Horário Semanal</h2>
-                <span class="edit-btn"><ion-icon name="create-outline"></ion-icon> Editar</span>
+                <span class="edit-btn" id="toggle-edit-mode">
+                    <ion-icon name="create-outline"></ion-icon> Editar
+                </span>
             </div>
-            <div class="schedule-grid">
-                <div class="day-header">Seg</div>
-                <div class="day-header">Ter</div>
-                <div class="day-header">Qua</div>
-                <div class="day-header">Qui</div>
-                <div class="day-header">Sex</div>
-                
-                <!-- Exemplo de horário (simplificado) -->
-                <div class="class-block matematica">Mat.</div>
-                <div class="class-block portugues">Port.</div>
-                <div class="class-block fisica">Fís.</div>
-                <div class="class-block historia">Hist.</div>
-                <div class="class-block quimica">Quím.</div>
+            
+            <!-- WRAPPER PARA SCROLL HORIZONTAL (ESSENCIAL) -->
+            <div class="schedule-wrapper">
+                <div id="schedule-grid" class="schedule-grid"></div>
             </div>
         </section>
 
@@ -66,9 +61,7 @@
                 <h2 class="section-title">Próximas Aulas</h2>
                 <span class="edit-btn">Ver todas</span>
             </div>
-            <div id="classes-list">
-                <!-- As aulas serão inseridas aqui pelo JavaScript -->
-            </div>
+            <div id="classes-list"></div>
         </section>
 
         <section class="notifications-section">
@@ -76,9 +69,7 @@
                 <h2 class="section-title">Notificações</h2>
                 <span class="edit-btn">Ver todas</span>
             </div>
-            <div id="notifications-list">
-                <!-- As notificações serão inseridas aqui pelo JavaScript -->
-            </div>
+            <div id="notifications-list"></div>
         </section>
 
         <nav class="bottom-nav">
@@ -91,21 +82,47 @@
                 <span>Calendário</span>
             </div>
             <div class="nav-item">
-                <ion-icon name="stats-chart-outline"></ion-icon>
-                <span>Desempenho</span>
+                <ion-icon name="checkbox-outline"></ion-icon>
+                <span>Tarefas</span>
             </div>
             <div class="nav-item">
-                <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
-                <span>Mensagens</span>
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>Notas</span>
             </div>
             <div class="nav-item">
                 <ion-icon name="person-outline"></ion-icon>
                 <span>Perfil</span>
             </div>
         </nav>
+
+        <!-- MODAL DE EDIÇÃO -->
+        <div id="edit-modal" class="edit-modal">
+            <div class="edit-modal-content">
+                <div class="edit-modal-header">
+                    <button class="btn-back" id="btn-back">
+                        <ion-icon name="arrow-back-outline"></ion-icon>
+                    </button>
+                    <h2>Editar Horário Semanal</h2>
+                    <button class="btn-save" id="btn-save">Salvar</button>
+                </div>
+                
+                <!-- WRAPPER DO MODAL TAMBÉM -->
+                <div class="edit-schedule-wrapper">
+                    <div id="edit-schedule-grid" class="edit-schedule-grid"></div>
+                </div>
+                
+                <div class="add-time-section">
+                    <h3>Novo horário (ex: 11:00)</h3>
+                    <div class="add-time-controls">
+                        <input type="time" id="new-time-input" value="11:00">
+                        <button class="btn-add-time" id="btn-add-time">Adicionar</button>
+                        <button class="btn-cancel-time" id="btn-cancel-time">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Vinculando o script JavaScript -->
     <script src="script.js"></script>
 </body>
 </html>
