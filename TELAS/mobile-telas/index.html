@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Aluno Mobile</title>
-    <!-- Ícones -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,39 +22,153 @@
             </div>
         </header>
 
-        <section class="summary-cards">
-            <div class="card">
-                <div class="card-icon tarefas"><ion-icon name="book-outline"></ion-icon></div>
-                <span class="card-number">12</span>
-                <span class="card-label">Disciplinas</span>
+        <!-- VIEW: INÍCIO -->
+        <div id="home-view">
+            <section class="summary-cards">
+                <div class="card">
+                    <div class="card-icon tarefas"><ion-icon name="book-outline"></ion-icon></div>
+                    <span class="card-number">12</span>
+                    <span class="card-label">Disciplinas</span>
+                </div>
+                <div class="card">
+                    <div class="card-icon concluidas"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+                    <span class="card-number">8</span>
+                    <span class="card-label">Concluídas</span>
+                </div>
+                <div class="card">
+                    <div class="card-icon pendentes"><ion-icon name="time-outline"></ion-icon></div>
+                    <span class="card-number">5</span>
+                    <span class="card-label">Pendentes</span>
+                </div>
+            </section>
+
+            <section class="schedule-section">
+                <div class="section-header">
+                    <h2 class="section-title">Horário Semanal</h2>
+                    <span class="edit-btn" id="toggle-edit-mode">
+                        <ion-icon name="create-outline"></ion-icon> Editar
+                    </span>
+                </div>
+                
+                <div class="schedule-wrapper">
+                    <div id="schedule-grid" class="schedule-grid"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- VIEW: CALENDÁRIO -->
+        <section id="calendar-view" class="hidden">
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button id="prev-month"><ion-icon name="chevron-back-outline"></ion-icon></button>
+                    <h2 id="current-month-year">Março de 2026</h2>
+                    <button id="next-month"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+                </div>
+                
+                <div class="calendar-grid">
+                    <div class="weekday">D</div>
+                    <div class="weekday">S</div>
+                    <div class="weekday">T</div>
+                    <div class="weekday">Q</div>
+                    <div class="weekday">Q</div>
+                    <div class="weekday">S</div>
+                    <div class="weekday">S</div>
+                    <div id="calendar-days" style="display: contents;"></div>
+                </div>
             </div>
-            <div class="card">
-                <div class="card-icon concluidas"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
-                <span class="card-number">8</span>
-                <span class="card-label">Concluídas</span>
-            </div>
-            <div class="card">
-                <div class="card-icon pendentes"><ion-icon name="time-outline"></ion-icon></div>
-                <span class="card-number">5</span>
-                <span class="card-label">Pendentes</span>
+
+            <div class="events-section">
+                <div class="section-header">
+                    <h3 class="section-title" id="events-date">Eventos do dia 1</h3>
+                    <span class="edit-btn"><ion-icon name="create-outline"></ion-icon> Gerenciar</span>
+                </div>
+                <div id="events-list"></div>
             </div>
         </section>
 
-        <section class="schedule-section">
-            <div class="section-header">
-                <h2 class="section-title">Horário Semanal</h2>
-                <span class="edit-btn" id="toggle-edit-mode">
-                    <ion-icon name="create-outline"></ion-icon> Editar
-                </span>
+        <!-- VIEW: TAREFAS -->
+        <section id="tasks-view" class="hidden">
+            <div class="tasks-header">
+                <h1>Tarefas</h1>
+                <button class="btn-add-task" id="btn-add-task">
+                    <ion-icon name="add-outline"></ion-icon>
+                </button>
             </div>
-            
-            <!-- WRAPPER PARA SCROLL HORIZONTAL (ESSENCIAL) -->
-            <div class="schedule-wrapper">
-                <div id="schedule-grid" class="schedule-grid"></div>
+
+            <div class="tasks-filters">
+                <button class="filter-btn active" data-filter="todos">Todos</button>
+                <button class="filter-btn" data-filter="pendentes">Pendentes</button>
+                <button class="filter-btn" data-filter="concluidas">Concluídas</button>
+            </div>
+
+            <div id="tasks-list"></div>
+        </section>
+
+        <!-- VIEW: ANOTAÇÕES -->
+        <section id="notes-view" class="hidden">
+            <div class="notes-header">
+                <h1>Anotações</h1>
+                <button class="btn-add-note" id="btn-add-note">
+                    <ion-icon name="add-outline"></ion-icon>
+                </button>
+            </div>
+
+            <div class="notes-search">
+                <ion-icon name="search-outline"></ion-icon>
+                <input type="text" id="notes-search-input" placeholder="Buscar anotações...">
+            </div>
+
+            <div id="notes-grid"></div>
+        </section>
+
+        <!-- VIEW: PERFIL -->
+        <section id="profile-view" class="hidden">
+            <div class="profile-header">
+                <h1>Perfil</h1>
+            </div>
+
+            <div class="profile-info">
+                <div class="profile-avatar">
+                    <span>J</span>
+                </div>
+                <h2 class="profile-name">Jose Silva</h2>
+                <p class="profile-email">jose.silva@email.com</p>
+            </div>
+
+            <div class="profile-menu">
+                <div class="menu-item">
+                    <ion-icon name="person-outline"></ion-icon>
+                    <span>Dados Pessoais</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item">
+                    <ion-icon name="shield-outline"></ion-icon>
+                    <span>Segurança</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item">
+                    <ion-icon name="notifications-outline"></ion-icon>
+                    <span>Notificações</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item">
+                    <ion-icon name="moon-outline"></ion-icon>
+                    <span>Aparência</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item">
+                    <ion-icon name="help-circle-outline"></ion-icon>
+                    <span>Ajuda e Suporte</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item logout">
+                    <ion-icon name="log-out-outline"></ion-icon>
+                    <span>Sair da Conta</span>
+                </div>
             </div>
         </section>
 
-        <section class="next-classes-section">
+        <section class="next-classes-section home-only">
             <div class="section-header">
                 <h2 class="section-title">Próximas Aulas</h2>
                 <span class="edit-btn">Ver todas</span>
@@ -64,7 +176,7 @@
             <div id="classes-list"></div>
         </section>
 
-        <section class="notifications-section">
+        <section class="notifications-section home-only">
             <div class="section-header">
                 <h2 class="section-title">Notificações</h2>
                 <span class="edit-btn">Ver todas</span>
@@ -73,29 +185,28 @@
         </section>
 
         <nav class="bottom-nav">
-            <div class="nav-item active">
+            <div class="nav-item active" data-view="home">
                 <ion-icon name="home"></ion-icon>
                 <span>Início</span>
             </div>
-            <div class="nav-item">
+            <div class="nav-item" data-view="calendar">
                 <ion-icon name="calendar-outline"></ion-icon>
                 <span>Calendário</span>
             </div>
-            <div class="nav-item">
+            <div class="nav-item" data-view="tasks">
                 <ion-icon name="checkbox-outline"></ion-icon>
                 <span>Tarefas</span>
             </div>
-            <div class="nav-item">
+            <div class="nav-item" data-view="notes">
                 <ion-icon name="document-text-outline"></ion-icon>
                 <span>Notas</span>
             </div>
-            <div class="nav-item">
+            <div class="nav-item" data-view="profile">
                 <ion-icon name="person-outline"></ion-icon>
                 <span>Perfil</span>
             </div>
         </nav>
 
-        <!-- MODAL DE EDIÇÃO -->
         <div id="edit-modal" class="edit-modal">
             <div class="edit-modal-content">
                 <div class="edit-modal-header">
@@ -106,7 +217,6 @@
                     <button class="btn-save" id="btn-save">Salvar</button>
                 </div>
                 
-                <!-- WRAPPER DO MODAL TAMBÉM -->
                 <div class="edit-schedule-wrapper">
                     <div id="edit-schedule-grid" class="edit-schedule-grid"></div>
                 </div>

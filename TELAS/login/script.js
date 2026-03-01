@@ -1,3 +1,28 @@
+// ==================== DETECÇÃO DE DISPOSITIVO ====================
+function ehCelular() {
+    // Esta função verifica se é celular ou tablet
+    const ehMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const ehTelaPequena = window.innerWidth <= 768;
+    
+    // Retorna verdadeiro se for celular OU se a tela for pequena
+    return ehMobile || ehTelaPequena;
+}
+
+// Salva essa informação para usar depois
+const eMobile = ehCelular();
+console.log('É celular?', eMobile); // Isso aparece no console para você testar
+
+// VERIFICAR SE JÁ ESTÁ LOGADO
+const usuarioSalvo = localStorage.getItem('usuarioLogado');
+
+if (usuarioSalvo) {
+    // Usuário já está logado, redirecionar
+    if (eMobile) {
+        window.location.href = '../mobile-telas/index.html';
+    } else {
+        window.location.href = '../inicio/index.html';
+    }
+}
 // Configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -111,10 +136,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         
         showMessage('Login realizado com sucesso! Redirecionando...');
         
-        setTimeout(() => {
-            window.location.href = '../inicio/index.html'; // Ajuste o caminho conforme necessário
-        }, 1500);
-        
+      // REDIRECIONAMENTO INTELIGENTE
+setTimeout(() => {
+    if (eMobile) {
+        // Se for celular, vai para a pasta mobile-telas
+        window.location.href = '../mobile-telas/index.html';
+        console.log('Redirecionando para MOBILE');
+    } else {
+        // Se for PC, vai para a pasta inicio (normal)
+        window.location.href = '../inicio/index.html';
+        console.log('Redirecionando para PC');
+    }
+}, 1500);
     } catch (error) {
         console.error('Erro no login:', error);
         
@@ -235,10 +268,19 @@ document.getElementById('google-login').addEventListener('click', async () => {
         
         showMessage('Login com Google realizado com sucesso!');
         
-        setTimeout(() => {
-            window.location.href = '../inicio/index.html';
-        }, 1500);
-        
+        // REDIRECIONAMENTO INTELIGENTE
+setTimeout(() => {
+    if (eMobile) {
+        // Se for celular, vai para a pasta mobile-telas
+        window.location.href = '../mobile-telas/index.html';
+        console.log('Redirecionando para MOBILE');
+    } else {
+        // Se for PC, vai para a pasta inicio (normal)
+        window.location.href = '../inicio/index.html';
+        console.log('Redirecionando para PC');
+    }
+}, 1500);
+
     } catch (error) {
         console.error('Erro no login com Google:', error);
         showMessage('Erro ao fazer login com Google.', true);
@@ -262,9 +304,18 @@ document.getElementById('github-login').addEventListener('click', async () => {
         
         showMessage('Login com GitHub realizado com sucesso!');
         
-        setTimeout(() => {
-            window.location.href = '../inicio/index.html';
-        }, 1500);
+       // REDIRECIONAMENTO INTELIGENTE
+setTimeout(() => {
+    if (eMobile) {
+        // Se for celular, vai para a pasta mobile-telas
+        window.location.href = '../mobile-telas/index.html';
+        console.log('Redirecionando para MOBILE');
+    } else {
+        // Se for PC, vai para a pasta inicio (normal)
+        window.location.href = '../inicio/index.html';
+        console.log('Redirecionando para PC');
+    }
+}, 1500);
         
     } catch (error) {
         console.error('Erro no login com GitHub:', error);
