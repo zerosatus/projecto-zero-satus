@@ -865,3 +865,165 @@ section { padding: 10px 20px; }
 .menu-item.logout ion-icon { color: var(--accent-red); }
 .menu-item.logout span { color: var(--accent-red); }
 .menu-item.logout:hover { background-color: rgba(239, 68, 68, 0.2); }
+
+/* ADICIONE NO FINAL DO CSS: */
+
+/* MODAL DE EVENTO */
+.event-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-color);
+    z-index: 200;
+    overflow-y: auto;
+}
+
+.event-modal.active {
+    display: block;
+}
+
+.event-modal-content {
+    max-width: 375px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.event-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.event-modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.btn-back, .btn-save {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-save {
+    background-color: var(--accent-purple);
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* FORMULÁRIO DE EVENTO */
+.event-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.input-group input {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 15px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+    border-color: var(--accent-purple);
+}
+
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* TIPOS DE EVENTO */
+.event-types {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.type-btn {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+}
+
+.type-btn ion-icon {
+    font-size: 1.2rem;
+}
+
+.type-btn span {
+    font-size: 0.65rem;
+}
+
+.type-btn.active {
+    background-color: var(--accent-purple);
+    color: white;
+    border-color: var(--accent-purple);
+}
+
+/* CORES */
+.color-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.color-option {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.color-option.active {
+    border-color: white;
+    transform: scale(1.1);
+}
+
+/* EVENTO NA LISTA COM COR DINÂMICA */
+.event-item.aula { border-left: 3px solid #6366f1; }
+.event-item.prova { border-left: 3px solid #ef4444; }
+.event-item.tarefa { border-left: 3px solid #10b981; }
+.event-item.outro { border-left: 3px solid #f59e0b; }

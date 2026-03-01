@@ -392,6 +392,206 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         eventsList.innerHTML = html;
     }
+    // ADICIONE NA SEÇÃO DO CALENDÁRIO, APÓS renderEvents():
+
+// ==================== EVENTOS DO CALENDÁRIO ====================
+let selectedEventType = 'aula';
+let selectedEventColor = '#8b5cf6';
+let editingEventId = null;
+
+// Armazenar eventos (pode vir do localStorage depois)
+let calendarEvents = [
+    { id: 1, title: 'Aula de Matemática', date: '2026-03-01', start: '08:00', end: '09:30', type: 'aula', color: '#6366f1' },
+    { id: 2, title: 'Grupo de Estudos', date: '2026-03-01', start: '14:00', end: '16:00', type: 'tarefa', color: '#10b981' }
+];
+
+const eventModal = document.getElementById('event-modal');
+const btnNewEvent = document.getElementById('btn-new-event');
+const btnCloseEvent = document.getElementById('btn-close-event');
+const btnSaveEvent = document.getElementById('btn-save-event');
+const eventTitle = document.getElementById('event-title');
+const eventDate = document.getElementById('event-date');
+const eventStart = document.getElementById('event-start');
+const eventEnd = document.getElementById('event-end');
+const typeBtns = document.querySelectorAll('.type-btn');
+const colorOptions = document.querySelectorAll('.color-option');
+
+// Abrir modal de novo evento
+if (btnNewEvent) {
+    btnNewEvent.addEventListener('click', () => {
+        editingEventId = null;
+        eventTitle.value = '';
+        eventDate.value = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+        eventStart.value = '08:00';
+        eventEnd.value = '09:00';
+        selectedEventType = 'aula';
+        selectedEventColor = '#8b5cf6';
+        updateTypeButtons();
+        updateColorOptions();
+        eventModal.classList.add('active');
+    });
+}
+
+// Fechar modal
+if (btnCloseEvent) {
+    btnCloseEvent.addEventListener('click', () => {
+        eventModal.classList.remove('active');
+    });
+}
+
+// Selecionar tipo de evento
+typeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        typeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedEventType = btn.dataset.type;
+    });
+});
+
+// Selecionar cor
+colorOptions.forEach(option => {
+    option.addEventListener('click', () => {
+        colorOptions.forEach(o => o.classList.remove('active'));
+        option.classList.add('active');
+        selectedEventColor = option.dataset.color;
+    });
+});
+
+// Salvar evento
+if (btnSaveEvent) {
+    btnSaveEvent.addEventListener('click', () => {
+        const title = eventTitle.value.trim();
+        const date = eventDate.value;
+        const start = eventStart.value;
+        const end = eventEnd.value;
+
+        if (!title || !date) {
+            alert('Preencha título e data!');
+            return;
+        }
+
+        if (editingEventId) {
+            // Editar evento existente
+            const eventIndex = calendarEvents.findIndex(e => e.id === editingEventId);
+            if (eventIndex > -1) {
+                calendarEvents[eventIndex] = {
+                    ...calendarEvents[eventIndex],
+                    title,
+                    date,
+                    start,
+                    end,
+                    type: selectedEventType,
+                    color: selectedEventColor
+                };
+            }
+        } else {
+            // Criar novo evento
+            calendarEvents.push({
+                id: Date.now(),
+                title,
+                date,
+                start,
+                end,
+                type: selectedEventType,
+                color: selectedEventColor
+            });
+        }
+
+        eventModal.classList.remove('active');
+        renderEvents();
+        renderCalendar();
+    });
+}
+
+// Atualizar botões de tipo
+function updateTypeButtons() {
+    typeBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === selectedEventType);
+    });
+}
+
+// Atualizar opções de cor
+function updateColorOptions() {
+    colorOptions.forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedEventColor);
+    });
+}
+
+// SUBSTITUA A FUNÇÃO renderEvents() POR ESTA:
+function renderEvents() {
+    const dayEvents = calendarEvents.filter(e => {
+        const eventDate = new Date(e.date);
+        return eventDate.getDate() === selectedDay && 
+               eventDate.getMonth() === currentDate.getMonth() && 
+               eventDate.getFullYear() === currentDate.getFullYear();
+    });
+
+    if (dayEvents.length === 0) {
+        eventsList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhum evento neste dia</p>';
+        return;
+    }
+
+    let html = '';
+    dayEvents.forEach(event => {
+        const iconMap = {
+            'aula': 'book',
+            'prova': 'document',
+            'tarefa': 'checkbox',
+            'outro': 'calendar'
+        };
+
+        html += `
+            <div class="event-item ${event.type}" data-id="${event.id}" style="border-left-color: ${event.color}">
+                <div class="event-icon" style="background-color: ${event.color}20; color: ${event.color}">
+                    <ion-icon name="${iconMap[event.type]}-outline"></ion-icon>
+                </div>
+                <div class="event-info">
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-time">${event.start} - ${event.end}</div>
+                </div>
+                <div class="event-actions">
+                    <ion-icon name="create-outline" class="edit-event" data-id="${event.id}" style="margin-right: 10px;"></ion-icon>
+                    <ion-icon name="trash-outline" class="delete-event" data-id="${event.id}"></ion-icon>
+                </div>
+            </div>
+        `;
+    });
+
+    eventsList.innerHTML = html;
+
+    // Adicionar eventos de editar/excluir
+    document.querySelectorAll('.edit-event').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const eventId = parseInt(icon.dataset.id);
+            const event = calendarEvents.find(ev => ev.id === eventId);
+            if (event) {
+                editingEventId = event.id;
+                eventTitle.value = event.title;
+                eventDate.value = event.date;
+                eventStart.value = event.start;
+                eventEnd.value = event.end;
+                selectedEventType = event.type;
+                selectedEventColor = event.color;
+                updateTypeButtons();
+                updateColorOptions();
+                eventModal.classList.add('active');
+            }
+        });
+    });
+
+    document.querySelectorAll('.delete-event').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const eventId = parseInt(icon.dataset.id);
+            if (confirm('Excluir este evento?')) {
+                calendarEvents = calendarEvents.filter(ev => ev.id !== eventId);
+                renderEvents();
+                renderCalendar();
+            }
+        });
+    });
+}
 
     prevMonthBtn?.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
