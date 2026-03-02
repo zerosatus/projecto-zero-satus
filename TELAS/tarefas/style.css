@@ -8,7 +8,7 @@
     --sidebar-bg: #1a1a2e;
     --primary-color: #6c5ce7;
     --primary-hover: #5b4cdb;
-    --bg-color: #f5f6fa;
+    --bg-color: #1a1a2e;
     --card-bg: #ffffff;
     --text-primary: #2d3436;
     --text-secondary: #636e72;
@@ -153,7 +153,7 @@ body {
 .header h1 {
     font-size: 24px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #fff;
 }
 
 .header-actions {
