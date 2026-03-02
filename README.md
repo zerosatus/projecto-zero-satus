@@ -28,6 +28,9 @@ A tela de login ja é completamente funcional e ja fiz toda base de dados necess
 **1/03/2026**
 terminei a primeira pagina de mobile 
 
+**2/03/2026**
+A tela de apresentação ja esta feita e responsiva, adaptase automaticamente para descktop e celular no celular aparece bara lateral dinamica etudo esta compactado e bem feito.
+
 ## comandos para atualizar o github 
 
 **git pull** :serve para levar tudo q ta no git e colocar no teu pc pra n ter conflit se entrar no vim clica esc e depos shif e z
