@@ -1,5 +1,292 @@
-document.addEventListener('DOMContentLoaded', () => {
+// ==================== NOTIFICAÇÕES ====================
+
+// Dados das notificações
+let notifications = [
+    {
+        id: 1,
+        type: 'aula',
+        title: 'Aula de Matemática',
+        message: 'Lembrete: Aula de Matemática às 14h hoje',
+        time: '2026-03-05 08:00',
+        read: false
+    },
+    {
+        id: 2,
+        type: 'tarefa',
+        title: 'Tarefa Pendente',
+        message: 'Lista de Exercícios de Física para entregar amanhã',
+        time: '2026-03-05 07:30',
+        read: false
+    },
+    {
+        id: 3,
+        type: 'lembrete',
+        title: 'Prova de História',
+        message: 'Sua prova de História será na próxima segunda-feira',
+        time: '2026-03-04 18:00',
+        read: false
+    },
+    {
+        id: 4,
+        type: 'aviso',
+        title: 'Nota Publicada',
+        message: 'Sua nota do trabalho de Geografia foi publicada: 9.5',
+        time: '2026-03-04 15:00',
+        read: true
+    },
+    {
+        id: 5,
+        type: 'aula',
+        title: 'Horário Alterado',
+        message: 'A aula de Química de amanhã foi remanejada para 10h',
+        time: '2026-03-04 12:00',
+        read: false
+    },
+    {
+        id: 6,
+        type: 'tarefa',
+        title: 'Nova Tarefa',
+        message: 'Professor adicionou nova tarefa: Resumo Cap. 5',
+        time: '2026-03-03 16:00',
+        read: true
+    },
+    {
+        id: 7,
+        type: 'lembrete',
+        title: 'Grupo de Estudos',
+        message: 'Grupo de Estudos de Física hoje às 14h',
+        time: '2026-03-03 10:00',
+        read: false
+    },
+    {
+        id: 8,
+        type: 'aviso',
+        title: 'Matrícula Aberta',
+        message: 'Período de matrículas para o próximo semestre está aberto',
+        time: '2026-03-02 09:00',
+        read: true
+    }
+];
+
+// Função para atualizar badge
+function updateNotificationBadge() {
+    const badge = document.getElementById('notification-badge');
+    const unreadCount = notifications.filter(n => !n.read).length;
     
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    // Salvar no localStorage
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+}
+
+// Função para formatar tempo
+function formatNotificationTime(timeString) {
+    const now = new Date();
+    const notifTime = new Date(timeString);
+    const diffMs = now - notifTime;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'Agora mesmo';
+    if (diffMins < 60) return `Há ${diffMins} min`;
+    if (diffHours < 24) return `Há ${diffHours}h`;
+    if (diffDays < 7) return `Há ${diffDays} dias`;
+    return notifTime.toLocaleDateString('pt-BR');
+}
+
+// Função para renderizar notificações
+function renderNotificationsModal(filter = 'all') {
+    const list = document.getElementById('notifications-list-modal');
+    
+    let filtered = notifications;
+    
+    if (filter === 'unread') {
+        filtered = notifications.filter(n => !n.read);
+    } else if (filter === 'aulas') {
+        filtered = notifications.filter(n => n.type === 'aula');
+    } else if (filter === 'tarefas') {
+        filtered = notifications.filter(n => n.type === 'tarefa');
+    }
+    
+    if (filtered.length === 0) {
+        list.innerHTML = `
+            <div class="empty-notifications">
+                <ion-icon name="notifications-off-outline"></ion-icon>
+                <p>Nenhuma notificação</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Ordenar por mais recente
+    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+    
+    let html = '';
+    filtered.forEach(notif => {
+        const iconMap = {
+            'aula': 'book',
+            'tarefa': 'checkbox',
+            'lembrete': 'time',
+            'aviso': 'warning'
+        };
+        
+        html += `
+            <div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
+                <div class="notification-icon ${notif.type}">
+                    <ion-icon name="${iconMap[notif.type]}-outline"></ion-icon>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${notif.title}</div>
+                    <div class="notification-message">${notif.message}</div>
+                    <div class="notification-time">
+                        <ion-icon name="time-outline"></ion-icon>
+                        ${formatNotificationTime(notif.time)}
+                    </div>
+                </div>
+                <div class="notification-actions">
+                    ${!notif.read ? `
+                        <button class="notification-action-btn btn-mark-single" data-id="${notif.id}">
+                            <ion-icon name="checkmark-outline"></ion-icon>
+                        </button>
+                    ` : ''}
+                    <button class="notification-action-btn btn-delete-single" data-id="${notif.id}">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    list.innerHTML = html;
+    
+    // Adicionar eventos
+    document.querySelectorAll('.notification-item-modal').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.notification-action-btn')) return;
+            const id = parseInt(item.dataset.id);
+            markAsRead(id);
+        });
+    });
+    
+    document.querySelectorAll('.btn-mark-single').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = parseInt(btn.dataset.id);
+            markAsRead(id);
+        });
+    });
+    
+    document.querySelectorAll('.btn-delete-single').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = parseInt(btn.dataset.id);
+            deleteNotification(id);
+        });
+    });
+}
+
+// Marcar como lida
+function markAsRead(id) {
+    const index = notifications.findIndex(n => n.id === id);
+    if (index > -1) {
+        notifications[index].read = true;
+        updateNotificationBadge();
+        renderNotificationsModal();
+    }
+}
+
+// Marcar todas como lidas
+function markAllAsRead() {
+    notifications.forEach(n => n.read = true);
+    updateNotificationBadge();
+    renderNotificationsModal();
+}
+
+// Excluir notificação
+function deleteNotification(id) {
+    notifications = notifications.filter(n => n.id !== id);
+    updateNotificationBadge();
+    renderNotificationsModal();
+}
+
+// Limpar todas
+function clearAllNotifications() {
+    if (confirm('Limpar todas as notificações?')) {
+        notifications = [];
+        updateNotificationBadge();
+        renderNotificationsModal();
+    }
+}
+
+// Carregar notificações salvas
+function loadNotifications() {
+    const saved = localStorage.getItem('notifications');
+    if (saved) {
+        notifications = JSON.parse(saved);
+    }
+    updateNotificationBadge();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    // ==================== NOTIFICAÇÕES - EVENTOS ====================
+
+const notificationBell = document.getElementById('notification-bell');
+const notificationsModal = document.getElementById('notifications-modal');
+const btnCloseNotifications = document.getElementById('btn-close-notifications');
+const btnMarkRead = document.getElementById('btn-mark-read');
+const btnClearAll = document.getElementById('btn-clear-all');
+const notificationTabs = document.querySelectorAll('.notification-tab');
+
+// Carregar notificações ao iniciar
+loadNotifications();
+
+// Abrir modal de notificações
+if (notificationBell) {
+    notificationBell.addEventListener('click', () => {
+        notificationsModal.classList.add('active');
+        renderNotificationsModal();
+    });
+}
+
+// Fechar modal
+if (btnCloseNotifications) {
+    btnCloseNotifications.addEventListener('click', () => {
+        notificationsModal.classList.remove('active');
+    });
+}
+
+// Fechar ao clicar fora
+notificationsModal?.addEventListener('click', (e) => {
+    if (e.target === notificationsModal) {
+        notificationsModal.classList.remove('active');
+    }
+});
+
+// Marcar todas como lidas
+if (btnMarkRead) {
+    btnMarkRead.addEventListener('click', markAllAsRead);
+}
+
+// Limpar todas
+if (btnClearAll) {
+    btnClearAll.addEventListener('click', clearAllNotifications);
+}
+
+// Tabs de filtro
+notificationTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        notificationTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderNotificationsModal(tab.dataset.type);
+    });
+});
     // ==================== VERIFICAÇÃO DE LOGIN E CARREGAMENTO DO USUÁRIO ====================
     const usuario = localStorage.getItem('usuarioLogado');
     

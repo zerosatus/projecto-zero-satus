@@ -11,16 +11,50 @@
 <body>
 
     <div class="mobile-container">
-        <header>
-            <div class="greeting">
-                <h1 id="header-name">Jose</h1>
-                <p>Bem-vindo de volta 👋</p>
+       <!-- MODIFIQUE O HEADER PARA: -->
+<header>
+    <div class="greeting">
+        <h1 id="header-name">Jose</h1>
+        <p>Bem-vindo de volta 👋</p>
+    </div>
+    <div class="profile-icon" id="notification-bell">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <span class="notification-badge" id="notification-badge">8</span>
+    </div>
+</header>
+
+<!-- ADICIONE ESTE MODAL APÓS O HEADER: -->
+
+<!-- MODAL DE NOTIFICAÇÕES -->
+<div id="notifications-modal" class="notifications-modal">
+    <div class="notifications-modal-content">
+        <div class="notifications-modal-header">
+            <h2>Notificações</h2>
+            <div class="notifications-actions">
+                <button class="btn-mark-read" id="btn-mark-read">
+                    <ion-icon name="checkmark-done-outline"></ion-icon>
+                    <span>Marcar todas como lidas</span>
+                </button>
+                <button class="btn-clear-all" id="btn-clear-all">
+                    <ion-icon name="trash-outline"></ion-icon>
+                </button>
             </div>
-            <div class="profile-icon">
-                <ion-icon name="notifications-outline"></ion-icon>
-                <span class="notification-badge">8</span>
-            </div>
-        </header>
+        </div>
+
+        <div class="notifications-tabs">
+            <button class="notification-tab active" data-type="all">Todas</button>
+            <button class="notification-tab" data-type="unread">Não Lidas</button>
+            <button class="notification-tab" data-type="aulas">Aulas</button>
+            <button class="notification-tab" data-type="tarefas">Tarefas</button>
+        </div>
+
+        <div id="notifications-list-modal"></div>
+
+        <button class="btn-close-modal" id="btn-close-notifications">
+            Fechar
+        </button>
+    </div>
+</div>
 
         <!-- VIEW: INÍCIO -->
         <div id="home-view">
