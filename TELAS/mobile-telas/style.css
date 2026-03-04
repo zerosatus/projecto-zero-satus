@@ -1001,29 +1001,43 @@ section { padding: 10px 20px; }
     border-color: var(--accent-purple);
 }
 
+/* SUBSTITUA TODA A SEÇÃO DE CORES POR ISTO: */
+
 /* CORES */
 .color-options {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: 8px;
 }
 
 .color-option {
-    width: 35px;
-    height: 35px;
+    width: 45px;
+    height: 45px;
     border-radius: 50%;
     cursor: pointer;
-    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s;
+    border: 2px solid transparent;
+    background-color: var(--card-bg);
 }
 
 .color-option.active {
-    border-color: white;
+    border-color: var(--accent-purple);
     transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
-/* EVENTO NA LISTA COM COR DINÂMICA */
-.event-item.aula { border-left: 3px solid #6366f1; }
-.event-item.prova { border-left: 3px solid #ef4444; }
-.event-item.tarefa { border-left: 3px solid #10b981; }
-.event-item.outro { border-left: 3px solid #f59e0b; }
+.color-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Hover effect */
+.color-option:hover {
+    transform: scale(1.1);
+}
