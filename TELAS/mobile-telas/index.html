@@ -1,4 +1,4 @@
-ok<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -197,6 +197,109 @@ ok<!DOCTYPE html>
 
             <div id="tasks-list"></div>
         </section>
+        <!-- NA SEÇÃO DE TAREFAS, MANTENHA O BOTÃO DE ADICIONAR: -->
+<section id="tasks-view" class="hidden">
+    <div class="tasks-header">
+        <h1>Tarefas</h1>
+        <button class="btn-add-task" id="btn-add-task">
+            <ion-icon name="add-outline"></ion-icon>
+        </button>
+    </div>
+    <!-- ... resto da seção ... -->
+</section>
+
+<!-- ADICIONE ESTE MODAL APÓS O MODAL DE EVENTOS: -->
+
+<!-- MODAL DE NOVA TAREFA -->
+<div id="task-modal" class="task-modal">
+    <div class="task-modal-content">
+        <div class="task-modal-header">
+            <button class="btn-back" id="btn-close-task">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2 id="task-modal-title">Nova Tarefa</h2>
+            <button class="btn-save" id="btn-save-task">Salvar</button>
+        </div>
+
+        <div class="task-form">
+            <div class="input-group">
+                <label>Título</label>
+                <input type="text" id="task-title" placeholder="Ex: Lista de Exercícios">
+            </div>
+
+            <div class="input-group">
+                <label>Matéria</label>
+                <input type="text" id="task-subject" placeholder="Ex: Matemática">
+            </div>
+
+            <div class="input-group">
+                <label>Data de Entrega</label>
+                <input type="date" id="task-date">
+            </div>
+
+            <div class="input-group">
+                <label>Tipo</label>
+                <div class="task-types">
+                    <button class="type-btn active" data-type="matematica">
+                        <ion-icon name="calculator-outline"></ion-icon>
+                        <span>Matemática</span>
+                    </button>
+                    <button class="type-btn" data-type="portugues">
+                        <ion-icon name="book-outline"></ion-icon>
+                        <span>Português</span>
+                    </button>
+                    <button class="type-btn" data-type="fisica">
+                        <ion-icon name="flask-outline"></ion-icon>
+                        <span>Física</span>
+                    </button>
+                    <button class="type-btn" data-type="outro">
+                        <ion-icon name="grid-outline"></ion-icon>
+                        <span>Outra</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Prioridade</label>
+                <div class="priority-options">
+                    <button class="priority-btn active" data-priority="baixa">
+                        <span>Baixa</span>
+                    </button>
+                    <button class="priority-btn" data-priority="media">
+                        <span>Média</span>
+                    </button>
+                    <button class="priority-btn" data-priority="alta">
+                        <span>Alta</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Cor</label>
+                <div class="color-options">
+                    <div class="color-option active" data-color="#6366f1">
+                        <div class="color-circle" style="background-color: #6366f1;"></div>
+                    </div>
+                    <div class="color-option" data-color="#ec4899">
+                        <div class="color-circle" style="background-color: #ec4899;"></div>
+                    </div>
+                    <div class="color-option" data-color="#ef4444">
+                        <div class="color-circle" style="background-color: #ef4444;"></div>
+                    </div>
+                    <div class="color-option" data-color="#10b981">
+                        <div class="color-circle" style="background-color: #10b981;"></div>
+                    </div>
+                    <div class="color-option" data-color="#3b82f6">
+                        <div class="color-circle" style="background-color: #3b82f6;"></div>
+                    </div>
+                    <div class="color-option" data-color="#f59e0b">
+                        <div class="color-circle" style="background-color: #f59e0b;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- VIEW: ANOTAÇÕES -->
         <section id="notes-view" class="hidden">
@@ -214,53 +317,401 @@ ok<!DOCTYPE html>
 
             <div id="notes-grid"></div>
         </section>
+        <!-- NA SEÇÃO DE ANOTAÇÕES, MANTENHA O BOTÃO DE ADICIONAR: -->
+<section id="notes-view" class="hidden">
+    <div class="notes-header">
+        <h1>Anotações</h1>
+        <button class="btn-add-note" id="btn-add-note">
+            <ion-icon name="add-outline"></ion-icon>
+        </button>
+    </div>
+    <!-- ... resto da seção ... -->
+</section>
 
-        <!-- VIEW: PERFIL -->
-        <section id="profile-view" class="hidden">
-            <div class="profile-header">
-                <h1>Perfil</h1>
+<!-- ADICIONE ESTE MODAL APÓS O MODAL DE TAREFA: -->
+
+<!-- MODAL DE NOVA ANOTAÇÃO -->
+<div id="note-modal" class="note-modal">
+    <div class="note-modal-content">
+        <div class="note-modal-header">
+            <button class="btn-back" id="btn-close-note">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2 id="note-modal-title">Nova Anotação</h2>
+            <button class="btn-save" id="btn-save-note">Salvar</button>
+        </div>
+
+        <div class="note-form">
+            <div class="input-group">
+                <label>Título</label>
+                <input type="text" id="note-title" placeholder="Ex: Fórmulas de Física">
             </div>
 
-            <div class="profile-info">
-                <div class="profile-avatar">
-                    <span>J</span>
-                </div>
-                <h2 class="profile-name">Jose Silva</h2>
-                <p class="profile-email">jose.silva@email.com</p>
+            <div class="input-group">
+                <label>Matéria</label>
+                <input type="text" id="note-subject" placeholder="Ex: Física • Mecânica">
             </div>
 
-            <div class="profile-menu">
-                <div class="menu-item">
-                    <ion-icon name="person-outline"></ion-icon>
-                    <span>Dados Pessoais</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+            <div class="input-group">
+                <label>Conteúdo</label>
+                <textarea id="note-content" placeholder="Escreva sua anotação aqui..." rows="5"></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>Cor</label>
+                <div class="color-options">
+                    <div class="color-option active" data-color="fisica">
+                        <div class="color-circle" style="background-color: #ef4444;"></div>
+                    </div>
+                    <div class="color-option" data-color="ingles">
+                        <div class="color-circle" style="background-color: #3b82f6;"></div>
+                    </div>
+                    <div class="color-option" data-color="portugues">
+                        <div class="color-circle" style="background-color: #ec4899;"></div>
+                    </div>
+                    <div class="color-option" data-color="quimica">
+                        <div class="color-circle" style="background-color: #10b981;"></div>
+                    </div>
+                    <div class="color-option" data-color="matematica">
+                        <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                    </div>
+                    <div class="color-option" data-color="historia">
+                        <div class="color-circle" style="background-color: #f59e0b;"></div>
+                    </div>
                 </div>
-                <div class="menu-item">
-                    <ion-icon name="shield-outline"></ion-icon>
-                    <span>Segurança</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-                <div class="menu-item">
+            </div>
+        </div>
+    </div>
+</div>
+
+      
+        <!-- NA SEÇÃO DE PERFIL, ADICIONE DATA-ATTRIBUTES NOS ITENS: -->
+<div class="profile-menu">
+    <div class="menu-item" data-action="dados">
+        <ion-icon name="person-outline"></ion-icon>
+        <span>Dados Pessoais</span>
+        <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+    </div>
+    <div class="menu-item" data-action="seguranca">
+        <ion-icon name="shield-outline"></ion-icon>
+        <span>Segurança</span>
+        <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+    </div>
+    <div class="menu-item" data-action="notificacoes">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <span>Notificações</span>
+        <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+    </div>
+    <div class="menu-item" data-action="aparencia">
+        <ion-icon name="moon-outline"></ion-icon>
+        <span>Aparência</span>
+        <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+    </div>
+    <div class="menu-item" data-action="ajuda">
+        <ion-icon name="help-circle-outline"></ion-icon>
+        <span>Ajuda e Suporte</span>
+        <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+    </div>
+    <div class="menu-item logout" data-action="logout">
+        <ion-icon name="log-out-outline"></ion-icon>
+        <span>Sair da Conta</span>
+    </div>
+</div>
+
+<!-- ADICIONE ESTES MODAIS APÓS O MODAL DE ANOTAÇÃO: -->
+
+<!-- ==================== MODAL DADOS PESSOAIS ==================== -->
+<!-- NO MODAL DE DADOS PESSOAIS, ADICIONE ESTE INPUT ESCONDIDO: -->
+
+<div class="profile-avatar-edit">
+    <div class="avatar-preview" id="avatar-preview">J</div>
+    <button class="btn-change-avatar" id="btn-change-avatar">
+        <ion-icon name="camera-outline"></ion-icon>
+    </button>
+    <!-- ADICIONE ESTE INPUT ESCONDIDO: -->
+    <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+</div>
+<div id="dados-modal" class="profile-modal">
+    <div class="profile-modal-content">
+        <div class="profile-modal-header">
+            <button class="btn-back" onclick="closeModal('dados-modal')">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2>Dados Pessoais</h2>
+            <button class="btn-save" id="btn-save-dados">Salvar</button>
+        </div>
+
+        <div class="profile-form">
+            <div class="profile-avatar-edit">
+                <div class="avatar-preview" id="avatar-preview">J</div>
+                <button class="btn-change-avatar" id="btn-change-avatar">
+                    <ion-icon name="camera-outline"></ion-icon>
+                </button>
+            </div>
+
+            <div class="input-group">
+                <label>Nome Completo</label>
+                <input type="text" id="profile-name-input" placeholder="Seu nome">
+            </div>
+
+            <div class="input-group">
+                <label>E-mail</label>
+                <input type="email" id="profile-email-input" placeholder="seu@email.com">
+            </div>
+
+            <div class="input-group">
+                <label>Telefone</label>
+                <input type="tel" id="profile-phone-input" placeholder="(00) 00000-0000">
+            </div>
+
+            <div class="input-group">
+                <label>Data de Nascimento</label>
+                <input type="date" id="profile-birth-input">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL SEGURANÇA ==================== -->
+<div id="seguranca-modal" class="profile-modal">
+    <div class="profile-modal-content">
+        <div class="profile-modal-header">
+            <button class="btn-back" onclick="closeModal('seguranca-modal')">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2>Segurança</h2>
+            <button class="btn-save" id="btn-save-senha">Salvar</button>
+        </div>
+
+        <div class="profile-form">
+            <div class="input-group">
+                <label>Senha Atual</label>
+                <input type="password" id="current-password" placeholder="••••••••">
+            </div>
+
+            <div class="input-group">
+                <label>Nova Senha</label>
+                <input type="password" id="new-password" placeholder="••••••••">
+            </div>
+
+            <div class="input-group">
+                <label>Confirmar Nova Senha</label>
+                <input type="password" id="confirm-password" placeholder="••••••••">
+            </div>
+
+            <div class="security-info">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                <span>A senha deve ter pelo menos 6 caracteres</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL NOTIFICAÇÕES ==================== -->
+<div id="notificacoes-modal" class="profile-modal">
+    <div class="profile-modal-content">
+        <div class="profile-modal-header">
+            <button class="btn-back" onclick="closeModal('notificacoes-modal')">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2>Notificações</h2>
+            <button class="btn-save" id="btn-save-notificacoes">Salvar</button>
+        </div>
+
+        <div class="profile-form">
+            <div class="toggle-option">
+                <div class="toggle-info">
                     <ion-icon name="notifications-outline"></ion-icon>
-                    <span>Notificações</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                    <div>
+                        <span class="toggle-title">Notificações Push</span>
+                        <span class="toggle-desc">Receber alertas no celular</span>
+                    </div>
                 </div>
-                <div class="menu-item">
-                    <ion-icon name="moon-outline"></ion-icon>
-                    <span>Aparência</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-push" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-option">
+                <div class="toggle-info">
+                    <ion-icon name="mail-outline"></ion-icon>
+                    <div>
+                        <span class="toggle-title">E-mail Marketing</span>
+                        <span class="toggle-desc">Receber novidades por e-mail</span>
+                    </div>
                 </div>
-                <div class="menu-item">
-                    <ion-icon name="help-circle-outline"></ion-icon>
-                    <span>Ajuda e Suporte</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-email">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-option">
+                <div class="toggle-info">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    <div>
+                        <span class="toggle-title">Lembretes de Aula</span>
+                        <span class="toggle-desc">Alertas antes das aulas</span>
+                    </div>
                 </div>
-                <div class="menu-item logout">
-                    <ion-icon name="log-out-outline"></ion-icon>
-                    <span>Sair da Conta</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-aulas" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-option">
+                <div class="toggle-info">
+                    <ion-icon name="checkbox-outline"></ion-icon>
+                    <div>
+                        <span class="toggle-title">Lembretes de Tarefas</span>
+                        <span class="toggle-desc">Alertas de tarefas pendentes</span>
+                    </div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-tarefas" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL APARÊNCIA ==================== -->
+<div id="aparencia-modal" class="profile-modal">
+    <div class="profile-modal-content">
+        <div class="profile-modal-header">
+            <button class="btn-back" onclick="closeModal('aparencia-modal')">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2>Aparência</h2>
+            <button class="btn-save" id="btn-save-aparencia">Salvar</button>
+        </div>
+
+        <div class="profile-form">
+            <div class="input-group">
+                <label>Tema</label>
+                <div class="theme-options">
+                    <button class="theme-btn active" data-theme="dark">
+                        <ion-icon name="moon-outline"></ion-icon>
+                        <span>Escuro</span>
+                    </button>
+                    <button class="theme-btn" data-theme="light">
+                        <ion-icon name="sunny-outline"></ion-icon>
+                        <span>Claro</span>
+                    </button>
+                    <button class="theme-btn" data-theme="auto">
+                        <ion-icon name="desktop-outline"></ion-icon>
+                        <span>Auto</span>
+                    </button>
                 </div>
             </div>
-        </section>
+
+            <div class="input-group">
+                <label>Cor de Destaque</label>
+                <div class="color-options">
+                    <div class="color-option active" data-accent="#8b5cf6">
+                        <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                    </div>
+                    <div class="color-option" data-accent="#10b981">
+                        <div class="color-circle" style="background-color: #10b981;"></div>
+                    </div>
+                    <div class="color-option" data-accent="#ef4444">
+                        <div class="color-circle" style="background-color: #ef4444;"></div>
+                    </div>
+                    <div class="color-option" data-accent="#3b82f6">
+                        <div class="color-circle" style="background-color: #3b82f6;"></div>
+                    </div>
+                    <div class="color-option" data-accent="#f59e0b">
+                        <div class="color-circle" style="background-color: #f59e0b;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Tamanho da Fonte</label>
+                <input type="range" id="font-size-slider" min="12" max="20" value="14">
+                <div class="slider-labels">
+                    <span>Pequeno</span>
+                    <span>Médio</span>
+                    <span>Grande</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL AJUDA ==================== -->
+<div id="ajuda-modal" class="profile-modal">
+    <div class="profile-modal-content">
+        <div class="profile-modal-header">
+            <button class="btn-back" onclick="closeModal('ajuda-modal')">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2>Ajuda e Suporte</h2>
+            <button class="btn-save" style="background-color: var(--accent-green);" id="btn-contato">Contato</button>
+        </div>
+
+        <div class="profile-form">
+            <div class="help-section">
+                <h3>Perguntas Frequentes</h3>
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span>Como editar meu horário?</span>
+                        <ion-icon name="chevron-down-outline"></ion-icon>
+                    </div>
+                    <div class="faq-answer">
+                        Clique em "Editar" no horário semanal, depois clique nas células para adicionar ou remover aulas.
+                    </div>
+                </div>
+
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span>Como adicionar eventos?</span>
+                        <ion-icon name="chevron-down-outline"></ion-icon>
+                    </div>
+                    <div class="faq-answer">
+                        No calendário, clique em "Novo Evento" e preencha as informações desejadas.
+                    </div>
+                </div>
+
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span>Como recuperar minha senha?</span>
+                        <ion-icon name="chevron-down-outline"></ion-icon>
+                    </div>
+                    <div class="faq-answer">
+                        Na tela de login, clique em "Esqueci a Senha" e siga as instruções enviadas por e-mail.
+                    </div>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h3>Versão do App</h3>
+                <div class="version-info">
+                    <span>Painel do Aluno Mobile</span>
+                    <span class="version-number">v1.0.0</span>
+                </div>
+            </div>
+
+            <div class="help-buttons">
+                <button class="help-btn" id="btn-termos">
+                    <ion-icon name="document-text-outline"></ion-icon>
+                    <span>Termos de Uso</span>
+                </button>
+                <button class="help-btn" id="btn-privacidade">
+                    <ion-icon name="shield-checkmark-outline"></ion-icon>
+                    <span>Política de Privacidade</span>
+                </button>
+                <button class="help-btn" id="btn-avaliar">
+                    <ion-icon name="star-outline"></ion-icon>
+                    <span>Avaliar App</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
         <section class="next-classes-section home-only">
             <div class="section-header">

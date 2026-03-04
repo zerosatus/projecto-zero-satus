@@ -700,6 +700,218 @@ function renderEvents() {
             }
         }
     });
+    // ADICIONE NA SEÇÃO DE TAREFAS:
+
+// ==================== MODAL DE TAREFA ====================
+let editingTaskId = null;
+let selectedTaskType = 'matematica';
+let selectedTaskPriority = 'baixa';
+let selectedTaskColor = '#6366f1';
+
+const taskModal = document.getElementById('task-modal');
+const taskModalTitle = document.getElementById('task-modal-title');
+const btnCloseTask = document.getElementById('btn-close-task');
+const btnSaveTask = document.getElementById('btn-save-task');
+const taskTitleInput = document.getElementById('task-title');
+const taskSubjectInput = document.getElementById('task-subject');
+const taskDateInput = document.getElementById('task-date');
+const taskTypeBtns = document.querySelectorAll('.task-types .type-btn');
+const taskPriorityBtns = document.querySelectorAll('.priority-btn');
+const taskColorOptions = document.querySelectorAll('.task-modal .color-option');
+
+// Abrir modal de nova tarefa
+if (btnAddTask) {
+    btnAddTask.addEventListener('click', () => {
+        editingTaskId = null;
+        taskModalTitle.textContent = 'Nova Tarefa';
+        taskTitleInput.value = '';
+        taskSubjectInput.value = '';
+        taskDateInput.value = '';
+        selectedTaskType = 'matematica';
+        selectedTaskPriority = 'baixa';
+        selectedTaskColor = '#6366f1';
+        updateTaskTypeButtons();
+        updateTaskPriorityButtons();
+        updateTaskColorOptions();
+        taskModal.classList.add('active');
+    });
+}
+
+// Fechar modal
+if (btnCloseTask) {
+    btnCloseTask.addEventListener('click', () => {
+        taskModal.classList.remove('active');
+    });
+}
+
+// Selecionar tipo
+taskTypeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        taskTypeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTaskType = btn.dataset.type;
+    });
+});
+
+// Selecionar prioridade
+taskPriorityBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        taskPriorityBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTaskPriority = btn.dataset.priority;
+    });
+});
+
+// Selecionar cor
+taskColorOptions.forEach(option => {
+    option.addEventListener('click', () => {
+        taskColorOptions.forEach(o => o.classList.remove('active'));
+        option.classList.add('active');
+        selectedTaskColor = option.dataset.color;
+    });
+});
+
+// Salvar tarefa
+if (btnSaveTask) {
+    btnSaveTask.addEventListener('click', () => {
+        const title = taskTitleInput.value.trim();
+        const subject = taskSubjectInput.value.trim();
+        const date = taskDateInput.value;
+
+        if (!title) {
+            alert('Preencha o título!');
+            return;
+        }
+
+        if (editingTaskId) {
+            // Editar tarefa existente
+            const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
+            if (taskIndex > -1) {
+                tasks[taskIndex] = {
+                    ...tasks[taskIndex],
+                    title,
+                    subject: subject || tasks[taskIndex].subject,
+                    date: date || tasks[taskIndex].date,
+                    color: selectedTaskColor,
+                    priority: selectedTaskPriority
+                };
+            }
+        } else {
+            // Criar nova tarefa
+            tasks.unshift({
+                id: Date.now(),
+                title,
+                subject: subject || 'Geral',
+                date: date || 'Sem data',
+                color: selectedTaskColor,
+                priority: selectedTaskPriority,
+                completed: false
+            });
+        }
+
+        taskModal.classList.remove('active');
+        renderTasks();
+    });
+}
+
+// Atualizar botões de tipo
+function updateTaskTypeButtons() {
+    taskTypeBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === selectedTaskType);
+    });
+}
+
+// Atualizar botões de prioridade
+function updateTaskPriorityButtons() {
+    taskPriorityBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.priority === selectedTaskPriority);
+    });
+}
+
+// Atualizar opções de cor
+function updateTaskColorOptions() {
+    taskColorOptions.forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedTaskColor);
+    });
+}
+
+// MODIFIQUE A FUNÇÃO renderTasks() PARA USAR A COR E PRIORIDADE:
+function renderTasks() {
+    let filteredTasks = tasks;
+    
+    if (currentTaskFilter === 'pendentes') {
+        filteredTasks = tasks.filter(t => !t.completed);
+    } else if (currentTaskFilter === 'concluidas') {
+        filteredTasks = tasks.filter(t => t.completed);
+    }
+    
+    if (filteredTasks.length === 0) {
+        tasksList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Nenhuma tarefa encontrada</p>';
+        return;
+    }
+    
+    let html = '';
+    filteredTasks.forEach(task => {
+        html += `
+            <div class="task-item ${task.completed ? 'completed' : ''} ${task.priority ? 'prioridade-' + task.priority : ''}" 
+                 data-id="${task.id}" 
+                 style="${task.color ? 'border-left-color: ' + task.color : ''}">
+                <div class="task-color" style="${task.color ? 'background-color: ' + task.color : ''}"></div>
+                <div class="task-info">
+                    <div class="task-title">${task.title}</div>
+                    <div class="task-subject">${task.subject}</div>
+                    <div class="task-date">
+                        <ion-icon name="calendar-outline"></ion-icon> ${task.date}
+                    </div>
+                </div>
+                <div class="task-check ${task.completed ? 'checked' : ''}" data-id="${task.id}">
+                    ${task.completed ? '<ion-icon name="checkmark-outline"></ion-icon>' : ''}
+                </div>
+                <div class="task-arrow" data-id="${task.id}">
+                    <ion-icon name="chevron-forward-outline"></ion-icon>
+                </div>
+            </div>
+        `;
+    });
+    
+    tasksList.innerHTML = html;
+    
+    // Adicionar eventos
+    document.querySelectorAll('.task-check').forEach(check => {
+        check.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const taskId = parseInt(check.dataset.id);
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                renderTasks();
+            }
+        });
+    });
+
+    // Editar tarefa ao clicar
+    document.querySelectorAll('.task-arrow').forEach(arrow => {
+        arrow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const taskId = parseInt(arrow.dataset.id);
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                editingTaskId = task.id;
+                taskModalTitle.textContent = 'Editar Tarefa';
+                taskTitleInput.value = task.title;
+                taskSubjectInput.value = task.subject;
+                taskDateInput.value = task.date;
+                selectedTaskType = 'outro';
+                selectedTaskPriority = task.priority || 'baixa';
+                selectedTaskColor = task.color || '#6366f1';
+                updateTaskTypeButtons();
+                updateTaskPriorityButtons();
+                updateTaskColorOptions();
+                taskModal.classList.add('active');
+            }
+        });
+    });
+}
 
     // ==================== ANOTAÇÕES ====================
     const notesView = document.getElementById('notes-view');
@@ -769,6 +981,180 @@ function renderEvents() {
             }
         }
     });
+    // ADICIONE NA SEÇÃO DE ANOTAÇÕES:
+
+// ==================== MODAL DE ANOTAÇÃO ====================
+let editingNoteId = null;
+let selectedNoteColor = 'fisica';
+
+const noteModal = document.getElementById('note-modal');
+const noteModalTitle = document.getElementById('note-modal-title');
+const btnCloseNote = document.getElementById('btn-close-note');
+const btnSaveNote = document.getElementById('btn-save-note');
+const noteTitleInput = document.getElementById('note-title');
+const noteSubjectInput = document.getElementById('note-subject');
+const noteContentInput = document.getElementById('note-content');
+const noteColorOptions = document.querySelectorAll('.note-modal .color-option');
+
+// Abrir modal de nova anotação
+if (btnAddNote) {
+    btnAddNote.addEventListener('click', () => {
+        editingNoteId = null;
+        noteModalTitle.textContent = 'Nova Anotação';
+        noteTitleInput.value = '';
+        noteSubjectInput.value = '';
+        noteContentInput.value = '';
+        selectedNoteColor = 'fisica';
+        updateNoteColorOptions();
+        noteModal.classList.add('active');
+    });
+}
+
+// Fechar modal
+if (btnCloseNote) {
+    btnCloseNote.addEventListener('click', () => {
+        noteModal.classList.remove('active');
+    });
+}
+
+// Selecionar cor
+noteColorOptions.forEach(option => {
+    option.addEventListener('click', () => {
+        noteColorOptions.forEach(o => o.classList.remove('active'));
+        option.classList.add('active');
+        selectedNoteColor = option.dataset.color;
+    });
+});
+
+// Salvar anotação
+if (btnSaveNote) {
+    btnSaveNote.addEventListener('click', () => {
+        const title = noteTitleInput.value.trim();
+        const subject = noteSubjectInput.value.trim();
+        const content = noteContentInput.value.trim();
+
+        if (!title) {
+            alert('Preencha o título!');
+            return;
+        }
+
+        if (editingNoteId) {
+            // Editar anotação existente
+            const noteIndex = notes.findIndex(n => n.id === editingNoteId);
+            if (noteIndex > -1) {
+                notes[noteIndex] = {
+                    ...notes[noteIndex],
+                    title,
+                    subject: subject || notes[noteIndex].subject,
+                    content: content || notes[noteIndex].content,
+                    color: selectedNoteColor
+                };
+            }
+        } else {
+            // Criar nova anotação
+            notes.unshift({
+                id: Date.now(),
+                title,
+                subject: subject || 'Geral',
+                content: content || '',
+                color: selectedNoteColor,
+                date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+            });
+        }
+
+        noteModal.classList.remove('active');
+        renderNotes();
+    });
+}
+
+// Atualizar opções de cor
+function updateNoteColorOptions() {
+    noteColorOptions.forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedNoteColor);
+    });
+}
+
+// MODIFIQUE A FUNÇÃO renderNotes() PARA USAR A COR E ABRIR EDIÇÃO:
+function renderNotes(searchTerm = '') {
+    let filteredNotes = notes;
+    
+    if (searchTerm) {
+        filteredNotes = notes.filter(note => 
+            note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            note.subject.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+    
+    if (filteredNotes.length === 0) {
+        notesGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px; grid-column: 1/-1;">Nenhuma anotação encontrada</p>';
+        return;
+    }
+    
+    let html = '';
+    filteredNotes.forEach(note => {
+        html += `
+            <div class="note-card ${note.color || 'matematica'}" data-id="${note.id}">
+                <div>
+                    <div class="note-title">${note.title}</div>
+                    <div class="note-subject">${note.subject}</div>
+                    ${note.content ? `<div class="note-content" style="margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">${note.content.substring(0, 50)}${note.content.length > 50 ? '...' : ''}</div>` : ''}
+                </div>
+                <div class="note-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <div class="note-date">${note.date}</div>
+                    <div class="note-actions">
+                        <ion-icon name="create-outline" class="edit-note" data-id="${note.id}" style="margin-right: 10px; cursor: pointer;"></ion-icon>
+                        <ion-icon name="trash-outline" class="delete-note" data-id="${note.id}" style="cursor: pointer;"></ion-icon>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    notesGrid.innerHTML = html;
+
+    // Editar anotação
+    document.querySelectorAll('.edit-note').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const noteId = parseInt(icon.dataset.id);
+            const note = notes.find(n => n.id === noteId);
+            if (note) {
+                editingNoteId = note.id;
+                noteModalTitle.textContent = 'Editar Anotação';
+                noteTitleInput.value = note.title;
+                noteSubjectInput.value = note.subject;
+                noteContentInput.value = note.content || '';
+                selectedNoteColor = note.color || 'matematica';
+                updateNoteColorOptions();
+                noteModal.classList.add('active');
+            }
+        });
+    });
+
+    // Excluir anotação
+    document.querySelectorAll('.delete-note').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const noteId = parseInt(icon.dataset.id);
+            if (confirm('Excluir esta anotação?')) {
+                notes = notes.filter(n => n.id !== noteId);
+                renderNotes();
+            }
+        });
+    });
+
+    // Abrir anotação completa ao clicar no card
+    document.querySelectorAll('.note-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-note') || e.target.classList.contains('delete-note')) return;
+            const noteId = parseInt(card.dataset.id);
+            const note = notes.find(n => n.id === noteId);
+            if (note) {
+                alert(`${note.title}\n\n${note.subject}\n\n${note.content || 'Sem conteúdo'}`);
+            }
+        });
+    });
+}
 
     // ==================== PERFIL ====================
     const profileView = document.getElementById('profile-view');
@@ -848,6 +1234,388 @@ function renderEvents() {
             }
         });
     });
+    // ==================== PERFIL - TODAS AS FUNÇÕES ====================
+// ==================== PERFIL - CORRIGIR BOTÃO DE VOLTAR ====================
+
+// FUNÇÃO GLOBAL PARA FECHAR MODAIS (FORA DO DOMContentLoaded)
+window.closeModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+    }
+};
+
+// DENTRO DO DOMContentLoaded, ADICIONE:
+
+// ==================== BOTÕES DE VOLTAR DOS MODAIS ====================
+document.querySelectorAll('.btn-back').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const modalId = btn.dataset.modal;
+        if (modalId) {
+            closeModal(modalId);
+        }
+    });
+});
+
+// ==================== ABRIR MODAIS DO PERFIL ====================
+const profileMenuItems = document.querySelectorAll('.profile-menu .menu-item:not(.logout)');
+
+profileMenuItems.forEach(item => {
+    item.addEventListener('click', () => {
+        const action = item.dataset.action;
+        
+        if (action === 'dados') {
+            document.getElementById('dados-modal').classList.add('active');
+            loadProfileData();
+        } else if (action === 'seguranca') {
+            document.getElementById('seguranca-modal').classList.add('active');
+        } else if (action === 'notificacoes') {
+            document.getElementById('notificacoes-modal').classList.add('active');
+            loadNotificacoes();
+        } else if (action === 'aparencia') {
+            document.getElementById('aparencia-modal').classList.add('active');
+            loadAparencia();
+        } else if (action === 'ajuda') {
+            document.getElementById('ajuda-modal').classList.add('active');
+        }
+    });
+});
+
+// ==================== RESTO DO CÓDIGO DO PERFIL ====================
+// ... (mantenha o resto do código que já fizemos)
+
+
+
+// ==================== DADOS PESSOAIS ====================
+// ==================== DADOS PESSOAIS - COM FOTO ====================
+
+// Elementos do avatar
+const btnChangeAvatar = document.getElementById('btn-change-avatar');
+const avatarInput = document.getElementById('avatar-input');
+const avatarPreview = document.getElementById('avatar-preview');
+const profileAvatar = document.querySelector('.profile-avatar');
+
+// Carregar dados do perfil (INCLUINDO FOTO)
+function loadProfileData() {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+        document.getElementById('profile-name-input').value = usuario.nome || '';
+        document.getElementById('profile-email-input').value = usuario.email || '';
+        document.getElementById('profile-phone-input').value = usuario.phone || '';
+        document.getElementById('profile-birth-input').value = usuario.birth || '';
+        
+        // Carregar foto se existir
+        if (usuario.avatar) {
+            avatarPreview.innerHTML = `<img src="${usuario.avatar}" alt="Avatar">`;
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<img src="${usuario.avatar}" alt="Avatar">`;
+            }
+        } else {
+            const initial = usuario.nome ? usuario.nome.charAt(0).toUpperCase() : 'U';
+            avatarPreview.innerHTML = `<span>${initial}</span>`;
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<span>${initial}</span>`;
+            }
+        }
+    }
+}
+
+// Clicar no botão de câmera
+if (btnChangeAvatar) {
+    btnChangeAvatar.addEventListener('click', () => {
+        avatarInput.click();
+    });
+}
+
+// Quando selecionar uma imagem
+if (avatarInput) {
+    avatarInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        
+        if (file) {
+            // Verificar se é imagem
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor, selecione uma imagem!');
+                return;
+            }
+            
+            // Verificar tamanho (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('A imagem deve ter no máximo 2MB!');
+                return;
+            }
+            
+            // Converter para Base64
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Image = event.target.result;
+                
+                // Atualizar preview
+                avatarPreview.innerHTML = `<img src="${base64Image}" alt="Avatar">`;
+                
+                // Salvar no localStorage
+                const usuario = JSON.parse(localStorage.getItem('usuarioLogado')) || {};
+                usuario.avatar = base64Image;
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+                
+                // Atualizar avatar no perfil principal
+                if (profileAvatar) {
+                    profileAvatar.innerHTML = `<img src="${base64Image}" alt="Avatar">`;
+                }
+                
+                alert('Foto de perfil atualizada!');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Limpar input para permitir selecionar a mesma imagem novamente
+        avatarInput.value = '';
+    });
+}
+
+// Atualizar nome no avatar quando salvar dados
+document.getElementById('btn-save-dados')?.addEventListener('click', () => {
+    const nome = document.getElementById('profile-name-input').value.trim();
+    const email = document.getElementById('profile-email-input').value.trim();
+    const phone = document.getElementById('profile-phone-input').value.trim();
+    const birth = document.getElementById('profile-birth-input').value;
+
+    if (!nome || !email) {
+        alert('Preencha nome e e-mail!');
+        return;
+    }
+
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado')) || {};
+    usuario.nome = nome;
+    usuario.email = email;
+    usuario.phone = phone;
+    usuario.birth = birth;
+    
+    // Manter o avatar se já existir
+    if (!usuario.avatar && nome) {
+        const initial = nome.charAt(0).toUpperCase();
+        avatarPreview.innerHTML = `<span>${initial}</span>`;
+        if (profileAvatar) {
+            profileAvatar.innerHTML = `<span>${initial}</span>`;
+        }
+    }
+    
+    localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+    
+    // Atualizar nome no header e perfil
+    document.querySelector('.greeting h1').textContent = nome.split(' ')[0];
+    document.querySelector('.profile-name').textContent = nome;
+    document.querySelector('.profile-email').textContent = email;
+    
+    closeModal('dados-modal');
+    alert('Dados atualizados com sucesso!');
+});
+function loadProfileData() {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuario) {
+        document.getElementById('profile-name-input').value = usuario.nome || '';
+        document.getElementById('profile-email-input').value = usuario.email || '';
+        document.getElementById('avatar-preview').textContent = usuario.nome ? usuario.nome.charAt(0).toUpperCase() : 'U';
+    }
+}
+
+document.getElementById('btn-save-dados')?.addEventListener('click', () => {
+    const nome = document.getElementById('profile-name-input').value.trim();
+    const email = document.getElementById('profile-email-input').value.trim();
+    const phone = document.getElementById('profile-phone-input').value.trim();
+    const birth = document.getElementById('profile-birth-input').value;
+
+    if (!nome || !email) {
+        alert('Preencha nome e e-mail!');
+        return;
+    }
+
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado')) || {};
+    usuario.nome = nome;
+    usuario.email = email;
+    usuario.phone = phone;
+    usuario.birth = birth;
+    
+    localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+    
+    // Atualizar nome no header e perfil
+    document.querySelector('.greeting h1').textContent = nome.split(' ')[0];
+    document.querySelector('.profile-name').textContent = nome;
+    document.querySelector('.profile-email').textContent = email;
+    document.getElementById('avatar-preview').textContent = nome.charAt(0).toUpperCase();
+    
+    closeModal('dados-modal');
+    alert('Dados atualizados com sucesso!');
+});
+
+// ==================== SEGURANÇA ====================
+document.getElementById('btn-save-senha')?.addEventListener('click', () => {
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        alert('Preencha todos os campos!');
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        alert('A senha deve ter pelo menos 6 caracteres!');
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        alert('As senhas não coincidem!');
+        return;
+    }
+
+    // Aqui você integraria com Firebase para mudar a senha
+    alert('Senha alterada com sucesso!');
+    closeModal('seguranca-modal');
+    
+    // Limpar campos
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+});
+
+// ==================== NOTIFICAÇÕES ====================
+function loadNotificacoes() {
+    const settings = JSON.parse(localStorage.getItem('notificacoesSettings')) || {
+        push: true,
+        email: false,
+        aulas: true,
+        tarefas: true
+    };
+    
+    document.getElementById('toggle-push').checked = settings.push;
+    document.getElementById('toggle-email').checked = settings.email;
+    document.getElementById('toggle-aulas').checked = settings.aulas;
+    document.getElementById('toggle-tarefas').checked = settings.tarefas;
+}
+
+document.getElementById('btn-save-notificacoes')?.addEventListener('click', () => {
+    const settings = {
+        push: document.getElementById('toggle-push').checked,
+        email: document.getElementById('toggle-email').checked,
+        aulas: document.getElementById('toggle-aulas').checked,
+        tarefas: document.getElementById('toggle-tarefas').checked
+    };
+    
+    localStorage.setItem('notificacoesSettings', JSON.stringify(settings));
+    closeModal('notificacoes-modal');
+    alert('Notificações salvas!');
+});
+
+// ==================== APARÊNCIA ====================
+function loadAparencia() {
+    const appearance = JSON.parse(localStorage.getItem('appearanceSettings')) || {
+        theme: 'dark',
+        accent: '#8b5cf6',
+        fontSize: 14
+    };
+    
+    selectedTheme = appearance.theme;
+    selectedAccent = appearance.accent;
+    
+    // Atualizar botões de tema
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === selectedTheme);
+    });
+    
+    // Atualizar cores
+    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.accent === selectedAccent);
+    });
+    
+    // Atualizar slider
+    document.getElementById('font-size-slider').value = appearance.fontSize;
+}
+
+// Selecionar tema
+document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTheme = btn.dataset.theme;
+    });
+});
+
+// Selecionar cor de destaque
+document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+    option.addEventListener('click', () => {
+        document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active'));
+        option.classList.add('active');
+        selectedAccent = option.dataset.accent;
+    });
+});
+
+document.getElementById('btn-save-aparencia')?.addEventListener('click', () => {
+    const appearance = {
+        theme: selectedTheme,
+        accent: selectedAccent,
+        fontSize: document.getElementById('font-size-slider').value
+    };
+    
+    localStorage.setItem('appearanceSettings', JSON.stringify(appearance));
+    
+    // Aplicar cor de destaque
+    document.documentElement.style.setProperty('--accent-purple', selectedAccent);
+    
+    closeModal('aparencia-modal');
+    alert('Aparência salva!');
+});
+
+// ==================== AJUDA ====================
+function toggleFaq(element) {
+    element.classList.toggle('active');
+}
+
+document.getElementById('btn-contato')?.addEventListener('click', () => {
+    window.open('https://wa.me/5500000000000', '_blank');
+});
+
+document.getElementById('btn-termos')?.addEventListener('click', () => {
+    alert('Termos de Uso\n\n1. Aceite os termos...\n2. Use o app responsavelmente...');
+});
+
+document.getElementById('btn-privacidade')?.addEventListener('click', () => {
+    alert('Política de Privacidade\n\nSeus dados estão seguros...');
+});
+
+document.getElementById('btn-avaliar')?.addEventListener('click', () => {
+    alert('Obrigado por avaliar! ⭐⭐⭐⭐⭐');
+});
+
+// ==================== LOGOUT ====================
+document.querySelector('.menu-item.logout')?.addEventListener('click', () => {
+    if (confirm('Deseja realmente sair da conta?')) {
+        localStorage.removeItem('usuarioLogado');
+        localStorage.removeItem('notificacoesSettings');
+        localStorage.removeItem('appearanceSettings');
+        
+        // Se usar Firebase:
+        // firebase.auth().signOut();
+        
+        window.location.href = '../login/index.html';
+    }
+});
+
+// ==================== CARREGAR CONFIGURAÇÕES SALVAS ====================
+function loadSavedSettings() {
+    const appearance = JSON.parse(localStorage.getItem('appearanceSettings'));
+    if (appearance) {
+        if (appearance.accent) {
+            document.documentElement.style.setProperty('--accent-purple', appearance.accent);
+        }
+        if (appearance.fontSize) {
+            document.documentElement.style.setProperty('font-size', appearance.fontSize + 'px');
+        }
+    }
+}
+
+// Carregar configurações ao iniciar
+loadSavedSettings();
 
     // ==================== INICIALIZAÇÃO ====================
     renderSchedule();
