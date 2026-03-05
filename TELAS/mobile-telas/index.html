@@ -266,6 +266,79 @@
                 </div>
             </div>
         </div>
+        <!-- MODAL DE MATÉRIA -->
+<div id="subject-modal" class="subject-modal">
+    <div class="subject-modal-content">
+        <div class="subject-modal-header">
+            <button class="btn-back" data-modal="subject-modal">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2 id="subject-modal-title">Adicionar Matéria</h2>
+            <button class="btn-save" id="btn-save-subject">Salvar</button>
+        </div>
+
+        <div class="subject-form">
+            <div class="input-group">
+                <label>Nome da Matéria</label>
+                <input type="text" id="subject-name-input" placeholder="Ex: Matemática">
+            </div>
+
+            <div class="input-group">
+                <label>Professor (Opcional)</label>
+                <input type="text" id="subject-teacher-input" placeholder="Ex: Prof. Silva">
+            </div>
+
+            <div class="input-group">
+                <label>Cor</label>
+                <div class="color-options">
+                    <div class="color-option active" data-color="#6366f1">
+                        <div class="color-circle" style="background-color: #6366f1;"></div>
+                    </div>
+                    <div class="color-option" data-color="#ec4899">
+                        <div class="color-circle" style="background-color: #ec4899;"></div>
+                    </div>
+                    <div class="color-option" data-color="#ef4444">
+                        <div class="color-circle" style="background-color: #ef4444;"></div>
+                    </div>
+                    <div class="color-option" data-color="#f59e0b">
+                        <div class="color-circle" style="background-color: #f59e0b;"></div>
+                    </div>
+                    <div class="color-option" data-color="#10b981">
+                        <div class="color-circle" style="background-color: #10b981;"></div>
+                    </div>
+                    <div class="color-option" data-color="#3b82f6">
+                        <div class="color-circle" style="background-color: #3b82f6;"></div>
+                    </div>
+                    <div class="color-option" data-color="#8b5cf6">
+                        <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                    </div>
+                    <div class="color-option" data-color="#a855f7">
+                        <div class="color-circle" style="background-color: #a855f7;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Horário</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="time" id="subject-start-input" style="flex: 1;">
+                    <input type="time" id="subject-end-input" style="flex: 1;">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Dia da Semana</label>
+                <select id="subject-day-input" style="width: 100%; padding: 12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 0.9rem;">
+                    <option value="Seg">Segunda-feira</option>
+                    <option value="Ter">Terça-feira</option>
+                    <option value="Qua">Quarta-feira</option>
+                    <option value="Qui">Quinta-feira</option>
+                    <option value="Sex">Sexta-feira</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- MODAL DE EVENTO -->
         <div id="event-modal" class="event-modal">
