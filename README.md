@@ -14,7 +14,7 @@ projecto  de gestao de tempo
 
 
 este è o codigo qnd fores a usar via termux ao fazer upload de pasta etc
-: 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
+
 
 link de conversa para usar terminar ao fazer alterações 
 :https://g.co/gemini/share/5d7195c60154
