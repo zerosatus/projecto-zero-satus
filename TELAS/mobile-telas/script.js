@@ -2137,3 +2137,134 @@ window.saveNotificationSettings = saveNotificationSettings;
 
 console.log('%c📱 App Mobile Sincronizado', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
 console.log('%cTodas as funcionalidades ativadas com persistência!', 'color: #10b981; font-size: 14px;');
+
+
+// ==================== CORREÇÃO DA SOLICITAÇÃO DE PERMISSÃO ====================
+
+// Função corrigida para solicitar permissão ao clicar no status
+async function requestPermissionOnClick() {
+    const statusEl = document.getElementById('notification-status');
+    if (!statusEl) return;
+    
+    statusEl.style.cursor = 'pointer';
+    statusEl.title = 'Clique para solicitar permissão';
+    
+    statusEl.addEventListener('click', async () => {
+        const permitido = await requestNotificationPermission();
+        if (permitido) {
+            updateNotificationStatus();
+            alert('✅ Permissão concedida! Agora você pode testar as notificações.');
+        } else {
+            alert('❌ Permissão negada. Você não receberá notificações.');
+        }
+    });
+}
+
+// Sobrescrever a função testNotification para solicitar permissão automaticamente
+async function testNotificationCorrigido() {
+    // Verificar permissão atual
+    if (Notification.permission !== 'granted') {
+        const confirmar = confirm('Para testar notificações, precisamos de sua permissão. Deseja permitir agora?');
+        
+        if (confirmar) {
+            const permitido = await requestNotificationPermission();
+            if (!permitido) {
+                alert('Permissão negada. Não é possível testar a notificação.');
+                return;
+            }
+        } else {
+            return;
+        }
+    }
+    
+    // Se chegou aqui, tem permissão
+    await dispararNotificacaoLocal({
+        title: '🔔 Teste de Notificação',
+        body: 'Se você está vendo isso, as notificações funcionam!',
+        tag: `test-${Date.now()}`,
+        data: { type: 'test' }
+    });
+}
+
+// Substituir a função testNotification original
+window.testNotification = testNotificationCorrigido;
+
+// Adicionar listener para o status também
+document.addEventListener('DOMContentLoaded', () => {
+    // Chamar a função para tornar o status clicável
+    setTimeout(requestPermissionOnClick, 1000);
+    
+    // Também tornar o botão de testar mais robusto
+    const btnTest = document.getElementById('btn-test-notification');
+    if (btnTest) {
+        // Remover listener antigo se houver
+        btnTest.replaceWith(btnTest.cloneNode(true));
+        
+        // Adicionar novo listener
+        const newBtnTest = document.getElementById('btn-test-notification');
+        if (newBtnTest) {
+            newBtnTest.addEventListener('click', testNotificationCorrigido);
+        }
+    }
+});
+
+// Função para atualizar o texto do status e torná-lo interativo
+async function updateNotificationStatusInterativo() {
+    const statusEl = document.getElementById('notification-status');
+    if (!statusEl) return;
+    
+    const indicator = statusEl.querySelector('.status-indicator');
+    const text = statusEl.querySelector('.status-text');
+    
+    if (!('Notification' in window)) {
+        indicator.className = 'status-indicator denied';
+        text.textContent = 'Não suportado';
+        return;
+    }
+    
+    switch(Notification.permission) {
+        case 'granted':
+            indicator.className = 'status-indicator granted';
+            text.textContent = 'Notificações ativadas ✓ (clique para testar)';
+            break;
+        case 'denied':
+            indicator.className = 'status-indicator denied';
+            text.textContent = 'Notificações bloqueadas - clique para abrir configurações';
+            statusEl.addEventListener('click', () => {
+                alert('Para ativar, vá nas configurações do navegador e permita notificações para este site.');
+            });
+            break;
+        default:
+            indicator.className = 'status-indicator default';
+            text.textContent = 'Clique aqui para ativar notificações';
+            statusEl.style.cursor = 'pointer';
+            statusEl.addEventListener('click', async () => {
+                const permitido = await requestNotificationPermission();
+                if (permitido) {
+                    updateNotificationStatusInterativo();
+                    alert('✅ Permissão concedida!');
+                }
+            });
+    }
+}
+
+// Substituir a função updateNotificationStatus original
+window.updateNotificationStatus = updateNotificationStatusInterativo;
+
+// Executar quando o modal abrir
+document.addEventListener('DOMContentLoaded', () => {
+    const notificacoesModal = document.getElementById('notificacoes-modal');
+    if (notificacoesModal) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (notificacoesModal.classList.contains('active')) {
+                        updateNotificationStatusInterativo();
+                    }
+                }
+            });
+        });
+        
+        observer.observe(notificacoesModal, { attributes: true });
+    }
+});
