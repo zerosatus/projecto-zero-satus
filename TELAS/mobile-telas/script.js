@@ -2268,3 +2268,186 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(notificacoesModal, { attributes: true });
     }
 });
+
+
+// ==================== CORREÇÃO: OCULTAR "VERIFICANDO PERMISSÃO" APÓS VERIFICAÇÃO ====================
+
+// Função melhorada para atualizar o status sem texto "Verificando"
+async function updateNotificationStatusCorrigido() {
+    const statusEl = document.getElementById('notification-status');
+    const textEl = document.getElementById('status-text');
+    
+    if (!statusEl || !textEl) return;
+    
+    const indicator = statusEl.querySelector('.status-indicator');
+    
+    if (!('Notification' in window)) {
+        indicator.className = 'status-indicator denied';
+        textEl.textContent = 'Não suportado';
+        return;
+    }
+    
+    // Verificar permissão atual
+    switch(Notification.permission) {
+        case 'granted':
+            indicator.className = 'status-indicator granted';
+            textEl.textContent = '✅ Notificações ativadas';
+            statusEl.style.cursor = 'default';
+            statusEl.title = 'Notificações já estão ativadas';
+            break;
+            
+        case 'denied':
+            indicator.className = 'status-indicator denied';
+            textEl.textContent = '❌ Notificações bloqueadas';
+            statusEl.style.cursor = 'pointer';
+            statusEl.title = 'Clique para abrir instruções';
+            break;
+            
+        default:
+            indicator.className = 'status-indicator default';
+            textEl.textContent = '🔔 Clique aqui para ativar notificações';
+            statusEl.style.cursor = 'pointer';
+            statusEl.title = 'Clique para solicitar permissão';
+    }
+}
+
+// Função para solicitar permissão com feedback visual
+async function solicitarPermissaoNotificacao() {
+    if (!('Notification' in window)) {
+        alert('Seu navegador não suporta notificações');
+        return;
+    }
+    
+    if (Notification.permission === 'granted') {
+        updateNotificationStatusCorrigido();
+        alert('✅ Você já tem permissão para notificações!');
+        return;
+    }
+    
+    if (Notification.permission === 'denied') {
+        alert('❌ Notificações bloqueadas. Para ativar, vá nas configurações do navegador e permita notificações para este site.');
+        return;
+    }
+    
+    // Solicitar permissão
+    try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            updateNotificationStatusCorrigido();
+            alert('✅ Permissão concedida! Agora você receberá notificações.');
+            
+            // Disparar notificação de boas-vindas
+            new Notification('🎉 Notificações ativadas!', {
+                body: 'Agora você receberá lembretes de tarefas e eventos.',
+                icon: '/icons/icon-192x192.png'
+            });
+        } else {
+            updateNotificationStatusCorrigido();
+            alert('❌ Permissão negada. Você não receberá notificações.');
+        }
+    } catch (error) {
+        console.error('Erro ao solicitar permissão:', error);
+        alert('Erro ao solicitar permissão. Tente novamente.');
+    }
+}
+
+// Configurar eventos para o status e botão
+function configurarEventosNotificacao() {
+    const statusEl = document.getElementById('notification-status');
+    const btnTest = document.getElementById('btn-test-notification');
+    
+    // Remover eventos antigos clonando e substituindo
+    if (statusEl) {
+        const novoStatus = statusEl.cloneNode(true);
+        statusEl.parentNode.replaceChild(novoStatus, statusEl);
+        
+        novoStatus.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await solicitarPermissaoNotificacao();
+        });
+    }
+    
+    if (btnTest) {
+        const novoBtn = btnTest.cloneNode(true);
+        btnTest.parentNode.replaceChild(novoBtn, btnTest);
+        
+        novoBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            if (Notification.permission !== 'granted') {
+                const confirmar = confirm('Para testar notificações, precisamos de sua permissão. Deseja permitir agora?');
+                if (confirmar) {
+                    await solicitarPermissaoNotificacao();
+                    if (Notification.permission === 'granted') {
+                        dispararNotificacaoTeste();
+                    }
+                }
+            } else {
+                dispararNotificacaoTeste();
+            }
+        });
+    }
+}
+
+// Função para disparar notificação de teste
+function dispararNotificacaoTeste() {
+    try {
+        const notification = new Notification('🔔 Teste de Notificação', {
+            body: 'Se você está vendo isso, as notificações funcionam!',
+            icon: '/icons/icon-192x192.png',
+            vibrate: [200, 100, 200],
+            requireInteraction: false
+        });
+        
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+        
+    } catch (error) {
+        console.error('Erro ao disparar notificação:', error);
+        alert('Erro ao disparar notificação. Verifique o console.');
+    }
+}
+
+// Inicializar tudo quando o modal abrir
+document.addEventListener('DOMContentLoaded', () => {
+    // Configurar eventos
+    configurarEventosNotificacao();
+    
+    // Observar quando o modal de notificações abrir
+    const notificacoesModal = document.getElementById('notificacoes-modal');
+    if (notificacoesModal) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (notificacoesModal.classList.contains('active')) {
+                        // Atualizar status quando o modal abrir
+                        setTimeout(() => {
+                            updateNotificationStatusCorrigido();
+                            
+                            // Recarregar configurações salvas
+                            localDB.getConfigNotificacoes().then(config => {
+                                document.getElementById('toggle-push').checked = config.push;
+                                document.getElementById('toggle-aulas').checked = config.aulas;
+                                document.getElementById('toggle-tarefas').checked = config.tarefas;
+                                if (document.getElementById('toggle-lembrete')) {
+                                    document.getElementById('toggle-lembrete').checked = config.lembrete_estudo;
+                                }
+                                if (document.getElementById('notif-antecedencia')) {
+                                    document.getElementById('notif-antecedencia').value = config.antecedencia;
+                                }
+                            });
+                        }, 100);
+                    }
+                }
+            });
+        });
+        
+        observer.observe(notificacoesModal, { attributes: true });
+    }
+});
+
+// Remover funções antigas para não conflitar
+window.updateNotificationStatus = updateNotificationStatusCorrigido;
