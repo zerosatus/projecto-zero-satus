@@ -2523,3 +2523,95 @@ input[type="range"]::-moz-range-thumb:hover {
         box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
     }
 }
+
+/* Melhorias para o status de notificação */
+.notification-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background-color: var(--bg-color);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.notification-status:hover {
+    background-color: var(--border-color);
+    border-color: var(--accent-purple);
+}
+
+.notification-status:active {
+    transform: scale(0.98);
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.status-indicator.granted {
+    background-color: #10b981;
+    box-shadow: 0 0 10px #10b981;
+    animation: pulse-green 2s infinite;
+}
+
+.status-indicator.denied {
+    background-color: #ef4444;
+}
+
+.status-indicator.default {
+    background-color: #f59e0b;
+    animation: pulse-orange 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+@keyframes pulse-orange {
+    0% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+    }
+}
+
+#status-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Feedback para quando clicar */
+.notification-status.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.notification-status.loading .status-indicator {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
