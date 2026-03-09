@@ -857,7 +857,195 @@
             </div>
         </div>
     </div>
-
+<!-- Adicione isso dentro do modal de notificações -->
+<div class="notification-settings-section">
+    <h3>Notificações Push</h3>
+    <p class="settings-description">Receba alertas mesmo com o app fechado</p>
+    
+    <button class="btn-test-notification" id="btn-test-notification">
+        <ion-icon name="notifications-outline"></ion-icon>
+        Testar Notificação
+    </button>
+    
+    <div class="notification-status" id="notification-status">
+        <span class="status-indicator"></span>
+        <span class="status-text">Verificando permissão...</span>
+    </div>
+<!-- Substitua a seção de configurações de notificações -->
+<div class="notification-settings-section">
+    <h3>Notificações Push</h3>
+    <p class="settings-description">Receba alertas mesmo com o app fechado</p>
+    
+    <div class="config-item">
+        <label>Antecedência para lembretes</label>
+        <select id="notif-antecedencia" class="config-select">
+            <option value="15">15 minutos</option>
+            <option value="30" selected>30 minutos</option>
+            <option value="60">1 hora</option>
+            <option value="120">2 horas</option>
+            <option value="1440">1 dia</option>
+        </select>
+    </div>
+    
+    <div class="toggle-option" style="margin-top: 15px;">
+        <div class="toggle-info">
+            <ion-icon name="alarm-outline"></ion-icon>
+            <div>
+                <span class="toggle-title">Lembrete de Estudo</span>
+                <span class="toggle-desc">Lembretes periódicos para estudar</span>
+            </div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="toggle-lembrete" checked>
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+    
+    <button class="btn-test-notification" id="btn-test-notification">
+        <ion-icon name="notifications-outline"></ion-icon>
+        Testar Notificação
+    </button>
+    
+    <div class="notification-status" id="notification-status">
+        <span class="status-indicator"></span>
+        <span class="status-text">Verificando permissão...</span>
+    </div>
+</div>
+</div>
     <script src="script.js"></script>
+<script src="db.js"></script>
+
+<!-- Adicione isso antes do </body> no seu index.html -->
+<script>
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then((registration) => {
+                    console.log('Service Worker registrado com sucesso:', registration.scope);
+                    
+                    // Verificar atualizações
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        console.log('Novo Service Worker encontrado:', newWorker);
+                        
+                        newWorker.addEventListener('statechange', () => {
+                            console.log('Estado do Service Worker:', newWorker.state);
+                            
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Nova versão disponível
+                                if (confirm('Nova versão disponível! Atualizar agora?')) {
+                                    newWorker.postMessage({ action: 'skipWaiting' });
+                                }
+                            }
+                        });
+                    });
+                })
+                .catch((error) => {
+                    console.error('Erro ao registrar Service Worker:', error);
+                });
+            
+            // Verificar conectividade
+            function updateOnlineStatus() {
+                if (navigator.onLine) {
+                    console.log('Estamos online!');
+                    document.body.classList.remove('offline-mode');
+                } else {
+                    console.log('Estamos offline!');
+                    document.body.classList.add('offline-mode');
+                    
+                    // Mostrar notificação offline
+                    showOfflineNotification();
+                }
+            }
+            
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
+            
+            // Sincronização em segundo plano
+            navigator.serviceWorker.ready.then((registration) => {
+                return registration.sync.register('sync-data');
+            }).catch((error) => {
+                console.log('Sincronização em segundo plano não suportada:', error);
+            });
+        });
+    }
+    
+    // Função para mostrar notificação offline
+    function showOfflineNotification() {
+        // Criar elemento de notificação
+        const notification = document.createElement('div');
+        notification.className = 'offline-notification';
+        notification.innerHTML = `
+            <ion-icon name="cloud-offline-outline"></ion-icon>
+            <span>Modo offline - Dados salvos localmente</span>
+        `;
+        
+        // Estilo da notificação
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background-color: var(--accent-orange, #f59e0b);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            font-size: 0.9rem;
+            animation: slideUp 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        
+        // Adicionar ao body
+        document.body.appendChild(notification);
+        
+        // Remover após 5 segundos
+        setTimeout(() => {
+            notification.style.animation = 'slideDown 0.3s ease';
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 5000);
+    }
+    
+    // Animações CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+
+<!-- Adicione também o link para o manifest -->
+<link rel="manifest" href="./manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Painel Aluno">
+<link rel="apple-touch-icon" href="icons/icon-192x192.png">
 </body>
 </html>

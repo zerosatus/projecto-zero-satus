@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         atualizarInterfaceUsuario();
         inicializarComponentes();
         configurarEventListeners();
+        initNotificationSystem();
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
@@ -49,7 +50,6 @@ function carregarHorarioSemanal() {
     if (horarioSalvo) {
         weeklySchedule = JSON.parse(horarioSalvo);
     } else {
-        // Horário padrão
         weeklySchedule = {
             'Seg': [
                 { id: '1', hora: '08:00', materia: 'Matemática', color: '#6366f1', professor: 'Prof. Silva' },
@@ -77,7 +77,6 @@ function carregarHorarioSemanal() {
         };
     }
     
-    // Salvar timeSlots baseado no horário
     atualizarTimeSlots();
 }
 
@@ -99,7 +98,6 @@ function carregarTarefas() {
     if (tarefasSalvas) {
         tarefas = JSON.parse(tarefasSalvas);
     } else {
-        // Tarefas padrão
         tarefas = [
             { id: Date.now() + 1, nome: 'Lista de Exercícios', disciplina: 'matematica', prazo: '2026-03-15', concluida: false, prioridade: 'alta' },
             { id: Date.now() + 2, nome: 'Redação Dissertativa', disciplina: 'portugues', prazo: '2026-03-18', concluida: false, prioridade: 'media' },
@@ -119,7 +117,6 @@ function carregarAnotacoes() {
     if (anotacoesSalvas) {
         anotacoes = JSON.parse(anotacoesSalvas);
     } else {
-        // Anotações padrão
         anotacoes = [
             { id: Date.now() + 1, titulo: 'Fórmulas de Física', materia: 'Física', dataModificacao: new Date().toISOString(), conteudo: 'E = mc²\nF = ma\nv = v₀ + at', cor: 'fisica' },
             { id: Date.now() + 2, titulo: 'Verbos em Inglês', materia: 'Inglês', dataModificacao: new Date().toISOString(), conteudo: 'Simple Present, Past Participle...', cor: 'ingles' },
@@ -138,7 +135,6 @@ function carregarEventos() {
     if (eventosSalvos) {
         eventos = JSON.parse(eventosSalvos);
     } else {
-        // Eventos padrão
         const hoje = new Date();
         eventos = [
             { id: Date.now() + 1, title: 'Aula de Matemática', day: hoje.getDate(), month: hoje.getMonth(), year: hoje.getFullYear(), time: '08:00', endTime: '09:30', type: 'aula', color: '#6366f1' },
@@ -168,7 +164,6 @@ function carregarNotificacoes() {
 function gerarNotificacoesIniciais() {
     const notificacoes = [];
     
-    // Notificações de tarefas pendentes
     tarefas.filter(t => !t.concluida).slice(0, 3).forEach(t => {
         notificacoes.push({
             id: Date.now() + Math.random(),
@@ -180,7 +175,6 @@ function gerarNotificacoesIniciais() {
         });
     });
     
-    // Notificações de eventos hoje
     const hoje = new Date();
     eventos.filter(e => e.day === hoje.getDate() && e.month === hoje.getMonth()).forEach(e => {
         notificacoes.push({
@@ -205,12 +199,10 @@ function renderSchedule() {
     const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
     let html = '<div class="time-slot"></div>';
     
-    // Cabeçalhos dos dias
     dias.forEach(dia => {
         html += `<div class="day-header">${dia}</div>`;
     });
     
-    // Linhas de horários
     timeSlots.forEach(hora => {
         html += `<div class="time-slot">${hora}</div>`;
         
@@ -244,12 +236,10 @@ function renderEditSchedule() {
     const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
     let html = '<div class="time-slot"></div>';
     
-    // Cabeçalhos dos dias
     dias.forEach(dia => {
         html += `<div class="day-header">${dia}<br><small>${dia}</small></div>`;
     });
     
-    // Linhas de horários
     timeSlots.forEach(hora => {
         html += `<div class="time-slot">${hora}</div>`;
         
@@ -417,12 +407,10 @@ function renderCalendar() {
     
     let html = '';
     
-    // Dias vazios
     for (let i = 0; i < firstDay; i++) {
         html += '<div class="calendar-day empty"></div>';
     }
     
-    // Dias do mês
     for (let d = 1; d <= lastDate; d++) {
         const isToday = d === new Date().getDate() && 
                        currentMonth === new Date().getMonth() && 
@@ -597,7 +585,6 @@ function openSubjectModal(dia, hora) {
     document.getElementById('subject-end-input').value = adicionarHora(hora, 1);
     document.getElementById('subject-day-input').value = dia;
     
-    // Reset cor ativa
     document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
     document.querySelector('.color-option[data-color="#6366f1"]').classList.add('active');
     
@@ -616,7 +603,6 @@ function editSubject(dia, hora, id) {
     document.getElementById('subject-end-input').value = adicionarHora(aula.hora, 1);
     document.getElementById('subject-day-input').value = dia;
     
-    // Selecionar cor
     document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
     const corOption = Array.from(document.querySelectorAll('.color-option')).find(opt => 
         opt.dataset.color === aula.color
@@ -654,7 +640,6 @@ function saveSubject() {
     }
     
     if (window.currentEditingCell?.id) {
-        // Editar existente
         const index = weeklySchedule[dia].findIndex(a => a.id === window.currentEditingCell.id);
         if (index !== -1) {
             weeklySchedule[dia][index] = {
@@ -666,7 +651,6 @@ function saveSubject() {
             };
         }
     } else {
-        // Adicionar novo
         const novaAula = {
             id: Date.now() + Math.random().toString(36).substr(2, 9),
             hora: hora,
@@ -677,7 +661,6 @@ function saveSubject() {
         weeklySchedule[dia].push(novaAula);
     }
     
-    // Ordenar por hora
     weeklySchedule[dia].sort((a, b) => a.hora.localeCompare(b.hora));
     
     salvarHorario();
@@ -697,7 +680,6 @@ function openNotificationsModal() {
     document.getElementById('notifications-modal').classList.add('active');
     renderNotificationsModal('all');
     
-    // Atualizar tabs
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.classList.remove('active');
         if (tab.dataset.type === 'all') tab.classList.add('active');
@@ -710,7 +692,6 @@ function closeNotificationsModal() {
 
 function openEventModal(id = null) {
     if (id) {
-        // Editar evento existente
         const evento = eventos.find(e => e.id == id);
         if (evento) {
             document.getElementById('event-title').value = evento.title;
@@ -718,13 +699,11 @@ function openEventModal(id = null) {
             document.getElementById('event-start').value = evento.time;
             document.getElementById('event-end').value = evento.endTime || '';
             
-            // Selecionar tipo
             document.querySelectorAll('.event-types .type-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.dataset.type === evento.type) btn.classList.add('active');
             });
             
-            // Selecionar cor
             document.querySelectorAll('.event-modal .color-option').forEach(opt => opt.classList.remove('active'));
             const corOption = Array.from(document.querySelectorAll('.event-modal .color-option')).find(opt => 
                 opt.dataset.color === evento.color
@@ -734,19 +713,16 @@ function openEventModal(id = null) {
             window.currentEventId = id;
         }
     } else {
-        // Novo evento - data atual
         document.getElementById('event-title').value = '';
         document.getElementById('event-date').value = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
         document.getElementById('event-start').value = '08:00';
         document.getElementById('event-end').value = '09:00';
         
-        // Reset tipo
         document.querySelectorAll('.event-types .type-btn').forEach(btn => {
             btn.classList.remove('active');
             if (btn.dataset.type === 'aula') btn.classList.add('active');
         });
         
-        // Reset cor
         document.querySelectorAll('.event-modal .color-option').forEach(opt => opt.classList.remove('active'));
         document.querySelector('.event-modal .color-option[data-color="#8b5cf6"]').classList.add('active');
         
@@ -772,7 +748,6 @@ function saveEvent() {
     const [year, month, day] = date.split('-').map(Number);
     
     if (window.currentEventId) {
-        // Editar
         const index = eventos.findIndex(e => e.id == window.currentEventId);
         if (index !== -1) {
             eventos[index] = {
@@ -788,7 +763,6 @@ function saveEvent() {
             };
         }
     } else {
-        // Novo
         eventos.push({
             id: Date.now() + Math.random().toString(36).substr(2, 9),
             title,
@@ -820,19 +794,16 @@ function openTaskModal(id = null) {
             document.getElementById('task-subject').value = getTextoDisciplina(tarefa.disciplina);
             document.getElementById('task-date').value = tarefa.prazo || '';
             
-            // Selecionar tipo
             document.querySelectorAll('.task-types .type-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.dataset.type === tarefa.disciplina) btn.classList.add('active');
             });
             
-            // Selecionar prioridade
             document.querySelectorAll('.priority-btn').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.dataset.priority === tarefa.prioridade) btn.classList.add('active');
             });
             
-            // Selecionar cor
             document.querySelectorAll('.task-modal .color-option').forEach(opt => opt.classList.remove('active'));
             const cor = getCorDisciplina(tarefa.disciplina);
             const corOption = Array.from(document.querySelectorAll('.task-modal .color-option')).find(opt => 
@@ -843,12 +814,10 @@ function openTaskModal(id = null) {
             window.currentTaskId = id;
         }
     } else {
-        // Novo
         document.getElementById('task-title').value = '';
         document.getElementById('task-subject').value = '';
         document.getElementById('task-date').value = '';
         
-        // Reset
         document.querySelectorAll('.task-types .type-btn').forEach(btn => {
             btn.classList.remove('active');
             if (btn.dataset.type === 'matematica') btn.classList.add('active');
@@ -882,7 +851,6 @@ function saveTask() {
     }
     
     if (window.currentTaskId) {
-        // Editar
         const index = tarefas.findIndex(t => t.id == window.currentTaskId);
         if (index !== -1) {
             tarefas[index] = {
@@ -894,7 +862,6 @@ function saveTask() {
             };
         }
     } else {
-        // Novo
         tarefas.push({
             id: Date.now() + Math.random().toString(36).substr(2, 9),
             nome: title,
@@ -924,7 +891,6 @@ function openNoteModal(id = null) {
             document.getElementById('note-subject').value = nota.materia || '';
             document.getElementById('note-content').value = nota.conteudo || '';
             
-            // Selecionar cor
             document.querySelectorAll('.note-modal .color-option').forEach(opt => opt.classList.remove('active'));
             const corOption = Array.from(document.querySelectorAll('.note-modal .color-option')).find(opt => 
                 opt.dataset.color === nota.cor
@@ -934,12 +900,10 @@ function openNoteModal(id = null) {
             window.currentNoteId = id;
         }
     } else {
-        // Novo
         document.getElementById('note-title').value = '';
         document.getElementById('note-subject').value = '';
         document.getElementById('note-content').value = '';
         
-        // Reset cor
         document.querySelectorAll('.note-modal .color-option').forEach(opt => opt.classList.remove('active'));
         document.querySelector('.note-modal .color-option[data-color="fisica"]').classList.add('active');
         
@@ -962,7 +926,6 @@ function saveNote() {
     }
     
     if (window.currentNoteId) {
-        // Editar
         const index = anotacoes.findIndex(n => n.id == window.currentNoteId);
         if (index !== -1) {
             anotacoes[index] = {
@@ -975,7 +938,6 @@ function saveNote() {
             };
         }
     } else {
-        // Novo
         anotacoes.push({
             id: Date.now() + Math.random().toString(36).substr(2, 9),
             titulo: title,
@@ -997,7 +959,6 @@ function closeNoteModal() {
 }
 
 function openProfileModal(modalId) {
-    // Carregar dados do perfil
     if (modalId === 'dados-modal') {
         document.getElementById('profile-name-input').value = usuarioAtual.nome || '';
         document.getElementById('profile-email-input').value = usuarioAtual.email || '';
@@ -1043,27 +1004,12 @@ function savePassword() {
         return;
     }
     
-    // Aqui você implementaria a lógica real de alteração de senha
     alert('Senha alterada com sucesso!');
     closeProfileModal('seguranca-modal');
     
-    // Limpar campos
     document.getElementById('current-password').value = '';
     document.getElementById('new-password').value = '';
     document.getElementById('confirm-password').value = '';
-}
-
-function saveNotificationSettings() {
-    const push = document.getElementById('toggle-push').checked;
-    const email = document.getElementById('toggle-email').checked;
-    const aulas = document.getElementById('toggle-aulas').checked;
-    const tarefas = document.getElementById('toggle-tarefas').checked;
-    
-    usuarioAtual.notificacoes = { push, email, aulas, tarefas };
-    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-    
-    closeProfileModal('notificacoes-modal');
-    alert('Configurações salvas!');
 }
 
 function saveAppearance() {
@@ -1081,7 +1027,6 @@ function saveAppearance() {
 }
 
 function aplicarTema(theme, accent, fontSize) {
-    // Aplicar tema
     if (theme === 'light') {
         document.documentElement.style.setProperty('--bg-color', '#f5f7fa');
         document.documentElement.style.setProperty('--card-bg', '#ffffff');
@@ -1098,10 +1043,7 @@ function aplicarTema(theme, accent, fontSize) {
         document.documentElement.style.setProperty('--nav-bg', '#1a1d24');
     }
     
-    // Aplicar cor de destaque
     document.documentElement.style.setProperty('--accent-purple', accent);
-    
-    // Aplicar tamanho da fonte
     document.documentElement.style.fontSize = fontSize + 'px';
 }
 
@@ -1352,7 +1294,6 @@ function atualizarCardsResumo() {
     const tarefasConcluidas = tarefas.filter(t => t.concluida).length;
     const tarefasPendentes = totalTarefas - tarefasConcluidas;
     
-    // Contar disciplinas únicas
     const disciplinas = new Set(tarefas.map(t => t.disciplina).filter(Boolean));
     
     document.querySelector('.card:nth-child(1) .card-number').textContent = disciplinas.size || 12;
@@ -1373,7 +1314,6 @@ function atualizarInterfaceUsuario() {
     if (profileEmail) profileEmail.textContent = usuarioAtual.email;
     if (profileInitial) profileInitial.textContent = usuarioAtual.nome.charAt(0).toUpperCase();
     
-    // Atualizar avatar se existir
     if (usuarioAtual.avatar) {
         const avatarPreview = document.getElementById('avatar-preview');
         const profileAvatar = document.querySelector('.profile-avatar');
@@ -1386,7 +1326,6 @@ function atualizarInterfaceUsuario() {
         }
     }
     
-    // Aplicar configurações de aparência
     if (usuarioAtual.aparencia) {
         aplicarTema(
             usuarioAtual.aparencia.theme || 'dark',
@@ -1399,24 +1338,20 @@ function atualizarInterfaceUsuario() {
 // ==================== CONFIGURAÇÃO DE EVENT LISTENERS ====================
 
 function configurarEventListeners() {
-    // Navegação entre views
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', (e) => {
             const view = item.dataset.view;
             if (!view) return;
             
-            // Atualizar active states
             document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
             item.classList.add('active');
             
-            // Mostrar view correspondente
             document.querySelectorAll('#home-view, #calendar-view, #tasks-view, #notes-view, #profile-view').forEach(v => {
                 v.classList.add('hidden');
             });
             
             document.getElementById(`${view}-view`).classList.remove('hidden');
             
-            // Renderizar conteúdo específico
             if (view === 'home') {
                 renderSchedule();
                 renderClasses();
@@ -1431,27 +1366,23 @@ function configurarEventListeners() {
         });
     });
     
-    // Botão de editar horário
     const toggleEdit = document.getElementById('toggle-edit-mode');
     if (toggleEdit) {
         toggleEdit.addEventListener('click', openEditModal);
     }
     
-    // Modal de edição - botões
     const btnBack = document.getElementById('btn-back');
     if (btnBack) btnBack.addEventListener('click', closeEditModal);
     
     const btnSave = document.getElementById('btn-save');
     if (btnSave) btnSave.addEventListener('click', closeEditModal);
     
-    // Adicionar/remover horários
     const btnAddTime = document.getElementById('btn-add-time');
     if (btnAddTime) btnAddTime.addEventListener('click', addNewTime);
     
     const btnCancelTime = document.getElementById('btn-cancel-time');
     if (btnCancelTime) btnCancelTime.addEventListener('click', cancelNewTime);
     
-    // Modal de matéria
     const btnSaveSubject = document.getElementById('btn-save-subject');
     if (btnSaveSubject) btnSaveSubject.addEventListener('click', saveSubject);
     
@@ -1459,7 +1390,6 @@ function configurarEventListeners() {
         btn.addEventListener('click', closeSubjectModal);
     });
     
-    // Notificações
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
         notificationBell.addEventListener('click', openNotificationsModal);
@@ -1480,7 +1410,6 @@ function configurarEventListeners() {
         btnClearAll.addEventListener('click', clearAllNotifications);
     }
     
-    // Tabs de notificações
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -1489,7 +1418,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Calendário
     const prevMonth = document.getElementById('prev-month');
     if (prevMonth) prevMonth.addEventListener('click', () => changeMonth(-1));
     
@@ -1499,7 +1427,6 @@ function configurarEventListeners() {
     const btnNewEvent = document.getElementById('btn-new-event');
     if (btnNewEvent) btnNewEvent.addEventListener('click', () => openEventModal());
     
-    // Modal de evento
     const btnSaveEvent = document.getElementById('btn-save-event');
     if (btnSaveEvent) btnSaveEvent.addEventListener('click', saveEvent);
     
@@ -1507,7 +1434,6 @@ function configurarEventListeners() {
         btn.addEventListener('click', closeEventModal);
     });
     
-    // Tipos de evento
     document.querySelectorAll('.event-types .type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.event-types .type-btn').forEach(b => b.classList.remove('active'));
@@ -1515,7 +1441,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Tarefas
     const btnAddTask = document.getElementById('btn-add-task');
     if (btnAddTask) btnAddTask.addEventListener('click', () => openTaskModal());
     
@@ -1525,7 +1450,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Modal de tarefa
     const btnSaveTask = document.getElementById('btn-save-task');
     if (btnSaveTask) btnSaveTask.addEventListener('click', saveTask);
     
@@ -1533,7 +1457,6 @@ function configurarEventListeners() {
         btn.addEventListener('click', closeTaskModal);
     });
     
-    // Tipos de tarefa
     document.querySelectorAll('.task-types .type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.task-types .type-btn').forEach(b => b.classList.remove('active'));
@@ -1541,7 +1464,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Prioridades
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
@@ -1549,7 +1471,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Anotações
     const btnAddNote = document.getElementById('btn-add-note');
     if (btnAddNote) btnAddNote.addEventListener('click', () => openNoteModal());
     
@@ -1558,7 +1479,6 @@ function configurarEventListeners() {
         notesSearch.addEventListener('input', searchNotes);
     }
     
-    // Modal de anotação
     const btnSaveNote = document.getElementById('btn-save-note');
     if (btnSaveNote) btnSaveNote.addEventListener('click', saveNote);
     
@@ -1566,7 +1486,6 @@ function configurarEventListeners() {
         btn.addEventListener('click', closeNoteModal);
     });
     
-    // Perfil - menu items
     document.querySelectorAll('.menu-item[data-action]').forEach(item => {
         item.addEventListener('click', () => {
             const action = item.dataset.action;
@@ -1587,7 +1506,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Modais de perfil
     document.querySelectorAll('[data-modal="dados-modal"]').forEach(btn => {
         btn.addEventListener('click', () => closeProfileModal('dados-modal'));
     });
@@ -1608,7 +1526,6 @@ function configurarEventListeners() {
         btn.addEventListener('click', () => closeProfileModal('ajuda-modal'));
     });
     
-    // Botões de salvar dos modais de perfil
     const btnSaveDados = document.getElementById('btn-save-dados');
     if (btnSaveDados) btnSaveDados.addEventListener('click', saveProfileData);
     
@@ -1616,12 +1533,13 @@ function configurarEventListeners() {
     if (btnSaveSenha) btnSaveSenha.addEventListener('click', savePassword);
     
     const btnSaveNotificacoes = document.getElementById('btn-save-notificacoes');
-    if (btnSaveNotificacoes) btnSaveNotificacoes.addEventListener('click', saveNotificationSettings);
+    if (btnSaveNotificacoes) {
+        btnSaveNotificacoes.addEventListener('click', saveNotificationSettings);
+    }
     
     const btnSaveAparencia = document.getElementById('btn-save-aparencia');
     if (btnSaveAparencia) btnSaveAparencia.addEventListener('click', saveAppearance);
     
-    // Temas
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
@@ -1629,7 +1547,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Cores (em todos os modais)
     document.querySelectorAll('.color-option').forEach(opt => {
         opt.addEventListener('click', () => {
             const container = opt.closest('.color-options');
@@ -1640,7 +1557,6 @@ function configurarEventListeners() {
         });
     });
     
-    // Slider de fonte
     const fontSizeSlider = document.getElementById('font-size-slider');
     if (fontSizeSlider) {
         fontSizeSlider.addEventListener('input', (e) => {
@@ -1648,7 +1564,6 @@ function configurarEventListeners() {
         });
     }
     
-    // Botão de contato
     const btnContato = document.getElementById('btn-contato');
     if (btnContato) {
         btnContato.addEventListener('click', () => {
@@ -1656,7 +1571,6 @@ function configurarEventListeners() {
         });
     }
     
-    // Avatar upload
     const btnChangeAvatar = document.getElementById('btn-change-avatar');
     const avatarInput = document.getElementById('avatar-input');
     
@@ -1684,7 +1598,6 @@ function configurarEventListeners() {
         });
     }
     
-    // Auto-save
     setInterval(() => {
         salvarTodosDados();
     }, 30000);
@@ -1702,6 +1615,484 @@ function inicializarComponentes() {
     renderTasks();
     renderNotes();
 }
+
+// ==================== SISTEMA DE NOTIFICAÇÕES COMPLETO ====================
+
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log('Este navegador não suporta notificações');
+        return false;
+    }
+    
+    if (Notification.permission === 'granted') {
+        console.log('Permissão já concedida');
+        return true;
+    }
+    
+    if (Notification.permission === 'denied') {
+        console.log('Permissão negada');
+        return false;
+    }
+    
+    try {
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    } catch (error) {
+        console.error('Erro ao solicitar permissão:', error);
+        return false;
+    }
+}
+
+async function dispararNotificacaoLocal(options) {
+    if (Notification.permission !== 'granted') {
+        console.log('Permissão negada');
+        return false;
+    }
+    
+    const config = await localDB.getConfigNotificacoes();
+    
+    if (options.data?.type === 'aula' && !config.aulas) return false;
+    if (options.data?.type === 'tarefa' && !config.tarefas) return false;
+    if (options.data?.type === 'lembrete' && !config.lembrete_estudo) return false;
+    
+    const defaultOptions = {
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
+        vibrate: [200, 100, 200],
+        tag: `notif-${Date.now()}`,
+        requireInteraction: false,
+        silent: false,
+        actions: [
+            { action: 'open', title: 'Ver detalhes' },
+            { action: 'close', title: 'Fechar' }
+        ]
+    };
+    
+    const notificationOptions = { ...defaultOptions, ...options };
+    
+    try {
+        const notification = new Notification(options.title, notificationOptions);
+        
+        await localDB.salvarNotificacao({
+            tag: notificationOptions.tag,
+            titulo: options.title,
+            mensagem: options.body,
+            data: options.data
+        });
+        
+        notification.onclick = (event) => {
+            event.preventDefault();
+            window.focus();
+            
+            if (options.data?.type) {
+                switch(options.data.type) {
+                    case 'tarefa':
+                        document.querySelector('[data-view="tasks"]').click();
+                        break;
+                    case 'evento':
+                    case 'aula':
+                        document.querySelector('[data-view="calendar"]').click();
+                        break;
+                    case 'lembrete':
+                        document.querySelector('[data-view="tasks"]').click();
+                        break;
+                }
+            }
+            
+            notification.close();
+        };
+        
+        return true;
+    } catch (error) {
+        console.error('Erro ao disparar notificação:', error);
+        return false;
+    }
+}
+
+async function verificarEAgendarNotificacoes() {
+    console.log('Verificando notificações...');
+    
+    if (!usuarioAtual) return;
+    
+    const config = await localDB.getConfigNotificacoes();
+    
+    if (config.tarefas) {
+        await verificarTarefasParaNotificacao();
+    }
+    
+    if (config.aulas) {
+        await verificarEventosParaNotificacao();
+    }
+    
+    if (config.lembrete_estudo) {
+        await verificarLembreteEstudo();
+    }
+    
+    await atualizarBadgeNotificacoesDB();
+}
+
+async function verificarTarefasParaNotificacao() {
+    const agora = new Date();
+    
+    for (const tarefa of tarefas) {
+        if (tarefa.concluida || !tarefa.prazo) continue;
+        
+        const prazo = new Date(tarefa.prazo);
+        const diffHoras = (prazo - agora) / (1000 * 60 * 60);
+        
+        const notificacoes = await localDB.getData('notificacoes') || [];
+        const notifRecente = notificacoes.some(n => 
+            n.data?.id === tarefa.id && 
+            (Date.now() - n.timestamp) < 12 * 3600000
+        );
+        
+        if (notifRecente) continue;
+        
+        if (diffHoras <= 24 && diffHoras > 23) {
+            await dispararNotificacaoLocal({
+                title: '⏰ Tarefa próxima do prazo!',
+                body: `"${tarefa.nome}" vence amanhã (${formatarData(tarefa.prazo)})`,
+                tag: `tarefa-${tarefa.id}-24h`,
+                data: { type: 'tarefa', id: tarefa.id }
+            });
+        }
+        
+        if (diffHoras <= 1 && diffHoras > 0.5) {
+            await dispararNotificacaoLocal({
+                title: '⚠️ Tarefa vence hoje!',
+                body: `"${tarefa.nome}" vence em ${Math.ceil(diffHoras * 60)} minutos`,
+                tag: `tarefa-${tarefa.id}-1h`,
+                data: { type: 'tarefa', id: tarefa.id }
+            });
+        }
+        
+        if (diffHoras < 0 && diffHoras > -24) {
+            await dispararNotificacaoLocal({
+                title: '🚨 Tarefa atrasada!',
+                body: `"${tarefa.nome}" está atrasada há ${Math.abs(Math.floor(diffHoras))} horas`,
+                tag: `tarefa-${tarefa.id}-atrasada`,
+                data: { type: 'tarefa', id: tarefa.id }
+            });
+        }
+    }
+}
+
+async function verificarEventosParaNotificacao() {
+    const agora = new Date();
+    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const config = await localDB.getConfigNotificacoes();
+    
+    for (const evento of eventos) {
+        const dataEvento = new Date(evento.year, evento.month, evento.day);
+        
+        if (dataEvento.toDateString() === hoje.toDateString()) {
+            const [hora, minuto] = evento.time.split(':').map(Number);
+            const dataHoraEvento = new Date(dataEvento);
+            dataHoraEvento.setHours(hora, minuto, 0);
+            
+            const diffMinutos = (dataHoraEvento - agora) / (1000 * 60);
+            
+            const notificacoes = await localDB.getData('notificacoes') || [];
+            const notifRecente = notificacoes.some(n => 
+                n.data?.id === evento.id && 
+                (Date.now() - n.timestamp) < 3600000
+            );
+            
+            if (notifRecente) continue;
+            
+            if (diffMinutos <= config.antecedencia && diffMinutos > config.antecedencia - 5) {
+                await dispararNotificacaoLocal({
+                    title: `📅 ${evento.title}`,
+                    body: `Começa em ${config.antecedencia} minutos (${evento.time})`,
+                    tag: `evento-${evento.id}`,
+                    data: { type: 'evento', id: evento.id }
+                });
+            }
+        }
+    }
+}
+
+async function verificarLembreteEstudo() {
+    const pendentes = tarefas.filter(t => !t.concluida).length;
+    if (pendentes === 0) return;
+    
+    const notificacoes = await localDB.getData('notificacoes') || [];
+    const ultimoLembrete = notificacoes
+        .filter(n => n.data?.type === 'lembrete')
+        .sort((a, b) => b.timestamp - a.timestamp)[0];
+    
+    if (ultimoLembrete && (Date.now() - ultimoLembrete.timestamp) < 4 * 3600000) {
+        return;
+    }
+    
+    const horas = [8, 12, 16, 20];
+    const horaAtual = new Date().getHours();
+    
+    if (horas.includes(horaAtual)) {
+        await dispararNotificacaoLocal({
+            title: '📚 Hora de estudar!',
+            body: `Você tem ${pendentes} tarefas pendentes. Que tal começar agora?`,
+            tag: `lembrete-${Date.now()}`,
+            data: { type: 'lembrete' }
+        });
+    }
+}
+
+async function atualizarBadgeNotificacoesDB() {
+    const badge = document.getElementById('notification-badge');
+    if (!badge) return;
+    
+    const naoLidas = await localDB.getNotificacoesNaoLidas();
+    const total = naoLidas.length;
+    
+    if (total > 0) {
+        badge.textContent = total > 9 ? '9+' : total;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+async function marcarNotificacaoComoLida(id) {
+    await localDB.marcarComoLida(id);
+    await atualizarBadgeNotificacoesDB();
+    
+    if (document.getElementById('notifications-modal').classList.contains('active')) {
+        carregarNotificacoesModal();
+    }
+}
+
+async function marcarTodasNotificacoesComoLidas() {
+    await localDB.marcarTodasComoLidas();
+    await atualizarBadgeNotificacoesDB();
+    
+    if (document.getElementById('notifications-modal').classList.contains('active')) {
+        carregarNotificacoesModal();
+    }
+}
+
+async function carregarNotificacoesModal(filter = 'all') {
+    const container = document.getElementById('notifications-list-modal');
+    if (!container) return;
+    
+    let todas = await localDB.getData('notificacoes') || [];
+    todas.sort((a, b) => b.timestamp - a.timestamp);
+    
+    let filtradas = todas;
+    if (filter === 'unread') {
+        filtradas = todas.filter(n => !n.lida);
+    } else if (filter === 'aulas') {
+        filtradas = todas.filter(n => n.data?.type === 'aula' || n.data?.type === 'evento');
+    } else if (filter === 'tarefas') {
+        filtradas = todas.filter(n => n.data?.type === 'tarefa');
+    }
+    
+    if (filtradas.length === 0) {
+        container.innerHTML = `
+            <div class="empty-notifications">
+                <ion-icon name="notifications-off-outline"></ion-icon>
+                <p>Nenhuma notificação</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    filtradas.forEach(notif => {
+        const tipo = notif.data?.type || 'notificacao';
+        const icone = getNotificationIcon(tipo);
+        
+        html += `
+            <div class="notification-item-modal ${notif.lida ? 'read' : 'unread'}" onclick="marcarNotificacaoComoLida('${notif.id}')">
+                <div class="notification-icon ${tipo}">
+                    <ion-icon name="${icone}"></ion-icon>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${notif.titulo}</div>
+                    <div class="notification-message">${notif.mensagem}</div>
+                    <div class="notification-time">
+                        <ion-icon name="time-outline"></ion-icon>
+                        ${formatarTempoRelativo(notif.timestamp)}
+                    </div>
+                </div>
+                <div class="notification-actions">
+                    <button class="notification-action-btn" onclick="event.stopPropagation(); excluirNotificacao('${notif.id}')">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+async function excluirNotificacao(id) {
+    await localDB.deleteData('notificacoes', id);
+    await atualizarBadgeNotificacoesDB();
+    
+    if (document.getElementById('notifications-modal').classList.contains('active')) {
+        const tabAtiva = document.querySelector('.notification-tab.active')?.dataset.type || 'all';
+        carregarNotificacoesModal(tabAtiva);
+    }
+    
+    renderNotifications();
+}
+
+async function limparTodasNotificacoes() {
+    if (confirm('Limpar todas as notificações?')) {
+        await localDB.clearStore('notificacoes');
+        await atualizarBadgeNotificacoesDB();
+        
+        if (document.getElementById('notifications-modal').classList.contains('active')) {
+            carregarNotificacoesModal('all');
+        }
+        
+        renderNotifications();
+    }
+}
+
+async function testNotification() {
+    const permitido = await requestNotificationPermission();
+    
+    if (!permitido) {
+        alert('Permissão para notificações não concedida');
+        return;
+    }
+    
+    await dispararNotificacaoLocal({
+        title: '🔔 Teste de Notificação',
+        body: 'Se você está vendo isso, as notificações funcionam!',
+        tag: `test-${Date.now()}`,
+        data: { type: 'test' }
+    });
+}
+
+async function updateNotificationStatus() {
+    const statusEl = document.getElementById('notification-status');
+    if (!statusEl) return;
+    
+    const indicator = statusEl.querySelector('.status-indicator');
+    const text = statusEl.querySelector('.status-text');
+    
+    if (!('Notification' in window)) {
+        indicator.className = 'status-indicator denied';
+        text.textContent = 'Não suportado';
+        return;
+    }
+    
+    switch(Notification.permission) {
+        case 'granted':
+            indicator.className = 'status-indicator granted';
+            text.textContent = 'Notificações ativadas ✓';
+            break;
+        case 'denied':
+            indicator.className = 'status-indicator denied';
+            text.textContent = 'Notificações bloqueadas';
+            break;
+        default:
+            indicator.className = 'status-indicator default';
+            text.textContent = 'Clique para ativar notificações';
+    }
+}
+
+async function saveNotificationSettings() {
+    const push = document.getElementById('toggle-push').checked;
+    const email = document.getElementById('toggle-email').checked;
+    const aulas = document.getElementById('toggle-aulas').checked;
+    const tarefas = document.getElementById('toggle-tarefas').checked;
+    const lembrete = document.getElementById('toggle-lembrete')?.checked ?? true;
+    const antecedencia = parseInt(document.getElementById('notif-antecedencia')?.value || '30');
+    
+    const config = { push, email, aulas, tarefas, lembrete_estudo: lembrete, antecedencia };
+    
+    await localDB.salvarConfigNotificacoes(config);
+    
+    usuarioAtual.notificacoes = config;
+    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    
+    closeProfileModal('notificacoes-modal');
+    alert('Configurações salvas!');
+    
+    if (push) {
+        await requestNotificationPermission();
+    }
+}
+
+async function initNotificationSystem() {
+    console.log('Inicializando sistema de notificações...');
+    
+    const config = await localDB.getConfigNotificacoes();
+    
+    if (config.push) {
+        setTimeout(async () => {
+            await requestNotificationPermission();
+        }, 3000);
+    }
+    
+    setInterval(async () => {
+        if (navigator.onLine) {
+            await verificarEAgendarNotificacoes();
+        }
+    }, 15 * 60 * 1000);
+    
+    setTimeout(async () => {
+        await verificarEAgendarNotificacoes();
+    }, 5000);
+    
+    document.addEventListener('click', () => {
+        localStorage.setItem('ultimaAtividade', Date.now().toString());
+    });
+}
+
+// Sobrescrever funções de salvamento
+const originalSaveTarefas = salvarTarefas;
+salvarTarefas = function() {
+    originalSaveTarefas();
+    verificarEAgendarNotificacoes();
+};
+
+const originalSaveEventos = salvarEventos;
+salvarEventos = function() {
+    originalSaveEventos();
+    verificarEAgendarNotificacoes();
+};
+
+// Adicionar listeners para botões de notificação
+document.addEventListener('DOMContentLoaded', () => {
+    const btnTest = document.getElementById('btn-test-notification');
+    if (btnTest) {
+        btnTest.addEventListener('click', testNotification);
+    }
+    
+    const notificacoesModal = document.getElementById('notificacoes-modal');
+    if (notificacoesModal) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (notificacoesModal.classList.contains('active')) {
+                        updateNotificationStatus();
+                        
+                        setTimeout(async () => {
+                            const config = await localDB.getConfigNotificacoes();
+                            document.getElementById('toggle-push').checked = config.push;
+                            document.getElementById('toggle-aulas').checked = config.aulas;
+                            document.getElementById('toggle-tarefas').checked = config.tarefas;
+                            if (document.getElementById('toggle-lembrete')) {
+                                document.getElementById('toggle-lembrete').checked = config.lembrete_estudo;
+                            }
+                            if (document.getElementById('notif-antecedencia')) {
+                                document.getElementById('notif-antecedencia').value = config.antecedencia;
+                            }
+                        }, 100);
+                    }
+                }
+            });
+        });
+        
+        observer.observe(notificacoesModal, { attributes: true });
+    }
+});
 
 // ==================== EXPOR FUNÇÕES GLOBAIS ====================
 window.openEditModal = openEditModal;
@@ -1737,6 +2128,12 @@ window.cancelNewTime = cancelNewTime;
 window.salvarTodosDados = salvarTodosDados;
 window.atualizarCardsResumo = atualizarCardsResumo;
 window.carregarTodosDados = carregarTodosDados;
+window.marcarNotificacaoComoLida = marcarNotificacaoComoLida;
+window.marcarTodasNotificacoesComoLidas = marcarTodasNotificacoesComoLidas;
+window.excluirNotificacao = excluirNotificacao;
+window.limparTodasNotificacoes = limparTodasNotificacoes;
+window.testNotification = testNotification;
+window.saveNotificationSettings = saveNotificationSettings;
 
 console.log('%c📱 App Mobile Sincronizado', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
 console.log('%cTodas as funcionalidades ativadas com persistência!', 'color: #10b981; font-size: 14px;');
