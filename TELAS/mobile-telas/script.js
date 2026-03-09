@@ -1,80 +1,135 @@
 // ==================== FUNÇÕES GLOBAIS ====================
 
-// ==================== NOTIFICAÇÕES ====================
+// Variável global para callback de confirmação
+let confirmCallback = null;
 
-// Dados das notificações
-let notifications = [
-    {
-        id: 1,
-        type: 'aula',
-        title: 'Aula de Matemática',
-        message: 'Lembrete: Aula de Matemática às 14h hoje',
-        time: '2026-03-05 08:00',
-        read: false
-    },
-    {
-        id: 2,
-        type: 'tarefa',
-        title: 'Tarefa Pendente',
-        message: 'Lista de Exercícios de Física para entregar amanhã',
-        time: '2026-03-05 07:30',
-        read: false
-    },
-    {
-        id: 3,
-        type: 'lembrete',
-        title: 'Prova de História',
-        message: 'Sua prova de História será na próxima segunda-feira',
-        time: '2026-03-04 18:00',
-        read: false
-    },
-    {
-        id: 4,
-        type: 'aviso',
-        title: 'Nota Publicada',
-        message: 'Sua nota do trabalho de Geografia foi publicada: 9.5',
-        time: '2026-03-04 15:00',
-        read: true
-    },
-    {
-        id: 5,
-        type: 'aula',
-        title: 'Horário Alterado',
-        message: 'A aula de Química de amanhã foi remanejada para 10h',
-        time: '2026-03-04 12:00',
-        read: false
-    },
-    {
-        id: 6,
-        type: 'tarefa',
-        title: 'Nova Tarefa',
-        message: 'Professor adicionou nova tarefa: Resumo Cap. 5',
-        time: '2026-03-03 16:00',
-        read: true
-    },
-    {
-        id: 7,
-        type: 'lembrete',
-        title: 'Grupo de Estudos',
-        message: 'Grupo de Estudos de Física hoje às 14h',
-        time: '2026-03-03 10:00',
-        read: false
-    },
-    {
-        id: 8,
-        type: 'aviso',
-        title: 'Matrícula Aberta',
-        message: 'Período de matrículas para o próximo semestre está aberto',
-        time: '2026-03-02 09:00',
-        read: true
+// ✅ Modal de Confirmação Customizado
+function showConfirm(message, title = 'Confirmar', callback) {
+    const modal = document.getElementById('confirm-modal');
+    const confirmTitle = document.getElementById('confirm-title');
+    const confirmMessage = document.getElementById('confirm-message');
+    const btnOk = document.getElementById('confirm-ok');
+    const btnCancel = document.getElementById('confirm-cancel');
+    
+    if (!modal) {
+        console.warn('Modal de confirmação não encontrado');
+        callback?.(false);
+        return;
     }
+    
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmCallback = callback;
+    
+    modal.classList.add('active');
+    
+    // Clonar botões para remover listeners antigos
+    const newBtnOk = btnOk.cloneNode(true);
+    const newBtnCancel = btnCancel.cloneNode(true);
+    btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+    btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+    
+    // Re-selecionar após clone
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
+    
+    okBtn.addEventListener('click', () => {
+        modal.classList.remove('active');
+        if (confirmCallback) {
+            confirmCallback(true);
+            confirmCallback = null;
+        }
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        modal.classList.remove('active');
+        if (confirmCallback) {
+            confirmCallback(false);
+            confirmCallback = null;
+        }
+    });
+    
+    // Fechar ao clicar fora
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+            if (confirmCallback) {
+                confirmCallback(false);
+                confirmCallback = null;
+            }
+        }
+    }, { once: true });
+}
+
+// ✅ Animação de Salvamento no Botão
+function showSavingAnimation(button, callback) {
+    if (!button) {
+        callback?.();
+        return;
+    }
+    
+    const originalText = button.textContent;
+    const originalDisabled = button.disabled;
+    
+    button.classList.add('btn-saving');
+    button.disabled = true;
+    button.dataset.originalText = originalText;
+    button.textContent = 'Salvando...';
+    
+    setTimeout(() => {
+        button.classList.remove('btn-saving');
+        button.disabled = originalDisabled;
+        button.textContent = originalText;
+        callback?.();
+    }, 800);
+}
+
+// ✅ Toast Aprimorado
+function showToast(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) {
+        console.warn('Toast container não encontrado');
+        return;
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const icons = {
+        success: 'checkmark-circle',
+        error: 'close-circle',
+        info: 'information-circle',
+        warning: 'warning'
+    };
+    
+    toast.innerHTML = `
+        <ion-icon name="${icons[type] || icons.info}-outline"></ion-icon>
+        <span>${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('toast-hiding');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// ==================== NOTIFICAÇÕES ====================
+let notifications = [
+    { id: 1, type: 'aula', title: 'Aula de Matemática', message: 'Lembrete: Aula de Matemática às 14h hoje', time: '2026-03-05 08:00', read: false },
+    { id: 2, type: 'tarefa', title: 'Tarefa Pendente', message: 'Lista de Exercícios de Física para entregar amanhã', time: '2026-03-05 07:30', read: false },
+    { id: 3, type: 'lembrete', title: 'Prova de História', message: 'Sua prova de História será na próxima segunda-feira', time: '2026-03-04 18:00', read: false },
+    { id: 4, type: 'aviso', title: 'Nota Publicada', message: 'Sua nota do trabalho de Geografia foi publicada: 9.5', time: '2026-03-04 15:00', read: true },
+    { id: 5, type: 'aula', title: 'Horário Alterado', message: 'A aula de Química de amanhã foi remanejada para 10h', time: '2026-03-04 12:00', read: false },
+    { id: 6, type: 'tarefa', title: 'Nova Tarefa', message: 'Professor adicionou nova tarefa: Resumo Cap. 5', time: '2026-03-03 16:00', read: true },
+    { id: 7, type: 'lembrete', title: 'Grupo de Estudos', message: 'Grupo de Estudos de Física hoje às 14h', time: '2026-03-03 10:00', read: false },
+    { id: 8, type: 'aviso', title: 'Matrícula Aberta', message: 'Período de matrículas para o próximo semestre está aberto', time: '2026-03-02 09:00', read: true }
 ];
 
-// Função para atualizar badge
 function updateNotificationBadge() {
     const badge = document.getElementById('notification-badge');
     const unreadCount = notifications.filter(n => !n.read).length;
-    
     if (badge) {
         if (unreadCount > 0) {
             badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
@@ -83,12 +138,9 @@ function updateNotificationBadge() {
             badge.style.display = 'none';
         }
     }
-    
-    // Salvar no localStorage
     localStorage.setItem('notifications', JSON.stringify(notifications));
 }
 
-// Função para formatar tempo
 function formatNotificationTime(timeString) {
     const now = new Date();
     const notifTime = new Date(timeString);
@@ -96,7 +148,6 @@ function formatNotificationTime(timeString) {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
-    
     if (diffMins < 1) return 'Agora mesmo';
     if (diffMins < 60) return `Há ${diffMins} min`;
     if (diffHours < 24) return `Há ${diffHours}h`;
@@ -104,12 +155,10 @@ function formatNotificationTime(timeString) {
     return notifTime.toLocaleDateString('pt-BR');
 }
 
-// Função para renderizar notificações
 function renderNotificationsModal(filter = 'all') {
     const list = document.getElementById('notifications-list-modal');
-    
     let filtered = notifications;
-    
+
     if (filter === 'unread') {
         filtered = notifications.filter(n => !n.read);
     } else if (filter === 'aulas') {
@@ -117,29 +166,17 @@ function renderNotificationsModal(filter = 'all') {
     } else if (filter === 'tarefas') {
         filtered = notifications.filter(n => n.type === 'tarefa');
     }
-    
+
     if (filtered.length === 0) {
-        list.innerHTML = `
-            <div class="empty-notifications">
-                <ion-icon name="notifications-off-outline"></ion-icon>
-                <p>Nenhuma notificação</p>
-            </div>
-        `;
+        list.innerHTML = `<div class="empty-notifications"><ion-icon name="notifications-off-outline"></ion-icon><p>Nenhuma notificação</p></div>`;
         return;
     }
-    
-    // Ordenar por mais recente
+
     filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
-    
+
     let html = '';
     filtered.forEach(notif => {
-        const iconMap = {
-            'aula': 'book',
-            'tarefa': 'checkbox',
-            'lembrete': 'time',
-            'aviso': 'warning'
-        };
-        
+        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time', 'aviso': 'warning' };
         html += `
             <div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
                 <div class="notification-icon ${notif.type}">
@@ -154,22 +191,15 @@ function renderNotificationsModal(filter = 'all') {
                     </div>
                 </div>
                 <div class="notification-actions">
-                    ${!notif.read ? `
-                        <button class="notification-action-btn btn-mark-single" data-id="${notif.id}">
-                            <ion-icon name="checkmark-outline"></ion-icon>
-                        </button>
-                    ` : ''}
-                    <button class="notification-action-btn btn-delete-single" data-id="${notif.id}">
-                        <ion-icon name="trash-outline"></ion-icon>
-                    </button>
+                    ${!notif.read ? `<button class="notification-action-btn btn-mark-single" data-id="${notif.id}"><ion-icon name="checkmark-outline"></ion-icon></button>` : ''}
+                    <button class="notification-action-btn btn-delete-single" data-id="${notif.id}"><ion-icon name="trash-outline"></ion-icon></button>
                 </div>
             </div>
         `;
     });
-    
+
     list.innerHTML = html;
-    
-    // Adicionar eventos
+
     document.querySelectorAll('.notification-item-modal').forEach(item => {
         item.addEventListener('click', (e) => {
             if (e.target.closest('.notification-action-btn')) return;
@@ -177,7 +207,7 @@ function renderNotificationsModal(filter = 'all') {
             markAsRead(id);
         });
     });
-    
+
     document.querySelectorAll('.btn-mark-single').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -185,7 +215,7 @@ function renderNotificationsModal(filter = 'all') {
             markAsRead(id);
         });
     });
-    
+
     document.querySelectorAll('.btn-delete-single').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -195,7 +225,6 @@ function renderNotificationsModal(filter = 'all') {
     });
 }
 
-// Marcar como lida
 function markAsRead(id) {
     const index = notifications.findIndex(n => n.id === id);
     if (index > -1) {
@@ -205,30 +234,29 @@ function markAsRead(id) {
     }
 }
 
-// Marcar todas como lidas
 function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
 }
 
-// Excluir notificação
 function deleteNotification(id) {
     notifications = notifications.filter(n => n.id !== id);
     updateNotificationBadge();
     renderNotificationsModal();
 }
 
-// Limpar todas
 function clearAllNotifications() {
-    if (confirm('Limpar todas as notificações?')) {
-        notifications = [];
-        updateNotificationBadge();
-        renderNotificationsModal();
-    }
+    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
+        if (confirmed) {
+            notifications = [];
+            updateNotificationBadge();
+            renderNotificationsModal();
+            showToast('Notificações limpas!', 'success');
+        }
+    });
 }
 
-// Carregar notificações salvas
 function loadNotifications() {
     const saved = localStorage.getItem('notifications');
     if (saved) {
@@ -238,12 +266,10 @@ function loadNotifications() {
 }
 
 // ==================== DOMContentLoaded ====================
-
 document.addEventListener('DOMContentLoaded', () => {
-    
     // ==================== VERIFICAR LOGIN ====================
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    
+
     if (usuarioLogado) {
         const headerName = document.getElementById('header-name');
         const profileName = document.getElementById('profile-name');
@@ -255,59 +281,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (profileEmail) profileEmail.textContent = usuarioLogado.email;
         if (profileInitial) profileInitial.textContent = usuarioLogado.nome.charAt(0).toUpperCase();
     }
+
     // ==================== NOTIFICAÇÕES - EVENTOS ====================
+    const notificationBell = document.getElementById('notification-bell');
+    const notificationsModal = document.getElementById('notifications-modal');
+    const btnCloseNotifications = document.getElementById('btn-close-notifications');
+    const btnMarkRead = document.getElementById('btn-mark-read');
+    const btnClearAll = document.getElementById('btn-clear-all');
+    const notificationTabs = document.querySelectorAll('.notification-tab');
 
-const notificationBell = document.getElementById('notification-bell');
-const notificationsModal = document.getElementById('notifications-modal');
-const btnCloseNotifications = document.getElementById('btn-close-notifications');
-const btnMarkRead = document.getElementById('btn-mark-read');
-const btnClearAll = document.getElementById('btn-clear-all');
-const notificationTabs = document.querySelectorAll('.notification-tab');
+    loadNotifications();
 
-// Carregar notificações ao iniciar
-loadNotifications();
-
-// Abrir modal de notificações
-if (notificationBell) {
-    notificationBell.addEventListener('click', () => {
-        notificationsModal.classList.add('active');
-        renderNotificationsModal();
-    });
-}
-
-// Fechar modal
-if (btnCloseNotifications) {
-    btnCloseNotifications.addEventListener('click', () => {
-        notificationsModal.classList.remove('active');
-    });
-}
-
-// Fechar ao clicar fora
-notificationsModal?.addEventListener('click', (e) => {
-    if (e.target === notificationsModal) {
-        notificationsModal.classList.remove('active');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', () => {
+            notificationsModal.classList.add('active');
+            renderNotificationsModal();
+        });
     }
-});
 
-// Marcar todas como lidas
-if (btnMarkRead) {
-    btnMarkRead.addEventListener('click', markAllAsRead);
-}
+    if (btnCloseNotifications) {
+        btnCloseNotifications.addEventListener('click', () => {
+            notificationsModal.classList.remove('active');
+        });
+    }
 
-// Limpar todas
-if (btnClearAll) {
-    btnClearAll.addEventListener('click', clearAllNotifications);
-}
-
-// Tabs de filtro
-notificationTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        notificationTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        renderNotificationsModal(tab.dataset.type);
+    notificationsModal?.addEventListener('click', (e) => {
+        if (e.target === notificationsModal) {
+            notificationsModal.classList.remove('active');
+        }
     });
-});
-    
+
+    if (btnMarkRead) {
+        btnMarkRead.addEventListener('click', markAllAsRead);
+    }
+
+    if (btnClearAll) {
+        btnClearAll.addEventListener('click', clearAllNotifications);
+    }
+
+    notificationTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            notificationTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderNotificationsModal(tab.dataset.type);
+        });
+    });
+
     // ==================== HORÁRIO ====================
     let weeklySchedule = JSON.parse(localStorage.getItem('weeklySchedule')) || {
         'Seg': [
@@ -338,7 +357,6 @@ notificationTabs.forEach(tab => {
     const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
     let timeSlots = JSON.parse(localStorage.getItem('timeSlots')) || ['08:00', '09:00', '10:00', '14:00'];
 
-    // ==================== ELEMENTOS DO HORÁRIO ====================
     const editModal = document.getElementById('edit-modal');
     const btnBack = document.getElementById('btn-back');
     const btnSave = document.getElementById('btn-save');
@@ -346,7 +364,7 @@ notificationTabs.forEach(tab => {
     const btnCancelTime = document.getElementById('btn-cancel-time');
     const newTimeInput = document.getElementById('new-time-input');
     const toggleBtn = document.getElementById('toggle-edit-mode');
-    
+
     const subjectModal = document.getElementById('subject-modal');
     const subjectModalTitle = document.getElementById('subject-modal-title');
     const btnCloseSubject = document.querySelector('[data-modal="subject-modal"]');
@@ -365,7 +383,7 @@ notificationTabs.forEach(tab => {
         localStorage.setItem('timeSlots', JSON.stringify(timeSlots));
     }
 
-    function renderSchedule() {
+    function renderSchedule() { 
         const grid = document.getElementById('schedule-grid');
         if (!grid) return;
         
@@ -501,14 +519,15 @@ notificationTabs.forEach(tab => {
                 timeSlots.sort();
             }
 
-            saveSchedule();
-            showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
-            subjectModal.classList.remove('active');
-            renderSchedule();
-        });
+            showSavingAnimation(btnSaveSubject, () => {
+                saveSchedule();
+                showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
+                subjectModal.classList.remove('active');
+                renderSchedule();
+            });
+        }); 
     }
 
-    // Modal de editar horário
     if (toggleBtn) {
         toggleBtn.addEventListener('click', () => {
             if (editModal) {
@@ -562,7 +581,7 @@ notificationTabs.forEach(tab => {
         days.forEach(day => html += `<div class="day-header">${day}</div>`);
 
         timeSlots.forEach(time => {
-            html += `<div class="time-slot">${time} <button class="btn-delete-row" data-time="${time}"><ion-icon name="trash-outline"></ion-icon></button></div>`;
+            html += `<div class="time-slot">${time}<button class="btn-delete-row" data-time="${time}"><ion-icon name="trash-outline"></ion-icon></button></div>`;
             days.forEach(day => {
                 const classItem = weeklySchedule[day]?.find(c => c.hora === time);
                 if (classItem) {
@@ -581,17 +600,19 @@ notificationTabs.forEach(tab => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const time = btn.dataset.time;
-                if (confirm(`Remover horário ${time}?`)) {
-                    timeSlots = timeSlots.filter(t => t !== time);
-                    days.forEach(day => {
-                        if (weeklySchedule[day]) {
-                            weeklySchedule[day] = weeklySchedule[day].filter(c => c.hora !== time);
-                        }
-                    });
-                    saveSchedule();
-                    renderEditSchedule();
-                    showToast('Horário removido!', 'success');
-                }
+                showConfirm(`Remover horário ${time}?`, 'Excluir Horário', (confirmed) => {
+                    if (confirmed) {
+                        timeSlots = timeSlots.filter(t => t !== time);
+                        days.forEach(day => {
+                            if (weeklySchedule[day]) {
+                                weeklySchedule[day] = weeklySchedule[day].filter(c => c.hora !== time);
+                            }
+                        });
+                        saveSchedule();
+                        renderEditSchedule();
+                        showToast('Horário removido!', 'success');
+                    }
+                });
             });
         });
 
@@ -618,39 +639,43 @@ notificationTabs.forEach(tab => {
         
         let html = '';
         nextClasses.forEach(item => {
-            html += `<div class="list-item">
-                <div class="item-icon ${item.icon}"><ion-icon name="book-outline"></ion-icon></div>
-                <div class="item-info">
-                    <div class="item-title">${item.title}</div>
-                    <div class="item-subtitle">${item.subtitle}</div>
+            html += `
+                <div class="list-item">
+                    <div class="item-icon ${item.icon}"><ion-icon name="book-outline"></ion-icon></div>
+                    <div class="item-info">
+                        <div class="item-title">${item.title}</div>
+                        <div class="item-subtitle">${item.subtitle}</div>
+                    </div>
+                    <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
                 </div>
-                <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-            </div>`;
+            `;
         });
         list.innerHTML = html;
     }
 
-    // ==================== NOTIFICAÇÕES ====================
+    // ==================== NOTIFICAÇÕES HOME ====================
     function renderNotifications() {
         const list = document.getElementById('notifications-list');
         if (!list) return;
         
-        const notifications = [
+        const notificationsHome = [
             { title: 'Lembrete de leitura', subtitle: 'Capítulo 5 - Literatura Brasileira', icon: 'notification', type: 'lembrete' },
             { title: 'Guilherme entrou em...', subtitle: 'Grupo de Estudos - Física', icon: 'notification', type: 'guilherme' },
             { title: 'Tarefa aprovada', subtitle: 'Trabalho de Geografia - Nota 9.5', icon: 'notification', type: 'aprovada' }
         ];
         
         let html = '';
-        notifications.forEach(item => {
-            html += `<div class="list-item notification-item ${item.type}">
-                <div class="item-icon ${item.icon}"><ion-icon name="${item.type === 'aprovada' ? 'checkmark-circle' : 'notifications'}-outline"></ion-icon></div>
-                <div class="item-info">
-                    <div class="item-title">${item.title}</div>
-                    <div class="item-subtitle">${item.subtitle}</div>
+        notificationsHome.forEach(item => {
+            html += `
+                <div class="list-item notification-item ${item.type}">
+                    <div class="item-icon ${item.icon}"><ion-icon name="${item.type === 'aprovada' ? 'checkmark-circle' : 'notifications'}-outline"></ion-icon></div>
+                    <div class="item-info">
+                        <div class="item-title">${item.title}</div>
+                        <div class="item-subtitle">${item.subtitle}</div>
+                    </div>
+                    <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
                 </div>
-                <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-            </div>`;
+            `;
         });
         list.innerHTML = html;
     }
@@ -777,13 +802,15 @@ notificationTabs.forEach(tab => {
             icon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const eventId = parseInt(icon.dataset.id);
-                if (confirm('Excluir este evento?')) {
-                    calendarEvents = calendarEvents.filter(ev => ev.id !== eventId);
-                    saveCalendarEvents();
-                    renderEvents();
-                    renderCalendar();
-                    showToast('Evento excluído!', 'success');
-                }
+                showConfirm('Excluir este evento?', 'Excluir Evento', (confirmed) => {
+                    if (confirmed) {
+                        calendarEvents = calendarEvents.filter(ev => ev.id !== eventId);
+                        saveCalendarEvents();
+                        renderEvents();
+                        renderCalendar();
+                        showToast('Evento excluído!', 'success');
+                    }
+                });
             });
         });
     }
@@ -879,22 +906,24 @@ notificationTabs.forEach(tab => {
                 return;
             }
 
-            if (editingEventId) {
-                const eventIndex = calendarEvents.findIndex(e => e.id === editingEventId);
-                if (eventIndex > -1) {
-                    calendarEvents[eventIndex] = { ...calendarEvents[eventIndex], title, date, start, end, type: selectedEventType, color: selectedEventColor };
+            showSavingAnimation(btnSaveEvent, () => {
+                if (editingEventId) {
+                    const eventIndex = calendarEvents.findIndex(e => e.id === editingEventId);
+                    if (eventIndex > -1) {
+                        calendarEvents[eventIndex] = { ...calendarEvents[eventIndex], title, date, start, end, type: selectedEventType, color: selectedEventColor };
+                    }
+                    saveCalendarEvents();
+                    showToast('Evento atualizado!', 'success');
+                } else {
+                    calendarEvents.push({ id: Date.now(), title, date, start, end, type: selectedEventType, color: selectedEventColor });
+                    saveCalendarEvents();
+                    showToast('Evento criado!', 'success');
                 }
-                saveCalendarEvents();
-                showToast('Evento atualizado!', 'success');
-            } else {
-                calendarEvents.push({ id: Date.now(), title, date, start, end, type: selectedEventType, color: selectedEventColor });
-                saveCalendarEvents();
-                showToast('Evento criado!', 'success');
-            }
 
-            if (eventModal) eventModal.classList.remove('active');
-            renderEvents();
-            renderCalendar();
+                if (eventModal) eventModal.classList.remove('active');
+                renderEvents();
+                renderCalendar();
+            });
         });
     }
 
@@ -1087,21 +1116,23 @@ notificationTabs.forEach(tab => {
                 return;
             }
 
-            if (editingTaskId) {
-                const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
-                if (taskIndex > -1) {
-                    tasks[taskIndex] = { ...tasks[taskIndex], title, subject: subject || tasks[taskIndex].subject, date: date || tasks[taskIndex].date, color: selectedTaskColor, priority: selectedTaskPriority };
+            showSavingAnimation(btnSaveTask, () => {
+                if (editingTaskId) {
+                    const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
+                    if (taskIndex > -1) {
+                        tasks[taskIndex] = { ...tasks[taskIndex], title, subject: subject || tasks[taskIndex].subject, date: date || tasks[taskIndex].date, color: selectedTaskColor, priority: selectedTaskPriority };
+                    }
+                    saveTasks();
+                    showToast('Tarefa atualizada!', 'success');
+                } else {
+                    tasks.unshift({ id: Date.now(), title, subject: subject || 'Geral', date: date || 'Sem data', color: selectedTaskColor, priority: selectedTaskPriority, completed: false });
+                    saveTasks();
+                    showToast('Tarefa criada!', 'success');
                 }
-                saveTasks();
-                showToast('Tarefa atualizada!', 'success');
-            } else {
-                tasks.unshift({ id: Date.now(), title, subject: subject || 'Geral', date: date || 'Sem data', color: selectedTaskColor, priority: selectedTaskPriority, completed: false });
-                saveTasks();
-                showToast('Tarefa criada!', 'success');
-            }
 
-            if (taskModal) taskModal.classList.remove('active');
-            renderTasks();
+                if (taskModal) taskModal.classList.remove('active');
+                renderTasks();
+            });
         });
     }
 
@@ -1197,12 +1228,14 @@ notificationTabs.forEach(tab => {
             icon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const noteId = parseInt(icon.dataset.id);
-                if (confirm('Excluir esta anotação?')) {
-                    notes = notes.filter(n => n.id !== noteId);
-                    saveNotes();
-                    renderNotes();
-                    showToast('Anotação excluída!', 'success');
-                }
+                showConfirm('Excluir esta anotação?', 'Excluir Anotação', (confirmed) => {
+                    if (confirmed) {
+                        notes = notes.filter(n => n.id !== noteId);
+                        saveNotes();
+                        renderNotes();
+                        showToast('Anotação excluída!', 'success');
+                    }
+                });
             });
         });
     }
@@ -1251,21 +1284,23 @@ notificationTabs.forEach(tab => {
                 return;
             }
 
-            if (editingNoteId) {
-                const noteIndex = notes.findIndex(n => n.id === editingNoteId);
-                if (noteIndex > -1) {
-                    notes[noteIndex] = { ...notes[noteIndex], title, subject: subject || notes[noteIndex].subject, content: content || notes[noteIndex].content, color: selectedNoteColor };
+            showSavingAnimation(btnSaveNote, () => {
+                if (editingNoteId) {
+                    const noteIndex = notes.findIndex(n => n.id === editingNoteId);
+                    if (noteIndex > -1) {
+                        notes[noteIndex] = { ...notes[noteIndex], title, subject: subject || notes[noteIndex].subject, content: content || notes[noteIndex].content, color: selectedNoteColor };
+                    }
+                    saveNotes();
+                    showToast('Anotação atualizada!', 'success');
+                } else {
+                    notes.unshift({ id: Date.now(), title, subject: subject || 'Geral', content: content || '', color: selectedNoteColor, date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) });
+                    saveNotes();
+                    showToast('Anotação criada!', 'success');
                 }
-                saveNotes();
-                showToast('Anotação atualizada!', 'success');
-            } else {
-                notes.unshift({ id: Date.now(), title, subject: subject || 'Geral', content: content || '', color: selectedNoteColor, date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) });
-                saveNotes();
-                showToast('Anotação criada!', 'success');
-            }
 
-            if (noteModal) noteModal.classList.remove('active');
-            renderNotes();
+                if (noteModal) noteModal.classList.remove('active');
+                renderNotes();
+            });
         });
     }
 
@@ -1460,10 +1495,12 @@ notificationTabs.forEach(tab => {
     });
 
     document.querySelector('.menu-item.logout')?.addEventListener('click', () => {
-        if (confirm('Deseja realmente sair da conta?')) {
-            localStorage.removeItem('usuarioLogado');
-            window.location.href = '../login/index.html';
-        }
+        showConfirm('Deseja realmente sair da conta?', 'Sair', (confirmed) => {
+            if (confirmed) {
+                localStorage.removeItem('usuarioLogado');
+                window.location.href = '../login/index.html';
+            }
+        });
     });
 
     // ==================== NAVEGAÇÃO ====================
