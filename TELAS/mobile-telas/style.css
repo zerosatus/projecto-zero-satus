@@ -2491,3 +2491,35 @@ input[type="range"]::-moz-range-thumb:hover {
     font-size: 0.8rem;
     color: var(--text-secondary);
 }
+
+
+/* Melhorar interatividade do status */
+.notification-status {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.notification-status:hover {
+    background-color: var(--border-color);
+    transform: scale(1.02);
+}
+
+.notification-status:active {
+    transform: scale(0.98);
+}
+
+.status-indicator.default {
+    animation: pulse-orange 2s infinite;
+}
+
+@keyframes pulse-orange {
+    0% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+    }
+}
