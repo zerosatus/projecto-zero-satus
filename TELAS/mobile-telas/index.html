@@ -11,7 +11,7 @@
 <body>
 
     <div class="mobile-container">
-       <!-- HEADER -->
+       <!-- MODIFIQUE O HEADER PARA: -->
 <header>
     <div class="greeting">
         <h1 id="header-name">Jose</h1>
@@ -22,6 +22,8 @@
         <span class="notification-badge" id="notification-badge">8</span>
     </div>
 </header>
+
+<!-- ADICIONE ESTE MODAL APÓS O HEADER: -->
 
 <!-- MODAL DE NOTIFICAÇÕES -->
 <div id="notifications-modal" class="notifications-modal">
@@ -162,8 +164,8 @@
                     <div class="profile-avatar">
                         <span id="profile-initial">J</span>
                     </div>
-                    <h2 class="profile-name" id="profile-name">Usuario</h2>
-                    <p class="profile-email" id="profile-email">Usuario@email.com</p>
+                    <h2 class="profile-name" id="profile-name">Jose Silva</h2>
+                    <p class="profile-email" id="profile-email">jose.silva@email.com</p>
                 </div>
             </div>
 
@@ -264,80 +266,79 @@
                 </div>
             </div>
         </div>
-
         <!-- MODAL DE MATÉRIA -->
-        <div id="subject-modal" class="subject-modal">
-            <div class="subject-modal-content">
-                <div class="subject-modal-header">
-                    <button class="btn-back" data-modal="subject-modal">
-                        <ion-icon name="arrow-back-outline"></ion-icon>
-                    </button>
-                    <h2 id="subject-modal-title">Adicionar Matéria</h2>
-                    <button class="btn-save" id="btn-save-subject">Salvar</button>
-                </div>
+<div id="subject-modal" class="subject-modal">
+    <div class="subject-modal-content">
+        <div class="subject-modal-header">
+            <button class="btn-back" data-modal="subject-modal">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+            <h2 id="subject-modal-title">Adicionar Matéria</h2>
+            <button class="btn-save" id="btn-save-subject">Salvar</button>
+        </div>
 
-                <div class="subject-form">
-                    <div class="input-group">
-                        <label>Nome da Matéria</label>
-                        <input type="text" id="subject-name-input" placeholder="Ex: Matemática">
+        <div class="subject-form">
+            <div class="input-group">
+                <label>Nome da Matéria</label>
+                <input type="text" id="subject-name-input" placeholder="Ex: Matemática">
+            </div>
+
+            <div class="input-group">
+                <label>Professor (Opcional)</label>
+                <input type="text" id="subject-teacher-input" placeholder="Ex: Prof. Silva">
+            </div>
+
+            <div class="input-group">
+                <label>Cor</label>
+                <div class="color-options">
+                    <div class="color-option active" data-color="#6366f1">
+                        <div class="color-circle" style="background-color: #6366f1;"></div>
                     </div>
-
-                    <div class="input-group">
-                        <label>Professor (Opcional)</label>
-                        <input type="text" id="subject-teacher-input" placeholder="Ex: Prof. Silva">
+                    <div class="color-option" data-color="#ec4899">
+                        <div class="color-circle" style="background-color: #ec4899;"></div>
                     </div>
-
-                    <div class="input-group">
-                        <label>Cor</label>
-                        <div class="color-options">
-                            <div class="color-option active" data-color="#6366f1">
-                                <div class="color-circle" style="background-color: #6366f1;"></div>
-                            </div>
-                            <div class="color-option" data-color="#ec4899">
-                                <div class="color-circle" style="background-color: #ec4899;"></div>
-                            </div>
-                            <div class="color-option" data-color="#ef4444">
-                                <div class="color-circle" style="background-color: #ef4444;"></div>
-                            </div>
-                            <div class="color-option" data-color="#f59e0b">
-                                <div class="color-circle" style="background-color: #f59e0b;"></div>
-                            </div>
-                            <div class="color-option" data-color="#10b981">
-                                <div class="color-circle" style="background-color: #10b981;"></div>
-                            </div>
-                            <div class="color-option" data-color="#3b82f6">
-                                <div class="color-circle" style="background-color: #3b82f6;"></div>
-                            </div>
-                            <div class="color-option" data-color="#8b5cf6">
-                                <div class="color-circle" style="background-color: #8b5cf6;"></div>
-                            </div>
-                            <div class="color-option" data-color="#a855f7">
-                                <div class="color-circle" style="background-color: #a855f7;"></div>
-                            </div>
-                        </div>
+                    <div class="color-option" data-color="#ef4444">
+                        <div class="color-circle" style="background-color: #ef4444;"></div>
                     </div>
-
-                    <div class="input-group">
-                        <label>Horário</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="time" id="subject-start-input" style="flex: 1;">
-                            <input type="time" id="subject-end-input" style="flex: 1;">
-                        </div>
+                    <div class="color-option" data-color="#f59e0b">
+                        <div class="color-circle" style="background-color: #f59e0b;"></div>
                     </div>
-
-                    <div class="input-group">
-                        <label>Dia da Semana</label>
-                        <select id="subject-day-input" style="width: 100%; padding: 12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 0.9rem;">
-                            <option value="Seg">Segunda-feira</option>
-                            <option value="Ter">Terça-feira</option>
-                            <option value="Qua">Quarta-feira</option>
-                            <option value="Qui">Quinta-feira</option>
-                            <option value="Sex">Sexta-feira</option>
-                        </select>
+                    <div class="color-option" data-color="#10b981">
+                        <div class="color-circle" style="background-color: #10b981;"></div>
+                    </div>
+                    <div class="color-option" data-color="#3b82f6">
+                        <div class="color-circle" style="background-color: #3b82f6;"></div>
+                    </div>
+                    <div class="color-option" data-color="#8b5cf6">
+                        <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                    </div>
+                    <div class="color-option" data-color="#a855f7">
+                        <div class="color-circle" style="background-color: #a855f7;"></div>
                     </div>
                 </div>
             </div>
+
+            <div class="input-group">
+                <label>Horário</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="time" id="subject-start-input" style="flex: 1;">
+                    <input type="time" id="subject-end-input" style="flex: 1;">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Dia da Semana</label>
+                <select id="subject-day-input" style="width: 100%; padding: 12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); font-size: 0.9rem;">
+                    <option value="Seg">Segunda-feira</option>
+                    <option value="Ter">Terça-feira</option>
+                    <option value="Qua">Quarta-feira</option>
+                    <option value="Qui">Quinta-feira</option>
+                    <option value="Sex">Sexta-feira</option>
+                </select>
+            </div>
         </div>
+    </div>
+</div>
 
         <!-- MODAL DE EVENTO -->
         <div id="event-modal" class="event-modal">
@@ -717,47 +718,6 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-
-                    <!-- ===== SEÇÃO DE CONFIGURAÇÕES DE NOTIFICAÇÕES (ÚNICA) ===== -->
-                    <div class="notification-settings-section">
-                        <h3>Configurações Avançadas</h3>
-                        <p class="settings-description">Personalize como deseja ser notificado</p>
-                        
-                        <div class="config-item">
-                            <label>Antecedência para lembretes</label>
-                            <select id="notif-antecedencia" class="config-select">
-                                <option value="15">15 minutos</option>
-                                <option value="30" selected>30 minutos</option>
-                                <option value="60">1 hora</option>
-                                <option value="120">2 horas</option>
-                                <option value="1440">1 dia</option>
-                            </select>
-                        </div>
-                        
-                        <div class="toggle-option" style="margin-top: 15px;">
-                            <div class="toggle-info">
-                                <ion-icon name="alarm-outline"></ion-icon>
-                                <div>
-                                    <span class="toggle-title">Lembrete de Estudo</span>
-                                    <span class="toggle-desc">Lembretes periódicos para estudar</span>
-                                </div>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="toggle-lembrete" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        
-                        <button class="btn-test-notification" id="btn-test-notification">
-                            <ion-icon name="notifications-outline"></ion-icon>
-                            Testar Notificação
-                        </button>
-                        
-                        <div class="notification-status" id="notification-status">
-                            <span class="status-indicator"></span>
-                            <span class="status-text" id="status-text">Verificando permissão...</span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -899,126 +859,5 @@
     </div>
 
     <script src="script.js"></script>
-    <script src="db.js"></script>
-
-    <!-- Registro do Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then((registration) => {
-                        console.log('Service Worker registrado com sucesso:', registration.scope);
-                        
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            console.log('Novo Service Worker encontrado:', newWorker);
-                            
-                            newWorker.addEventListener('statechange', () => {
-                                console.log('Estado do Service Worker:', newWorker.state);
-                                
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    if (confirm('Nova versão disponível! Atualizar agora?')) {
-                                        newWorker.postMessage({ action: 'skipWaiting' });
-                                    }
-                                }
-                            });
-                        });
-                    })
-                    .catch((error) => {
-                        console.error('Erro ao registrar Service Worker:', error);
-                    });
-                
-                function updateOnlineStatus() {
-                    if (navigator.onLine) {
-                        console.log('Estamos online!');
-                        document.body.classList.remove('offline-mode');
-                    } else {
-                        console.log('Estamos offline!');
-                        document.body.classList.add('offline-mode');
-                        showOfflineNotification();
-                    }
-                }
-                
-                window.addEventListener('online', updateOnlineStatus);
-                window.addEventListener('offline', updateOnlineStatus);
-                updateOnlineStatus();
-                
-                navigator.serviceWorker.ready.then((registration) => {
-                    return registration.sync.register('sync-data');
-                }).catch((error) => {
-                    console.log('Sincronização em segundo plano não suportada:', error);
-                });
-            });
-        }
-        
-        function showOfflineNotification() {
-            const notification = document.createElement('div');
-            notification.className = 'offline-notification';
-            notification.innerHTML = `
-                <ion-icon name="cloud-offline-outline"></ion-icon>
-                <span>Modo offline - Dados salvos localmente</span>
-            `;
-            
-            notification.style.cssText = `
-                position: fixed;
-                bottom: 90px;
-                left: 20px;
-                right: 20px;
-                background-color: var(--accent-orange, #f59e0b);
-                color: white;
-                padding: 12px;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                z-index: 1000;
-                font-size: 0.9rem;
-                animation: slideUp 0.3s ease;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.style.animation = 'slideDown 0.3s ease';
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            }, 5000);
-        }
-        
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideUp {
-                from {
-                    transform: translateY(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
-            }
-            
-            @keyframes slideDown {
-                from {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateY(100%);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    </script>
-
-    <!-- Manifest e meta tags PWA -->
-    <link rel="manifest" href="./manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Painel Aluno">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 </body>
 </html>
