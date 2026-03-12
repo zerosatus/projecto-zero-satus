@@ -56,5 +56,6 @@ A tela de apresentação ja esta feita e responsiva, adaptase automaticamente pa
 **git checkout main**: Volta para a versão principal e segura do código.
 
 telas de mobile terminadas e sistema de mudaca de telas de pc para mobile finalizado so falta testar 
- telas de mobile finalizada
+ telas de mobile finalizada pronto
+ 
  
