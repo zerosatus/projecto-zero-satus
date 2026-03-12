@@ -1808,4 +1808,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==================== INICIALIZAÇÃO ====================
     refreshHomeData();
     updateNotificationBadge();
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 8b1dcbad154f30323b26782b210a469f6aa34e8d
