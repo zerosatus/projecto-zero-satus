@@ -1222,8 +1222,8 @@ section {
     background-color: rgba(239, 68, 68, 0.2);
 }
 
-/* ==================== MODAL DE EVENTO ==================== */
-.event-modal {
+/* ==================== MODAIS DE EVENTO, TAREFA, ANOTAÇÃO ==================== */
+.event-modal, .task-modal, .note-modal, .subject-modal, .profile-modal {
     display: none;
     position: fixed;
     top: 0;
@@ -1235,18 +1235,18 @@ section {
     overflow-y: auto;
 }
 
-.event-modal.active {
+.event-modal.active, .task-modal.active, .note-modal.active, .subject-modal.active, .profile-modal.active {
     display: block;
 }
 
-.event-modal-content {
+.event-modal-content, .task-modal-content, .note-modal-content, .subject-modal-content, .profile-modal-content {
     max-width: 375px;
     margin: 0 auto;
     padding: 20px;
     min-height: 100vh;
 }
 
-.event-modal-header {
+.event-modal-header, .task-modal-header, .note-modal-header, .subject-modal-header, .profile-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1255,12 +1255,12 @@ section {
     border-bottom: 1px solid var(--border-color);
 }
 
-.event-modal-header h2 {
+.event-modal-header h2, .task-modal-header h2, .note-modal-header h2, .subject-modal-header h2, .profile-modal-header h2 {
     font-size: 1.1rem;
     font-weight: 600;
 }
 
-.event-form {
+.event-form, .task-form, .note-form, .subject-form, .profile-form {
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -1278,7 +1278,7 @@ section {
     font-weight: 500;
 }
 
-.input-group input {
+.input-group input, .input-group select, .input-group textarea {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -1289,7 +1289,7 @@ section {
     transition: border-color 0.2s;
 }
 
-.input-group input:focus {
+.input-group input:focus, .input-group select:focus, .input-group textarea:focus {
     border-color: var(--accent-purple);
 }
 
@@ -1299,7 +1299,7 @@ section {
     gap: 15px;
 }
 
-.event-types {
+.event-types, .task-types {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
@@ -1331,6 +1331,40 @@ section {
     background-color: var(--accent-purple);
     color: white;
     border-color: var(--accent-purple);
+}
+
+.priority-options {
+    display: flex;
+    gap: 10px;
+}
+
+.priority-btn {
+    flex: 1;
+    padding: 12px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.priority-btn.active {
+    color: white;
+    border-color: var(--accent-purple);
+}
+
+.priority-btn[data-priority="baixa"].active {
+    background-color: #10b981;
+}
+
+.priority-btn[data-priority="media"].active {
+    background-color: #f59e0b;
+}
+
+.priority-btn[data-priority="alta"].active {
+    background-color: #ef4444;
 }
 
 /* CORES */
@@ -1371,227 +1405,7 @@ section {
     transform: scale(1.1);
 }
 
-/* ==================== MODAL DE TAREFA ==================== */
-.task-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color);
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.task-modal.active {
-    display: block;
-}
-
-.task-modal-content {
-    max-width: 375px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.task-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.task-modal-header h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.task-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.task-types {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-}
-
-.task-types .type-btn {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 12px 8px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    transition: all 0.2s;
-}
-
-.task-types .type-btn ion-icon {
-    font-size: 1.2rem;
-}
-
-.task-types .type-btn span {
-    font-size: 0.6rem;
-}
-
-.task-types .type-btn.active {
-    background-color: var(--accent-purple);
-    color: white;
-    border-color: var(--accent-purple);
-}
-
-.priority-options {
-    display: flex;
-    gap: 10px;
-}
-
-.priority-btn {
-    flex: 1;
-    padding: 12px;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: all 0.2s;
-}
-
-.priority-btn.active {
-    color: white;
-    border-color: var(--accent-purple);
-}
-
-.priority-btn[data-priority="baixa"].active {
-    background-color: #10b981;
-}
-
-.priority-btn[data-priority="media"].active {
-    background-color: #f59e0b;
-}
-
-.priority-btn[data-priority="alta"].active {
-    background-color: #ef4444;
-}
-
-/* ==================== MODAL DE ANOTAÇÃO ==================== */
-.note-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color);
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.note-modal.active {
-    display: block;
-}
-
-.note-modal-content {
-    max-width: 375px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.note-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.note-modal-header h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.note-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.note-form textarea {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 12px 15px;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    outline: none;
-    resize: vertical;
-    font-family: inherit;
-    transition: border-color 0.2s;
-}
-
-.note-form textarea:focus {
-    border-color: var(--accent-purple);
-}
-
-.note-form textarea::placeholder {
-    color: var(--text-secondary);
-}
-
-/* ==================== MODAIS DE PERFIL ==================== */
-.profile-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color);
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.profile-modal.active {
-    display: block;
-}
-
-.profile-modal-content {
-    max-width: 375px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.profile-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.profile-modal-header h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.profile-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
+/* PERFIL FORM */
 .profile-avatar-edit {
     display: flex;
     flex-direction: column;
@@ -1647,33 +1461,6 @@ section {
     background-color: var(--accent-purple);
     color: white;
     transform: scale(1.1);
-}
-
-.profile-form .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.profile-form .input-group label {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.profile-form .input-group input {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 12px 15px;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.profile-form .input-group input:focus {
-    border-color: var(--accent-purple);
 }
 
 .security-info {
@@ -1948,7 +1735,7 @@ input[type="range"]::-moz-range-thumb:hover {
     color: var(--accent-purple);
 }
 
-/* ==================== NOTIFICAÇÕES ==================== */
+/* ==================== NOTIFICAÇÕES MODAL ==================== */
 .notifications-modal {
     display: none;
     position: fixed;
@@ -2029,7 +1816,6 @@ input[type="range"]::-moz-range-thumb:hover {
     background-color: rgba(239, 68, 68, 0.1);
 }
 
-/* TABS DE NOTIFICAÇÕES */
 .notifications-tabs {
     display: flex;
     gap: 5px;
@@ -2060,7 +1846,6 @@ input[type="range"]::-moz-range-thumb:hover {
     border-color: var(--accent-purple);
 }
 
-/* LISTA DE NOTIFICAÇÕES */
 #notifications-list-modal {
     padding: 10px 20px;
     max-height: 400px;
@@ -2185,7 +1970,6 @@ input[type="range"]::-moz-range-thumb:hover {
     background-color: var(--border-color);
 }
 
-/* Empty state */
 .empty-notifications {
     text-align: center;
     padding: 40px 20px;
@@ -2199,81 +1983,6 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 /* ==================== MODAL DE MATÉRIA ==================== */
-.subject-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color);
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.subject-modal.active {
-    display: block;
-}
-
-.subject-modal-content {
-    max-width: 375px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.subject-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.subject-modal-header h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.subject-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.subject-form select {
-    width: 100%;
-    padding: 12px 15px;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    outline: none;
-    cursor: pointer;
-}
-
-.subject-form select:focus {
-    border-color: var(--accent-purple);
-}
-
-.subject-form input[type="time"] {
-    width: 100%;
-    padding: 12px 15px;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    outline: none;
-}
-
-.subject-form input[type="time"]:focus {
-    border-color: var(--accent-purple);
-}
-
-/* Classe dinâmica para matérias personalizadas */
 .subject-custom {
     border-radius: 8px;
     padding: 6px 8px;
@@ -2500,8 +2209,4 @@ input[type="range"]::-moz-range-thumb:hover {
         transform: translateX(100%); 
         opacity: 0; 
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 8b1dcbad154f30323b26782b210a469f6aa34e8d

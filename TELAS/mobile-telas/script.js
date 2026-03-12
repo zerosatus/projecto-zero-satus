@@ -27,7 +27,6 @@ function showConfirm(message, title = 'Confirmar', callback) {
     
     confirmTitle.textContent = title;
     confirmMessage.textContent = message;
-    
     modal.classList.add('active');
     
     const newBtnOk = btnOk.cloneNode(true);
@@ -194,7 +193,8 @@ function getDefaultNotes() {
 // ==================== SISTEMA AUTOMÁTICO DE AULAS E TAREFAS ====================
 
 function getTodayDate() {
-    return new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const today = new Date();
+    return today.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
 function getTomorrowDate() {
@@ -222,47 +222,63 @@ function getCurrentTime() {
     return `${hours}:${minutes}`;
 }
 
-// ✅ Sistema Automático: Adiciona aulas de hoje automaticamente
-function getTodayClasses() {
+// ✅ Sistema Automático: Pega próximas aulas do horário semanal
+function getNextClasses() {
     const todayKey = getDayKey();
     const currentTime = getCurrentTime();
     
     if (!weeklySchedule[todayKey]) return [];
     
-    // Filtra aulas que ainda vão acontecer hoje
     const todayClasses = weeklySchedule[todayKey]
         .filter(classItem => classItem.hora >= currentTime)
         .sort((a, b) => a.hora.localeCompare(b.hora));
     
-    return todayClasses;
+    return todayClasses.slice(0, 4);
 }
 
-// ✅ Sistema Automático: Tarefas próximas (hoje e amanhã)
+// ✅ Sistema Automático: Pega próximo evento do calendário
+function getNextCalendarEvent() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const futureEvents = calendarEvents.filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate >= today;
+    }).sort((a, b) => {
+        const dateA = new Date(a.date + 'T' + a.start);
+        const dateB = new Date(b.date + 'T' + b.start);
+        return dateA - dateB;
+    });
+    
+    return futureEvents.slice(0, 3);
+}
+
+// ✅ Sistema Automático: Pega tarefas próximas de vencer
 function getUpcomingTasks() {
     const today = getTodayDate();
     const tomorrow = getTomorrowDate();
     
     const upcomingTasks = tasks.filter(task => {
         if (task.completed) return false;
-        return task.date === today || task.date === tomorrow;
+        return task.date === today || task.date === tomorrow || task.date.includes('Hoje') || task.date.includes('Amanhã');
     }).sort((a, b) => {
-        // Prioriza tarefas de hoje
-        if (a.date === today) return -1;
-        if (b.date === today) return 1;
+        if (a.date.includes('Hoje')) return -1;
+        if (b.date.includes('Hoje')) return 1;
+        if (a.date.includes('Amanhã')) return -1;
+        if (b.date.includes('Amanhã')) return 1;
         return 0;
     });
     
-    return upcomingTasks;
+    return upcomingTasks.slice(0, 3);
 }
 
 // ✅ Sistema Automático: Cria notificações automáticas
 function createAutomaticNotifications() {
-    const todayClasses = getTodayClasses();
+    const nextClasses = getNextClasses();
     const upcomingTasks = getUpcomingTasks();
     const now = new Date().toISOString();
     
-    // Notificação de aulas de hoje
-    todayClasses.slice(0, 2).forEach((classItem, index) => {
+    nextClasses.slice(0, 2).forEach((classItem, index) => {
         const exists = notifications.some(n => 
             n.type === 'aula' && 
             n.message.includes(classItem.materia) &&
@@ -281,15 +297,11 @@ function createAutomaticNotifications() {
         }
     });
     
-    // Notificação de tarefas próximas
     upcomingTasks.slice(0, 2).forEach((task, index) => {
-        const exists = notifications.some(n => 
-            n.type === 'tarefa' && 
-            n.title === task.title
-        );
+        const exists = notifications.some(n => n.type === 'tarefa' && n.title === task.title);
         
         if (!exists) {
-            const urgency = task.date === getTodayDate() ? 'HOJE' : 'amanhã';
+            const urgency = task.date.includes('Hoje') ? 'HOJE' : 'amanhã';
             notifications.unshift({
                 id: Date.now() + 10 + index,
                 type: 'tarefa',
@@ -476,7 +488,7 @@ const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 let selectedSubjectColor = '#6366f1';
 let editingSubject = null;
 
-function renderSchedule() { 
+function renderSchedule() {
     const grid = document.getElementById('schedule-grid');
     if (!grid) return;
     
@@ -575,9 +587,9 @@ function renderClassesDynamic() {
     const list = document.getElementById('classes-list');
     if (!list) return;
     
-    const todayClasses = getTodayClasses();
+    const nextClasses = getNextClasses();
     
-    if (todayClasses.length === 0) {
+    if (nextClasses.length === 0) {
         list.innerHTML = `
             <div class="list-item">
                 <div class="item-icon matematica"><ion-icon name="book-outline"></ion-icon></div>
@@ -591,7 +603,7 @@ function renderClassesDynamic() {
     }
     
     let html = '';
-    todayClasses.slice(0, 4).forEach(item => {
+    nextClasses.forEach(item => {
         html += `
             <div class="list-item">
                 <div class="item-icon" style="background-color: ${item.color}20; color: ${item.color}">
@@ -607,6 +619,88 @@ function renderClassesDynamic() {
     });
     
     list.innerHTML = html;
+}
+
+// ==================== PRÓXIMO EVENTO (SISTEMA AUTOMÁTICO) ====================
+
+function renderNextEvent() {
+    const container = document.getElementById('next-event-container');
+    if (!container) return;
+    
+    const nextEvents = getNextCalendarEvent();
+    
+    if (nextEvents.length === 0) {
+        container.innerHTML = `
+            <div class="list-item">
+                <div class="item-icon matematica"><ion-icon name="calendar-outline"></ion-icon></div>
+                <div class="item-info">
+                    <div class="item-title">Sem eventos próximos</div>
+                    <div class="item-subtitle">Adicione um evento no calendário 📅</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    nextEvents.forEach(event => {
+        const eventDate = new Date(event.date);
+        const dateFormatted = eventDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        html += `
+            <div class="list-item">
+                <div class="item-icon" style="background-color: ${event.color}20; color: ${event.color}">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                </div>
+                <div class="item-info">
+                    <div class="item-title">${event.title}</div>
+                    <div class="item-subtitle">${dateFormatted} • ${event.start}</div>
+                </div>
+                <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// ==================== TAREFAS PRÓXIMAS (SISTEMA AUTOMÁTICO) ====================
+
+function renderNextTasks() {
+    const container = document.getElementById('next-tasks-container');
+    if (!container) return;
+    
+    const upcomingTasks = getUpcomingTasks();
+    
+    if (upcomingTasks.length === 0) {
+        container.innerHTML = `
+            <div class="list-item">
+                <div class="item-icon matematica"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+                <div class="item-info">
+                    <div class="item-title">Tudo em dia!</div>
+                    <div class="item-subtitle">Nenhuma tarefa pendente ✨</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    upcomingTasks.forEach(task => {
+        html += `
+            <div class="list-item">
+                <div class="item-icon" style="background-color: ${task.color}20; color: ${task.color}">
+                    <ion-icon name="checkbox-outline"></ion-icon>
+                </div>
+                <div class="item-info">
+                    <div class="item-title">${task.title}</div>
+                    <div class="item-subtitle">${task.subject} • ${task.date}</div>
+                </div>
+                <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
 }
 
 // ==================== NOTIFICAÇÕES HOME (SISTEMA AUTOMÁTICO) ====================
@@ -659,6 +753,8 @@ function refreshHomeData() {
     createAutomaticNotifications();
     updateSummaryCards();
     renderClassesDynamic();
+    renderNextEvent();
+    renderNextTasks();
     renderNotificationsDynamic();
     renderSchedule();
 }
@@ -1184,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnMarkRead = document.getElementById('btn-mark-read');
     const btnClearAll = document.getElementById('btn-clear-all');
     const notificationTabs = document.querySelectorAll('.notification-tab');
-
+    
     updateNotificationBadge();
 
     if (notificationBell) {
@@ -1484,6 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (eventModal) eventModal.classList.remove('active');
                 renderEvents();
                 renderCalendar();
+                refreshHomeData();
             });
         });
     }
@@ -1575,6 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (taskModal) taskModal.classList.remove('active');
                 renderTasks();
+                refreshHomeData();
             });
         });
     }
@@ -1808,8 +1906,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==================== INICIALIZAÇÃO ====================
     refreshHomeData();
     updateNotificationBadge();
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 8b1dcbad154f30323b26782b210a469f6aa34e8d
