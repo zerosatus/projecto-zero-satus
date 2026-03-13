@@ -5,7 +5,20 @@ let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
-
+// ===== DETECTAR MUDANÇAS =====
+window.addEventListener('storage', (e) => {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuario) return;
+    
+    if (e.key === `tarefas_${usuario.email}` ||
+        e.key === `anotacoes_${usuario.email}` ||
+        e.key === `eventos_${usuario.email}` ||
+        e.key === 'sync_notification') {
+        
+        console.log('🔄 Dados atualizados em outra aba');
+        carregarTodosDados();
+    }
+});
 // ============================================
 // VERIFICAÇÃO DE LOGIN E CARREGAMENTO DE DADOS
 // ============================================
