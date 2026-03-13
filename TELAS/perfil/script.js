@@ -3,6 +3,20 @@ let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
+// ===== DETECTAR MUDANÇAS =====
+window.addEventListener('storage', (e) => {
+    if (!usuarioAtual) return;
+    
+    if (e.key === `tarefas_${usuarioAtual.email}` ||
+        e.key === `anotacoes_${usuarioAtual.email}` ||
+        e.key === `eventos_${usuarioAtual.email}`) {
+        
+        console.log('🔄 Dados atualizados em outra aba');
+        carregarDados();
+        atualizarEstatisticas();
+        carregarAtividadesRecentes();
+    }
+});
 
 // ===== VERIFICAÇÃO DE LOGIN E CARREGAMENTO =====
 window.addEventListener('DOMContentLoaded', () => {
