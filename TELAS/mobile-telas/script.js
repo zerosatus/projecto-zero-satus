@@ -111,188 +111,8 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-// ==================== SINCRONIZAÇÃO PC-MOBILE ====================
+// ==================== FUNÇÕES AUXILIARES DE CONVERSÃO ====================
 
-// Função para carregar dados do PC
-function carregarDadosDoPC() {
-    if (!usuarioLogado) return;
-    
-    console.log('🔄 Sincronizando com PC...');
-    
-    // Carregar TAREFAS do formato PC
-    const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
-    
-    // Converter para formato mobile
-    const tarefasMobile = tarefasPC.map(tarefaPC => ({
-        id: tarefaPC.id,
-        title: tarefaPC.nome,
-        subject: getTextoDisciplina(tarefaPC.disciplina),
-        date: tarefaPC.prazo || '',
-        color: getCorDisciplina(tarefaPC.disciplina),
-        completed: tarefaPC.concluida || false,
-        priority: tarefaPC.prioridade || 'media'
-    }));
-    
-    // Mesclar tarefas (manter as existentes, adicionar novas)
-    tarefasMobile.forEach(tm => {
-        const existe = tasks.some(t => t.id === tm.id);
-        if (!existe) {
-            tasks.push(tm);
-        }
-    });
-    
-    // Carregar ANOTAÇÕES do formato PC
-    const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
-    
-    // Converter para formato mobile
-    const anotacoesMobile = anotacoesPC.map(anotacaoPC => {
-        let cor = 'fisica';
-        if (anotacaoPC.tags && anotacaoPC.tags.length > 0) {
-            const tag = anotacaoPC.tags[0].toLowerCase();
-            if (tag.includes('fís') || tag.includes('fisica')) cor = 'fisica';
-            else if (tag.includes('ing') || tag.includes('ingles')) cor = 'ingles';
-            else if (tag.includes('port') || tag.includes('portugues')) cor = 'portugues';
-            else if (tag.includes('quím') || tag.includes('quimica')) cor = 'quimica';
-            else if (tag.includes('mat') || tag.includes('matematica')) cor = 'matematica';
-            else if (tag.includes('hist') || tag.includes('historia')) cor = 'historia';
-        }
-        
-        return {
-            id: anotacaoPC.id,
-            title: anotacaoPC.titulo,
-            subject: anotacaoPC.disciplina || 'Geral',
-            content: stripHtml(anotacaoPC.conteudo).substring(0, 100),
-            date: new Date(anotacaoPC.dataModificacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-            color: cor
-        };
-    });
-    
-    // Mesclar anotações
-    anotacoesMobile.forEach(am => {
-        const existe = notes.some(n => n.id === am.id);
-        if (!existe) {
-            notes.push(am);
-        }
-    });
-    
-    // Carregar EVENTOS do formato PC
-    const eventosPC = JSON.parse(localStorage.getItem(`eventos_${usuarioLogado.email}`)) || [];
-    
-    // Converter para formato mobile
-    const eventosMobile = eventosPC.map(eventoPC => ({
-        id: eventoPC.id,
-        title: eventoPC.title,
-        description: eventoPC.description || '',
-        date: `${eventoPC.year}-${String(eventoPC.month + 1).padStart(2, '0')}-${String(eventoPC.day).padStart(2, '0')}`,
-        start: eventoPC.time,
-        end: eventoPC.endTime || '',
-        type: eventoPC.type || 'outro',
-        color: eventoPC.color || getEventColor(eventoPC.type)
-    }));
-    
-    // Mesclar eventos
-    eventosMobile.forEach(em => {
-        const existe = calendarEvents.some(e => e.id === em.id);
-        if (!existe) {
-            calendarEvents.push(em);
-        }
-    });
-    
-    saveAllData();
-    console.log('✅ Sincronização concluída!');
-}
-
-// Função para salvar no formato PC
-function salvarNoFormatoPC(tipo, dadosMobile) {
-    if (!usuarioLogado) return;
-    
-    console.log(`💾 Salvando ${tipo} no formato PC...`);
-    
-    if (tipo === 'tarefa') {
-        const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
-        const index = tarefasPC.findIndex(t => t.id == dadosMobile.id);
-        
-        const disciplina = getDisciplinaFromText(dadosMobile.subject);
-        
-        const tarefaPC = {
-            id: dadosMobile.id,
-            nome: dadosMobile.title,
-            descricao: tarefasPC[index]?.descricao || '',
-            prioridade: dadosMobile.priority || 'media',
-            prazo: dadosMobile.date || '',
-            disciplina: disciplina,
-            subtasks: tarefasPC[index]?.subtasks || [],
-            favorita: tarefasPC[index]?.favorita || false,
-            concluida: dadosMobile.completed || false,
-            dataCriacao: tarefasPC[index]?.dataCriacao || new Date().toISOString(),
-            dataConclusao: dadosMobile.completed ? new Date().toISOString() : null
-        };
-        
-        if (index >= 0) {
-            tarefasPC[index] = tarefaPC;
-        } else {
-            tarefasPC.push(tarefaPC);
-        }
-        
-        localStorage.setItem(`tarefas_${usuarioLogado.email}`, JSON.stringify(tarefasPC));
-    }
-    
-    else if (tipo === 'anotacao') {
-        const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
-        const index = anotacoesPC.findIndex(a => a.id == dadosMobile.id);
-        
-        const anotacaoPC = {
-            id: dadosMobile.id,
-            titulo: dadosMobile.title,
-            conteudo: anotacoesPC[index]?.conteudo || `<p>${dadosMobile.content || ''}</p>`,
-            disciplina: dadosMobile.subject || 'Geral',
-            tags: [dadosMobile.color],
-            dataModificacao: new Date().toISOString(),
-            dataCriacao: anotacoesPC[index]?.dataCriacao || new Date().toISOString(),
-            favorita: anotacoesPC[index]?.favorita || false
-        };
-        
-        if (index >= 0) {
-            anotacoesPC[index] = anotacaoPC;
-        } else {
-            anotacoesPC.push(anotacaoPC);
-        }
-        
-        localStorage.setItem(`anotacoes_${usuarioLogado.email}`, JSON.stringify(anotacoesPC));
-    }
-    
-    else if (tipo === 'evento') {
-        const eventosPC = JSON.parse(localStorage.getItem(`eventos_${usuarioLogado.email}`)) || [];
-        const index = eventosPC.findIndex(e => e.id == dadosMobile.id);
-        
-        const [ano, mes, dia] = dadosMobile.date.split('-').map(Number);
-        
-        const eventoPC = {
-            id: dadosMobile.id,
-            title: dadosMobile.title,
-            description: dadosMobile.description || '',
-            type: dadosMobile.type || 'outro',
-            day: dia,
-            month: mes - 1,
-            year: ano,
-            time: dadosMobile.start,
-            endTime: dadosMobile.end || '',
-            repeat: eventosPC[index]?.repeat || 'nao',
-            reminder: eventosPC[index]?.reminder || false,
-            color: dadosMobile.color || '#8b5cf6'
-        };
-        
-        if (index >= 0) {
-            eventosPC[index] = eventoPC;
-        } else {
-            eventosPC.push(eventoPC);
-        }
-        
-        localStorage.setItem(`eventos_${usuarioLogado.email}`, JSON.stringify(eventosPC));
-    }
-}
-
-// Funções auxiliares para conversão
 function stripHtml(html) {
     const temp = document.createElement('div');
     temp.innerHTML = html;
@@ -347,6 +167,252 @@ function getEventColor(type) {
     };
     return cores[type] || '#8b5cf6';
 }
+
+// ==================== PC -> MOBILE ====================
+
+function converterTarefaPCparaMobile(tarefaPC) {
+    return {
+        id: tarefaPC.id,
+        title: tarefaPC.nome,
+        subject: getTextoDisciplina(tarefaPC.disciplina),
+        date: tarefaPC.prazo || '',
+        color: getCorDisciplina(tarefaPC.disciplina),
+        completed: tarefaPC.concluida || false,
+        priority: tarefaPC.prioridade || 'media'
+    };
+}
+
+function converterAnotacaoPCparaMobile(anotacaoPC) {
+    let cor = 'fisica';
+    
+    if (anotacaoPC.disciplina) {
+        const d = anotacaoPC.disciplina.toLowerCase();
+        if (d.includes('fís') || d.includes('fisica')) cor = 'fisica';
+        else if (d.includes('ing') || d.includes('ingles')) cor = 'ingles';
+        else if (d.includes('port') || d.includes('portugues')) cor = 'portugues';
+        else if (d.includes('quím') || d.includes('quimica')) cor = 'quimica';
+        else if (d.includes('mat') || d.includes('matematica')) cor = 'matematica';
+        else if (d.includes('hist') || d.includes('historia')) cor = 'historia';
+    }
+    
+    if (anotacaoPC.tags && anotacaoPC.tags.length > 0 && cor === 'fisica') {
+        const tag = anotacaoPC.tags[0].toLowerCase();
+        if (tag.includes('fís') || tag.includes('fisica')) cor = 'fisica';
+        else if (tag.includes('ing') || tag.includes('ingles')) cor = 'ingles';
+        else if (tag.includes('port') || tag.includes('portugues')) cor = 'portugues';
+        else if (tag.includes('quím') || tag.includes('quimica')) cor = 'quimica';
+        else if (tag.includes('mat') || tag.includes('matematica')) cor = 'matematica';
+        else if (tag.includes('hist') || tag.includes('historia')) cor = 'historia';
+    }
+    
+    return {
+        id: anotacaoPC.id,
+        title: anotacaoPC.titulo,
+        subject: anotacaoPC.disciplina || 'Geral',
+        content: stripHtml(anotacaoPC.conteudo).substring(0, 100),
+        date: new Date(anotacaoPC.dataModificacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        color: cor
+    };
+}
+
+function converterEventoPCparaMobile(eventoPC) {
+    return {
+        id: eventoPC.id,
+        title: eventoPC.title,
+        description: eventoPC.description || '',
+        date: `${eventoPC.year}-${String(eventoPC.month + 1).padStart(2, '0')}-${String(eventoPC.day).padStart(2, '0')}`,
+        start: eventoPC.time,
+        end: eventoPC.endTime || '',
+        type: eventoPC.type || 'outro',
+        color: eventoPC.color || getEventColor(eventoPC.type)
+    };
+}
+
+// ==================== MOBILE -> PC ====================
+
+function converterTarefaMobileParaPC(tarefaMobile, tarefaExistente = null) {
+    return {
+        id: tarefaMobile.id,
+        nome: tarefaMobile.title,
+        descricao: tarefaExistente?.descricao || '',
+        prioridade: tarefaMobile.priority || 'media',
+        prazo: tarefaMobile.date || '',
+        disciplina: getDisciplinaFromText(tarefaMobile.subject),
+        subtasks: tarefaExistente?.subtasks || [],
+        favorita: tarefaExistente?.favorita || false,
+        concluida: tarefaMobile.completed || false,
+        dataCriacao: tarefaExistente?.dataCriacao || new Date().toISOString(),
+        dataConclusao: tarefaMobile.completed ? new Date().toISOString() : null
+    };
+}
+
+function converterAnotacaoMobileParaPC(anotacaoMobile, anotacaoExistente = null) {
+    return {
+        id: anotacaoMobile.id,
+        titulo: anotacaoMobile.title,
+        conteudo: anotacaoExistente?.conteudo || `<p>${anotacaoMobile.content || ''}</p>`,
+        disciplina: anotacaoMobile.subject || 'Geral',
+        tags: [anotacaoMobile.color],
+        dataModificacao: new Date().toISOString(),
+        dataCriacao: anotacaoExistente?.dataCriacao || new Date().toISOString(),
+        favorita: anotacaoExistente?.favorita || false
+    };
+}
+
+function converterEventoMobileParaPC(eventoMobile, eventoExistente = null) {
+    const [ano, mes, dia] = eventoMobile.date.split('-').map(Number);
+    
+    return {
+        id: eventoMobile.id,
+        title: eventoMobile.title,
+        description: eventoMobile.description || '',
+        type: eventoMobile.type || 'outro',
+        day: dia,
+        month: mes - 1,
+        year: ano,
+        time: eventoMobile.start,
+        endTime: eventoMobile.end || '',
+        repeat: eventoExistente?.repeat || 'nao',
+        reminder: eventoExistente?.reminder || false,
+        color: eventoMobile.color || '#8b5cf6'
+    };
+}
+
+// ==================== SINCRONIZAÇÃO PC-MOBILE ====================
+
+// Função para carregar dados do PC
+function carregarDadosDoPC() {
+    if (!usuarioLogado) return;
+    
+    console.log('🔄 Sincronizando com PC...');
+    
+    // TAREFAS
+    const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
+    const tarefasMobile = tarefasPC.map(converterTarefaPCparaMobile);
+    
+    tarefasMobile.forEach(tm => {
+        const existe = tasks.some(t => t.id === tm.id);
+        if (!existe) tasks.push(tm);
+    });
+    
+    // ANOTAÇÕES
+    const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
+    const anotacoesMobile = anotacoesPC.map(converterAnotacaoPCparaMobile);
+    
+    anotacoesMobile.forEach(am => {
+        const existe = notes.some(n => n.id === am.id);
+        if (!existe) notes.push(am);
+    });
+    
+    // EVENTOS
+    const eventosPC = JSON.parse(localStorage.getItem(`eventos_${usuarioLogado.email}`)) || [];
+    const eventosMobile = eventosPC.map(converterEventoPCparaMobile);
+    
+    eventosMobile.forEach(em => {
+        const existe = calendarEvents.some(e => e.id === em.id);
+        if (!existe) calendarEvents.push(em);
+    });
+    
+    saveAllData();
+    console.log('✅ Sincronização concluída!');
+}
+
+// Função para salvar no formato PC
+function salvarNoFormatoPC(tipo, dadosMobile) {
+    if (!usuarioLogado) return;
+    
+    console.log(`💾 Salvando ${tipo} no formato PC...`);
+    
+    if (tipo === 'tarefa') {
+        const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
+        const index = tarefasPC.findIndex(t => t.id == dadosMobile.id);
+        
+        if (dadosMobile.id && !dadosMobile.title) {
+            if (index >= 0) tarefasPC.splice(index, 1);
+        } else {
+            const tarefaPC = converterTarefaMobileParaPC(dadosMobile, tarefasPC[index]);
+            if (index >= 0) tarefasPC[index] = tarefaPC;
+            else tarefasPC.push(tarefaPC);
+        }
+        
+        localStorage.setItem(`tarefas_${usuarioLogado.email}`, JSON.stringify(tarefasPC));
+    }
+    
+    else if (tipo === 'anotacao') {
+        const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
+        const index = anotacoesPC.findIndex(a => a.id == dadosMobile.id);
+        
+        if (dadosMobile.id && !dadosMobile.title) {
+            if (index >= 0) anotacoesPC.splice(index, 1);
+        } else {
+            const anotacaoPC = converterAnotacaoMobileParaPC(dadosMobile, anotacoesPC[index]);
+            if (index >= 0) anotacoesPC[index] = anotacaoPC;
+            else anotacoesPC.push(anotacaoPC);
+        }
+        
+        localStorage.setItem(`anotacoes_${usuarioLogado.email}`, JSON.stringify(anotacoesPC));
+    }
+    
+    else if (tipo === 'evento') {
+        const eventosPC = JSON.parse(localStorage.getItem(`eventos_${usuarioLogado.email}`)) || [];
+        const index = eventosPC.findIndex(e => e.id == dadosMobile.id);
+        
+        if (dadosMobile.id && !dadosMobile.title) {
+            if (index >= 0) eventosPC.splice(index, 1);
+        } else {
+            const eventoPC = converterEventoMobileParaPC(dadosMobile, eventosPC[index]);
+            if (index >= 0) eventosPC[index] = eventoPC;
+            else eventosPC.push(eventoPC);
+        }
+        
+        localStorage.setItem(`eventos_${usuarioLogado.email}`, JSON.stringify(eventosPC));
+    }
+    
+    // Notificar outras abas
+    localStorage.setItem('sync_notification', Date.now().toString());
+}
+
+// ==================== DETECTAR MUDANÇAS ====================
+
+window.addEventListener('storage', (e) => {
+    if (!usuarioLogado) return;
+    
+    if (e.key === 'sync_notification' || 
+        e.key === `tarefas_${usuarioLogado.email}` ||
+        e.key === `anotacoes_${usuarioLogado.email}` ||
+        e.key === `eventos_${usuarioLogado.email}`) {
+        
+        console.log('🔄 Mudança detectada, sincronizando...');
+        
+        // Salvar estado atual antes de recarregar
+        const oldTasks = [...tasks];
+        const oldNotes = [...notes];
+        const oldEvents = [...calendarEvents];
+        
+        // Recarregar dados
+        carregarDadosDoPC();
+        
+        // Atualizar interface conforme a view atual
+        if (!document.getElementById('tasks-view').classList.contains('hidden')) {
+            renderTasks();
+        }
+        if (!document.getElementById('notes-view').classList.contains('hidden')) {
+            renderNotes();
+        }
+        if (!document.getElementById('calendar-view').classList.contains('hidden')) {
+            renderCalendar();
+        }
+        
+        refreshHomeData();
+        
+        // Mostrar toast apenas se houver mudanças
+        if (JSON.stringify(oldTasks) !== JSON.stringify(tasks) ||
+            JSON.stringify(oldNotes) !== JSON.stringify(notes) ||
+            JSON.stringify(oldEvents) !== JSON.stringify(calendarEvents)) {
+            showToast('Dados sincronizados com o PC!', 'success');
+        }
+    }
+});
 
 // ==================== DADOS PADRÃO ====================
 
@@ -411,6 +477,13 @@ function getDefaultSchedule() {
 }
 
 function getDefaultTasks() {
+    if (usuarioLogado) {
+        const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
+        if (tarefasPC.length > 0) {
+            return tarefasPC.map(converterTarefaPCparaMobile);
+        }
+    }
+    
     return [
         { id: 1, title: 'Entregar Redação', subject: 'Português', date: getTomorrowDate(), color: '#ec4899', completed: false, priority: 'alta' },
         { id: 2, title: 'Lista de Exercícios', subject: 'Matemática', date: getTodayDate(), color: '#6366f1', completed: false, priority: 'media' },
@@ -419,9 +492,30 @@ function getDefaultTasks() {
 }
 
 function getDefaultNotes() {
+    if (usuarioLogado) {
+        const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
+        if (anotacoesPC.length > 0) {
+            return anotacoesPC.map(converterAnotacaoPCparaMobile);
+        }
+    }
+    
     return [
-        { id: 1, title: 'Fórmulas de Física', subject: 'Física • Mecânica', content: '', date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), color: 'fisica' },
-        { id: 2, title: 'Vocabulário Inglês', subject: 'Inglês • Unit 4', content: '', date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), color: 'ingles' }
+        { 
+            id: Date.now() - 1000, 
+            title: 'Fórmulas de Física', 
+            subject: 'Física • Mecânica', 
+            content: 'F = m * a\nE = m * c²\nv = v0 + a*t', 
+            date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), 
+            color: 'fisica' 
+        },
+        { 
+            id: Date.now() - 2000, 
+            title: 'Vocabulário Inglês', 
+            subject: 'Inglês • Unit 4', 
+            content: 'Apple - Maçã\nBook - Livro\nCar - Carro\nDog - Cachorro', 
+            date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), 
+            color: 'ingles' 
+        }
     ];
 }
 
@@ -1090,7 +1184,7 @@ function renderEvents() {
                 if (confirmed) {
                     calendarEvents = calendarEvents.filter(ev => ev.id != eventId);
                     saveAllData();
-                    salvarNoFormatoPC('evento', { id: eventId }); // Sincronizar exclusão
+                    salvarNoFormatoPC('evento', { id: eventId });
                     renderEvents();
                     renderCalendar();
                     showToast('Evento excluído!', 'success');
@@ -1501,7 +1595,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // ==================== BOTÃO DE SINCRONIZAÇÃO ====================
-    // Adicionar botão de sincronização no header
     const header = document.querySelector('header');
     if (header) {
         const syncBtn = document.createElement('div');
