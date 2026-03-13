@@ -111,7 +111,244 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-// ==================== CENTRALIZAÇÃO DE DADOS ====================
+// ==================== SINCRONIZAÇÃO PC-MOBILE ====================
+
+// Função para carregar dados do PC
+function carregarDadosDoPC() {
+    if (!usuarioLogado) return;
+    
+    console.log('🔄 Sincronizando com PC...');
+    
+    // Carregar TAREFAS do formato PC
+    const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
+    
+    // Converter para formato mobile
+    const tarefasMobile = tarefasPC.map(tarefaPC => ({
+        id: tarefaPC.id,
+        title: tarefaPC.nome,
+        subject: getTextoDisciplina(tarefaPC.disciplina),
+        date: tarefaPC.prazo || '',
+        color: getCorDisciplina(tarefaPC.disciplina),
+        completed: tarefaPC.concluida || false,
+        priority: tarefaPC.prioridade || 'media'
+    }));
+    
+    // Mesclar tarefas (manter as existentes, adicionar novas)
+    tarefasMobile.forEach(tm => {
+        const existe = tasks.some(t => t.id === tm.id);
+        if (!existe) {
+            tasks.push(tm);
+        }
+    });
+    
+    // Carregar ANOTAÇÕES do formato PC
+    const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
+    
+    // Converter para formato mobile
+    const anotacoesMobile = anotacoesPC.map(anotacaoPC => {
+        let cor = 'fisica';
+        if (anotacaoPC.tags && anotacaoPC.tags.length > 0) {
+            const tag = anotacaoPC.tags[0].toLowerCase();
+            if (tag.includes('fís') || tag.includes('fisica')) cor = 'fisica';
+            else if (tag.includes('ing') || tag.includes('ingles')) cor = 'ingles';
+            else if (tag.includes('port') || tag.includes('portugues')) cor = 'portugues';
+            else if (tag.includes('quím') || tag.includes('quimica')) cor = 'quimica';
+            else if (tag.includes('mat') || tag.includes('matematica')) cor = 'matematica';
+            else if (tag.includes('hist') || tag.includes('historia')) cor = 'historia';
+        }
+        
+        return {
+            id: anotacaoPC.id,
+            title: anotacaoPC.titulo,
+            subject: anotacaoPC.disciplina || 'Geral',
+            content: stripHtml(anotacaoPC.conteudo).substring(0, 100),
+            date: new Date(anotacaoPC.dataModificacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            color: cor
+        };
+    });
+    
+    // Mesclar anotações
+    anotacoesMobile.forEach(am => {
+        const existe = notes.some(n => n.id === am.id);
+        if (!existe) {
+            notes.push(am);
+        }
+    });
+    
+    // Carregar EVENTOS do formato PC
+    const eventosPC = JSON.parse(localStorage.getItem(`eventos_${usuarioLogado.email}`)) || [];
+    
+    // Converter para formato mobile
+    const eventosMobile = eventosPC.map(eventoPC => ({
+        id: eventoPC.id,
+        title: eventoPC.title,
+        description: eventoPC.description || '',
+        date: `${eventoPC.year}-${String(eventoPC.month + 1).padStart(2, '0')}-${String(eventoPC.day).padStart(2, '0')}`,
+        start: eventoPC.time,
+        end: eventoPC.endTime || '',
+        type: eventoPC.type || 'outro',
+        color: eventoPC.color || getEventColor(eventoPC.type)
+    }));
+    
+    // Mesclar eventos
+    eventosMobile.forEach(em => {
+        const existe = calendarEvents.some(e => e.id === em.id);
+        if (!existe) {
+            calendarEvents.push(em);
+        }
+    });
+    
+    saveAllData();
+    console.log('✅ Sincronização concluída!');
+}
+
+// Função para salvar no formato PC
+function salvarNoFormatoPC(tipo, dadosMobile) {
+    if (!usuarioLogado) return;
+    
+    console.log(`💾 Salvando ${tipo} no formato PC...`);
+    
+    if (tipo === 'tarefa') {
+        const tarefasPC = JSON.parse(localStorage.getItem(`tarefas_${usuarioLogado.email}`)) || [];
+        const index = tarefasPC.findIndex(t => t.id == dadosMobile.id);
+        
+        const disciplina = getDisciplinaFromText(dadosMobile.subject);
+        
+        const tarefaPC = {
+            id: dadosMobile.id,
+            nome: dadosMobile.title,
+            descricao: tarefasPC[index]?.descricao || '',
+            prioridade: dadosMobile.priority || 'media',
+            prazo: dadosMobile.date || '',
+            disciplina: disciplina,
+            subtasks: tarefasPC[index]?.subtasks || [],
+            favorita: tarefasPC[index]?.favorita || false,
+            concluida: dadosMobile.completed || false,
+            dataCriacao: tarefasPC[index]?.dataCriacao || new Date().toISOString(),
+            dataConclusao: dadosMobile.completed ? new Date().toISOString() : null
+        };
+        
+        if (index >= 0) {
+            tarefasPC[index] = tarefaPC;
+        } else {
+            tarefasPC.push(tarefaPC);
+        }
+        
+        localStorage.setItem(`tarefas_${usuarioLogado.email}`, JSON.stringify(tarefasPC));
+    }
+    
+    else if (tipo === 'anotacao') {
+        const anotacoesPC = JSON.parse(localStorage.getItem(`anotacoes_${usuarioLogado.email}`)) || [];
+        const index = anotacoesPC.findIndex(a => a.id == dadosMobile.id);
+        
+        const anotacaoPC = {
+            id: dadosMobile.id,
+            titulo: dadosMobile.title,
+            conteudo: anotacoesPC[index]?.conteudo || `<p>${dadosMobile.content || ''}</p>`,
+            disciplina: dadosMobile.subject || 'Geral',
+            tags: [dadosMobile.color],
+            dataModificacao: new Date().toISOString(),
+            dataCriacao: anotacoesPC[index]?.dataCriacao || new Date().toISOString(),
+            favorita: anotacoesPC[index]?.favorita || false
+        };
+        
+        if (index >= 0) {
+            anotacoesPC[index] = anotacaoPC;
+        } else {
+            anotacoesPC.push(anotacaoPC);
+        }
+        
+        localStorage.setItem(`anotacoes_${usuarioLogado.email}`, JSON.stringify(anotacoesPC));
+    }
+    
+    else if (tipo === 'evento') {
+        const eventosPC = JSON.parse(localStorage.getItem(`eventos_${usuarioLogado.email}`)) || [];
+        const index = eventosPC.findIndex(e => e.id == dadosMobile.id);
+        
+        const [ano, mes, dia] = dadosMobile.date.split('-').map(Number);
+        
+        const eventoPC = {
+            id: dadosMobile.id,
+            title: dadosMobile.title,
+            description: dadosMobile.description || '',
+            type: dadosMobile.type || 'outro',
+            day: dia,
+            month: mes - 1,
+            year: ano,
+            time: dadosMobile.start,
+            endTime: dadosMobile.end || '',
+            repeat: eventosPC[index]?.repeat || 'nao',
+            reminder: eventosPC[index]?.reminder || false,
+            color: dadosMobile.color || '#8b5cf6'
+        };
+        
+        if (index >= 0) {
+            eventosPC[index] = eventoPC;
+        } else {
+            eventosPC.push(eventoPC);
+        }
+        
+        localStorage.setItem(`eventos_${usuarioLogado.email}`, JSON.stringify(eventosPC));
+    }
+}
+
+// Funções auxiliares para conversão
+function stripHtml(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || '';
+}
+
+function getTextoDisciplina(disciplina) {
+    const textos = {
+        matematica: 'Matemática', portugues: 'Português', historia: 'História',
+        fisica: 'Física', quimica: 'Química', biologia: 'Biologia',
+        geografia: 'Geografia', ingles: 'Inglês', outros: 'Outros'
+    };
+    return textos[disciplina] || disciplina;
+}
+
+function getCorDisciplina(disciplina) {
+    const cores = {
+        matematica: '#9b59b6', portugues: '#3498db', historia: '#e74c3c',
+        fisica: '#e67e22', quimica: '#2ecc71', biologia: '#f1c40f',
+        geografia: '#1abc9c', ingles: '#34495e', outros: '#95a5a6'
+    };
+    return cores[disciplina] || '#95a5a6';
+}
+
+function getDisciplinaFromText(text) {
+    const mapa = {
+        'matemática': 'matematica', 'matematica': 'matematica',
+        'português': 'portugues', 'portugues': 'portugues',
+        'história': 'historia', 'historia': 'historia',
+        'física': 'fisica', 'fisica': 'fisica',
+        'química': 'quimica', 'quimica': 'quimica',
+        'biologia': 'biologia',
+        'geografia': 'geografia',
+        'inglês': 'ingles', 'ingles': 'ingles'
+    };
+    
+    const lower = text.toLowerCase();
+    for (let [key, value] of Object.entries(mapa)) {
+        if (lower.includes(key)) return value;
+    }
+    return 'outros';
+}
+
+function getEventColor(type) {
+    const cores = {
+        'aula': '#6366f1',
+        'prova': '#ef4444',
+        'tarefa': '#10b981',
+        'trabalho': '#f59e0b',
+        'reuniao': '#8b5cf6',
+        'outro': '#8b5cf6'
+    };
+    return cores[type] || '#8b5cf6';
+}
+
+// ==================== DADOS PADRÃO ====================
 
 function saveAllData() {
     localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
@@ -136,8 +373,6 @@ function loadAllData() {
     notificacoesSettings = JSON.parse(localStorage.getItem('notificacoesSettings')) || { push: true, email: false, aulas: true, tarefas: true };
     appearanceSettings = JSON.parse(localStorage.getItem('appearanceSettings')) || { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
 }
-
-// ==================== DADOS PADRÃO ====================
 
 function getDefaultNotifications() {
     return [
@@ -177,9 +412,9 @@ function getDefaultSchedule() {
 
 function getDefaultTasks() {
     return [
-        { id: 1, title: 'Entregar Redação', subject: 'Português', date: getTomorrowDate(), color: '#ec4899', completed: false },
-        { id: 2, title: 'Lista de Exercícios', subject: 'Matemática', date: getTodayDate(), color: '#6366f1', completed: false },
-        { id: 3, title: 'Resumo Cap. 5', subject: 'História', date: getYesterdayDate(), color: '#f59e0b', completed: true }
+        { id: 1, title: 'Entregar Redação', subject: 'Português', date: getTomorrowDate(), color: '#ec4899', completed: false, priority: 'alta' },
+        { id: 2, title: 'Lista de Exercícios', subject: 'Matemática', date: getTodayDate(), color: '#6366f1', completed: false, priority: 'media' },
+        { id: 3, title: 'Resumo Cap. 5', subject: 'História', date: getYesterdayDate(), color: '#f59e0b', completed: true, priority: 'baixa' }
     ];
 }
 
@@ -222,7 +457,6 @@ function getCurrentTime() {
     return `${hours}:${minutes}`;
 }
 
-// ✅ Sistema Automático: Pega próximas aulas do horário semanal
 function getNextClasses() {
     const todayKey = getDayKey();
     const currentTime = getCurrentTime();
@@ -236,7 +470,6 @@ function getNextClasses() {
     return todayClasses.slice(0, 4);
 }
 
-// ✅ Sistema Automático: Pega próximo evento do calendário
 function getNextCalendarEvent() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -253,7 +486,6 @@ function getNextCalendarEvent() {
     return futureEvents.slice(0, 3);
 }
 
-// ✅ Sistema Automático: Pega tarefas próximas de vencer
 function getUpcomingTasks() {
     const today = getTodayDate();
     const tomorrow = getTomorrowDate();
@@ -272,7 +504,6 @@ function getUpcomingTasks() {
     return upcomingTasks.slice(0, 3);
 }
 
-// ✅ Sistema Automático: Cria notificações automáticas
 function createAutomaticNotifications() {
     const nextClasses = getNextClasses();
     const upcomingTasks = getUpcomingTasks();
@@ -581,8 +812,6 @@ function updateSubjectColorOptions() {
     });
 }
 
-// ==================== PRÓXIMAS AULAS (SISTEMA AUTOMÁTICO) ====================
-
 function renderClassesDynamic() {
     const list = document.getElementById('classes-list');
     if (!list) return;
@@ -620,8 +849,6 @@ function renderClassesDynamic() {
     
     list.innerHTML = html;
 }
-
-// ==================== PRÓXIMO EVENTO (SISTEMA AUTOMÁTICO) ====================
 
 function renderNextEvent() {
     const container = document.getElementById('next-event-container');
@@ -663,8 +890,6 @@ function renderNextEvent() {
     container.innerHTML = html;
 }
 
-// ==================== TAREFAS PRÓXIMAS (SISTEMA AUTOMÁTICO) ====================
-
 function renderNextTasks() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
@@ -702,8 +927,6 @@ function renderNextTasks() {
     
     container.innerHTML = html;
 }
-
-// ==================== NOTIFICAÇÕES HOME (SISTEMA AUTOMÁTICO) ====================
 
 function renderNotificationsDynamic() {
     const list = document.getElementById('notifications-list');
@@ -746,8 +969,6 @@ function renderNotificationsDynamic() {
     
     list.innerHTML = html;
 }
-
-// ==================== REFRESH HOME DATA ====================
 
 function refreshHomeData() {
     createAutomaticNotifications();
@@ -830,11 +1051,11 @@ function renderEvents() {
 
     let html = '';
     dayEvents.forEach(event => {
-        const iconMap = { 'aula': 'book', 'prova': 'document', 'tarefa': 'checkbox', 'outro': 'calendar' };
+        const iconMap = { 'aula': 'book', 'prova': 'document', 'tarefa': 'checkbox', 'trabalho': 'briefcase', 'reuniao': 'people', 'outro': 'calendar' };
         html += `
             <div class="event-item ${event.type}" data-id="${event.id}" style="border-left-color: ${event.color}">
                 <div class="event-icon" style="background-color: ${event.color}20; color: ${event.color}">
-                    <ion-icon name="${iconMap[event.type]}-outline"></ion-icon>
+                    <ion-icon name="${iconMap[event.type] || 'calendar'}-outline"></ion-icon>
                 </div>
                 <div class="event-info">
                     <div class="event-title">${event.title}</div>
@@ -869,6 +1090,7 @@ function renderEvents() {
                 if (confirmed) {
                     calendarEvents = calendarEvents.filter(ev => ev.id !== eventId);
                     saveAllData();
+                    salvarNoFormatoPC('evento', { id: eventId }); // Sincronizar exclusão
                     renderEvents();
                     renderCalendar();
                     showToast('Evento excluído!', 'success');
@@ -973,8 +1195,8 @@ function renderTasks() {
     let html = '';
     filteredTasks.forEach(task => {
         html += `
-            <div class="task-item ${task.completed ? 'completed' : ''}" data-id="${task.id}" style="${task.color ? 'border-left-color: ' + task.color : ''}">
-                <div class="task-color" style="${task.color ? 'background-color: ' + task.color : ''}"></div>
+            <div class="task-item ${task.completed ? 'completed' : ''} prioridade-${task.priority || 'baixa'}" data-id="${task.id}" style="border-left-color: ${task.color}">
+                <div class="task-color" style="background-color: ${task.color};"></div>
                 <div class="task-info">
                     <div class="task-title">${task.title}</div>
                     <div class="task-subject">${task.subject}</div>
@@ -998,6 +1220,7 @@ function renderTasks() {
             if (task) {
                 task.completed = !task.completed;
                 saveAllData();
+                salvarNoFormatoPC('tarefa', task);
                 updateSummaryCards();
                 renderTasks();
             }
@@ -1120,6 +1343,8 @@ function renderNotes(searchTerm = '') {
                 if (confirmed) {
                     notes = notes.filter(n => n.id !== noteId);
                     saveAllData();
+                    // Sincronizar exclusão
+                    salvarNoFormatoPC('anotacao', { id: noteId });
                     updateSummaryCards();
                     renderNotes();
                     showToast('Anotação excluída!', 'success');
@@ -1257,6 +1482,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ✅ CARREGAR TODOS OS DADOS PRIMEIRO
     loadAllData();
     
+    // ✅ SINCRONIZAR COM PC AO INICIAR
+    carregarDadosDoPC();
+    
     // ✅ CRIAR NOTIFICAÇÕES AUTOMÁTICAS
     createAutomaticNotifications();
     
@@ -1272,6 +1500,53 @@ document.addEventListener('DOMContentLoaded', () => {
         if (profileEmail) profileEmail.textContent = usuarioLogado.email;
         if (profileInitial) profileInitial.textContent = usuarioLogado.nome.charAt(0).toUpperCase();
     }
+    
+    // ==================== BOTÃO DE SINCRONIZAÇÃO ====================
+    // Adicionar botão de sincronização no header
+    const header = document.querySelector('header');
+    if (header) {
+        const syncBtn = document.createElement('div');
+        syncBtn.className = 'profile-icon';
+        syncBtn.id = 'sync-btn';
+        syncBtn.style.marginRight = '10px';
+        syncBtn.innerHTML = '<ion-icon name="sync-outline"></ion-icon>';
+        
+        const notificationBell = document.getElementById('notification-bell');
+        if (notificationBell) {
+            header.insertBefore(syncBtn, notificationBell);
+        } else {
+            header.appendChild(syncBtn);
+        }
+        
+        syncBtn.addEventListener('click', () => {
+            syncBtn.classList.add('syncing');
+            showToast('Sincronizando com PC...', 'info');
+            
+            carregarDadosDoPC();
+            refreshHomeData();
+            renderTasks();
+            renderNotes();
+            renderCalendar();
+            
+            setTimeout(() => {
+                syncBtn.classList.remove('syncing');
+                showToast('Sincronizado com sucesso!', 'success');
+            }, 1000);
+        });
+    }
+    
+    // Adicionar estilo para animação de sincronização
+    const style = document.createElement('style');
+    style.textContent = `
+        #sync-btn.syncing ion-icon {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
     
     // ==================== NOTIFICAÇÕES ====================
     const notificationBell = document.getElementById('notification-bell');
@@ -1568,10 +1843,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (editingEventId) {
                     const eventIndex = calendarEvents.findIndex(e => e.id === editingEventId);
                     if (eventIndex > -1) {
-                        calendarEvents[eventIndex] = { ...calendarEvents[eventIndex], title, date, start, end, type: selectedEventType, color: selectedEventColor };
+                        calendarEvents[eventIndex] = { 
+                            ...calendarEvents[eventIndex], 
+                            title, 
+                            date, 
+                            start, 
+                            end, 
+                            type: selectedEventType, 
+                            color: selectedEventColor 
+                        };
+                        
+                        // Sincronizar com PC
+                        salvarNoFormatoPC('evento', calendarEvents[eventIndex]);
                     }
                 } else {
-                    calendarEvents.push({ id: Date.now(), title, date, start, end, type: selectedEventType, color: selectedEventColor });
+                    const novoEvento = { 
+                        id: Date.now(), 
+                        title, 
+                        date, 
+                        start, 
+                        end, 
+                        type: selectedEventType, 
+                        color: selectedEventColor 
+                    };
+                    calendarEvents.push(novoEvento);
+                    salvarNoFormatoPC('evento', novoEvento);
                 }
                 
                 saveAllData();
@@ -1660,10 +1956,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (editingTaskId) {
                     const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
                     if (taskIndex > -1) {
-                        tasks[taskIndex] = { ...tasks[taskIndex], title, subject: subject || tasks[taskIndex].subject, date: date || tasks[taskIndex].date, color: selectedTaskColor, priority: selectedTaskPriority };
+                        tasks[taskIndex] = { 
+                            ...tasks[taskIndex], 
+                            title, 
+                            subject: subject || tasks[taskIndex].subject, 
+                            date: date || tasks[taskIndex].date, 
+                            color: selectedTaskColor, 
+                            priority: selectedTaskPriority,
+                            completed: tasks[taskIndex].completed 
+                        };
+                        
+                        // Sincronizar com PC
+                        salvarNoFormatoPC('tarefa', tasks[taskIndex]);
                     }
                 } else {
-                    tasks.unshift({ id: Date.now(), title, subject: subject || 'Geral', date: date || 'Sem data', color: selectedTaskColor, priority: selectedTaskPriority, completed: false });
+                    const novaTarefa = { 
+                        id: Date.now(), 
+                        title, 
+                        subject: subject || 'Geral', 
+                        date: date || 'Sem data', 
+                        color: selectedTaskColor, 
+                        priority: selectedTaskPriority, 
+                        completed: false 
+                    };
+                    tasks.unshift(novaTarefa);
+                    salvarNoFormatoPC('tarefa', novaTarefa);
                 }
                 
                 saveAllData();
@@ -1731,10 +2048,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (editingNoteId) {
                     const noteIndex = notes.findIndex(n => n.id === editingNoteId);
                     if (noteIndex > -1) {
-                        notes[noteIndex] = { ...notes[noteIndex], title, subject: subject || notes[noteIndex].subject, content: content || notes[noteIndex].content, color: selectedNoteColor };
+                        notes[noteIndex] = { 
+                            ...notes[noteIndex], 
+                            title, 
+                            subject: subject || notes[noteIndex].subject, 
+                            content: content || notes[noteIndex].content, 
+                            color: selectedNoteColor 
+                        };
+                        
+                        // Sincronizar com PC
+                        salvarNoFormatoPC('anotacao', notes[noteIndex]);
                     }
                 } else {
-                    notes.unshift({ id: Date.now(), title, subject: subject || 'Geral', content: content || '', color: selectedNoteColor, date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) });
+                    const novaAnotacao = { 
+                        id: Date.now(), 
+                        title, 
+                        subject: subject || 'Geral', 
+                        content: content || '', 
+                        color: selectedNoteColor, 
+                        date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) 
+                    };
+                    notes.unshift(novaAnotacao);
+                    salvarNoFormatoPC('anotacao', novaAnotacao);
                 }
                 
                 saveAllData();
