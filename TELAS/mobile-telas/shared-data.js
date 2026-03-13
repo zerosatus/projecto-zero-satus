@@ -7,159 +7,43 @@ const TarefaSchema = {
     id: String,
     nome: String,
     descricao: String,
-    prioridade: String, // 'alta', 'media', 'baixa', 'nenhuma'
-    prazo: String, // formato dd/mm/aaaa
-    disciplina: String, // 'matematica', 'portugues', etc.
-    subtasks: Array, // [{ texto: String, concluida: Boolean }]
+    prioridade: String,
+    prazo: String,
+    disciplina: String,
+    subtasks: Array,
     favorita: Boolean,
     concluida: Boolean,
-    dataCriacao: String, // ISO
-    dataConclusao: String // ISO ou null
+    dataCriacao: String,
+    dataConclusao: String
 };
 
 const AnotacaoSchema = {
     id: String,
     titulo: String,
-    conteudo: String, // HTML (rich text)
-    dataModificacao: String, // ISO
-    dataCriacao: String, // ISO
-    disciplina: String, // opcional
+    conteudo: String,
+    dataModificacao: String,
+    dataCriacao: String,
+    disciplina: String,
     favorita: Boolean,
-    tags: Array // ['Física', 'Importante']
+    tags: Array
 };
 
 const EventoSchema = {
     id: String,
     title: String,
     description: String,
-    type: String, // 'aula', 'prova', 'trabalho', 'reuniao', 'outro'
+    type: String,
     day: Number,
     month: Number,
     year: Number,
-    time: String, // 'HH:MM'
+    time: String,
     endTime: String,
-    repeat: String, // 'nao', 'diario', 'semanal', 'mensal'
+    repeat: String,
     reminder: Boolean,
-    color: String // hexadecimal
+    color: String
 };
 
-// ==================== FUNÇÕES DE CRUD ====================
-
-function getStorageKey(usuario, tipo) {
-    return `${tipo}_${usuario.email}`;
-}
-
-function carregarDados(usuario, tipo, dadosPadrao) {
-    const key = getStorageKey(usuario, tipo);
-    const salvos = localStorage.getItem(key);
-    return salvos ? JSON.parse(salvos) : dadosPadrao;
-}
-
-function salvarDados(usuario, tipo, dados) {
-    const key = getStorageKey(usuario, tipo);
-    localStorage.setItem(key, JSON.stringify(dados));
-}
-
 // ==================== FUNÇÕES DE CONVERSÃO ====================
-
-// PC -> Mobile
-function converterTarefaPCparaMobile(tarefaPC) {
-    return {
-        id: tarefaPC.id,
-        title: tarefaPC.nome,
-        subject: getTextoDisciplina(tarefaPC.disciplina),
-        date: tarefaPC.prazo || '',
-        color: getCorDisciplina(tarefaPC.disciplina),
-        completed: tarefaPC.concluida || false,
-        priority: tarefaPC.prioridade || 'media'
-    };
-}
-
-function converterAnotacaoPCparaMobile(anotacaoPC) {
-    let cor = 'fisica';
-    if (anotacaoPC.tags && anotacaoPC.tags.length > 0) {
-        const tag = anotacaoPC.tags[0].toLowerCase();
-        if (tag.includes('fís') || tag.includes('fisica')) cor = 'fisica';
-        else if (tag.includes('ing') || tag.includes('ingles')) cor = 'ingles';
-        else if (tag.includes('port') || tag.includes('portugues')) cor = 'portugues';
-        else if (tag.includes('quím') || tag.includes('quimica')) cor = 'quimica';
-        else if (tag.includes('mat') || tag.includes('matematica')) cor = 'matematica';
-        else if (tag.includes('hist') || tag.includes('historia')) cor = 'historia';
-    }
-    
-    return {
-        id: anotacaoPC.id,
-        title: anotacaoPC.titulo,
-        subject: anotacaoPC.disciplina || 'Geral',
-        content: stripHtml(anotacaoPC.conteudo).substring(0, 100),
-        date: new Date(anotacaoPC.dataModificacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        color: cor
-    };
-}
-
-function converterEventoPCparaMobile(eventoPC) {
-    return {
-        id: eventoPC.id,
-        title: eventoPC.title,
-        description: eventoPC.description || '',
-        date: `${eventoPC.year}-${String(eventoPC.month + 1).padStart(2, '0')}-${String(eventoPC.day).padStart(2, '0')}`,
-        start: eventoPC.time,
-        end: eventoPC.endTime || '',
-        type: eventoPC.type || 'outro',
-        color: eventoPC.color || getEventColor(eventoPC.type)
-    };
-}
-
-// Mobile -> PC
-function converterTarefaMobileParaPC(tarefaMobile, tarefaExistente = null) {
-    return {
-        id: tarefaMobile.id,
-        nome: tarefaMobile.title,
-        descricao: tarefaExistente?.descricao || '',
-        prioridade: tarefaMobile.priority || 'media',
-        prazo: tarefaMobile.date || '',
-        disciplina: getDisciplinaFromText(tarefaMobile.subject),
-        subtasks: tarefaExistente?.subtasks || [],
-        favorita: tarefaExistente?.favorita || false,
-        concluida: tarefaMobile.completed || false,
-        dataCriacao: tarefaExistente?.dataCriacao || new Date().toISOString(),
-        dataConclusao: tarefaMobile.completed ? new Date().toISOString() : null
-    };
-}
-
-function converterAnotacaoMobileParaPC(anotacaoMobile, anotacaoExistente = null) {
-    return {
-        id: anotacaoMobile.id,
-        titulo: anotacaoMobile.title,
-        conteudo: anotacaoExistente?.conteudo || `<p>${anotacaoMobile.content || ''}</p>`,
-        disciplina: anotacaoMobile.subject || 'Geral',
-        tags: [anotacaoMobile.color],
-        dataModificacao: new Date().toISOString(),
-        dataCriacao: anotacaoExistente?.dataCriacao || new Date().toISOString(),
-        favorita: anotacaoExistente?.favorita || false
-    };
-}
-
-function converterEventoMobileParaPC(eventoMobile, eventoExistente = null) {
-    const [ano, mes, dia] = eventoMobile.date.split('-').map(Number);
-    
-    return {
-        id: eventoMobile.id,
-        title: eventoMobile.title,
-        description: eventoMobile.description || '',
-        type: eventoMobile.type || 'outro',
-        day: dia,
-        month: mes - 1,
-        year: ano,
-        time: eventoMobile.start,
-        endTime: eventoMobile.end || '',
-        repeat: eventoExistente?.repeat || 'nao',
-        reminder: eventoExistente?.reminder || false,
-        color: eventoMobile.color || '#8b5cf6'
-    };
-}
-
-// ==================== FUNÇÕES AUXILIARES ====================
 
 function stripHtml(html) {
     const temp = document.createElement('div');
@@ -214,4 +98,114 @@ function getEventColor(type) {
         'outro': '#8b5cf6'
     };
     return cores[type] || '#8b5cf6';
+}
+
+// ==================== PC -> MOBILE ====================
+
+function converterTarefaPCparaMobile(tarefaPC) {
+    return {
+        id: tarefaPC.id,
+        title: tarefaPC.nome,
+        subject: getTextoDisciplina(tarefaPC.disciplina),
+        date: tarefaPC.prazo || '',
+        color: getCorDisciplina(tarefaPC.disciplina),
+        completed: tarefaPC.concluida || false,
+        priority: tarefaPC.prioridade || 'media'
+    };
+}
+
+function converterAnotacaoPCparaMobile(anotacaoPC) {
+    let cor = 'fisica';
+    
+    if (anotacaoPC.disciplina) {
+        const d = anotacaoPC.disciplina.toLowerCase();
+        if (d.includes('fís') || d.includes('fisica')) cor = 'fisica';
+        else if (d.includes('ing') || d.includes('ingles')) cor = 'ingles';
+        else if (d.includes('port') || d.includes('portugues')) cor = 'portugues';
+        else if (d.includes('quím') || d.includes('quimica')) cor = 'quimica';
+        else if (d.includes('mat') || d.includes('matematica')) cor = 'matematica';
+        else if (d.includes('hist') || d.includes('historia')) cor = 'historia';
+    }
+    
+    if (anotacaoPC.tags && anotacaoPC.tags.length > 0 && cor === 'fisica') {
+        const tag = anotacaoPC.tags[0].toLowerCase();
+        if (tag.includes('fís') || tag.includes('fisica')) cor = 'fisica';
+        else if (tag.includes('ing') || tag.includes('ingles')) cor = 'ingles';
+        else if (tag.includes('port') || tag.includes('portugues')) cor = 'portugues';
+        else if (tag.includes('quím') || tag.includes('quimica')) cor = 'quimica';
+        else if (tag.includes('mat') || tag.includes('matematica')) cor = 'matematica';
+        else if (tag.includes('hist') || tag.includes('historia')) cor = 'historia';
+    }
+    
+    return {
+        id: anotacaoPC.id,
+        title: anotacaoPC.titulo,
+        subject: anotacaoPC.disciplina || 'Geral',
+        content: stripHtml(anotacaoPC.conteudo).substring(0, 100),
+        date: new Date(anotacaoPC.dataModificacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        color: cor
+    };
+}
+
+function converterEventoPCparaMobile(eventoPC) {
+    return {
+        id: eventoPC.id,
+        title: eventoPC.title,
+        description: eventoPC.description || '',
+        date: `${eventoPC.year}-${String(eventoPC.month + 1).padStart(2, '0')}-${String(eventoPC.day).padStart(2, '0')}`,
+        start: eventoPC.time,
+        end: eventoPC.endTime || '',
+        type: eventoPC.type || 'outro',
+        color: eventoPC.color || getEventColor(eventoPC.type)
+    };
+}
+
+// ==================== MOBILE -> PC ====================
+
+function converterTarefaMobileParaPC(tarefaMobile, tarefaExistente = null) {
+    return {
+        id: tarefaMobile.id,
+        nome: tarefaMobile.title,
+        descricao: tarefaExistente?.descricao || '',
+        prioridade: tarefaMobile.priority || 'media',
+        prazo: tarefaMobile.date || '',
+        disciplina: getDisciplinaFromText(tarefaMobile.subject),
+        subtasks: tarefaExistente?.subtasks || [],
+        favorita: tarefaExistente?.favorita || false,
+        concluida: tarefaMobile.completed || false,
+        dataCriacao: tarefaExistente?.dataCriacao || new Date().toISOString(),
+        dataConclusao: tarefaMobile.completed ? new Date().toISOString() : null
+    };
+}
+
+function converterAnotacaoMobileParaPC(anotacaoMobile, anotacaoExistente = null) {
+    return {
+        id: anotacaoMobile.id,
+        titulo: anotacaoMobile.title,
+        conteudo: anotacaoExistente?.conteudo || `<p>${anotacaoMobile.content || ''}</p>`,
+        disciplina: anotacaoMobile.subject || 'Geral',
+        tags: [anotacaoMobile.color],
+        dataModificacao: new Date().toISOString(),
+        dataCriacao: anotacaoExistente?.dataCriacao || new Date().toISOString(),
+        favorita: anotacaoExistente?.favorita || false
+    };
+}
+
+function converterEventoMobileParaPC(eventoMobile, eventoExistente = null) {
+    const [ano, mes, dia] = eventoMobile.date.split('-').map(Number);
+    
+    return {
+        id: eventoMobile.id,
+        title: eventoMobile.title,
+        description: eventoMobile.description || '',
+        type: eventoMobile.type || 'outro',
+        day: dia,
+        month: mes - 1,
+        year: ano,
+        time: eventoMobile.start,
+        endTime: eventoMobile.end || '',
+        repeat: eventoExistente?.repeat || 'nao',
+        reminder: eventoExistente?.reminder || false,
+        color: eventoMobile.color || '#8b5cf6'
+    };
 }
