@@ -804,3 +804,19 @@ if (!document.querySelector('#task-styles')) {
 
 console.log('%c📚 Painel de Tarefas', 'color: #6c5ce7; font-size: 20px; font-weight: bold;');
 console.log('%cSistema carregado com sucesso!', 'color: #00b894; font-size: 14px;');
+
+// ===== NOTIFICAR OUTRAS ABAS SOBRE MUDANÇAS =====
+function notificarSincronizacao() {
+    localStorage.setItem('sync_notification', Date.now().toString());
+}
+
+// Modificar a função salvarTarefas
+function salvarTarefas() {
+    if (!usuarioAtual) return;
+    
+    const storageKey = `tarefas_${usuarioAtual.email}`;
+    localStorage.setItem(storageKey, JSON.stringify(tarefas));
+    
+    // NOTIFICAR OUTRAS ABAS
+    notificarSincronizacao();
+}
