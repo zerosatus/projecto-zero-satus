@@ -310,11 +310,11 @@ function getTextoDisciplina(disciplina) {
 
 function getCorDisciplina(disciplina) {
     const cores = {
-        matematica: '#9b59b6', portugues: '#3498db', historia: '#e74c3c',
-        fisica: '#e67e22', quimica: '#2ecc71', biologia: '#f1c40f',
-        geografia: '#1abc9c', ingles: '#34495e', outros: '#95a5a6'
+        matematica: '#6366f1', portugues: '#ec4899', historia: '#f59e0b',
+        fisica: '#ef4444', quimica: '#10b981', biologia: '#3b82f6',
+        geografia: '#a855f7', ingles: '#8b5cf6', outros: '#6b7280'
     };
-    return cores[disciplina] || '#95a5a6';
+    return cores[disciplina] || '#6b7280';
 }
 
 function getDisciplinaFromText(text) {
@@ -1074,8 +1074,8 @@ function renderEvents() {
     document.querySelectorAll('.edit-event').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
-            const eventId = parseInt(icon.dataset.id);
-            const event = calendarEvents.find(ev => ev.id === eventId);
+            const eventId = icon.dataset.id;
+            const event = calendarEvents.find(ev => ev.id == eventId);
             if (event) {
                 openEventModal(event);
             }
@@ -1085,10 +1085,10 @@ function renderEvents() {
     document.querySelectorAll('.delete-event').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
-            const eventId = parseInt(icon.dataset.id);
+            const eventId = icon.dataset.id;
             showConfirm('Excluir este evento?', 'Excluir Evento', (confirmed) => {
                 if (confirmed) {
-                    calendarEvents = calendarEvents.filter(ev => ev.id !== eventId);
+                    calendarEvents = calendarEvents.filter(ev => ev.id != eventId);
                     saveAllData();
                     salvarNoFormatoPC('evento', { id: eventId }); // Sincronizar exclusão
                     renderEvents();
@@ -1215,8 +1215,8 @@ function renderTasks() {
     document.querySelectorAll('.task-check').forEach(check => {
         check.addEventListener('click', (e) => {
             e.stopPropagation();
-            const taskId = parseInt(check.dataset.id);
-            const task = tasks.find(t => t.id === taskId);
+            const taskId = check.dataset.id;
+            const task = tasks.find(t => t.id == taskId);
             if (task) {
                 task.completed = !task.completed;
                 saveAllData();
@@ -1230,8 +1230,8 @@ function renderTasks() {
     document.querySelectorAll('.task-arrow').forEach(arrow => {
         arrow.addEventListener('click', (e) => {
             e.stopPropagation();
-            const taskId = parseInt(arrow.dataset.id);
-            const task = tasks.find(t => t.id === taskId);
+            const taskId = arrow.dataset.id;
+            const task = tasks.find(t => t.id == taskId);
             if (task) {
                 openTaskModal(task);
             }
@@ -1327,8 +1327,8 @@ function renderNotes(searchTerm = '') {
     document.querySelectorAll('.edit-note').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
-            const noteId = parseInt(icon.dataset.id);
-            const note = notes.find(n => n.id === noteId);
+            const noteId = icon.dataset.id;
+            const note = notes.find(n => n.id == noteId);
             if (note) {
                 openNoteModal(note);
             }
@@ -1338,12 +1338,11 @@ function renderNotes(searchTerm = '') {
     document.querySelectorAll('.delete-note').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
-            const noteId = parseInt(icon.dataset.id);
+            const noteId = icon.dataset.id;
             showConfirm('Excluir esta anotação?', 'Excluir Anotação', (confirmed) => {
                 if (confirmed) {
-                    notes = notes.filter(n => n.id !== noteId);
+                    notes = notes.filter(n => n.id != noteId);
                     saveAllData();
-                    // Sincronizar exclusão
                     salvarNoFormatoPC('anotacao', { id: noteId });
                     updateSummaryCards();
                     renderNotes();
@@ -1841,7 +1840,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showSavingAnimation(btnSaveEvent, () => {
                 if (editingEventId) {
-                    const eventIndex = calendarEvents.findIndex(e => e.id === editingEventId);
+                    const eventIndex = calendarEvents.findIndex(e => e.id == editingEventId);
                     if (eventIndex > -1) {
                         calendarEvents[eventIndex] = { 
                             ...calendarEvents[eventIndex], 
@@ -1853,7 +1852,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             color: selectedEventColor 
                         };
                         
-                        // Sincronizar com PC
                         salvarNoFormatoPC('evento', calendarEvents[eventIndex]);
                     }
                 } else {
@@ -1954,7 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showSavingAnimation(btnSaveTask, () => {
                 if (editingTaskId) {
-                    const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
+                    const taskIndex = tasks.findIndex(t => t.id == editingTaskId);
                     if (taskIndex > -1) {
                         tasks[taskIndex] = { 
                             ...tasks[taskIndex], 
@@ -1966,7 +1964,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             completed: tasks[taskIndex].completed 
                         };
                         
-                        // Sincronizar com PC
                         salvarNoFormatoPC('tarefa', tasks[taskIndex]);
                     }
                 } else {
@@ -2046,7 +2043,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showSavingAnimation(btnSaveNote, () => {
                 if (editingNoteId) {
-                    const noteIndex = notes.findIndex(n => n.id === editingNoteId);
+                    const noteIndex = notes.findIndex(n => n.id == editingNoteId);
                     if (noteIndex > -1) {
                         notes[noteIndex] = { 
                             ...notes[noteIndex], 
@@ -2056,7 +2053,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             color: selectedNoteColor 
                         };
                         
-                        // Sincronizar com PC
                         salvarNoFormatoPC('anotacao', notes[noteIndex]);
                     }
                 } else {

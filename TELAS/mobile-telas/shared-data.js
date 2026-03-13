@@ -178,11 +178,11 @@ function getTextoDisciplina(disciplina) {
 
 function getCorDisciplina(disciplina) {
     const cores = {
-        matematica: '#9b59b6', portugues: '#3498db', historia: '#e74c3c',
-        fisica: '#e67e22', quimica: '#2ecc71', biologia: '#f1c40f',
-        geografia: '#1abc9c', ingles: '#34495e', outros: '#95a5a6'
+        matematica: '#6366f1', portugues: '#ec4899', historia: '#f59e0b',
+        fisica: '#ef4444', quimica: '#10b981', biologia: '#3b82f6',
+        geografia: '#a855f7', ingles: '#8b5cf6', outros: '#6b7280'
     };
-    return cores[disciplina] || '#95a5a6';
+    return cores[disciplina] || '#6b7280';
 }
 
 function getDisciplinaFromText(text) {
