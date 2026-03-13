@@ -3,7 +3,21 @@ let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
-
+// ===== DETECTAR MUDANÇAS =====
+window.addEventListener('storage', (e) => {
+    if (!usuarioAtual) return;
+    
+    if (e.key === `tarefas_${usuarioAtual.email}` ||
+        e.key === `anotacoes_${usuarioAtual.email}` ||
+        e.key === `eventos_${usuarioAtual.email}` ||
+        e.key === 'sync_notification') {
+        
+        console.log('🔄 Dados atualizados em outra aba');
+        carregarDados();
+        atualizarEstatisticasMini();
+        refreshHomeData?.(); // Se existir no mobile
+    }
+});
 // ===== VERIFICAÇÃO DE LOGIN =====
 window.addEventListener('DOMContentLoaded', () => {
     const usuario = localStorage.getItem('usuarioLogado');
