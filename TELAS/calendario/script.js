@@ -767,3 +767,20 @@ if (!document.querySelector('#calendar-styles')) {
 
 console.log('%c📅 Calendário', 'color: #7c3aed; font-size: 20px; font-weight: bold;');
 console.log('%cSistema carregado com sucesso!', 'color: #00b894; font-size: 14px;');
+
+
+// ===== NOTIFICAR OUTRAS ABAS SOBRE MUDANÇAS =====
+function notificarSincronizacao() {
+    localStorage.setItem('sync_notification', Date.now().toString());
+}
+
+// Modificar a função salvarEventos
+function salvarEventos() {
+    if (!usuarioAtual) return;
+    
+    const storageKey = `eventos_${usuarioAtual.email}`;
+    localStorage.setItem(storageKey, JSON.stringify(events));
+    
+    // NOTIFICAR OUTRAS ABAS
+    notificarSincronizacao();
+}
