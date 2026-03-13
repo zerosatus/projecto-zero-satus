@@ -373,3 +373,21 @@ document.querySelectorAll('.menu-item').forEach(item => {
 
 // Inicializar
 updateLastSaved(); // função original mantida para compatibilidade
+
+
+// ===== NOTIFICAR OUTRAS ABAS SOBRE MUDANÇAS =====
+function notificarSincronizacao() {
+    localStorage.setItem('sync_notification', Date.now().toString());
+}
+
+// Modificar a função salvarAnotacoes
+function salvarAnotacoes() {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuario) return;
+    
+    const storageKey = `anotacoes_${usuario.email}`;
+    localStorage.setItem(storageKey, JSON.stringify(anotacoes));
+    
+    // NOTIFICAR OUTRAS ABAS
+    notificarSincronizacao();
+}
