@@ -30,7 +30,7 @@ body {
     padding: 20px;
 }
 
-/* ==================== CONTAINER ==================== */
+/* ==================== CONTAINER - SEM BORDA E RESPONSIVO ==================== */
 .mobile-container {
     width: 100%;
     max-width: 375px;
@@ -38,10 +38,184 @@ body {
     background-color: var(--bg-color);
     border-radius: 30px;
     overflow-y: auto;
+    overflow-x: visible;
     position: relative;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    border: 1px solid #333;
+    /* ✅ REMOVIDA A BORDA FINA */
+    /* border: 1px solid #333; */
     padding-bottom: 80px;
+    margin: 0 auto;
+}
+
+/* ==================== RESPONSIVIDADE - CELULAR E TABLET ==================== */
+
+/* Tablets (768px a 1024px) */
+@media (max-width: 1024px) and (min-width: 768px) {
+    .mobile-container {
+        max-width: 768px;
+        height: auto;
+        min-height: 812px;
+        border-radius: 20px;
+        padding-bottom: 100px;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        padding: 0 30px 30px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        padding: 0 30px;
+    }
+    
+    .bottom-nav {
+        width: 768px;
+        max-width: calc(100% - 40px);
+        height: 80px;
+    }
+    
+    .nav-item {
+        padding: 8px 15px;
+        font-size: 0.8rem;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.8rem;
+    }
+}
+
+/* Celulares grandes e tablets pequenos (481px a 767px) */
+@media (max-width: 767px) and (min-width: 481px) {
+    .mobile-container {
+        max-width: 100%;
+        height: auto;
+        min-height: 100vh;
+        border-radius: 0;
+        padding-bottom: 100px;
+        box-shadow: none;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 0 20px 20px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 20px;
+    }
+    
+    .bottom-nav {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+}
+
+/* Celulares (até 480px) */
+@media (max-width: 480px) {
+    body {
+        padding: 0;
+    }
+    
+    .mobile-container {
+        max-width: 100%;
+        height: 100vh;
+        border-radius: 0;
+        padding-bottom: 90px;
+        box-shadow: none;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 0 15px 15px;
+    }
+    
+    .card {
+        padding: 12px 8px;
+    }
+    
+    .card-number {
+        font-size: 1.3rem;
+    }
+    
+    .card-label {
+        font-size: 0.65rem;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 0 15px;
+    }
+    
+    .bottom-nav {
+        width: 100%;
+        max-width: 100%;
+        height: 65px;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+    
+    .nav-item {
+        padding: 5px 8px;
+        font-size: 0.65rem;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.3rem;
+    }
+    
+    header {
+        padding: 15px;
+    }
+    
+    .greeting h1 {
+        font-size: 1.1rem;
+    }
+    
+    .greeting p {
+        font-size: 0.8rem;
+    }
+    
+    section {
+        padding: 10px 15px;
+    }
+    
+    .notes-header-minimal h1 {
+        font-size: 1.5rem;
+    }
+    
+    .btn-new-note {
+        width: 42px;
+        height: 42px;
+        font-size: 1.3rem;
+    }
+}
+
+/* Ajustes específicos para tablets em modo paisagem */
+@media (max-width: 1024px) and (orientation: landscape) {
+    .mobile-container {
+        max-width: 90vh;
+        height: 95vh;
+    }
+}
+
+/* Desktop - Mantém layout original (sem mudanças) */
+@media (min-width: 1025px) {
+    .mobile-container {
+        max-width: 375px;
+        height: 812px;
+        border-radius: 30px;
+        /* Borda removida permanentemente */
+    }
 }
 
 /* ==================== HEADER ==================== */

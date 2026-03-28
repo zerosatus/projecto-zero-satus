@@ -1,3 +1,4 @@
+/* ==================== VARIÁVEIS ==================== */
 :root {
     --bg-color: #0f1115;
     --card-bg: #1a1d24;
@@ -5,11 +6,13 @@
     --text-secondary: #9ca3af;
     --accent-purple: #8b5cf6;
     --accent-green: #10b981;
+    --accent-orange: #f59e0b;
     --accent-red: #ef4444;
     --border-color: #2d3748;
     --nav-bg: #1a1d24;
 }
 
+/* ==================== GLOBAL ==================== */
 * {
     margin: 0;
     padding: 0;
@@ -27,6 +30,7 @@ body {
     padding: 20px;
 }
 
+/* ==================== CONTAINER - SEM BORDA ==================== */
 .mobile-container {
     width: 100%;
     max-width: 375px;
@@ -34,12 +38,23 @@ body {
     background-color: var(--bg-color);
     border-radius: 30px;
     overflow-y: auto;
+    overflow-x: visible;
     position: relative;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    border: 1px solid #333;
     padding-bottom: 80px;
+    margin: 0 auto;
 }
 
+.mobile-container::-webkit-scrollbar {
+    width: 5px;
+}
+
+.mobile-container::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+    border-radius: 10px;
+}
+
+/* ==================== HEADER ==================== */
 header {
     padding: 20px;
     display: flex;
@@ -71,6 +86,11 @@ header {
     align-items: center;
     position: relative;
     cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profile-icon:hover {
+    background-color: var(--border-color);
 }
 
 .profile-icon ion-icon {
@@ -92,8 +112,306 @@ header {
     justify-content: center;
     align-items: center;
     font-weight: bold;
+    animation: pulse-badge 2s infinite;
 }
 
+@keyframes pulse-badge {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* ==================== CARDS DE RESUMO ==================== */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 0 20px 20px;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.card-icon {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+
+.card-icon.tarefas { color: var(--accent-purple); }
+.card-icon.concluidas { color: var(--accent-green); }
+.card-icon.pendentes { color: var(--accent-orange); }
+
+.card-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: block;
+}
+
+.card-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* ==================== SEÇÕES ==================== */
+section {
+    padding: 10px 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.edit-btn {
+    color: var(--accent-purple);
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ==================== HORÁRIO ==================== */
+.schedule-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 12px;
+    margin-bottom: 10px;
+}
+
+.schedule-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.schedule-wrapper::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: 10px;
+}
+
+.schedule-wrapper::-webkit-scrollbar-thumb {
+    background: var(--accent-purple);
+    border-radius: 10px;
+}
+
+.schedule-grid {
+    display: grid;
+    grid-template-columns: 55px repeat(5, 1fr);
+    gap: 0;
+    text-align: center;
+    font-size: 0.7rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    min-width: 650px;
+}
+
+.day-header {
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 12px 5px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.time-slot {
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 15px 8px;
+    font-size: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.class-cell {
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    padding: 8px 4px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.class-block {
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+    width: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.class-block:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+.class-block.empty {
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: default;
+}
+
+.subject-custom {
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+/* Cores das Matérias */
+.matematica { background-color: #6366f1; }
+.portugues { background-color: #ec4899; }
+.fisica { background-color: #ef4444; }
+.historia { background-color: #f59e0b; }
+.quimica { background-color: #10b981; }
+.biologia { background-color: #3b82f6; }
+.ingles { background-color: #8b5cf6; }
+.geografia { background-color: #a855f7; }
+.redacao { background-color: #2563eb; }
+
+/* ==================== LISTAS ==================== */
+.list-item {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+
+.list-item:hover {
+    background-color: #252a33;
+}
+
+.item-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.item-icon.matematica { background-color: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.item-icon.portugues { background-color: rgba(236, 72, 153, 0.2); color: #ec4899; }
+.item-icon.quimica { background-color: rgba(16, 185, 129, 0.2); color: #10b981; }
+.item-icon.historia { background-color: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.item-icon.notification { background-color: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+
+.item-info {
+    flex-grow: 1;
+}
+
+.item-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.item-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.item-arrow {
+    color: var(--text-secondary);
+}
+
+/* ==================== BARRA DE NAVEGAÇÃO ==================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 375px;
+    max-width: calc(100% - 40px);
+    height: 70px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-radius: 20px;
+    z-index: 100;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.nav-item ion-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-item.active {
+    color: var(--text-primary);
+    background-color: var(--accent-purple);
+}
+
+/* ==================== GERAL ==================== */
+.hidden {
+    display: none !important;
+}
+
+.home-only {
+    display: block;
+}
+
+/* ==================== ANOTAÇÕES ==================== */
 #notes-view {
     padding: 0;
     background-color: var(--bg-color);
@@ -166,6 +484,7 @@ header {
     color: var(--text-secondary);
 }
 
+/* ✅ GRID DE ANOTAÇÕES - SEMPRE 2 COLUNAS */
 .notes-grid-minimal {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -247,6 +566,24 @@ header {
     color: var(--text-primary);
 }
 
+.empty-notes-minimal {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    grid-column: 1 / -1;
+}
+
+.empty-notes-minimal ion-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-notes-minimal p {
+    font-size: 1rem;
+}
+
+/* ==================== MODAL DE ANOTAÇÃO - EDITOR ==================== */
 .note-modal-minimal {
     display: none;
     position: fixed;
@@ -275,13 +612,15 @@ header {
 .note-editor-header {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    gap: 10px;
     padding: 16px 20px;
     position: sticky;
     top: 0;
     background-color: var(--bg-color);
     z-index: 10;
     border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
 }
 
 .btn-back-minimal {
@@ -293,6 +632,7 @@ header {
     padding: 8px;
     border-radius: 50%;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .btn-back-minimal:hover {
@@ -301,12 +641,14 @@ header {
 
 .note-title-input {
     flex: 1;
+    min-width: 150px;
     background: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 600;
     outline: none;
+    text-align: left;
 }
 
 .note-title-input::placeholder {
@@ -317,11 +659,14 @@ header {
     background-color: var(--accent-purple);
     border: none;
     color: white;
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: 20px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 0.9rem;
 }
 
 .btn-save-minimal:hover {
@@ -359,63 +704,136 @@ header {
     background-color: var(--bg-color);
 }
 
-.empty-notes-minimal {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-secondary);
-    grid-column: 1 / -1;
-}
-
-.empty-notes-minimal ion-icon {
-    font-size: 4rem;
-    margin-bottom: 20px;
-    opacity: 0.5;
-}
-
-.empty-notes-minimal p {
-    font-size: 1rem;
-}
-
-.bottom-nav {
+/* ==================== MODAIS GERAIS ==================== */
+.edit-modal, .subject-modal, .event-modal, .task-modal, .note-modal, .profile-modal {
+    display: none;
     position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 375px;
-    max-width: calc(100% - 40px);
-    height: 70px;
-    background-color: var(--nav-bg);
-    border: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border-radius: 20px;
-    z-index: 100;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-color);
+    z-index: 200;
+    overflow-y: auto;
 }
 
-.nav-item {
+.edit-modal.active, .subject-modal.active, .event-modal.active, .task-modal.active, .note-modal.active, .profile-modal.active {
+    display: block;
+}
+
+.edit-modal-content, .subject-modal-content, .event-modal-content, .task-modal-content, .note-modal-content, .profile-modal-content {
+    max-width: 375px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.edit-modal-header, .subject-modal-header, .event-modal-header, .task-modal-header, .note-modal-header, .profile-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.edit-modal-header h2, .subject-modal-header h2, .event-modal-header h2, .task-modal-header h2, .note-modal-header h2, .profile-modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.btn-back, .btn-save, .btn-close {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.btn-save {
+    background-color: var(--accent-purple);
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Forms */
+.edit-schedule-wrapper, .subject-form, .event-form, .task-form, .note-form, .profile-form {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    gap: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    font-size: 0.7rem;
-    cursor: pointer;
-    padding: 5px 10px;
+    font-weight: 500;
+}
+
+.input-group input, .input-group select, .input-group textarea {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
-    transition: all 0.2s;
-}
-
-.nav-item ion-icon {
-    font-size: 1.5rem;
-    margin-bottom: 2px;
-}
-
-.nav-item.active {
+    padding: 12px 15px;
     color: var(--text-primary);
-    background-color: var(--accent-purple);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
 }
 
+.input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+    border-color: var(--accent-purple);
+}
+
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Cores */
+.color-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.color-option {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    background-color: var(--card-bg);
+}
+
+.color-option.active {
+    border-color: var(--accent-purple);
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.color-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ==================== NOTIFICAÇÕES MODAL ==================== */
 .notifications-modal {
     display: none;
     position: fixed;
@@ -460,14 +878,21 @@ header {
 }
 
 .btn-mark-read {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: none;
     border: none;
     color: var(--accent-purple);
     font-size: 0.75rem;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-mark-read:hover {
+    background-color: rgba(139, 92, 246, 0.1);
 }
 
 .btn-clear-all {
@@ -476,6 +901,13 @@ header {
     color: var(--accent-red);
     font-size: 1.2rem;
     cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-clear-all:hover {
+    background-color: rgba(239, 68, 68, 0.1);
 }
 
 .notifications-tabs {
@@ -484,6 +916,10 @@ header {
     padding: 15px 20px;
     overflow-x: auto;
     border-bottom: 1px solid var(--border-color);
+}
+
+.notifications-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .notification-tab {
@@ -495,11 +931,13 @@ header {
     font-size: 0.75rem;
     cursor: pointer;
     white-space: nowrap;
+    transition: all 0.2s;
 }
 
 .notification-tab.active {
     background-color: var(--accent-purple);
     color: white;
+    border-color: var(--accent-purple);
 }
 
 #notifications-list-modal {
@@ -517,10 +955,17 @@ header {
     border-radius: 12px;
     margin-bottom: 10px;
     cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.notification-item-modal:hover {
+    background-color: #252a33;
 }
 
 .notification-item-modal.unread {
-    border-left: 3px solid var(--accent-purple);
+    border-left-color: var(--accent-purple);
+    background-color: rgba(139, 92, 246, 0.05);
 }
 
 .notification-item-modal.read {
@@ -535,6 +980,7 @@ header {
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
+    flex-shrink: 0;
 }
 
 .notification-icon.aula {
@@ -547,6 +993,16 @@ header {
     color: #10b981;
 }
 
+.notification-icon.lembrete {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.notification-icon.aviso {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
 .notification-content {
     flex-grow: 1;
 }
@@ -554,16 +1010,21 @@ header {
 .notification-title {
     font-weight: 600;
     font-size: 0.9rem;
+    margin-bottom: 4px;
 }
 
 .notification-message {
     font-size: 0.8rem;
     color: var(--text-secondary);
+    margin-bottom: 8px;
 }
 
 .notification-time {
     font-size: 0.7rem;
     color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .btn-close-modal {
@@ -574,9 +1035,16 @@ header {
     border: 1px solid var(--border-color);
     border-radius: 10px;
     color: var(--text-primary);
+    font-size: 0.9rem;
     cursor: pointer;
+    transition: all 0.2s;
 }
 
+.btn-close-modal:hover {
+    background-color: var(--border-color);
+}
+
+/* ==================== MODAL DE CONFIRMAÇÃO ==================== */
 .confirm-modal {
     display: none;
     position: fixed;
@@ -588,6 +1056,7 @@ header {
     z-index: 500;
     justify-content: center;
     align-items: center;
+    animation: fadeIn 0.2s ease;
 }
 
 .confirm-modal.active {
@@ -602,6 +1071,7 @@ header {
     max-width: 320px;
     width: 90%;
     text-align: center;
+    animation: slideUp 0.3s ease;
 }
 
 .confirm-icon {
@@ -623,12 +1093,14 @@ header {
 .confirm-modal-content h3 {
     font-size: 1.1rem;
     font-weight: 600;
+    margin-bottom: 10px;
 }
 
 .confirm-modal-content p {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 25px;
+    line-height: 1.4;
 }
 
 .confirm-buttons {
@@ -639,11 +1111,12 @@ header {
 
 .confirm-buttons button {
     flex: 1;
-    padding: 12px;
+    padding: 12px 20px;
     border-radius: 12px;
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s;
     border: none;
 }
 
@@ -652,16 +1125,70 @@ header {
     color: var(--text-secondary);
 }
 
+.btn-cancel:hover {
+    background-color: #4b5563;
+}
+
 .btn-ok {
     background-color: var(--accent-red);
     color: white;
 }
 
+.btn-ok:hover {
+    background-color: #dc2626;
+    transform: scale(1.02);
+}
+
+/* ==================== ANIMAÇÃO DE SALVAMENTO ==================== */
+.btn-saving {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-saving::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+@keyframes spin {
+    to { transform: translateY(-50%) rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==================== TOAST ==================== */
 #toast-container {
     position: fixed;
     top: 20px;
     right: 20px;
     z-index: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .toast {
@@ -673,7 +1200,7 @@ header {
     align-items: center;
     gap: 12px;
     min-width: 280px;
-    margin-bottom: 10px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     animation: slideInRight 0.3s ease;
 }
 
@@ -706,6 +1233,234 @@ header {
 }
 
 @keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.toast.toast-hiding {
+    animation: slideOutRight 0.3s ease forwards;
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* ==================== RESPONSIVIDADE - CELULAR E TABLET ==================== */
+
+/* Tablets (768px a 1024px) */
+@media (max-width: 1024px) and (min-width: 768px) {
+    .mobile-container {
+        max-width: 768px;
+        height: auto;
+        min-height: 812px;
+        border-radius: 20px;
+        padding-bottom: 100px;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        padding: 0 30px 30px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        padding: 0 30px;
+    }
+    
+    .bottom-nav {
+        width: 768px;
+        max-width: calc(100% - 40px);
+        height: 80px;
+    }
+    
+    .nav-item {
+        padding: 8px 15px;
+        font-size: 0.8rem;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.8rem;
+    }
+}
+
+/* Celulares grandes e tablets pequenos (481px a 767px) */
+@media (max-width: 767px) and (min-width: 481px) {
+    .mobile-container {
+        max-width: 100%;
+        height: auto;
+        min-height: 100vh;
+        border-radius: 0;
+        padding-bottom: 100px;
+        box-shadow: none;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 0 20px 20px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 20px;
+    }
+    
+    .bottom-nav {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+}
+
+/* Celulares (até 480px) */
+@media (max-width: 480px) {
+    body {
+        padding: 0;
+    }
+    
+    .mobile-container {
+        max-width: 100%;
+        height: 100vh;
+        border-radius: 0;
+        padding-bottom: 90px;
+        box-shadow: none;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 0 15px 15px;
+    }
+    
+    .card {
+        padding: 12px 8px;
+    }
+    
+    .card-number {
+        font-size: 1.3rem;
+    }
+    
+    .card-label {
+        font-size: 0.65rem;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 0 15px;
+    }
+    
+    .note-card-minimal {
+        min-height: 140px;
+        padding: 12px;
+    }
+    
+    .note-title-minimal {
+        font-size: 1rem;
+    }
+    
+   .note-preview-minimal {
+    font-size: 0.8rem;
+    display: -webkit-box;              /* ✅ Necessário */
+    -webkit-box-orient: vertical;      /* ✅ Necessário */
+    -webkit-line-clamp: 2;             /* Limita a 2 linhas */
+    overflow: hidden;                   /* ✅ Necessário */
+    text-overflow: ellipsis;           /* Adiciona "..." */
+    line-height: 1.5;
+}
+    
+    .bottom-nav {
+        width: 100%;
+        max-width: 100%;
+        height: 65px;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+    
+    .nav-item {
+        padding: 5px 8px;
+        font-size: 0.65rem;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.3rem;
+    }
+    
+    header {
+        padding: 15px;
+    }
+    
+    .greeting h1 {
+        font-size: 1.1rem;
+    }
+    
+    .greeting p {
+        font-size: 0.8rem;
+    }
+    
+    section {
+        padding: 10px 15px;
+    }
+    
+    .notes-header-minimal h1 {
+        font-size: 1.5rem;
+    }
+    
+    .btn-new-note {
+        width: 42px;
+        height: 42px;
+        font-size: 1.3rem;
+    }
+    
+    .note-modal-minimal .note-editor-container {
+        max-width: 100%;
+    }
+    
+    .note-editor-header {
+        padding: 15px 20px;
+    }
+    
+    .btn-save-minimal {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+    
+    .note-title-input {
+        font-size: 1.1rem;
+        min-width: 120px;
+    }
+}
+
+/* Ajustes específicos para tablets em modo paisagem */
+@media (max-width: 1024px) and (orientation: landscape) {
+    .mobile-container {
+        max-width: 90vh;
+        height: 95vh;
+    }
+}
+
+/* Desktop - Mantém layout original */
+@media (min-width: 1025px) {
+    .mobile-container {
+        max-width: 375px;
+        height: 812px;
+        border-radius: 30px;
+    }
 }
