@@ -1,0 +1,811 @@
+/* ==================== VARIÁVEIS ==================== */
+:root {
+    --bg-color: #0f1115;
+    --card-bg: #1a1d24;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --accent-purple: #8b5cf6;
+    --accent-green: #10b981;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --border-color: #2d3748;
+    --nav-bg: #1a1d24;
+}
+
+/* ==================== GLOBAL ==================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* ==================== CONTAINER ==================== */
+.mobile-container {
+    width: 100%;
+    max-width: 375px;
+    height: 812px;
+    background-color: var(--bg-color);
+    border-radius: 30px;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    padding-bottom: 80px;
+}
+
+/* ==================== HEADER ==================== */
+header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
+    z-index: 10;
+}
+
+.greeting h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.greeting p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.profile-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--card-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+}
+
+.profile-icon ion-icon {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--accent-red);
+    color: white;
+    font-size: 0.6rem;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+/* ==================== CALENDÁRIO ==================== */
+#calendar-view {
+    padding: 20px;
+}
+
+.calendar-container {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.calendar-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.calendar-header button {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.calendar-header button:hover {
+    background-color: var(--border-color);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.weekday {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 10px 0;
+    font-weight: 500;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.calendar-day:hover {
+    background-color: var(--border-color);
+}
+
+.calendar-day.today {
+    background-color: var(--accent-purple);
+    color: white;
+    font-weight: 600;
+}
+
+.calendar-day.selected {
+    border: 2px solid var(--accent-purple);
+}
+
+.calendar-day.empty {
+    cursor: default;
+    background: transparent;
+}
+
+.calendar-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    background-color: var(--accent-green);
+    border-radius: 50%;
+}
+
+/* ==================== EVENTOS ==================== */
+.events-section {
+    padding: 0 5px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#events-list {
+    margin-top: 10px;
+}
+
+.event-item {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+
+.event-item:hover {
+    background-color: #252a33;
+}
+
+.event-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.event-icon.aula {
+    background-color: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+    border-left: 3px solid #6366f1;
+}
+
+.event-icon.prova {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-left: 3px solid #ef4444;
+}
+
+.event-icon.tarefa {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border-left: 3px solid #10b981;
+}
+
+.event-icon.outro {
+    background-color: rgba(139, 92, 246, 0.2);
+    color: #8b5cf6;
+    border-left: 3px solid #8b5cf6;
+}
+
+.event-info {
+    flex-grow: 1;
+}
+
+.event-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.event-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.event-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.event-actions ion-icon {
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+.event-actions ion-icon:hover {
+    color: var(--text-primary);
+}
+
+/* ==================== BARRA DE NAVEGAÇÃO ==================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 375px;
+    max-width: calc(100% - 40px);
+    height: 70px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-radius: 20px;
+    z-index: 100;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.nav-item ion-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-item.active {
+    color: var(--text-primary);
+    background-color: var(--accent-purple);
+}
+
+/* ==================== GERAL ==================== */
+.hidden {
+    display: none !important;
+}
+
+/* ==================== MODAL DE EVENTO ==================== */
+.event-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-color);
+    z-index: 200;
+    overflow-y: auto;
+}
+
+.event-modal.active {
+    display: block;
+}
+
+.event-modal-content {
+    max-width: 375px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.event-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.event-modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.event-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.input-group input {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 15px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.input-group input:focus {
+    border-color: var(--accent-purple);
+}
+
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.event-types {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.type-btn {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.type-btn ion-icon {
+    font-size: 1.2rem;
+}
+
+.type-btn span {
+    font-size: 0.65rem;
+}
+
+.type-btn.active {
+    background-color: var(--accent-purple);
+    color: white;
+    border-color: var(--accent-purple);
+}
+
+.color-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.color-option {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid transparent;
+    background-color: var(--card-bg);
+}
+
+.color-option.active {
+    border-color: var(--accent-purple);
+    transform: scale(1.1);
+}
+
+.color-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-back, .btn-save, .btn-close {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.btn-save {
+    background-color: var(--accent-purple);
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    width: 100%;
+}
+
+.btn-add-task {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background-color: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ==================== NOTIFICAÇÕES MODAL ==================== */
+.notifications-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 300;
+}
+
+.notifications-modal.active {
+    display: block;
+}
+
+.notifications-modal-content {
+    max-width: 375px;
+    margin: 60px auto;
+    background-color: var(--bg-color);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.notifications-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notifications-modal-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.notifications-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-mark-read {
+    background: none;
+    border: none;
+    color: var(--accent-purple);
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-clear-all {
+    background: none;
+    border: none;
+    color: var(--accent-red);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.notifications-tabs {
+    display: flex;
+    gap: 5px;
+    padding: 15px 20px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notification-tab {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.notification-tab.active {
+    background-color: var(--accent-purple);
+    color: white;
+}
+
+#notifications-list-modal {
+    padding: 10px 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-item-modal {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.notification-item-modal.unread {
+    border-left: 3px solid var(--accent-purple);
+}
+
+.notification-item-modal.read {
+    opacity: 0.7;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.notification-icon.aula {
+    background-color: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.notification-icon.tarefa {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.notification-message {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 4px 0;
+}
+
+.notification-time {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.btn-close-modal {
+    width: calc(100% - 40px);
+    margin: 0 20px 20px;
+    padding: 12px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+/* ==================== MODAL DE CONFIRMAÇÃO ==================== */
+.confirm-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 500;
+    justify-content: center;
+    align-items: center;
+}
+
+.confirm-modal.active {
+    display: flex;
+}
+
+.confirm-modal-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 25px;
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+}
+
+.confirm-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(239, 68, 68, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+}
+
+.confirm-icon ion-icon {
+    font-size: 1.8rem;
+    color: var(--accent-red);
+}
+
+.confirm-modal-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.confirm-modal-content p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 25px;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.confirm-buttons button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-cancel {
+    background-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-ok {
+    background-color: var(--accent-red);
+    color: white;
+}
+
+/* ==================== TOAST ==================== */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 600;
+}
+
+.toast {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 280px;
+    margin-bottom: 10px;
+    animation: slideInRight 0.3s ease;
+}
+
+.toast ion-icon {
+    font-size: 1.2rem;
+}
+
+.toast.toast-success {
+    border-left: 4px solid var(--accent-green);
+}
+
+.toast.toast-success ion-icon {
+    color: var(--accent-green);
+}
+
+.toast.toast-error {
+    border-left: 4px solid var(--accent-red);
+}
+
+.toast.toast-error ion-icon {
+    color: var(--accent-red);
+}
+
+.toast.toast-info {
+    border-left: 4px solid var(--accent-purple);
+}
+
+.toast.toast-info ion-icon {
+    color: var(--accent-purple);
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}

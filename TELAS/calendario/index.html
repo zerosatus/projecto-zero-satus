@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendário - Painel do Aluno</title>
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
+            </div>
+            
+            <nav class="menu">
+                <a href="../inicio/index.html" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="../dashboard/index.html" class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="./index.html" class="menu-item active">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="../tarefas/index.html" class="menu-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tarefas</span>
+                </a>
+                <a href="../anotacoes/index.html" class="menu-item">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Anotações</span>
+                </a>
+            </nav>
+            
+            <div class="menu-bottom">
+                <a href="#" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Comunidade</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </a>
+            </div>
+            
+            <!-- Botão de Logout -->
+            <div class="logout-section">
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1>Bem-vindo, Aluno!</h1>
+                <div class="header-actions">
+                    <button class="icon-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    <div class="user-profile">
+                        <img src="https://i.pravatar.cc/150?img=12" alt="Usuário">
+                        <span id="userName">Aluno</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Calendar Section -->
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <div class="month-nav">
+                        <h2 id="currentMonth">Setembro 2025</h2>
+                        <div class="nav-buttons">
+                            <button id="prevBtn" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+                            <button id="nextBtn" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="view-actions">
+                        <div class="view-toggle">
+                            <button class="toggle-btn active" data-view="month">Mês</button>
+                            <button class="toggle-btn" data-view="week">Semana</button>
+                            <button class="toggle-btn" data-view="day">Dia</button>
+                        </div>
+                        <button class="btn-primary" id="newEventBtn">
+                            <i class="fas fa-plus"></i> Novo Evento
+                        </button>
+                    </div>
+                </div>
+
+                <div class="calendar-grid">
+                    <div class="weekdays">
+                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sab</div>
+                    </div>
+                    <div class="days" id="calendarDays"></div>
+                </div>
+            </div>
+
+            <!-- Events Section -->
+            <div class="events-section">
+                <h3>Eventos do Dia <span id="selectedDay">27</span></h3>
+                <div class="events-list" id="eventsList"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Novo Evento -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Criar Novo Evento</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            
+            <form id="eventForm">
+                <div class="form-group">
+                    <label>Título do Evento *</label>
+                    <input type="text" id="eventTitle" placeholder="Ex: Aula de Matemática" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="eventDescription" placeholder="Adicione detalhes sobre o evento..." rows="3"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="eventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Início</label>
+                        <input type="time" id="eventStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Término</label>
+                        <input type="time" id="eventEnd" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Tipo de Evento</label>
+                    <div class="event-type-grid">
+                        <button type="button" class="type-btn active" data-type="aula">Aula</button>
+                        <button type="button" class="type-btn" data-type="prova">Prova</button>
+                        <button type="button" class="type-btn" data-type="trabalho">Trabalho</button>
+                        <button type="button" class="type-btn" data-type="apresentacao">Apresentação</button>
+                        <button type="button" class="type-btn" data-type="reuniao">Reunião</button>
+                        <button type="button" class="type-btn" data-type="outro">Outro</button>
+                    </div>
+                    <input type="hidden" id="eventType" value="aula">
+                </div>
+                
+                <div class="form-group">
+                    <label>Repetir</label>
+                    <select id="eventRepeat">
+                        <option value="nao">Não repetir</option>
+                        <option value="diario">Diariamente</option>
+                        <option value="semanal">Semanalmente</option>
+                        <option value="mensal">Mensalmente</option>
+                    </select>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="eventReminder">
+                    <label for="eventReminder">Ativar lembrete para este evento</label>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="btnCancel">Cancelar</button>
+                    <button type="submit" class="btn-create">Criar Evento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

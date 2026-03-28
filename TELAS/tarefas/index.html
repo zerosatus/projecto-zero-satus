@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno - Tarefas</title>
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- ✅ Sidebar (APENAS UMA VEZ) -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
+            </div>
+            
+            <nav class="menu">
+                <a href="../inicio/index.html" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="../dashboard/index.html" class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../calendario/index.html" class="menu-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="./index.html" class="menu-item active">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tarefas</span>
+                </a>
+                <a href="../anotacoes/index.html" class="menu-item">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Anotações</span>
+                </a>
+            </nav>
+            
+            <div class="menu-bottom">
+                <a href="#" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Comunidade</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </a>
+            </div>
+            
+            <!-- Botão de Logout -->
+            <div class="logout-section">
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header com nome dinâmico -->
+            <header class="header">
+                <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
+                <div class="header-actions">
+                    <button class="icon-btn">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">JS</div>
+                        <span id="userNameProfile">Carregando...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Stats Cards -->
+            <div class="stats-container">
+                <div class="stat-card pending">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number">7</span>
+                        <span class="stat-label">Pendentes</span>
+                    </div>
+                </div>
+                <div class="stat-card completed">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Concluídas hoje</span>
+                    </div>
+                </div>
+                <div class="stat-card overdue">
+                    <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number">7</span>
+                        <span class="stat-label">Atrasadas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Left Sidebar -->
+                <div class="left-panel">
+                    <button class="btn-primary btn-new-task" onclick="abrirModal()">
+                        <i class="fas fa-plus"></i> Nova Tarefa
+                    </button>
+                    
+                    <div class="filter-section">
+                        <div class="filter-item active">
+                            <i class="fas fa-sun"></i><span>Hoje</span>
+                        </div>
+                        <div class="filter-item">
+                            <i class="fas fa-calendar-week"></i><span>Próximos 7 dias</span>
+                        </div>
+                        <div class="filter-item">
+                            <i class="fas fa-star"></i><span>Favoritas</span>
+                            <span class="badge">4</span>
+                        </div>
+                        <div class="filter-item active-filter">
+                            <i class="fas fa-list"></i><span>Todas as tarefas</span>
+                            <span class="badge">7</span>
+                        </div>
+                        <div class="filter-item">
+                            <i class="fas fa-check"></i><span>Concluídas</span>
+                            <span class="badge">3</span>
+                        </div>
+                    </div>
+
+                    <div class="subjects-section">
+                        <h3>DISCIPLINAS</h3>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #9b59b6;"></div>
+                            <span>Matemática</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #3498db;"></div>
+                            <span>Português</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #e74c3c;"></div>
+                            <span>História</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #e67e22;"></div>
+                            <span>Física</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #2ecc71;"></div>
+                            <span>Química</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #f1c40f;"></div>
+                            <span>Biologia</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #1abc9c;"></div>
+                            <span>Geografia</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #34495e;"></div>
+                            <span>Inglês</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                        <div class="subject-item">
+                            <div class="subject-color" style="background-color: #95a5a6;"></div>
+                            <span>Outros</span>
+                            <span class="subject-count">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content -->
+                <div class="right-panel">
+                    <div class="tasks-header">
+                        <h2>Todas as Tarefas</h2>
+                        <div class="tasks-actions">
+                            <select class="filter-select">
+                                <option>Por prazo</option>
+                                <option>Por disciplina</option>
+                                <option>Por prioridade</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Buscar tarefas...">
+                    </div>
+
+                    <div class="tasks-section">
+                        <h3 class="section-title">ATRASADAS <span class="section-count">(7)</span></h3>
+                        
+                        <div class="task-list">
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Resolver exercícios de Matemática</h4>
+                                    <p>Capítulo 3: Equações do segundo grau - exercícios 1 a 20.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject math"><i class="fas fa-circle"></i> Matemática</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 25 de jul.</span>
+                                        <span class="task-priority urgent"><i class="fas fa-flag"></i> Urgente</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Fazer resumo de Português</h4>
+                                    <p>Resumo sobre figuras de linguagem e suas aplicações.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject portuguese"><i class="fas fa-circle"></i> Português</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 26 de jul.</span>
+                                        <span class="task-priority high"><i class="fas fa-flag"></i> Alta</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Praticar verbos irregulares em Inglês</h4>
+                                    <p>Lista de 50 verbos irregulares mais comuns.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject english"><i class="fas fa-circle"></i> Inglês</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 27 de jul.</span>
+                                        <span class="task-priority normal"><i class="fas fa-flag"></i> Normal</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Estudar para prova de Física</h4>
+                                    <p>Revisar cinemática, dinâmica e leis de Newton.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject physics"><i class="fas fa-circle"></i> Física</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 28 de jul.</span>
+                                        <span class="task-priority urgent"><i class="fas fa-flag"></i> Urgente</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Preparar apresentação de Biologia</h4>
+                                    <p>Apresentação sobre biodiversidade e conservação celular.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject biology"><i class="fas fa-circle"></i> Biologia</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 29 de jul.</span>
+                                        <span class="task-priority urgent"><i class="fas fa-flag"></i> Urgente</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Trabalho de Geografia</h4>
+                                    <p>Pesquisa sobre climas brasileiros - mínimo 5 páginas.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject geography"><i class="fas fa-circle"></i> Geografia</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 30 de jul.</span>
+                                        <span class="task-priority medium"><i class="fas fa-flag"></i> Média</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="task-item">
+                                <input type="checkbox" class="task-checkbox">
+                                <div class="task-content">
+                                    <h4>Estudar para simulado geral</h4>
+                                    <p>Revisar todas as matérias para o simulado geral.</p>
+                                    <div class="task-meta">
+                                        <span class="task-subject others"><i class="fas fa-circle"></i> Outros</span>
+                                        <span class="task-date"><i class="fas fa-calendar"></i> 31 de jul.</span>
+                                        <span class="task-priority urgent"><i class="fas fa-flag"></i> Urgente</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-btn favorite"><i class="fas fa-star"></i></button>
+                                    <button class="task-btn edit"><i class="fas fa-ellipsis-v"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nova Tarefa -->
+    <div id="modalNovaTarefa" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Nova Tarefa</h2>
+                <button class="modal-close" onclick="fecharModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="formNovaTarefa">
+                <div class="form-group">
+                    <input type="text" id="nomeTarefa" placeholder="Nome da tarefa..." required>
+                </div>
+                <div class="form-group">
+                    <textarea id="descricaoTarefa" placeholder="Descrição (opcional)..." rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>PRIORIDADE</label>
+                        <div class="priority-options">
+                            <button type="button" class="priority-btn" data-priority="alta" onclick="selecionarPrioridade('alta')"><i class="fas fa-flag"></i> Alta</button>
+                            <button type="button" class="priority-btn active" data-priority="media" onclick="selecionarPrioridade('media')"><i class="fas fa-flag"></i> Média</button>
+                            <button type="button" class="priority-btn" data-priority="baixa" onclick="selecionarPrioridade('baixa')"><i class="fas fa-flag"></i> Baixa</button>
+                            <button type="button" class="priority-btn" data-priority="nenhuma" onclick="selecionarPrioridade('nenhuma')"><i class="fas fa-flag"></i> Nenhuma</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row-two">
+                    <div class="form-group">
+                        <label>PRAZO</label>
+                        <div class="input-with-icon">
+                            <input type="text" id="prazoTarefa" placeholder="dd/mm/aaaa" onblur="formatarData(this)">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>DISCIPLINA</label>
+                        <select id="disciplinaTarefa">
+                            <option value="matematica">Matemática</option>
+                            <option value="portugues">Português</option>
+                            <option value="historia">História</option>
+                            <option value="fisica">Física</option>
+                            <option value="quimica">Química</option>
+                            <option value="biologia">Biologia</option>
+                            <option value="geografia">Geografia</option>
+                            <option value="ingles">Inglês</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Subtarefas</label>
+                    <div class="subtasks-container" id="subtasksContainer"></div>
+                    <button type="button" class="btn-add-subtask" onclick="adicionarSubtarefa()">
+                        <i class="fas fa-plus"></i> Adicionar subtarefa
+                    </button>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+                    <button type="submit" class="btn-create">Criar Tarefa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,711 @@
+:root {
+    --bg-color: #0f1115;
+    --card-bg: #1a1d24;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --accent-purple: #8b5cf6;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --border-color: #2d3748;
+    --nav-bg: #1a1d24;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.mobile-container {
+    width: 100%;
+    max-width: 375px;
+    height: 812px;
+    background-color: var(--bg-color);
+    border-radius: 30px;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    padding-bottom: 80px;
+}
+
+header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
+    z-index: 10;
+}
+
+.greeting h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.greeting p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.profile-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--card-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+}
+
+.profile-icon ion-icon {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--accent-red);
+    color: white;
+    font-size: 0.6rem;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+#notes-view {
+    padding: 0;
+    background-color: var(--bg-color);
+    min-height: 100vh;
+    padding-bottom: 100px;
+}
+
+.notes-header-minimal {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
+    z-index: 10;
+}
+
+.notes-header-minimal h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.btn-new-note {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    transition: all 0.3s;
+}
+
+.btn-new-note:hover {
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.6);
+}
+
+.notes-search-minimal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px 15px;
+}
+
+.notes-search-minimal ion-icon {
+    color: var(--text-secondary);
+    font-size: 1.3rem;
+}
+
+.notes-search-minimal input {
+    flex: 1;
+    background-color: var(--card-bg);
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.notes-search-minimal input::placeholder {
+    color: var(--text-secondary);
+}
+
+.notes-grid-minimal {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 0 20px;
+}
+
+.note-card-minimal {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    padding: 16px;
+    min-height: 160px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+}
+
+.note-card-minimal:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-purple);
+}
+
+.note-card-minimal .note-title-minimal {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.note-card-minimal .note-preview-minimal {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-height: 4.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    word-break: break-word;
+    margin-bottom: 8px;
+}
+
+.note-card-minimal .note-footer-minimal {
+    position: absolute;
+    bottom: 12px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.note-card-minimal .note-date-minimal {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.note-card-minimal .note-actions-minimal {
+    display: flex;
+    gap: 8px;
+}
+
+.note-card-minimal .note-actions-minimal ion-icon {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.note-card-minimal .note-actions-minimal ion-icon:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.note-modal-minimal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-color);
+    z-index: 300;
+    overflow-y: auto;
+}
+
+.note-modal-minimal.active {
+    display: block;
+}
+
+.note-editor-container {
+    max-width: 375px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.note-editor-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
+    z-index: 10;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.btn-back-minimal {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.btn-back-minimal:hover {
+    background-color: var(--card-bg);
+}
+
+.note-title-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.3rem;
+    font-weight: 600;
+    outline: none;
+}
+
+.note-title-input::placeholder {
+    color: var(--text-secondary);
+}
+
+.btn-save-minimal {
+    background-color: var(--accent-purple);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-save-minimal:hover {
+    background-color: #7c3aed;
+    transform: scale(1.05);
+}
+
+.note-editor-area {
+    flex: 1;
+    padding: 20px;
+}
+
+.note-editor-area textarea {
+    width: 100%;
+    min-height: 60vh;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+}
+
+.note-editor-area textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+.note-footer-info {
+    text-align: center;
+    padding: 16px 20px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+}
+
+.empty-notes-minimal {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    grid-column: 1 / -1;
+}
+
+.empty-notes-minimal ion-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-notes-minimal p {
+    font-size: 1rem;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 375px;
+    max-width: calc(100% - 40px);
+    height: 70px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-radius: 20px;
+    z-index: 100;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.nav-item ion-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-item.active {
+    color: var(--text-primary);
+    background-color: var(--accent-purple);
+}
+
+.notifications-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 300;
+    overflow-y: auto;
+}
+
+.notifications-modal.active {
+    display: block;
+}
+
+.notifications-modal-content {
+    max-width: 375px;
+    margin: 60px auto;
+    background-color: var(--bg-color);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.notifications-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notifications-modal-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.notifications-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-mark-read {
+    background: none;
+    border: none;
+    color: var(--accent-purple);
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-clear-all {
+    background: none;
+    border: none;
+    color: var(--accent-red);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.notifications-tabs {
+    display: flex;
+    gap: 5px;
+    padding: 15px 20px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notification-tab {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.notification-tab.active {
+    background-color: var(--accent-purple);
+    color: white;
+}
+
+#notifications-list-modal {
+    padding: 10px 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-item-modal {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.notification-item-modal.unread {
+    border-left: 3px solid var(--accent-purple);
+}
+
+.notification-item-modal.read {
+    opacity: 0.7;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.notification-icon.aula {
+    background-color: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.notification-icon.tarefa {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.notification-message {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.notification-time {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.btn-close-modal {
+    width: calc(100% - 40px);
+    margin: 0 20px 20px;
+    padding: 12px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.confirm-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 500;
+    justify-content: center;
+    align-items: center;
+}
+
+.confirm-modal.active {
+    display: flex;
+}
+
+.confirm-modal-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 25px;
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+}
+
+.confirm-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(239, 68, 68, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+}
+
+.confirm-icon ion-icon {
+    font-size: 1.8rem;
+    color: var(--accent-red);
+}
+
+.confirm-modal-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.confirm-modal-content p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 25px;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.confirm-buttons button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-cancel {
+    background-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-ok {
+    background-color: var(--accent-red);
+    color: white;
+}
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 600;
+}
+
+.toast {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 280px;
+    margin-bottom: 10px;
+    animation: slideInRight 0.3s ease;
+}
+
+.toast ion-icon {
+    font-size: 1.2rem;
+}
+
+.toast.toast-success {
+    border-left: 4px solid var(--accent-green);
+}
+
+.toast.toast-success ion-icon {
+    color: var(--accent-green);
+}
+
+.toast.toast-error {
+    border-left: 4px solid var(--accent-red);
+}
+
+.toast.toast-error ion-icon {
+    color: var(--accent-red);
+}
+
+.toast.toast-info {
+    border-left: 4px solid var(--accent-purple);
+}
+
+.toast.toast-info ion-icon {
+    color: var(--accent-purple);
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}

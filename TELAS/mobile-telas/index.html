@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno Mobile</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+    <div class="mobile-container">
+        <!-- HEADER -->
+        <header>
+            <div class="greeting">
+                <h1 id="header-name">Usuário</h1>
+                <p>Bem-vindo de volta 👋</p>
+            </div>
+            <div class="profile-icon" id="notification-bell">
+                <ion-icon name="notifications-outline"></ion-icon>
+                <span class="notification-badge" id="notification-badge">3</span>
+            </div>
+        </header>
+
+        <!-- CARDS DE RESUMO -->
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-icon tarefas"><ion-icon name="book-outline"></ion-icon></div>
+                <span class="card-number" id="card-disciplinas">0</span>
+                <span class="card-label">Disciplinas</span>
+            </div>
+            <div class="card">
+                <div class="card-icon concluidas"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+                <span class="card-number" id="card-concluidas">0</span>
+                <span class="card-label">Concluídas</span>
+            </div>
+            <div class="card">
+                <div class="card-icon pendentes"><ion-icon name="time-outline"></ion-icon></div>
+                <span class="card-number" id="card-pendentes">0</span>
+                <span class="card-label">Pendentes</span>
+            </div>
+        </div>
+
+        <!-- HORÁRIO SEMANAL -->
+        <section class="home-only">
+            <div class="section-header">
+                <h3 class="section-title">Horário Semanal</h3>
+                <span class="edit-btn" id="toggle-edit-mode">
+                    Editar <ion-icon name="create-outline"></ion-icon>
+                </span>
+            </div>
+            <div class="schedule-wrapper">
+                <div class="schedule-grid" id="schedule-grid"></div>
+            </div>
+        </section>
+
+        <!-- PRÓXIMO EVENTO -->
+        <section class="home-only">
+            <div class="section-header">
+                <h3 class="section-title">Próximo Evento</h3>
+                <span class="edit-btn" onclick="switchView('calendar')">
+                    Ver calendário <ion-icon name="chevron-forward-outline"></ion-icon>
+                </span>
+            </div>
+            <div id="next-event-container"></div>
+        </section>
+
+        <!-- TAREFAS PRÓXIMAS -->
+        <section class="home-only">
+            <div class="section-header">
+                <h3 class="section-title">Tarefas Próximas</h3>
+                <span class="edit-btn" onclick="switchView('tasks')">
+                    Ver todas <ion-icon name="chevron-forward-outline"></ion-icon>
+                </span>
+            </div>
+            <div id="next-tasks-container"></div>
+        </section>
+
+        <!-- NOTIFICAÇÕES -->
+        <section class="home-only">
+            <div class="section-header">
+                <h3 class="section-title">Notificações</h3>
+                <span class="edit-btn" id="notification-bell">
+                    Ver todas <ion-icon name="chevron-forward-outline"></ion-icon>
+                </span>
+            </div>
+            <div id="notifications-list"></div>
+        </section>
+
+        <!-- BARRA DE NAVEGAÇÃO -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" data-view="home">
+                <ion-icon name="home-outline"></ion-icon>
+                <span>Início</span>
+            </div>
+            <div class="nav-item" data-view="calendar">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Calendário</span>
+            </div>
+            <div class="nav-item" data-view="tasks">
+                <ion-icon name="checkbox-outline"></ion-icon>
+                <span>Tarefas</span>
+            </div>
+            <div class="nav-item" data-view="notes">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>Notas</span>
+            </div>
+            <div class="nav-item" data-view="profile">
+                <ion-icon name="person-outline"></ion-icon>
+                <span>Perfil</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- MODAL DE EDIÇÃO DE HORÁRIO -->
+    <div class="edit-modal" id="edit-modal">
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">
+                <button class="btn-back" id="btn-back">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Editar Horário Semanal</h2>
+                <button class="btn-save" id="btn-save">Concluir</button>
+            </div>
+            <p style="text-align:center;color:var(--text-secondary);margin-bottom:20px;font-size:0.8rem;">
+                Toque no "+" para adicionar uma aula ou no ícone de lixeira para remover um horário.
+            </p>
+            <div class="edit-schedule-wrapper">
+                <div class="edit-schedule-grid" id="edit-schedule-grid"></div>
+            </div>
+            <div class="add-time-section">
+                <h3>Adicionar Novo Horário à Grade</h3>
+                <div class="add-time-controls">
+                    <input type="time" id="new-time-input" value="11:00">
+                    <button class="btn-add-time" id="btn-add-time">Adicionar</button>
+                    <button class="btn-cancel-time" id="btn-cancel-time">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE MATÉRIA -->
+    <div class="subject-modal" id="subject-modal">
+        <div class="subject-modal-content">
+            <div class="subject-modal-header">
+                <button class="btn-back" data-modal="subject-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2 id="subject-modal-title">Adicionar Matéria</h2>
+                <button class="btn-close" data-modal="subject-modal">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <form class="subject-form">
+                <div class="input-group">
+                    <label>Nome da Matéria</label>
+                    <input type="text" id="subject-name-input" placeholder="Ex: Matemática">
+                </div>
+                <div class="input-group">
+                    <label>Professor (Opcional)</label>
+                    <input type="text" id="subject-teacher-input" placeholder="Nome do professor">
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Início</label>
+                        <input type="time" id="subject-start-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Fim</label>
+                        <input type="time" id="subject-end-input">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Dia da Semana</label>
+                    <select id="subject-day-input">
+                        <option value="Seg">Segunda-feira</option>
+                        <option value="Ter">Terça-feira</option>
+                        <option value="Qua">Quarta-feira</option>
+                        <option value="Qui">Quinta-feira</option>
+                        <option value="Sex">Sexta-feira</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Cor</label>
+                    <div class="color-options">
+                        <div class="color-option" data-color="#6366f1"><div class="color-circle" style="background-color: #6366f1;"></div></div>
+                        <div class="color-option" data-color="#ec4899"><div class="color-circle" style="background-color: #ec4899;"></div></div>
+                        <div class="color-option" data-color="#ef4444"><div class="color-circle" style="background-color: #ef4444;"></div></div>
+                        <div class="color-option" data-color="#10b981"><div class="color-circle" style="background-color: #10b981;"></div></div>
+                        <div class="color-option" data-color="#f59e0b"><div class="color-circle" style="background-color: #f59e0b;"></div></div>
+                        <div class="color-option" data-color="#8b5cf6"><div class="color-circle" style="background-color: #8b5cf6;"></div></div>
+                    </div>
+                </div>
+                <button type="button" class="btn-save" id="btn-save-subject">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE NOTIFICAÇÕES -->
+    <div class="notifications-modal" id="notifications-modal">
+        <div class="notifications-modal-content">
+            <div class="notifications-modal-header">
+                <h2>Notificações</h2>
+                <div class="notifications-actions">
+                    <button class="btn-mark-read" id="btn-mark-read">
+                        <ion-icon name="checkmark-done-outline"></ion-icon> Marcar todas
+                    </button>
+                    <button class="btn-clear-all" id="btn-clear-all">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+            <div class="notifications-tabs">
+                <div class="notification-tab active" data-type="all">Todas</div>
+                <div class="notification-tab" data-type="unread">Não Lidas</div>
+                <div class="notification-tab" data-type="aulas">Aulas</div>
+                <div class="notification-tab" data-type="tarefas">Tarefas</div>
+            </div>
+            <div id="notifications-list-modal"></div>
+            <button class="btn-close-modal" id="btn-close-notifications">Fechar</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMAÇÃO -->
+    <div class="confirm-modal" id="confirm-modal">
+        <div class="confirm-modal-content">
+            <div class="confirm-icon"><ion-icon name="warning-outline"></ion-icon></div>
+            <h3 id="confirm-title">Confirmar ação</h3>
+            <p id="confirm-message">Tem certeza que deseja continuar?</p>
+            <div class="confirm-buttons">
+                <button class="btn-cancel" id="confirm-cancel">Cancelar</button>
+                <button class="btn-ok" id="confirm-ok">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast-container"></div>
+
+    <script src="shared-data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
