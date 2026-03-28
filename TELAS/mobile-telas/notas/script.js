@@ -1,3 +1,4 @@
+// mobile-telas/notas/script.js
 let notifications = [];
 let notes = [];
 let usuarioLogado = null;
@@ -6,14 +7,11 @@ let editingNoteId = null;
 function showConfirm(message, title = 'Confirmar', callback) {
     const modal = document.getElementById('confirm-modal');
     if (!modal) { callback?.(false); return; }
-    
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-message').textContent = message;
     modal.classList.add('active');
-    
     const btnOk = document.getElementById('confirm-ok');
     const btnCancel = document.getElementById('confirm-cancel');
-    
     btnOk.onclick = () => { modal.classList.remove('active'); callback?.(true); };
     btnCancel.onclick = () => { modal.classList.remove('active'); callback?.(false); };
 }
@@ -21,10 +19,8 @@ function showConfirm(message, title = 'Confirmar', callback) {
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    
     const existingToast = container.querySelector('.toast');
     if (existingToast) existingToast.remove();
-    
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
@@ -34,15 +30,9 @@ function showToast(message, type = 'info', duration = 3000) {
 }
 
 function saveAllData() {
-    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
-    localStorage.setItem('notifications', JSON.stringify(notifications));
-    localStorage.setItem('notes', JSON.stringify(notes));
-}
-
-function loadAllData() {
-    usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado')) || null;
-    notifications = JSON.parse(localStorage.getItem('notifications')) || getDefaultNotifications();
-    notes = JSON.parse(localStorage.getItem('notes')) || getDefaultNotes();
+    window.setCached('usuarioLogado', usuarioLogado);
+    window.setCached('notifications', notifications);
+    window.setCached('notes', notes);
 }
 
 function getDefaultNotifications() {
@@ -58,6 +48,15 @@ function getDefaultNotes() {
         { id: Date.now() - 1000, title: 'Fórmulas de Física', content: 'F = m * a\nE = m * c²', date: new Date().toISOString() },
         { id: Date.now() - 2000, title: 'Vocabulário Inglês', content: 'Apple - Maçã\nBook - Livro', date: new Date().toISOString() }
     ];
+}
+
+function loadAllData() {
+    usuarioLogado = window.getCached('usuarioLogado', null);
+    notifications = window.getCached('notifications', getDefaultNotifications());
+    notes = window.getCached('notes', getDefaultNotes());
+    if (window.onCacheChange) {
+        window.onCacheChange('notes', (newNotes) => { if (newNotes) { notes = newNotes; renderNotes(document.getElementById('notes-search-input')?.value || ''); } });
+    }
 }
 
 function updateNotificationBadge() {
@@ -82,27 +81,14 @@ function formatNotificationTime(timeString) {
 function renderNotificationsModal(filter = 'all') {
     const list = document.getElementById('notifications-list-modal');
     let filtered = notifications;
-    
     if (filter === 'unread') filtered = notifications.filter(n => !n.read);
     else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
     else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-    
-    if (filtered.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
-        return;
-    }
-    
+    if (filtered.length === 0) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>'; return; }
     let html = '';
     filtered.forEach(notif => {
         const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
-            <div class="notification-icon ${notif.type}"><ion-icon name="${iconMap[notif.type]}-outline"></ion-icon></div>
-            <div class="notification-content">
-                <div class="notification-title">${notif.title}</div>
-                <div class="notification-message">${notif.message}</div>
-                <div class="notification-time">${formatNotificationTime(notif.time)}</div>
-            </div>
-        </div>`;
+        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}"><div class="notification-icon ${notif.type}"><ion-icon name="${iconMap[notif.type]}-outline"></ion-icon></div><div class="notification-content"><div class="notification-title">${notif.title}</div><div class="notification-message">${notif.message}</div><div class="notification-time">${formatNotificationTime(notif.time)}</div></div></div>`;
     });
     list.innerHTML = html;
 }
@@ -111,6 +97,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
+    window.setCached('notifications', notifications);
 }
 
 function clearAllNotifications() {
@@ -119,6 +106,7 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
+            window.setCached('notifications', notifications);
             showToast('Notificações limpas!', 'success');
         }
     });
@@ -127,84 +115,25 @@ function clearAllNotifications() {
 function renderNotes(searchTerm = '') {
     const notesGrid = document.getElementById('notes-grid');
     if (!notesGrid) return;
-    
     let filteredNotes = notes;
-    if (searchTerm) {
-        filteredNotes = notes.filter(note =>
-            note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (note.content && note.content.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
-    }
-    
+    if (searchTerm) filteredNotes = notes.filter(note => note.title.toLowerCase().includes(searchTerm.toLowerCase()) || (note.content && note.content.toLowerCase().includes(searchTerm.toLowerCase())));
     filteredNotes.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-    
     if (filteredNotes.length === 0) {
-        notesGrid.innerHTML = `
-            <div class="empty-notes-minimal">
-                <ion-icon name="document-text-outline"></ion-icon>
-                <p>${searchTerm ? 'Nenhuma anotação encontrada' : 'Nenhuma anotação ainda'}</p>
-            </div>
-        `;
+        notesGrid.innerHTML = `<div class="empty-notes-minimal"><ion-icon name="document-text-outline"></ion-icon><p>${searchTerm ? 'Nenhuma anotação encontrada' : 'Nenhuma anotação ainda'}</p></div>`;
         return;
     }
-    
     let html = '';
     filteredNotes.forEach(note => {
         const dateFormatted = note.date ? new Date(note.date).toLocaleDateString('pt-BR') : '';
         const preview = note.content ? note.content.substring(0, 100) : '';
-        
-        html += `
-            <div class="note-card-minimal" data-id="${note.id}">
-                <div class="note-title-minimal">${note.title || 'Sem título'}</div>
-                <div class="note-preview-minimal">${preview}${preview.length >= 100 ? '...' : ''}</div>
-                <div class="note-footer-minimal">
-                    <div class="note-date-minimal">${dateFormatted}</div>
-                    <div class="note-actions-minimal">
-                        <ion-icon name="create-outline" class="edit-note" data-id="${note.id}"></ion-icon>
-                        <ion-icon name="trash-outline" class="delete-note" data-id="${note.id}"></ion-icon>
-                    </div>
-                </div>
-            </div>
-        `;
+        html += `<div class="note-card-minimal" data-id="${note.id}"><div class="note-title-minimal">${note.title || 'Sem título'}</div><div class="note-preview-minimal">${preview}${preview.length >= 100 ? '...' : ''}</div><div class="note-footer-minimal"><div class="note-date-minimal">${dateFormatted}</div><div class="note-actions-minimal"><ion-icon name="create-outline" class="edit-note" data-id="${note.id}"></ion-icon><ion-icon name="trash-outline" class="delete-note" data-id="${note.id}"></ion-icon></div></div></div>`;
     });
-    
     notesGrid.innerHTML = html;
-    attachNoteEvents();
-}
-
-function attachNoteEvents() {
     document.querySelectorAll('.note-card-minimal').forEach(card => {
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.note-actions-minimal')) return;
-            const noteId = card.dataset.id;
-            const note = notes.find(n => n.id == noteId);
-            if (note) openNoteModal(note);
-        });
+        card.addEventListener('click', (e) => { if (e.target.closest('.note-actions-minimal')) return; const noteId = card.dataset.id; const note = notes.find(n => n.id == noteId); if (note) openNoteModal(note); });
     });
-    
-    document.querySelectorAll('.edit-note').forEach(icon => {
-        icon.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const noteId = icon.dataset.id;
-            const note = notes.find(n => n.id == noteId);
-            if (note) openNoteModal(note);
-        });
-    });
-    
-    document.querySelectorAll('.delete-note').forEach(icon => {
-        icon.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const noteId = icon.dataset.id;
-            showConfirm('Excluir esta anotação?', 'Excluir Anotação', (confirmed) => {
-                if (confirmed) {
-                    notes = notes.filter(n => n.id != noteId);
-                    saveAllData();
-                    renderNotes();
-                    showToast('Anotação excluída!', 'success');
-                }
-            });
-        });
-    });
+    document.querySelectorAll('.edit-note').forEach(icon => { icon.addEventListener('click', (e) => { e.stopPropagation(); const noteId = icon.dataset.id; const note = notes.find(n => n.id == noteId); if (note) openNoteModal(note); }); });
+    document.querySelectorAll('.delete-note').forEach(icon => { icon.addEventListener('click', (e) => { e.stopPropagation(); const noteId = icon.dataset.id; showConfirm('Excluir esta anotação?', 'Excluir Anotação', (confirmed) => { if (confirmed) { notes = notes.filter(n => n.id != noteId); saveAllData(); renderNotes(); showToast('Anotação excluída!', 'success'); } }); }); });
 }
 
 function openNoteModal(note) {
@@ -212,11 +141,8 @@ function openNoteModal(note) {
     const titleInput = document.getElementById('note-title-input');
     const contentInput = document.getElementById('note-content-input');
     const dateDisplay = document.getElementById('note-date-display');
-    
     if (!noteModal) return;
-    
     editingNoteId = note ? note.id : null;
-    
     if (note) {
         if (titleInput) titleInput.value = note.title || '';
         if (contentInput) contentInput.value = note.content || '';
@@ -226,7 +152,6 @@ function openNoteModal(note) {
         if (contentInput) contentInput.value = '';
         if (dateDisplay) dateDisplay.textContent = new Date().toLocaleString('pt-BR');
     }
-    
     noteModal.classList.add('active');
 }
 
@@ -236,106 +161,36 @@ function switchView(viewName) {
     else if (viewName === 'tasks') window.location.href = '../tarefas/index.html';
     else if (viewName === 'notes') renderNotes();
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
-    
-    document.querySelectorAll('.nav-item').forEach(nav => {
-        nav.classList.toggle('active', nav.dataset.view === viewName);
-    });
+    document.querySelectorAll('.nav-item').forEach(nav => { nav.classList.toggle('active', nav.dataset.view === viewName); });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (window.CacheManager) window.CacheManager.init();
     loadAllData();
-    
-    if (usuarioLogado) {
-        const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
-    }
-    
+    if (usuarioLogado) { const headerName = document.getElementById('header-name'); if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0]; }
     updateNotificationBadge();
     renderNotes();
-    
-    document.getElementById('notification-bell')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.add('active');
-        renderNotificationsModal();
-    });
-    
-    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.remove('active');
-    });
-    
+    document.getElementById('notification-bell')?.addEventListener('click', () => { document.getElementById('notifications-modal').classList.add('active'); renderNotificationsModal(); });
+    document.getElementById('btn-close-notifications')?.addEventListener('click', () => { document.getElementById('notifications-modal').classList.remove('active'); });
     document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
     document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
-    
-    document.querySelectorAll('.notification-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            renderNotificationsModal(tab.dataset.type);
-        });
+    document.querySelectorAll('.notification-tab').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active')); tab.classList.add('active'); renderNotificationsModal(tab.dataset.type); }); });
+    document.getElementById('notes-search-input')?.addEventListener('input', (e) => renderNotes(e.target.value));
+    document.getElementById('btn-add-note')?.addEventListener('click', () => openNoteModal(null));
+    document.getElementById('note-modal-back')?.addEventListener('click', () => { document.getElementById('note-modal').classList.remove('active'); });
+    document.getElementById('btn-save-note')?.addEventListener('click', () => {
+        const title = document.getElementById('note-title-input')?.value.trim();
+        const content = document.getElementById('note-content-input')?.value.trim();
+        if (!title && !content) { showToast('Adicione um título ou conteúdo!', 'error'); return; }
+        const now = new Date().toISOString();
+        if (editingNoteId) {
+            const noteIndex = notes.findIndex(n => n.id == editingNoteId);
+            if (noteIndex > -1) notes[noteIndex] = { ...notes[noteIndex], title: title || 'Sem título', content: content, date: now };
+        } else { notes.unshift({ id: Date.now(), title: title || 'Sem título', content: content, date: now }); }
+        saveAllData();
+        renderNotes();
+        document.getElementById('note-modal').classList.remove('active');
+        showToast(editingNoteId ? 'Anotação atualizada!' : 'Anotação criada!', 'success');
     });
-    
-    const notesSearchInput = document.getElementById('notes-search-input');
-    if (notesSearchInput) {
-        notesSearchInput.addEventListener('input', (e) => renderNotes(e.target.value));
-    }
-    
-    const btnAddNote = document.getElementById('btn-add-note');
-    if (btnAddNote) {
-        btnAddNote.addEventListener('click', () => openNoteModal(null));
-    }
-    
-    const btnBackNote = document.getElementById('note-modal-back');
-    const noteModal = document.getElementById('note-modal');
-    if (btnBackNote) {
-        btnBackNote.addEventListener('click', () => {
-            if (noteModal) noteModal.classList.remove('active');
-        });
-    }
-    
-    const btnSaveNote = document.getElementById('btn-save-note');
-    const noteTitleInput = document.getElementById('note-title-input');
-    const noteContentInput = document.getElementById('note-content-input');
-    
-    if (btnSaveNote) {
-        btnSaveNote.addEventListener('click', () => {
-            const title = noteTitleInput?.value.trim();
-            const content = noteContentInput?.value.trim();
-            
-            if (!title && !content) {
-                showToast('Adicione um título ou conteúdo!', 'error');
-                return;
-            }
-            
-            const now = new Date().toISOString();
-            
-            if (editingNoteId) {
-                const noteIndex = notes.findIndex(n => n.id == editingNoteId);
-                if (noteIndex > -1) {
-                    notes[noteIndex] = { 
-                        ...notes[noteIndex], 
-                        title: title || 'Sem título', 
-                        content: content,
-                        date: now
-                    };
-                }
-            } else {
-                const novaNota = { 
-                    id: Date.now(), 
-                    title: title || 'Sem título', 
-                    content: content,
-                    date: now 
-                };
-                notes.unshift(novaNota);
-            }
-            
-            saveAllData();
-            renderNotes();
-            
-            if (noteModal) noteModal.classList.remove('active');
-            showToast(editingNoteId ? 'Anotação atualizada!' : 'Anotação criada!', 'success');
-        });
-    }
-    
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => switchView(item.dataset.view));
-    });
+    document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', () => switchView(item.dataset.view)); });
 });

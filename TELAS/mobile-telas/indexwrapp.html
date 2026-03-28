@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Painel Zero</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #0f1115;
+            overflow: hidden;
+            height: 100vh;
+            width: 100%;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #0f1115;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f1115;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.3s;
+        }
+        
+        .loading.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #2d3748;
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading p {
+            color: #9ca3af;
+            margin-top: 20px;
+            text-align: center;
+            font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div style="text-align: center;">
+            <div class="spinner"></div>
+            <p>Carregando Painel Zero...</p>
+        </div>
+    </div>
+    
+    <iframe id="appFrame" src="file:///android_asset/mobile-telas/index.html"></iframe>
+    
+    <script>
+        // ========== BRIDGE PARA COMUNICAÇÃO COM O NATIVO ==========
+        
+        // Funções que serão chamadas pelo JavaScript do seu app
+        window.AndroidBridge = {
+            showToast: function(message, type) {
+                // Esta função será substituída pelo código nativo
+                if (window.NativeBridge) {
+                    window.NativeBridge.showToast(message, type);
+                }
+            },
+            
+            saveData: function(key, value) {
+                if (window.NativeBridge) {
+                    window.NativeBridge.saveData(key, value);
+                }
+            },
+            
+            getData: function(key, callbackId) {
+                if (window.NativeBridge) {
+                    window.NativeBridge.getData(key, callbackId);
+                }
+            },
+            
+            sendNotification: function(title, message, type) {
+                if (window.NativeBridge) {
+                    window.NativeBridge.sendNotification(title, message, type);
+                }
+            },
+            
+            vibrate: function(duration) {
+                if (window.NativeBridge) {
+                    window.NativeBridge.vibrate(duration);
+                }
+            },
+            
+            shareText: function(text) {
+                if (window.NativeBridge) {
+                    window.NativeBridge.shareText(text);
+                }
+            }
+        };
+        
+        // Sobrescrever as funções do seu app para usar a bridge
+        const originalShowToast = window.showToast;
+        window.showToast = function(message, type) {
+            if (window.AndroidBridge && window.AndroidBridge.showToast) {
+                window.AndroidBridge.showToast(message, type);
+            } else if (originalShowToast) {
+                originalShowToast(message, type);
+            }
+        };
+        
+        // Remover loading quando o iframe carregar
+        const iframe = document.getElementById('appFrame');
+        const loading = document.getElementById('loading');
+        
+        iframe.addEventListener('load', function() {
+            setTimeout(function() {
+                loading.classList.add('hide');
+                setTimeout(function() {
+                    loading.style.display = 'none';
+                }, 300);
+            }, 500);
+        });
+        
+        // Garantir que o iframe tenha altura total
+        function adjustIframeHeight() {
+            iframe.style.height = window.innerHeight + 'px';
+        }
+        
+        window.addEventListener('resize', adjustIframeHeight);
+        adjustIframeHeight();
+        
+        // Escutar mensagens do iframe
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'bridge') {
+                const data = event.data;
+                if (data.action === 'toast' && window.AndroidBridge) {
+                    window.AndroidBridge.showToast(data.message, data.type);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
