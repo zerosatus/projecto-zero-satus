@@ -240,13 +240,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-termos')?.addEventListener('click', () => { showToast('Termos de Uso em desenvolvimento!', 'info'); });
     document.getElementById('btn-privacidade')?.addEventListener('click', () => { showToast('Política de Privacidade em desenvolvimento!', 'info'); });
     document.getElementById('btn-avaliar')?.addEventListener('click', () => { showToast('Obrigado por avaliar! ⭐⭐⭐⭐⭐', 'success'); });
-    document.querySelector('.menu-item.logout')?.addEventListener('click', () => {
-        showConfirm('Deseja realmente sair da conta?', 'Sair', (confirmed) => {
+    
+    // LOGOUT ATUALIZADO COM FIREBASE
+    document.querySelector('.menu-item.logout')?.addEventListener('click', async () => {
+        showConfirm('Deseja realmente sair da conta?', 'Sair', async (confirmed) => {
             if (confirmed) {
-                localStorage.removeItem('usuarioLogado');
-                window.location.href = '../index.html';
+                if (window.mobileAuth) {
+                    await window.mobileAuth.handleLogout();
+                } else {
+                    localStorage.removeItem('usuarioLogado');
+                    window.location.href = '../login/index.html';
+                }
             }
         });
     });
+    
     document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', () => switchView(item.dataset.view)); });
 });
