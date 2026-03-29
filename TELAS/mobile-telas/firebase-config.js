@@ -31,9 +31,26 @@ enableIndexedDbPersistence(db).catch((err) => {
 
 let currentUser = null;
 let unsubscribeFunctions = [];
+let isOnline = navigator.onLine;
+
+window.addEventListener('online', () => {
+    isOnline = true;
+    const event = new CustomEvent('connectionChange', { detail: { online: true } });
+    window.dispatchEvent(event);
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    const event = new CustomEvent('connectionChange', { detail: { online: false } });
+    window.dispatchEvent(event);
+});
 
 function getCurrentUser() {
     return currentUser;
+}
+
+function isNetworkOnline() {
+    return isOnline;
 }
 
 async function loadUserData(userId) {
@@ -151,4 +168,4 @@ function initAuth(callback) {
     });
 }
 
-window.firebaseAPI = { getCurrentUser, logout, initAuth, saveToFirestore, loadUserData };
+window.firebaseAPI = { getCurrentUser, logout, initAuth, saveToFirestore, loadUserData, isOnline: isNetworkOnline };

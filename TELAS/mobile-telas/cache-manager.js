@@ -1,7 +1,7 @@
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v2';
+        this.cacheVersion = 'v3';
         this.isInitialized = false;
         this.firebaseSyncEnabled = false;
         this.syncQueue = new Map();
@@ -11,6 +11,7 @@ class CacheManager {
     init() {
         if (this.isInitialized) return;
         this.checkAndClearOldCache();
+        
         window.addEventListener('storage', (e) => {
             if (e.key && this.listeners.has(e.key)) {
                 try {
@@ -22,10 +23,20 @@ class CacheManager {
                 } catch (err) {}
             }
         });
+        
         this.isInitialized = true;
+        this.showUpdateNotification('Cache inicializado com sucesso!', 'info');
     }
     
-    enableFirebaseSync() { this.firebaseSyncEnabled = true; }
+    showUpdateNotification(message, type = 'info') {
+        const event = new CustomEvent('appUpdate', { detail: { message, type } });
+        window.dispatchEvent(event);
+    }
+    
+    enableFirebaseSync() { 
+        this.firebaseSyncEnabled = true;
+        this.showUpdateNotification('Sincronização com nuvem ativada!', 'success');
+    }
     
     queueFirebaseSync(key, data) {
         this.syncQueue.set(key, data);
@@ -37,19 +48,23 @@ class CacheManager {
         if (!this.firebaseSyncEnabled || !window.firebaseAPI?.getCurrentUser()) return;
         const dataMap = { 'notifications': 'notifications', 'tasks': 'tasks', 'notes': 'notes', 'calendarEvents': 'calendarEvents', 'weeklySchedule': 'weeklySchedule', 'timeSlots': 'timeSlots', 'notificacoesSettings': 'notificacoesSettings', 'appearanceSettings': 'appearanceSettings', 'usuarioLogado': 'usuarioLogado' };
         for (const [key, data] of this.syncQueue) {
-            if (dataMap[key]) await window.firebaseAPI.saveToFirestore(dataMap[key], data);
+            if (dataMap[key]) {
+                await window.firebaseAPI.saveToFirestore(dataMap[key], data);
+                this.showUpdateNotification(`${key} sincronizado com a nuvem!`, 'success');
+            }
         }
         this.syncQueue.clear();
     }
 
     checkAndClearOldCache() {
         if (localStorage.getItem('cache_version') !== this.cacheVersion) {
-            const keysToKeep = ['usuarioLogado', 'cache_version'];
+            const keysToKeep = ['usuarioLogado', 'cache_version', 'hasSeenUpdate_v3'];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (!keysToKeep.includes(key)) localStorage.removeItem(key);
             }
             localStorage.setItem('cache_version', this.cacheVersion);
+            this.showUpdateNotification('Cache atualizado para nova versão!', 'info');
         }
     }
 
@@ -69,6 +84,7 @@ class CacheManager {
             if (this.firebaseSyncEnabled && window.firebaseAPI?.getCurrentUser()) {
                 this.queueFirebaseSync(key, value);
             }
+            this.showUpdateNotification(`${key} salvo com sucesso!`, 'success');
             return true;
         } catch (error) { return false; }
     }
@@ -76,6 +92,7 @@ class CacheManager {
     remove(key) {
         localStorage.removeItem(key);
         if (this.listeners.has(key)) this.listeners.get(key).forEach(cb => cb(null));
+        this.showUpdateNotification(`${key} removido!`, 'info');
     }
 
     addListener(key, callback) {

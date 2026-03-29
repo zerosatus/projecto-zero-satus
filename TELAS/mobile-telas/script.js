@@ -360,6 +360,71 @@ function switchView(viewName) {
 
 function refreshHomeData() { updateSummaryCards(); renderSchedule(); renderNextEvent(); renderNextTasks(); renderNotificationsDynamic(); }
 
+// Função para mostrar modal de atualizações
+function showUpdateModal() {
+    const updateModal = document.getElementById('update-modal');
+    const hasSeenUpdate = localStorage.getItem('hasSeenUpdate_v3');
+    
+    if (!hasSeenUpdate && updateModal) {
+        setTimeout(() => {
+            updateModal.classList.add('active');
+        }, 500);
+    }
+    
+    const closeBtn = document.getElementById('close-update-modal');
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            updateModal.classList.remove('active');
+            localStorage.setItem('hasSeenUpdate_v3', 'true');
+        };
+    }
+}
+
+// Função para mostrar popup de atualização
+function showUpdatePopup(message, type = 'info') {
+    let popup = document.querySelector('.update-popup');
+    
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.className = 'update-popup';
+        popup.innerHTML = `
+            <ion-icon name=""></ion-icon>
+            <span></span>
+            <button class="close-popup"><ion-icon name="close-outline"></ion-icon></button>
+        `;
+        document.body.appendChild(popup);
+        
+        const closeBtn = popup.querySelector('.close-popup');
+        closeBtn.addEventListener('click', () => {
+            popup.classList.remove('show');
+        });
+    }
+    
+    const icon = popup.querySelector('ion-icon:first-child');
+    const span = popup.querySelector('span');
+    
+    popup.className = `update-popup ${type}`;
+    
+    const icons = {
+        success: 'checkmark-circle-outline',
+        error: 'close-circle-outline',
+        info: 'information-circle-outline'
+    };
+    
+    icon.name = icons[type] || 'information-circle-outline';
+    span.textContent = message;
+    
+    popup.classList.add('show');
+    
+    setTimeout(() => {
+        popup.classList.remove('show');
+    }, 3000);
+}
+
+window.addEventListener('appUpdate', (e) => {
+    showUpdatePopup(e.detail.message, e.detail.type);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
@@ -381,4 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-save-subject')?.addEventListener('click', saveSubject);
     document.querySelectorAll('#subject-modal .color-option').forEach(option => { option.addEventListener('click', () => { document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active')); option.classList.add('active'); selectedSubjectColor = option.dataset.color; }); });
     document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', () => switchView(item.dataset.view)); });
+    
+    // Mostrar modal de atualizações
+    showUpdateModal();
 });
