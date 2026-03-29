@@ -164,36 +164,8 @@
 
     <div id="toast-container"></div>
 
-    <!-- Modal de Atualizações -->
-    <div class="update-modal" id="update-modal">
-        <div class="update-modal-content">
-            <div class="update-header">
-                <ion-icon name="rocket-outline"></ion-icon>
-                <h2>Novidades!</h2>
-            </div>
-            <div class="update-body">
-                <div class="update-version">Versão 3.0.0</div>
-                <h3>O que mudou?</h3>
-                <ul class="update-list">
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Sincronização com Firebase em tempo real</li>
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Login com Google e GitHub</li>
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Dados salvos na nuvem</li>
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Modo offline com cache local</li>
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Interface otimizada para dispositivos móveis</li>
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Popup de notificações de atualização</li>
-                    <li><ion-icon name="checkmark-circle-outline"></ion-icon> Correção de bugs e estabilidade</li>
-                </ul>
-                <button class="btn-update-close" id="close-update-modal">Continuar</button>
-            </div>
-        </div>
-    </div>
-
     <script src="cache-manager.js"></script>
     <script src="shared-data.js"></script>
     <script src="script.js"></script>
-    <script type="module">
-        import { mobileAuth } from './auth.js';
-        (async () => { await mobileAuth.checkAuthAndRedirect(); })();
-    </script>
 </body>
 </html>
