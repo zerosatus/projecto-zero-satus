@@ -1,28 +1,34 @@
 // ==================== DETECÇÃO DE DISPOSITIVO ====================
 function ehCelular() {
-    // Esta função verifica se é celular ou tablet
     const ehMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const ehTelaPequena = window.innerWidth <= 768;
-    
-    // Retorna verdadeiro se for celular OU se a tela for pequena
     return ehMobile || ehTelaPequena;
 }
 
-// Salva essa informação para usar depois
 const eMobile = ehCelular();
-console.log('É celular?', eMobile); // Isso aparece no console para você testar
+console.log('É celular?', eMobile);
+
+// Função de redirecionamento após login
+function redirectAfterLogin() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        window.location.href = '../mobile-telas/index.html';
+    } else {
+        window.location.href = '../inicio/index.html';
+    }
+}
 
 // VERIFICAR SE JÁ ESTÁ LOGADO
 const usuarioSalvo = localStorage.getItem('usuarioLogado');
 
 if (usuarioSalvo) {
-    // Usuário já está logado, redirecionar
     if (eMobile) {
         window.location.href = '../mobile-telas/index.html';
     } else {
         window.location.href = '../inicio/index.html';
     }
 }
+
 // Configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -45,12 +51,9 @@ const forms = document.querySelectorAll('.form');
 tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         const tab = btn.dataset.tab;
-        
         tabBtns.forEach(b => b.classList.remove('active'));
         forms.forEach(f => f.classList.remove('active'));
-        
         btn.classList.add('active');
-        
         if (tab === 'login') {
             document.getElementById('login-form').classList.add('active');
         } else {
@@ -60,10 +63,9 @@ tabBtns.forEach(btn => {
 });
 
 // Toggle password visibility
-function togglePassword(inputId) {
+window.togglePassword = function(inputId) {
     const input = document.getElementById(inputId);
     const icon = event.currentTarget.querySelector('i');
-    
     if (input.type === 'password') {
         input.type = 'text';
         icon.classList.remove('fa-eye');
@@ -81,7 +83,6 @@ function showMessage(message, isError = false) {
     toast.textContent = message;
     toast.style.backgroundColor = isError ? '#dc2626' : '#10b981';
     toast.classList.add('show');
-    
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
@@ -114,19 +115,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     
     try {
         setLoading(loginBtn, true);
-        
-        // Tentar fazer login
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        // Verificar se o email está verificado (opcional)
-        // if (!user.emailVerified) {
-        //     showMessage('Por favor, verifique seu email antes de fazer login.', true);
-        //     setLoading(loginBtn, false);
-        //     return;
-        // }
-        
-        // Salvar dados do usuário
         localStorage.setItem('usuarioLogado', JSON.stringify({
             uid: user.uid,
             email: user.email,
@@ -135,43 +126,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         }));
         
         showMessage('Login realizado com sucesso! Redirecionando...');
-        
-      // REDIRECIONAMENTO INTELIGENTE
-setTimeout(() => {
-    if (eMobile) {
-        // Se for celular, vai para a pasta mobile-telas
-        window.location.href = '../mobile-telas/index.html';
-        console.log('Redirecionando para MOBILE');
-    } else {
-        // Se for PC, vai para a pasta inicio (normal)
-        window.location.href = '../inicio/index.html';
-        console.log('Redirecionando para PC');
-    }
-}, 1500);
+        setTimeout(() => { redirectAfterLogin(); }, 1500);
     } catch (error) {
         console.error('Erro no login:', error);
-        
         let errorMessage = 'Erro ao fazer login.';
         switch (error.code) {
-            case 'auth/user-not-found':
-                errorMessage = 'Usuário não encontrado.';
-                break;
-            case 'auth/wrong-password':
-                errorMessage = 'Senha incorreta.';
-                break;
-            case 'auth/invalid-email':
-                errorMessage = 'Email inválido.';
-                break;
-            case 'auth/user-disabled':
-                errorMessage = 'Esta conta foi desativada.';
-                break;
-            case 'auth/too-many-requests':
-                errorMessage = 'Muitas tentativas. Tente novamente mais tarde.';
-                break;
-            default:
-                errorMessage = 'Erro ao fazer login. Tente novamente.';
+            case 'auth/user-not-found': errorMessage = 'Usuário não encontrado.'; break;
+            case 'auth/wrong-password': errorMessage = 'Senha incorreta.'; break;
+            case 'auth/invalid-email': errorMessage = 'Email inválido.'; break;
+            case 'auth/user-disabled': errorMessage = 'Esta conta foi desativada.'; break;
+            case 'auth/too-many-requests': errorMessage = 'Muitas tentativas. Tente novamente mais tarde.'; break;
+            default: errorMessage = 'Erro ao fazer login. Tente novamente.';
         }
-        
         showMessage(errorMessage, true);
         setLoading(loginBtn, false);
     }
@@ -198,54 +164,33 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     
     try {
         setLoading(registroBtn, true);
-        
-        // Criar usuário
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        // Atualizar perfil com o nome
-        await user.updateProfile({
-            displayName: nome
-        });
-        
-        // Enviar email de verificação (opcional)
-        // await user.sendEmailVerification();
+        await user.updateProfile({ displayName: nome });
         
         showMessage('Conta criada com sucesso! Faça login para continuar.');
         
-        // Limpar formulário
         document.getElementById('registro-form').reset();
         
-        // Voltar para a aba de login
         setTimeout(() => {
             tabBtns.forEach(b => b.classList.remove('active'));
             forms.forEach(f => f.classList.remove('active'));
-            
             tabBtns[0].classList.add('active');
             document.getElementById('login-form').classList.add('active');
-            
-            // Preencher email no login
             document.getElementById('login-email').value = email;
+            setLoading(registroBtn, false);
         }, 2000);
         
     } catch (error) {
         console.error('Erro no registro:', error);
-        
         let errorMessage = 'Erro ao criar conta.';
         switch (error.code) {
-            case 'auth/email-already-in-use':
-                errorMessage = 'Este email já está em uso.';
-                break;
-            case 'auth/invalid-email':
-                errorMessage = 'Email inválido.';
-                break;
-            case 'auth/weak-password':
-                errorMessage = 'Senha muito fraca. Use uma senha mais forte.';
-                break;
-            default:
-                errorMessage = 'Erro ao criar conta. Tente novamente.';
+            case 'auth/email-already-in-use': errorMessage = 'Este email já está em uso.'; break;
+            case 'auth/invalid-email': errorMessage = 'Email inválido.'; break;
+            case 'auth/weak-password': errorMessage = 'Senha muito fraca. Use uma senha mais forte.'; break;
+            default: errorMessage = 'Erro ao criar conta. Tente novamente.';
         }
-        
         showMessage(errorMessage, true);
         setLoading(registroBtn, false);
     }
@@ -267,27 +212,14 @@ document.getElementById('google-login').addEventListener('click', async () => {
         }));
         
         showMessage('Login com Google realizado com sucesso!');
-        
-        // REDIRECIONAMENTO INTELIGENTE
-setTimeout(() => {
-    if (eMobile) {
-        // Se for celular, vai para a pasta mobile-telas
-        window.location.href = '../mobile-telas/index.html';
-        console.log('Redirecionando para MOBILE');
-    } else {
-        // Se for PC, vai para a pasta inicio (normal)
-        window.location.href = '../inicio/index.html';
-        console.log('Redirecionando para PC');
-    }
-}, 1500);
-
+        setTimeout(() => { redirectAfterLogin(); }, 1500);
     } catch (error) {
         console.error('Erro no login com Google:', error);
         showMessage('Erro ao fazer login com Google.', true);
     }
 });
 
-// GITHUB LOGIN (você precisa habilitar no Firebase Console)
+// GITHUB LOGIN
 document.getElementById('github-login').addEventListener('click', async () => {
     const provider = new firebase.auth.GithubAuthProvider();
     
@@ -303,20 +235,7 @@ document.getElementById('github-login').addEventListener('click', async () => {
         }));
         
         showMessage('Login com GitHub realizado com sucesso!');
-        
-       // REDIRECIONAMENTO INTELIGENTE
-setTimeout(() => {
-    if (eMobile) {
-        // Se for celular, vai para a pasta mobile-telas
-        window.location.href = '../mobile-telas/index.html';
-        console.log('Redirecionando para MOBILE');
-    } else {
-        // Se for PC, vai para a pasta inicio (normal)
-        window.location.href = '../inicio/index.html';
-        console.log('Redirecionando para PC');
-    }
-}, 1500);
-        
+        setTimeout(() => { redirectAfterLogin(); }, 1500);
     } catch (error) {
         console.error('Erro no login com GitHub:', error);
         showMessage('Erro ao fazer login com GitHub.', true);
@@ -326,7 +245,6 @@ setTimeout(() => {
 // ESQUECI A SENHA
 document.getElementById('forgot-password').addEventListener('click', async (e) => {
     e.preventDefault();
-    
     const email = document.getElementById('login-email').value;
     
     if (!email) {
@@ -340,25 +258,18 @@ document.getElementById('forgot-password').addEventListener('click', async (e) =
         showMessage(`Link de recuperação enviado para: ${email}`);
     } catch (error) {
         console.error('Erro ao enviar email de recuperação:', error);
-        
         let errorMessage = 'Erro ao enviar email de recuperação.';
-        if (error.code === 'auth/user-not-found') {
-            errorMessage = 'Usuário não encontrado.';
-        } else if (error.code === 'auth/invalid-email') {
-            errorMessage = 'Email inválido.';
-        }
-        
+        if (error.code === 'auth/user-not-found') errorMessage = 'Usuário não encontrado.';
+        else if (error.code === 'auth/invalid-email') errorMessage = 'Email inválido.';
         showMessage(errorMessage, true);
     }
 });
 
 // Toggle between login and register
-document.getElementById('toggle-registro').addEventListener('click', (e) => {
+document.getElementById('toggle-registro')?.addEventListener('click', (e) => {
     e.preventDefault();
-    
     tabBtns.forEach(b => b.classList.remove('active'));
     forms.forEach(f => f.classList.remove('active'));
-    
     tabBtns[1].classList.add('active');
     document.getElementById('registro-form').classList.add('active');
 });
@@ -366,9 +277,7 @@ document.getElementById('toggle-registro').addEventListener('click', (e) => {
 // Verificar se usuário já está logado
 auth.onAuthStateChanged((user) => {
     if (user) {
-        // Usuário já está logado, pode redirecionar automaticamente
-        // Descomente se quiser redirecionar automaticamente
-        // window.location.href = '../inicio/index.html';
+        // Usuário já está logado
     }
 });
 
@@ -378,7 +287,6 @@ inputs.forEach(input => {
     input.addEventListener('focus', () => {
         input.parentElement.classList.add('focused');
     });
-    
     input.addEventListener('blur', () => {
         if (!input.value) {
             input.parentElement.classList.remove('focused');
