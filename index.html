@@ -740,147 +740,6 @@
             font-size: 0.8rem;
         }
 
-        /* ========== WELCOME POPUP STYLES ========== */
-        .welcome-popup-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-            z-index: 2000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .welcome-popup {
-            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary));
-            border: 1px solid rgba(147, 51, 234, 0.4);
-            border-radius: 28px;
-            padding: 32px 24px;
-            max-width: 400px;
-            width: 90%;
-            margin: 20px;
-            text-align: center;
-            animation: slideUp 0.4s ease;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-        }
-
-        .welcome-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            animation: pulse 2s infinite;
-        }
-
-        .welcome-icon i {
-            font-size: 40px;
-            color: white;
-        }
-
-        .welcome-popup h2 {
-            font-size: 1.6rem;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, #fff, var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .welcome-popup p {
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .welcome-features {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 28px;
-        }
-
-        .welcome-feature {
-            background: var(--accent-light);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            color: var(--accent);
-            font-weight: 500;
-        }
-
-        .welcome-buttons {
-            display: flex;
-            gap: 12px;
-            flex-direction: column;
-        }
-
-        .welcome-btn-primary {
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-            border: none;
-            padding: 14px 24px;
-            border-radius: 14px;
-            color: white;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-        }
-
-        .welcome-btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(147, 51, 234, 0.4);
-        }
-
-        .welcome-btn-secondary {
-            background: transparent;
-            border: 1px solid var(--border);
-            padding: 12px 24px;
-            border-radius: 14px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-        }
-
-        .welcome-btn-secondary:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-            background: var(--accent-light);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); }
-            50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); }
-        }
-
         /* ========== TABLET BREAKPOINT ========== */
         @media (min-width: 640px) {
             :root {
@@ -911,10 +770,6 @@
                 flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
-            }
-
-            .welcome-buttons {
-                flex-direction: row;
             }
         }
 
@@ -1479,96 +1334,6 @@
     </footer>
 
     <script>
-        // Verificar se o popup de boas-vindas já foi mostrado
-        const hasSeenWelcome = localStorage.getItem('zero_welcome_shown');
-        
-        // Função para redirecionar direto para o mobile
-        function redirectToMobile() {
-            window.location.href = 'mobile-telas/index.html';
-        }
-        
-        // Função para criar e mostrar o popup de boas-vindas
-        function showWelcomePopup() {
-            const popupHTML = `
-                <div class="welcome-popup-overlay" id="welcomeOverlay">
-                    <div class="welcome-popup">
-                        <div class="welcome-icon">
-                            <i class="fas fa-graduation-cap"></i>
-                        </div>
-                        <h2>Bem-vindo ao Zero!</h2>
-                        <p>Sua jornada acadêmica começa aqui. Organize suas tarefas, anotações e horários em um só lugar.</p>
-                        <div class="welcome-features">
-                            <span class="welcome-feature">📚 Tarefas</span>
-                            <span class="welcome-feature">✏️ Anotações</span>
-                            <span class="welcome-feature">📅 Calendário</span>
-                            <span class="welcome-feature">⏰ Horários</span>
-                            <span class="welcome-feature">📊 Dashboard</span>
-                        </div>
-                        <div class="welcome-buttons">
-                            <button class="welcome-btn-primary" id="welcomeAcceptBtn">
-                                <i class="fas fa-arrow-right"></i> Explorar Plataforma
-                            </button>
-                            <button class="welcome-btn-secondary" id="welcomeDeclineBtn">
-                                <i class="fas fa-times"></i> Pular e ir direto
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Adicionar o popup ao body
-            document.body.insertAdjacentHTML('beforeend', popupHTML);
-            
-            const overlay = document.getElementById('welcomeOverlay');
-            const acceptBtn = document.getElementById('welcomeAcceptBtn');
-            const declineBtn = document.getElementById('welcomeDeclineBtn');
-            
-            // Função para fechar o popup e ir para a página desejada
-            function closePopupAndRedirect(redirectToMobileNow = false) {
-                if (overlay) {
-                    overlay.style.animation = 'fadeOut 0.2s ease';
-                    setTimeout(() => {
-                        overlay.remove();
-                        if (redirectToMobileNow) {
-                            redirectToMobile();
-                        }
-                    }, 200);
-                }
-            }
-            
-            // Aceitar - vai para a página normal (index com conteúdo)
-            if (acceptBtn) {
-                acceptBtn.addEventListener('click', () => {
-                    // Marcar que o popup já foi mostrado
-                    localStorage.setItem('zero_welcome_shown', 'accepted');
-                    closePopupAndRedirect(false);
-                });
-            }
-            
-            // Recusar - vai direto para o mobile
-            if (declineBtn) {
-                declineBtn.addEventListener('click', () => {
-                    // Marcar que o popup já foi mostrado e o usuário recusou
-                    localStorage.setItem('zero_welcome_shown', 'declined');
-                    closePopupAndRedirect(true);
-                });
-            }
-        }
-        
-        // Lógica de carregamento da página
-        if (hasSeenWelcome) {
-            if (hasSeenWelcome === 'declined') {
-                // Usuário já recusou antes, vai direto para o mobile
-                redirectToMobile();
-            } else {
-                // Usuário aceitou antes, mostra o conteúdo normal
-                // Não faz nada, deixa a página carregar normalmente
-            }
-        } else {
-            // Primeira visita, mostra o popup
-            showWelcomePopup();
-        }
-
         // Smooth scroll para links internos
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
@@ -1601,38 +1366,34 @@
         const mobileMenuBtn = document.getElementById('mobileMenuBtn');
         const mobileNav = document.getElementById('mobileNav');
         
-        if (mobileMenuBtn && mobileNav) {
-            mobileMenuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                mobileNav.classList.toggle('active');
-                
-                // Mudar ícone do botão
-                const icon = mobileMenuBtn.querySelector('i');
-                if (mobileNav.classList.contains('active')) {
-                    icon.classList.remove('fa-bars');
-                    icon.classList.add('fa-times');
-                } else {
-                    icon.classList.remove('fa-times');
-                    icon.classList.add('fa-bars');
-                }
-            });
-        }
+        mobileMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mobileNav.classList.toggle('active');
+            
+            // Mudar ícone do botão
+            const icon = mobileMenuBtn.querySelector('i');
+            if (mobileNav.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        });
 
         // Fechar menu ao clicar em um link
         document.querySelectorAll('.mobile-link').forEach(link => {
             link.addEventListener('click', () => {
-                if (mobileNav) {
-                    mobileNav.classList.remove('active');
-                    const icon = mobileMenuBtn.querySelector('i');
-                    icon.classList.remove('fa-times');
-                    icon.classList.add('fa-bars');
-                }
+                mobileNav.classList.remove('active');
+                const icon = mobileMenuBtn.querySelector('i');
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
             });
         });
 
         // Fechar menu ao clicar fora
         document.addEventListener('click', (e) => {
-            if (mobileNav && mobileMenuBtn && !mobileNav.contains(e.target) && !mobileMenuBtn.contains(e.target) && mobileNav.classList.contains('active')) {
+            if (!mobileNav.contains(e.target) && !mobileMenuBtn.contains(e.target) && mobileNav.classList.contains('active')) {
                 mobileNav.classList.remove('active');
                 const icon = mobileMenuBtn.querySelector('i');
                 icon.classList.remove('fa-times');
@@ -1659,7 +1420,7 @@
 
         // Fechar menu ao redimensionar para desktop
         window.addEventListener('resize', () => {
-            if (window.innerWidth >= 1024 && mobileNav) {
+            if (window.innerWidth >= 1024) {
                 mobileNav.classList.remove('active');
                 const icon = mobileMenuBtn.querySelector('i');
                 if (icon) {
@@ -1676,16 +1437,6 @@
                 this.src = 'https://via.placeholder.com/40x40/9333ea/ffffff?text=Z';
             };
         });
-
-        // Adicionar animação de fadeOut para o popup
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeOut {
-                from { opacity: 1; }
-                to { opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
