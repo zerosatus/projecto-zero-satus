@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perfil - Painel do Aluno</title>
+    <title>Tarefas - Painel do Aluno</title>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -13,7 +13,7 @@
         <header>
             <div class="greeting">
                 <h1 id="header-name">Usuário</h1>
-                <p>Configurações da Conta</p>
+                <p>Gerenciador de Tarefas</p>
             </div>
             <div class="profile-icon" id="notification-bell">
                 <ion-icon name="notifications-outline"></ion-icon>
@@ -21,84 +21,21 @@
             </div>
         </header>
 
-        <div id="profile-view">
-            <div class="profile-header">
-                <h1>Perfil</h1>
+        <div id="tasks-view">
+            <div class="tasks-header">
+                <h1>Tarefas</h1>
+                <button class="btn-add-task" id="btn-add-task">
+                    <ion-icon name="add-outline"></ion-icon>
+                </button>
             </div>
 
-            <div class="profile-info">
-                <div class="profile-avatar" id="profile-avatar">
-                    <span id="profile-initial">U</span>
-                </div>
-                <div class="profile-name" id="profile-name">Usuário</div>
-                <div class="profile-email" id="profile-email">usuario@email.com</div>
+            <div class="tasks-filters">
+                <button class="filter-btn active" data-filter="todos">Todos</button>
+                <button class="filter-btn" data-filter="pendentes">Pendentes</button>
+                <button class="filter-btn" data-filter="concluidas">Concluídas</button>
             </div>
 
-            <div class="profile-menu">
-                <div class="menu-item" data-action="dados">
-                    <ion-icon name="person-outline"></ion-icon>
-                    <span>Dados Pessoais</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-                <div class="menu-item" data-action="seguranca">
-                    <ion-icon name="lock-closed-outline"></ion-icon>
-                    <span>Segurança</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-                <div class="menu-item" data-action="notificacoes">
-                    <ion-icon name="notifications-outline"></ion-icon>
-                    <span>Notificações</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-                <div class="menu-item" data-action="aparencia">
-                    <ion-icon name="color-palette-outline"></ion-icon>
-                    <span>Aparência</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-                <div class="menu-item" data-action="ajuda">
-                    <ion-icon name="help-circle-outline"></ion-icon>
-                    <span>Ajuda e Suporte</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-<!-- Dentro do .profile-menu, antes do menu-item logout, adicionar: -->
-<div class="menu-item" data-action="sincronizar">
-    <ion-icon name="cloud-upload-outline"></ion-icon>
-    <span>Sincronizar com Nuvem</span>
-    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-</div>
-                <div class="menu-item logout">
-                    <ion-icon name="log-out-outline"></ion-icon>
-                    <span>Sair da Conta</span>
-                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
-                </div>
-            </div>
-
-            <div class="help-section">
-                <h3>Perguntas Frequentes</h3>
-                <div class="faq-item" onclick="toggleFaq(this)">
-                    <div class="faq-question">
-                        <span>Como editar meu horário?</span>
-                        <ion-icon name="chevron-down-outline"></ion-icon>
-                    </div>
-                    <div class="faq-answer">
-                        Clique em "Editar" no horário semanal, depois clique nas células para adicionar ou remover aulas.
-                    </div>
-                </div>
-                <div class="faq-item" onclick="toggleFaq(this)">
-                    <div class="faq-question">
-                        <span>Como adicionar eventos?</span>
-                        <ion-icon name="chevron-down-outline"></ion-icon>
-                    </div>
-                    <div class="faq-answer">
-                        No calendário, clique em "Novo Evento" e preencha as informações desejadas.
-                    </div>
-                </div>
-            </div>
-
-            <div class="version-info">
-                <span>Versão do App</span>
-                <span class="version-number">v1.0.0</span>
-            </div>
+            <div id="tasks-list"></div>
         </div>
 
         <nav class="bottom-nav">
@@ -110,7 +47,7 @@
                 <ion-icon name="calendar-outline"></ion-icon>
                 <span>Calendário</span>
             </div>
-            <div class="nav-item" data-view="tasks">
+            <div class="nav-item active" data-view="tasks">
                 <ion-icon name="checkbox-outline"></ion-icon>
                 <span>Tarefas</span>
             </div>
@@ -118,241 +55,70 @@
                 <ion-icon name="document-text-outline"></ion-icon>
                 <span>Notas</span>
             </div>
-            <div class="nav-item active" data-view="profile">
+            <div class="nav-item" data-view="profile">
                 <ion-icon name="person-outline"></ion-icon>
                 <span>Perfil</span>
             </div>
         </nav>
     </div>
 
-    <div class="profile-modal" id="dados-modal">
-        <div class="profile-modal-content">
-            <div class="profile-modal-header">
-                <button class="btn-back" data-modal="dados-modal">
+    <div class="task-modal" id="task-modal">
+        <div class="task-modal-content">
+            <div class="task-modal-header">
+                <button class="btn-back" data-modal="task-modal">
                     <ion-icon name="arrow-back-outline"></ion-icon>
                 </button>
-                <h2>Dados Pessoais</h2>
-                <button class="btn-close" data-modal="dados-modal">
+                <h2 id="task-modal-title">Nova Tarefa</h2>
+                <button class="btn-close" data-modal="task-modal">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
             </div>
-            <form class="profile-form">
-                <div class="profile-avatar-edit">
-                    <div class="avatar-preview" id="avatar-preview">U</div>
-                    <button type="button" class="btn-change-avatar">
-                        <ion-icon name="camera-outline"></ion-icon>
-                    </button>
+            <form class="task-form">
+                <div class="input-group">
+                    <label>Título</label>
+                    <input type="text" id="task-title" placeholder="Nome da tarefa">
                 </div>
                 <div class="input-group">
-                    <label>Nome Completo</label>
-                    <input type="text" id="profile-name-input" placeholder="Seu nome">
+                    <label>Matéria</label>
+                    <input type="text" id="task-subject" placeholder="Disciplina">
                 </div>
                 <div class="input-group">
-                    <label>E-mail</label>
-                    <input type="email" id="profile-email-input" placeholder="seu@email.com">
-                </div>
-                <button type="button" class="btn-save" id="btn-save-dados">Salvar</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="profile-modal" id="seguranca-modal">
-        <div class="profile-modal-content">
-            <div class="profile-modal-header">
-                <button class="btn-back" data-modal="seguranca-modal">
-                    <ion-icon name="arrow-back-outline"></ion-icon>
-                </button>
-                <h2>Segurança</h2>
-                <button class="btn-close" data-modal="seguranca-modal">
-                    <ion-icon name="close-outline"></ion-icon>
-                </button>
-            </div>
-            <form class="profile-form">
-                <div class="security-info">
-                    <ion-icon name="shield-checkmark-outline"></ion-icon>
-                    <span>Sua senha deve ter pelo menos 6 caracteres.</span>
+                    <label>Data de Entrega</label>
+                    <input type="date" id="task-date">
                 </div>
                 <div class="input-group">
-                    <label>Senha Atual</label>
-                    <input type="password" id="current-password" placeholder="••••••">
-                </div>
-                <div class="input-group">
-                    <label>Nova Senha</label>
-                    <input type="password" id="new-password" placeholder="••••••">
-                </div>
-                <div class="input-group">
-                    <label>Confirmar Nova Senha</label>
-                    <input type="password" id="confirm-password" placeholder="••••••">
-                </div>
-                <button type="button" class="btn-save" id="btn-save-senha">Salvar</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="profile-modal" id="notificacoes-modal">
-        <div class="profile-modal-content">
-            <div class="profile-modal-header">
-                <button class="btn-back" data-modal="notificacoes-modal">
-                    <ion-icon name="arrow-back-outline"></ion-icon>
-                </button>
-                <h2>Notificações</h2>
-                <button class="btn-close" data-modal="notificacoes-modal">
-                    <ion-icon name="close-outline"></ion-icon>
-                </button>
-            </div>
-            <form class="profile-form">
-                <div class="toggle-option">
-                    <div class="toggle-info">
-                        <ion-icon name="notifications-outline"></ion-icon>
-                        <div>
-                            <span class="toggle-title">Notificações Push</span>
-                            <span class="toggle-desc">Receber alertas no celular</span>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="toggle-push">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="toggle-option">
-                    <div class="toggle-info">
-                        <ion-icon name="mail-outline"></ion-icon>
-                        <div>
-                            <span class="toggle-title">E-mail Marketing</span>
-                            <span class="toggle-desc">Receber novidades por e-mail</span>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="toggle-email">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="toggle-option">
-                    <div class="toggle-info">
-                        <ion-icon name="book-outline"></ion-icon>
-                        <div>
-                            <span class="toggle-title">Lembretes de Aula</span>
-                            <span class="toggle-desc">Alertas antes das aulas</span>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="toggle-aulas">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="toggle-option">
-                    <div class="toggle-info">
-                        <ion-icon name="checkbox-outline"></ion-icon>
-                        <div>
-                            <span class="toggle-title">Lembretes de Tarefas</span>
-                            <span class="toggle-desc">Alertas de tarefas pendentes</span>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="toggle-tarefas">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <button type="button" class="btn-save" id="btn-save-notificacoes">Salvar</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="profile-modal" id="aparencia-modal">
-        <div class="profile-modal-content">
-            <div class="profile-modal-header">
-                <button class="btn-back" data-modal="aparencia-modal">
-                    <ion-icon name="arrow-back-outline"></ion-icon>
-                </button>
-                <h2>Aparência</h2>
-                <button class="btn-close" data-modal="aparencia-modal">
-                    <ion-icon name="close-outline"></ion-icon>
-                </button>
-            </div>
-            <form class="profile-form">
-                <div class="input-group">
-                    <label>Tema</label>
-                    <div class="theme-options">
-                        <div class="theme-btn active" data-theme="dark">
-                            <ion-icon name="moon-outline"></ion-icon>
-                            <span>Escuro</span>
-                        </div>
-                        <div class="theme-btn" data-theme="light">
-                            <ion-icon name="sunny-outline"></ion-icon>
-                            <span>Claro</span>
-                        </div>
-                        <div class="theme-btn" data-theme="auto">
-                            <ion-icon name="desktop-outline"></ion-icon>
-                            <span>Auto</span>
-                        </div>
+                    <label>Prioridade</label>
+                    <div class="priority-options">
+                        <button type="button" class="priority-btn" data-priority="baixa">Baixa</button>
+                        <button type="button" class="priority-btn active" data-priority="media">Média</button>
+                        <button type="button" class="priority-btn" data-priority="alta">Alta</button>
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>Cor de Destaque</label>
+                    <label>Cor</label>
                     <div class="color-options">
-                        <div class="color-option" data-accent="#8b5cf6">
-                            <div class="color-circle" style="background-color: #8b5cf6;"></div>
-                        </div>
-                        <div class="color-option" data-accent="#6366f1">
+                        <div class="color-option" data-color="#6366f1">
                             <div class="color-circle" style="background-color: #6366f1;"></div>
                         </div>
-                        <div class="color-option" data-accent="#ec4899">
+                        <div class="color-option" data-color="#ec4899">
                             <div class="color-circle" style="background-color: #ec4899;"></div>
                         </div>
-                        <div class="color-option" data-accent="#10b981">
-                            <div class="color-circle" style="background-color: #10b981;"></div>
-                        </div>
-                        <div class="color-option" data-accent="#f59e0b">
-                            <div class="color-circle" style="background-color: #f59e0b;"></div>
-                        </div>
-                        <div class="color-option" data-accent="#ef4444">
+                        <div class="color-option" data-color="#ef4444">
                             <div class="color-circle" style="background-color: #ef4444;"></div>
                         </div>
+                        <div class="color-option" data-color="#10b981">
+                            <div class="color-circle" style="background-color: #10b981;"></div>
+                        </div>
+                        <div class="color-option" data-color="#f59e0b">
+                            <div class="color-circle" style="background-color: #f59e0b;"></div>
+                        </div>
+                        <div class="color-option" data-color="#8b5cf6">
+                            <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Tamanho da Fonte</label>
-                    <input type="range" id="font-size-slider" min="12" max="18" value="14">
-                    <div class="slider-labels">
-                        <span>Pequeno</span>
-                        <span>Médio</span>
-                        <span>Grande</span>
-                    </div>
-                </div>
-                <button type="button" class="btn-save" id="btn-save-aparencia">Salvar</button>
+                <button type="button" class="btn-save" id="btn-save-task">Salvar</button>
             </form>
-        </div>
-    </div>
-
-    <div class="profile-modal" id="ajuda-modal">
-        <div class="profile-modal-content">
-            <div class="profile-modal-header">
-                <button class="btn-back" data-modal="ajuda-modal">
-                    <ion-icon name="arrow-back-outline"></ion-icon>
-                </button>
-                <h2>Ajuda e Suporte</h2>
-                <button class="btn-close" data-modal="ajuda-modal">
-                    <ion-icon name="close-outline"></ion-icon>
-                </button>
-            </div>
-            <div class="help-buttons">
-                <div class="help-btn" id="btn-contato">
-                    <ion-icon name="logo-whatsapp"></ion-icon>
-                    <span>Falar no WhatsApp</span>
-                </div>
-                <div class="help-btn" id="btn-termos">
-                    <ion-icon name="document-text-outline"></ion-icon>
-                    <span>Termos de Uso</span>
-                </div>
-                <div class="help-btn" id="btn-privacidade">
-                    <ion-icon name="shield-checkmark-outline"></ion-icon>
-                    <span>Política de Privacidade</span>
-                </div>
-                <div class="help-btn" id="btn-avaliar">
-                    <ion-icon name="star-outline"></ion-icon>
-                    <span>Avaliar App</span>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -399,5 +165,9 @@
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="script.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+    <script src="../firebase-config.js"></script>
 </body>
 </html>

@@ -1,11 +1,12 @@
-// Perfil - Configurações do usuário
+// Tarefas - Gerenciamento de tarefas
 
 let notifications = [];
+let tasks = [];
 let usuarioLogado = null;
-let notificacoesSettings = {};
-let appearanceSettings = {};
-let selectedTheme = 'dark';
-let selectedAccent = '#8b5cf6';
+let currentTaskFilter = 'todos';
+let editingTaskId = null;
+let selectedTaskPriority = 'media';
+let selectedTaskColor = '#6366f1';
 
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -59,16 +60,10 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove('active');
-}
-
 function saveAllData() {
     window.setCached('usuarioLogado', usuarioLogado);
     window.setCached('notifications', notifications);
-    window.setCached('notificacoesSettings', notificacoesSettings);
-    window.setCached('appearanceSettings', appearanceSettings);
+    window.setCached('tasks', tasks);
 }
 
 function loadAllData() {
@@ -80,12 +75,7 @@ function loadAllData() {
     }
     
     notifications = window.getCached('notifications', window.getDefaultNotifications());
-    notificacoesSettings = window.getCached('notificacoesSettings', window.getDefaultNotificacoesSettings());
-    appearanceSettings = window.getCached('appearanceSettings', window.getDefaultAppearanceSettings());
-    
-    if (appearanceSettings.accent) {
-        document.documentElement.style.setProperty('--accent-purple', appearanceSettings.accent);
-    }
+    tasks = window.getCached('tasks', window.getDefaultTasks());
 }
 
 function updateNotificationBadge() {
@@ -159,88 +149,98 @@ function clearAllNotifications() {
     });
 }
 
-function loadProfileData() {
-    if (usuarioLogado) {
-        const nameInput = document.getElementById('profile-name-input');
-        const emailInput = document.getElementById('profile-email-input');
-        const avatarPreview = document.getElementById('avatar-preview');
-        if (nameInput) nameInput.value = usuarioLogado.nome || '';
-        if (emailInput) emailInput.value = usuarioLogado.email || '';
-        if (avatarPreview) avatarPreview.textContent = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+function renderTasks() {
+    const tasksList = document.getElementById('tasks-list');
+    if (!tasksList) return;
+    
+    let filteredTasks = [...tasks];
+    if (currentTaskFilter === 'pendentes') filteredTasks = tasks.filter(t => !t.completed);
+    else if (currentTaskFilter === 'concluidas') filteredTasks = tasks.filter(t => t.completed);
+    
+    if (filteredTasks.length === 0) {
+        tasksList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma tarefa encontrada</div>';
+        return;
     }
-}
-
-function loadNotificacoes() {
-    const push = document.getElementById('toggle-push');
-    const email = document.getElementById('toggle-email');
-    const aulas = document.getElementById('toggle-aulas');
-    const tarefas = document.getElementById('toggle-tarefas');
-    if (push) push.checked = notificacoesSettings.push;
-    if (email) email.checked = notificacoesSettings.email;
-    if (aulas) aulas.checked = notificacoesSettings.aulas;
-    if (tarefas) tarefas.checked = notificacoesSettings.tarefas;
-}
-
-function loadAparencia() {
-    selectedTheme = appearanceSettings.theme || 'dark';
-    selectedAccent = appearanceSettings.accent || '#8b5cf6';
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.theme === selectedTheme);
+    
+    let html = '';
+    filteredTasks.forEach(task => {
+        const priorityClass = task.priority || 'media';
+        html += `<div class="task-item ${task.completed ? 'completed' : ''} prioridade-${priorityClass}" data-id="${task.id}">
+            <div class="task-color" style="background-color: ${task.color}; width: 4px; height: 40px; border-radius: 2px;"></div>
+            <div class="task-info">
+                <div class="task-title">${escapeHtml(task.title)}</div>
+                <div class="task-subject">${escapeHtml(task.subject)}</div>
+                <div class="task-date"><ion-icon name="calendar-outline"></ion-icon> ${task.date}</div>
+            </div>
+            <div class="task-check ${task.completed ? 'checked' : ''}" data-id="${task.id}">${task.completed ? '<ion-icon name="checkmark-outline"></ion-icon>' : ''}</div>
+            <div class="task-arrow" data-id="${task.id}"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
     });
-    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.accent === selectedAccent);
+    tasksList.innerHTML = html;
+    
+    document.querySelectorAll('.task-check').forEach(check => {
+        check.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const taskId = check.dataset.id;
+            const task = tasks.find(t => t.id == taskId);
+            if (task) {
+                task.completed = !task.completed;
+                saveAllData();
+                renderTasks();
+                showToast(task.completed ? 'Tarefa concluída!' : 'Tarefa reaberta!', 'success');
+            }
+        });
     });
-    const slider = document.getElementById('font-size-slider');
-    if (slider) slider.value = appearanceSettings.fontSize || 14;
+    
+    document.querySelectorAll('.task-arrow').forEach(arrow => {
+        arrow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const taskId = arrow.dataset.id;
+            const task = tasks.find(t => t.id == taskId);
+            if (task) openTaskModal(task);
+        });
+    });
 }
 
-window.toggleFaq = function(element) {
-    element.classList.toggle('active');
-};
+function openTaskModal(task) {
+    const modal = document.getElementById('task-modal');
+    if (!modal) return;
+    
+    editingTaskId = task ? task.id : null;
+    
+    if (task) {
+        document.getElementById('task-modal-title').textContent = 'Editar Tarefa';
+        document.getElementById('task-title').value = task.title;
+        document.getElementById('task-subject').value = task.subject;
+        document.getElementById('task-date').value = task.date;
+        selectedTaskColor = task.color || '#6366f1';
+        selectedTaskPriority = task.priority || 'media';
+    } else {
+        document.getElementById('task-modal-title').textContent = 'Nova Tarefa';
+        document.getElementById('task-title').value = '';
+        document.getElementById('task-subject').value = '';
+        document.getElementById('task-date').value = '';
+        selectedTaskPriority = 'media';
+        selectedTaskColor = '#6366f1';
+    }
+    
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.priority === selectedTaskPriority);
+    });
+    
+    document.querySelectorAll('#task-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedTaskColor);
+    });
+    
+    modal.classList.add('active');
+}
 
 function switchView(viewName) {
     if (viewName === 'home') window.location.href = '../index.html';
     else if (viewName === 'calendar') window.location.href = '../calendario/index.html';
-    else if (viewName === 'tasks') window.location.href = '../tarefas/index.html';
+    else if (viewName === 'tasks') renderTasks();
     else if (viewName === 'notes') window.location.href = '../notas/index.html';
-    else if (viewName === 'profile') loadProfileData();
-}
-
-async function syncToCloud() {
-    if (!usuarioLogado || !usuarioLogado.uid) {
-        showToast('Faça login primeiro!', 'error');
-        return;
-    }
-    
-    try {
-        showToast('Sincronizando dados...', 'info');
-        
-        const allData = {
-            usuarioLogado: usuarioLogado,
-            notifications: notifications,
-            notificacoesSettings: notificacoesSettings,
-            appearanceSettings: appearanceSettings,
-            weeklySchedule: window.weeklySchedule || {},
-            timeSlots: window.timeSlots || [],
-            calendarEvents: window.calendarEvents || [],
-            tasks: window.tasks || [],
-            notes: window.notes || []
-        };
-        
-        if (window.FirebaseSync) {
-            const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
-            if (result) {
-                showToast('Dados sincronizados com sucesso!', 'success');
-            } else {
-                showToast('Erro ao sincronizar dados', 'error');
-            }
-        } else {
-            showToast('Firebase não disponível', 'error');
-        }
-    } catch (error) {
-        console.error('Erro na sincronização:', error);
-        showToast('Erro ao sincronizar dados', 'error');
-    }
+    else if (viewName === 'profile') window.location.href = '../perfil/index.html';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -250,17 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
-        const profileName = document.getElementById('profile-name');
-        const profileEmail = document.getElementById('profile-email');
-        const profileInitial = document.getElementById('profile-initial');
-        
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        if (profileName) profileName.textContent = usuarioLogado.nome || nomeExibicao;
-        if (profileEmail) profileEmail.textContent = usuarioLogado.email;
-        if (profileInitial) profileInitial.textContent = (usuarioLogado.nome || nomeExibicao).charAt(0).toUpperCase();
     }
     
     updateNotificationBadge();
+    renderTasks();
     
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
@@ -282,154 +276,74 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    const profileMenuItems = document.querySelectorAll('.profile-menu .menu-item:not(.logout)');
-    profileMenuItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const action = item.dataset.action;
-            if (action === 'dados') {
-                document.getElementById('dados-modal')?.classList.add('active');
-                loadProfileData();
-            } else if (action === 'seguranca') {
-                document.getElementById('seguranca-modal')?.classList.add('active');
-            } else if (action === 'notificacoes') {
-                document.getElementById('notificacoes-modal')?.classList.add('active');
-                loadNotificacoes();
-            } else if (action === 'aparencia') {
-                document.getElementById('aparencia-modal')?.classList.add('active');
-                loadAparencia();
-            } else if (action === 'ajuda') {
-                document.getElementById('ajuda-modal')?.classList.add('active');
-            } else if (action === 'sincronizar') {
-                syncToCloud();
-            }
-        });
-    });
-    
-    document.querySelectorAll('.btn-back, [data-modal]').forEach(btn => {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const modalId = btn.dataset.modal;
-            if (modalId) closeModal(modalId);
-        });
-    });
-    
-    document.getElementById('btn-save-dados')?.addEventListener('click', () => {
-        const nome = document.getElementById('profile-name-input')?.value.trim();
-        const email = document.getElementById('profile-email-input')?.value.trim();
-        
-        if (!nome || !email) {
-            showToast('Preencha nome e e-mail!', 'error');
-            return;
-        }
-        
-        usuarioLogado.nome = nome;
-        usuarioLogado.email = email;
-        saveAllData();
-        
-        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
-        const headerName = document.querySelector('.greeting h1');
-        const profileName = document.querySelector('.profile-name');
-        const profileEmail = document.querySelector('.profile-email');
-        const profileInitial = document.getElementById('profile-initial');
-        const avatarPreview = document.getElementById('avatar-preview');
-        
-        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        if (profileName) profileName.textContent = nome;
-        if (profileEmail) profileEmail.textContent = email;
-        if (profileInitial) profileInitial.textContent = nome.charAt(0).toUpperCase();
-        if (avatarPreview) avatarPreview.textContent = nome.charAt(0).toUpperCase();
-        
-        closeModal('dados-modal');
-        showToast('Dados atualizados!', 'success');
-    });
-    
-    document.getElementById('btn-save-senha')?.addEventListener('click', () => {
-        const newPassword = document.getElementById('new-password')?.value;
-        const confirmPassword = document.getElementById('confirm-password')?.value;
-        
-        if (!newPassword || !confirmPassword) {
-            showToast('Preencha todos os campos!', 'error');
-            return;
-        }
-        if (newPassword.length < 6) {
-            showToast('Senha deve ter 6+ caracteres!', 'error');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            showToast('Senhas não coincidem!', 'error');
-            return;
-        }
-        
-        closeModal('seguranca-modal');
-        showToast('Senha alterada!', 'success');
-        
-        document.getElementById('current-password').value = '';
-        document.getElementById('new-password').value = '';
-        document.getElementById('confirm-password').value = '';
-    });
-    
-    document.getElementById('btn-save-notificacoes')?.addEventListener('click', () => {
-        notificacoesSettings = {
-            push: document.getElementById('toggle-push')?.checked,
-            email: document.getElementById('toggle-email')?.checked,
-            aulas: document.getElementById('toggle-aulas')?.checked,
-            tarefas: document.getElementById('toggle-tarefas')?.checked
-        };
-        saveAllData();
-        closeModal('notificacoes-modal');
-        showToast('Notificações salvas!', 'success');
-    });
-    
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            selectedTheme = btn.dataset.theme;
+            currentTaskFilter = btn.dataset.filter;
+            renderTasks();
         });
     });
     
-    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+    document.getElementById('btn-add-task')?.addEventListener('click', () => openTaskModal(null));
+    document.querySelector('[data-modal="task-modal"]')?.addEventListener('click', () => {
+        document.getElementById('task-modal').classList.remove('active');
+    });
+    
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedTaskPriority = btn.dataset.priority;
+        });
+    });
+    
+    document.querySelectorAll('#task-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
-            document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active'));
+            document.querySelectorAll('#task-modal .color-option').forEach(o => o.classList.remove('active'));
             option.classList.add('active');
-            selectedAccent = option.dataset.accent;
+            selectedTaskColor = option.dataset.color;
         });
     });
     
-    document.getElementById('btn-save-aparencia')?.addEventListener('click', () => {
-        appearanceSettings = {
-            theme: selectedTheme,
-            accent: selectedAccent,
-            fontSize: document.getElementById('font-size-slider')?.value || 14
-        };
-        saveAllData();
-        document.documentElement.style.setProperty('--accent-purple', selectedAccent);
-        closeModal('aparencia-modal');
-        showToast('Aparência salva!', 'success');
-    });
-    
-    document.getElementById('btn-contato')?.addEventListener('click', () => {
-        window.open('https://wa.me/5500000000000', '_blank');
-    });
-    
-    document.getElementById('btn-termos')?.addEventListener('click', () => {
-        showToast('Termos de Uso em desenvolvimento!', 'info');
-    });
-    
-    document.getElementById('btn-privacidade')?.addEventListener('click', () => {
-        showToast('Política de Privacidade em desenvolvimento!', 'info');
-    });
-    
-    document.getElementById('btn-avaliar')?.addEventListener('click', () => {
-        showToast('Obrigado por avaliar! ⭐⭐⭐⭐⭐', 'success');
-    });
-    
-    document.querySelector('.menu-item.logout')?.addEventListener('click', () => {
-        showConfirm('Deseja realmente sair da conta?', 'Sair', (confirmed) => {
-            if (confirmed) {
-                localStorage.removeItem('usuarioLogado');
-                window.location.href = '../../login/index.html';
+    document.getElementById('btn-save-task')?.addEventListener('click', () => {
+        const title = document.getElementById('task-title')?.value.trim();
+        const subject = document.getElementById('task-subject')?.value.trim();
+        const date = document.getElementById('task-date')?.value;
+        
+        if (!title) {
+            showToast('Preencha o título!', 'error');
+            return;
+        }
+        
+        if (editingTaskId) {
+            const index = tasks.findIndex(t => t.id == editingTaskId);
+            if (index > -1) {
+                tasks[index] = {
+                    ...tasks[index],
+                    title,
+                    subject: subject || tasks[index].subject,
+                    date: date || tasks[index].date,
+                    color: selectedTaskColor,
+                    priority: selectedTaskPriority
+                };
             }
-        });
+        } else {
+            tasks.unshift({
+                id: Date.now(),
+                title,
+                subject: subject || 'Geral',
+                date: date || new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                color: selectedTaskColor,
+                priority: selectedTaskPriority,
+                completed: false
+            });
+        }
+        
+        saveAllData();
+        showToast(editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
+        document.getElementById('task-modal').classList.remove('active');
+        renderTasks();
     });
     
     document.querySelectorAll('.nav-item').forEach(item => {
