@@ -22,7 +22,6 @@ body {
     max-width: 500px;
 }
 
-/* Logo Section */
 .logo-section {
     text-align: center;
     margin-bottom: 40px;
@@ -55,12 +54,6 @@ body {
     transform: scale(1.05);
 }
 
-.logo i {
-    font-size: 48px;
-    color: white;
-    display: none;
-}
-
 .logo-section h1 {
     color: #ffffff;
     font-size: 32px;
@@ -77,7 +70,6 @@ body {
     text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-/* Login Container */
 .login-container {
     background: rgba(20, 20, 20, 0.8);
     backdrop-filter: blur(20px);
@@ -89,7 +81,6 @@ body {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
-/* Tabs */
 .tabs {
     display: flex;
     gap: 10px;
@@ -129,7 +120,6 @@ body {
     background: linear-gradient(90deg, #9333ea, #7c3aed);
 }
 
-/* Forms */
 .form {
     display: none;
 }
@@ -199,14 +189,6 @@ body {
     color: #666;
 }
 
-.input-wrapper input:-webkit-autofill,
-.input-wrapper input:-webkit-autofill:hover,
-.input-wrapper input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #fff;
-    -webkit-box-shadow: 0 0 0px 1000px rgba(20, 20, 20, 0.9) inset;
-    transition: background-color 5000s ease-in-out 0s;
-}
-
 .toggle-password {
     position: absolute;
     right: 16px;
@@ -239,7 +221,6 @@ body {
     color: #b07cee;
 }
 
-/* Primary Button */
 .btn-primary {
     width: 100%;
     padding: 16px;
@@ -285,85 +266,18 @@ body {
     transform: translateY(0);
 }
 
-/* Divider */
-.divider {
-    text-align: center;
-    margin: 30px 0;
-    position: relative;
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
 }
 
-.divider::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    width: 100%;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.divider span {
-    background: rgba(20, 20, 20, 0.8);
-    padding: 0 16px;
-    color: #666;
-    font-size: 11px;
-    letter-spacing: 1px;
-    position: relative;
-}
-
-/* Social Login */
-.social-login {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.btn-social {
-    flex: 1;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-}
-
-.btn-social:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(147, 51, 234, 0.5);
-    transform: translateY(-2px);
-}
-
-.btn-social:active {
-    transform: translateY(0);
-}
-
-.btn-social i {
-    font-size: 18px;
-}
-
-.btn-social i.fa-google {
-    color: #DB4437;
-}
-
-.btn-social i.fa-github {
-    color: #fff;
-}
-
-/* Register Link */
 .register-link {
     text-align: center;
     color: #666;
     font-size: 12px;
     letter-spacing: 1px;
+    margin-top: 24px;
 }
 
 .register-link a {
@@ -378,7 +292,6 @@ body {
     text-decoration: underline;
 }
 
-/* Toast Message */
 .toast {
     position: fixed;
     top: 20px;
@@ -409,41 +322,6 @@ body {
     background: #10b981;
 }
 
-/* Loading state */
-.btn-primary:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 4px 15px rgba(147, 51, 234, 0.2);
-}
-
-.btn-primary:disabled:hover {
-    transform: none;
-}
-
-.btn-primary:disabled::before {
-    display: none;
-}
-
-.btn-primary i.fa-spinner {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Focus state for inputs */
-.input-wrapper.focused input {
-    border-color: #9333ea;
-}
-
-/* Responsive */
 @media (max-width: 480px) {
     .login-container {
         padding: 30px 20px;
@@ -463,14 +341,6 @@ body {
         letter-spacing: 2px;
     }
 
-    .social-login {
-        flex-direction: column;
-    }
-
-    .btn-social {
-        padding: 14px;
-    }
-
     .toast {
         left: 20px;
         right: 20px;
@@ -479,7 +349,6 @@ body {
     }
 }
 
-/* Animações adicionais */
 @keyframes pulse {
     0% {
         box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7);
@@ -496,21 +365,6 @@ body {
     animation: pulse 2s infinite;
 }
 
-/* Estilo para links */
-a {
-    cursor: pointer;
-}
-
-/* Melhorias na acessibilidade */
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-}
-
-/* Scrollbar personalizada */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

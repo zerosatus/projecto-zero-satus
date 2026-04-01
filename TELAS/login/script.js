@@ -1,28 +1,24 @@
 // ==================== DETECÇÃO DE DISPOSITIVO ====================
 function ehCelular() {
-    // Esta função verifica se é celular ou tablet
     const ehMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const ehTelaPequena = window.innerWidth <= 768;
-    
-    // Retorna verdadeiro se for celular OU se a tela for pequena
     return ehMobile || ehTelaPequena;
 }
 
-// Salva essa informação para usar depois
 const eMobile = ehCelular();
-console.log('É celular?', eMobile); // Isso aparece no console para você testar
+console.log('É celular?', eMobile);
 
 // VERIFICAR SE JÁ ESTÁ LOGADO
 const usuarioSalvo = localStorage.getItem('usuarioLogado');
 
 if (usuarioSalvo) {
-    // Usuário já está logado, redirecionar
     if (eMobile) {
         window.location.href = '../mobile-telas/index.html';
     } else {
         window.location.href = '../inicio/index.html';
     }
 }
+
 // Configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -34,7 +30,6 @@ const firebaseConfig = {
     measurementId: "G-HTX5HLKYHJ"
 };
 
-// Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
@@ -59,7 +54,6 @@ tabBtns.forEach(btn => {
     });
 });
 
-// Toggle password visibility
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);
     const icon = event.currentTarget.querySelector('i');
@@ -75,7 +69,6 @@ function togglePassword(inputId) {
     }
 }
 
-// Função para mostrar mensagens
 function showMessage(message, isError = false) {
     const toast = document.getElementById('toast');
     toast.textContent = message;
@@ -87,7 +80,6 @@ function showMessage(message, isError = false) {
     }, 3000);
 }
 
-// Função para mostrar loading
 function setLoading(button, isLoading, originalText = null) {
     if (isLoading) {
         button.dataset.originalHtml = button.innerHTML;
@@ -99,7 +91,6 @@ function setLoading(button, isLoading, originalText = null) {
     }
 }
 
-// LOGIN FORM
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -115,18 +106,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     try {
         setLoading(loginBtn, true);
         
-        // Tentar fazer login
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        // Verificar se o email está verificado (opcional)
-        // if (!user.emailVerified) {
-        //     showMessage('Por favor, verifique seu email antes de fazer login.', true);
-        //     setLoading(loginBtn, false);
-        //     return;
-        // }
-        
-        // Salvar dados do usuário
         localStorage.setItem('usuarioLogado', JSON.stringify({
             uid: user.uid,
             email: user.email,
@@ -136,18 +118,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         
         showMessage('Login realizado com sucesso! Redirecionando...');
         
-      // REDIRECIONAMENTO INTELIGENTE
-setTimeout(() => {
-    if (eMobile) {
-        // Se for celular, vai para a pasta mobile-telas
-        window.location.href = '../mobile-telas/index.html';
-        console.log('Redirecionando para MOBILE');
-    } else {
-        // Se for PC, vai para a pasta inicio (normal)
-        window.location.href = '../inicio/index.html';
-        console.log('Redirecionando para PC');
-    }
-}, 1500);
+        setTimeout(() => {
+            if (eMobile) {
+                window.location.href = '../mobile-telas/index.html';
+            } else {
+                window.location.href = '../inicio/index.html';
+            }
+        }, 1500);
     } catch (error) {
         console.error('Erro no login:', error);
         
@@ -177,7 +154,6 @@ setTimeout(() => {
     }
 });
 
-// REGISTRO FORM
 document.getElementById('registro-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -199,32 +175,23 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     try {
         setLoading(registroBtn, true);
         
-        // Criar usuário
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        // Atualizar perfil com o nome
         await user.updateProfile({
             displayName: nome
         });
         
-        // Enviar email de verificação (opcional)
-        // await user.sendEmailVerification();
-        
         showMessage('Conta criada com sucesso! Faça login para continuar.');
         
-        // Limpar formulário
         document.getElementById('registro-form').reset();
         
-        // Voltar para a aba de login
         setTimeout(() => {
             tabBtns.forEach(b => b.classList.remove('active'));
             forms.forEach(f => f.classList.remove('active'));
             
             tabBtns[0].classList.add('active');
             document.getElementById('login-form').classList.add('active');
-            
-            // Preencher email no login
             document.getElementById('login-email').value = email;
         }, 2000);
         
@@ -251,79 +218,6 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     }
 });
 
-// GOOGLE LOGIN
-document.getElementById('google-login').addEventListener('click', async () => {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    
-    try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        
-        localStorage.setItem('usuarioLogado', JSON.stringify({
-            uid: user.uid,
-            email: user.email,
-            nome: user.displayName,
-            logado: true
-        }));
-        
-        showMessage('Login com Google realizado com sucesso!');
-        
-        // REDIRECIONAMENTO INTELIGENTE
-setTimeout(() => {
-    if (eMobile) {
-        // Se for celular, vai para a pasta mobile-telas
-        window.location.href = '../mobile-telas/index.html';
-        console.log('Redirecionando para MOBILE');
-    } else {
-        // Se for PC, vai para a pasta inicio (normal)
-        window.location.href = '../inicio/index.html';
-        console.log('Redirecionando para PC');
-    }
-}, 1500);
-
-    } catch (error) {
-        console.error('Erro no login com Google:', error);
-        showMessage('Erro ao fazer login com Google.', true);
-    }
-});
-
-// GITHUB LOGIN (você precisa habilitar no Firebase Console)
-document.getElementById('github-login').addEventListener('click', async () => {
-    const provider = new firebase.auth.GithubAuthProvider();
-    
-    try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        
-        localStorage.setItem('usuarioLogado', JSON.stringify({
-            uid: user.uid,
-            email: user.email,
-            nome: user.displayName,
-            logado: true
-        }));
-        
-        showMessage('Login com GitHub realizado com sucesso!');
-        
-       // REDIRECIONAMENTO INTELIGENTE
-setTimeout(() => {
-    if (eMobile) {
-        // Se for celular, vai para a pasta mobile-telas
-        window.location.href = '../mobile-telas/index.html';
-        console.log('Redirecionando para MOBILE');
-    } else {
-        // Se for PC, vai para a pasta inicio (normal)
-        window.location.href = '../inicio/index.html';
-        console.log('Redirecionando para PC');
-    }
-}, 1500);
-        
-    } catch (error) {
-        console.error('Erro no login com GitHub:', error);
-        showMessage('Erro ao fazer login com GitHub.', true);
-    }
-});
-
-// ESQUECI A SENHA
 document.getElementById('forgot-password').addEventListener('click', async (e) => {
     e.preventDefault();
     
@@ -352,27 +246,17 @@ document.getElementById('forgot-password').addEventListener('click', async (e) =
     }
 });
 
-// Toggle between login and register
-document.getElementById('toggle-registro').addEventListener('click', (e) => {
-    e.preventDefault();
-    
-    tabBtns.forEach(b => b.classList.remove('active'));
-    forms.forEach(f => f.classList.remove('active'));
-    
-    tabBtns[1].classList.add('active');
-    document.getElementById('registro-form').classList.add('active');
-});
-
-// Verificar se usuário já está logado
 auth.onAuthStateChanged((user) => {
-    if (user) {
-        // Usuário já está logado, pode redirecionar automaticamente
-        // Descomente se quiser redirecionar automaticamente
-        // window.location.href = '../inicio/index.html';
+    if (user && !localStorage.getItem('usuarioLogado')) {
+        localStorage.setItem('usuarioLogado', JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            nome: user.displayName || user.email.split('@')[0],
+            logado: true
+        }));
     }
 });
 
-// Input animations
 const inputs = document.querySelectorAll('input');
 inputs.forEach(input => {
     input.addEventListener('focus', () => {
