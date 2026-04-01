@@ -8,7 +8,6 @@ let editingTaskId = null;
 let selectedTaskPriority = 'media';
 let selectedTaskColor = '#6366f1';
 
-// ==================== FUNÇÕES AUXILIARES ====================
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -61,7 +60,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ==================== SALVAR E CARREGAR DADOS ====================
 function saveAllData() {
     window.setCached('usuarioLogado', usuarioLogado);
     window.setCached('notifications', notifications);
@@ -70,11 +68,16 @@ function saveAllData() {
 
 function loadAllData() {
     usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
+    
+    if (!usuarioLogado || !usuarioLogado.email) {
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     tasks = window.getCached('tasks', window.getDefaultTasks());
 }
 
-// ==================== NOTIFICAÇÕES ====================
 function updateNotificationBadge() {
     const badge = document.getElementById('notification-badge');
     const unreadCount = notifications.filter(n => !n.read).length;
@@ -146,7 +149,6 @@ function clearAllNotifications() {
     });
 }
 
-// ==================== TAREFAS ====================
 function renderTasks() {
     const tasksList = document.getElementById('tasks-list');
     if (!tasksList) return;
@@ -233,7 +235,6 @@ function openTaskModal(task) {
     modal.classList.add('active');
 }
 
-// ==================== NAVEGAÇÃO ====================
 function switchView(viewName) {
     if (viewName === 'home') window.location.href = '../index.html';
     else if (viewName === 'calendar') window.location.href = '../calendario/index.html';
@@ -242,20 +243,19 @@ function switchView(viewName) {
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
 }
 
-// ==================== EVENT LISTENERS ====================
 document.addEventListener('DOMContentLoaded', () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
     
     if (usuarioLogado) {
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
     }
     
     updateNotificationBadge();
     renderTasks();
     
-    // Notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
@@ -276,7 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Filtros
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -286,14 +285,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Nova tarefa
     document.getElementById('btn-add-task')?.addEventListener('click', () => openTaskModal(null));
-    
     document.querySelector('[data-modal="task-modal"]')?.addEventListener('click', () => {
         document.getElementById('task-modal').classList.remove('active');
     });
     
-    // Prioridade
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
@@ -302,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Cores
     document.querySelectorAll('#task-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#task-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -311,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Salvar tarefa
     document.getElementById('btn-save-task')?.addEventListener('click', () => {
         const title = document.getElementById('task-title')?.value.trim();
         const subject = document.getElementById('task-subject')?.value.trim();
@@ -352,7 +346,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTasks();
     });
     
-    // Navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
