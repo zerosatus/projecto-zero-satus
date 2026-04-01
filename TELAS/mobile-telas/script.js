@@ -63,8 +63,28 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ==================== SALVAR E CARREGAR DADOS ====================
+function loadUserData() {
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo) {
+        try {
+            const user = JSON.parse(usuarioSalvo);
+            if (usuarioLogado) {
+                usuarioLogado.nome = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
+                usuarioLogado.email = user.email;
+                usuarioLogado.uid = user.uid;
+            }
+        } catch(e) {}
+    }
+    
+    if (usuarioLogado && usuarioLogado.nome) {
+        const headerName = document.getElementById('header-name');
+        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
+    }
+}
+
 function saveAllData() {
+    if (!usuarioLogado || !usuarioLogado.uid) return;
+    
     window.setCached('usuarioLogado', usuarioLogado);
     window.setCached('notifications', notifications);
     window.setCached('weeklySchedule', weeklySchedule);
@@ -75,14 +95,25 @@ function saveAllData() {
 
 function loadAllData() {
     usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
+    
+    if (!usuarioLogado || !usuarioLogado.email) {
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
+    loadUserData();
+    
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     weeklySchedule = window.getCached('weeklySchedule', window.getDefaultWeeklySchedule());
     timeSlots = window.getCached('timeSlots', window.getDefaultTimeSlots());
     calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
     tasks = window.getCached('tasks', window.getDefaultTasks());
+    
+    days.forEach(day => {
+        if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    });
 }
 
-// ==================== ATUALIZAR INTERFACE ====================
 function updateSummaryCards() {
     const materias = new Set();
     Object.values(weeklySchedule).forEach(day => {
@@ -264,7 +295,6 @@ function renderSchedule() {
     grid.innerHTML = html;
 }
 
-// ==================== MODO EDIÇÃO ====================
 function openEditModal() {
     const editModal = document.getElementById('edit-modal');
     if (editModal) {
@@ -429,7 +459,6 @@ function addNewTimeSlot() {
     showToast('Horário adicionado!', 'success');
 }
 
-// ==================== NAVEGAÇÃO ====================
 function switchView(viewName) {
     if (viewName === 'home') {
         refreshHomeData();
@@ -472,21 +501,19 @@ function clearAllNotifications() {
     });
 }
 
-// ==================== EVENT LISTENERS ====================
 document.addEventListener('DOMContentLoaded', () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
     
-    // Atualizar nome do usuário
     if (usuarioLogado) {
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
     }
     
     updateNotificationBadge();
     refreshHomeData();
     
-    // Notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
@@ -512,7 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Edição de horário
     document.getElementById('toggle-edit-mode')?.addEventListener('click', openEditModal);
     document.getElementById('btn-back')?.addEventListener('click', closeEditModal);
     document.getElementById('btn-save')?.addEventListener('click', closeEditModal);
@@ -521,7 +547,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('new-time-input').value = '11:00';
     });
     
-    // Modal de matéria
     document.querySelector('[data-modal="subject-modal"]')?.addEventListener('click', () => {
         document.getElementById('subject-modal').classList.remove('active');
     });
@@ -536,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });

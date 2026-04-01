@@ -1,9 +1,10 @@
-// Sistema centralizado de gerenciamento de cache
+// Sistema centralizado de gerenciamento de cache com suporte a múltiplos usuários
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v3';
+        this.cacheVersion = 'v4';
         this.isInitialized = false;
+        this.currentUserId = null;
     }
 
     init() {
@@ -27,27 +28,53 @@ class CacheManager {
         console.log('[CacheManager] Inicializado');
     }
 
+    getCurrentUserId() {
+        if (!this.currentUserId) {
+            const usuario = localStorage.getItem('usuarioLogado');
+            if (usuario) {
+                try {
+                    const user = JSON.parse(usuario);
+                    this.currentUserId = user.uid || user.email || 'default';
+                } catch(e) {}
+            }
+        }
+        return this.currentUserId || 'default';
+    }
+
+    getStorageKey(key) {
+        const userId = this.getCurrentUserId();
+        return `${userId}_${key}`;
+    }
+
     checkAndClearOldCache() {
         const currentVersion = localStorage.getItem('cache_version');
         if (currentVersion !== this.cacheVersion) {
-            localStorage.clear();
             localStorage.setItem('cache_version', this.cacheVersion);
-            console.log('[CacheManager] Cache limpo e atualizado para', this.cacheVersion);
+            console.log('[CacheManager] Versão do cache atualizada para', this.cacheVersion);
         }
     }
 
     clearAllCache() {
-        localStorage.clear();
-        localStorage.setItem('cache_version', this.cacheVersion);
+        const userId = this.getCurrentUserId();
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`${userId}_`)) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
         this.listeners.forEach((callbacks) => {
             callbacks.forEach(cb => cb(null));
         });
-        console.log('[CacheManager] Cache completamente limpo');
+        console.log('[CacheManager] Cache do usuário limpo');
     }
 
     get(key, defaultValue = null) {
         try {
-            const data = localStorage.getItem(key);
+            const storageKey = this.getStorageKey(key);
+            const data = localStorage.getItem(storageKey);
             if (data === null) return defaultValue;
             return JSON.parse(data);
         } catch (error) {
@@ -58,8 +85,9 @@ class CacheManager {
 
     set(key, value, notify = true) {
         try {
+            const storageKey = this.getStorageKey(key);
             const stringValue = JSON.stringify(value);
-            localStorage.setItem(key, stringValue);
+            localStorage.setItem(storageKey, stringValue);
             if (notify && this.listeners.has(key)) {
                 const callbacks = this.listeners.get(key);
                 callbacks.forEach(cb => cb(value));
