@@ -1,22 +1,24 @@
-// mobile-telas/cache-manager.js
-// Sistema centralizado de gerenciamento de cache e sincronização
-
+// Sistema centralizado de gerenciamento de cache
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v1';
+        this.cacheVersion = 'v3';
         this.isInitialized = false;
     }
 
     init() {
         if (this.isInitialized) return;
-        
         this.checkAndClearOldCache();
         
         window.addEventListener('storage', (e) => {
             if (e.key && this.listeners.has(e.key)) {
                 const callbacks = this.listeners.get(e.key);
-                const newData = JSON.parse(e.newValue);
+                let newData = null;
+                try {
+                    newData = e.newValue ? JSON.parse(e.newValue) : null;
+                } catch (error) {
+                    newData = e.newValue;
+                }
                 callbacks.forEach(cb => cb(newData));
             }
         });
@@ -28,25 +30,26 @@ class CacheManager {
     checkAndClearOldCache() {
         const currentVersion = localStorage.getItem('cache_version');
         if (currentVersion !== this.cacheVersion) {
-            this.clearAllCache();
+            localStorage.clear();
             localStorage.setItem('cache_version', this.cacheVersion);
+            console.log('[CacheManager] Cache limpo e atualizado para', this.cacheVersion);
         }
     }
 
     clearAllCache() {
-        const keysToKeep = ['usuarioLogado', 'cache_version'];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (!keysToKeep.includes(key)) {
-                localStorage.removeItem(key);
-            }
-        }
+        localStorage.clear();
+        localStorage.setItem('cache_version', this.cacheVersion);
+        this.listeners.forEach((callbacks) => {
+            callbacks.forEach(cb => cb(null));
+        });
+        console.log('[CacheManager] Cache completamente limpo');
     }
 
     get(key, defaultValue = null) {
         try {
             const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : defaultValue;
+            if (data === null) return defaultValue;
+            return JSON.parse(data);
         } catch (error) {
             console.error(`[CacheManager] Erro ao obter ${key}:`, error);
             return defaultValue;
@@ -55,7 +58,8 @@ class CacheManager {
 
     set(key, value, notify = true) {
         try {
-            localStorage.setItem(key, JSON.stringify(value));
+            const stringValue = JSON.stringify(value);
+            localStorage.setItem(key, stringValue);
             if (notify && this.listeners.has(key)) {
                 const callbacks = this.listeners.get(key);
                 callbacks.forEach(cb => cb(value));
@@ -64,14 +68,6 @@ class CacheManager {
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key}:`, error);
             return false;
-        }
-    }
-
-    remove(key) {
-        localStorage.removeItem(key);
-        if (this.listeners.has(key)) {
-            const callbacks = this.listeners.get(key);
-            callbacks.forEach(cb => cb(null));
         }
     }
 
@@ -89,24 +85,9 @@ class CacheManager {
             }
         };
     }
-
-    sync(key) {
-        const data = this.get(key);
-        if (this.listeners.has(key)) {
-            const callbacks = this.listeners.get(key);
-            callbacks.forEach(cb => cb(data));
-        }
-        return data;
-    }
-
-    syncAll() {
-        const keys = ['usuarioLogado', 'notifications', 'tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notificacoesSettings', 'appearanceSettings'];
-        keys.forEach(key => this.sync(key));
-    }
 }
 
 window.CacheManager = new CacheManager();
-
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.onCacheChange = (key, callback) => window.CacheManager.addListener(key, callback);
