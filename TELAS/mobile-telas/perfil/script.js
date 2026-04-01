@@ -206,6 +206,43 @@ function switchView(viewName) {
     else if (viewName === 'profile') loadProfileData();
 }
 
+async function syncToCloud() {
+    if (!usuarioLogado || !usuarioLogado.uid) {
+        showToast('Faça login primeiro!', 'error');
+        return;
+    }
+    
+    try {
+        showToast('Sincronizando dados...', 'info');
+        
+        const allData = {
+            usuarioLogado: usuarioLogado,
+            notifications: notifications,
+            notificacoesSettings: notificacoesSettings,
+            appearanceSettings: appearanceSettings,
+            weeklySchedule: window.weeklySchedule || {},
+            timeSlots: window.timeSlots || [],
+            calendarEvents: window.calendarEvents || [],
+            tasks: window.tasks || [],
+            notes: window.notes || []
+        };
+        
+        if (window.FirebaseSync) {
+            const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
+            if (result) {
+                showToast('Dados sincronizados com sucesso!', 'success');
+            } else {
+                showToast('Erro ao sincronizar dados', 'error');
+            }
+        } else {
+            showToast('Firebase não disponível', 'error');
+        }
+    } catch (error) {
+        console.error('Erro na sincronização:', error);
+        showToast('Erro ao sincronizar dados', 'error');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
@@ -262,6 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadAparencia();
             } else if (action === 'ajuda') {
                 document.getElementById('ajuda-modal')?.classList.add('active');
+            } else if (action === 'sincronizar') {
+                syncToCloud();
             }
         });
     });
