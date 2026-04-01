@@ -9,7 +9,6 @@ let selectedEventType = 'aula';
 let selectedEventColor = '#8b5cf6';
 let editingEventId = null;
 
-// ==================== FUNÇÕES AUXILIARES ====================
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -62,7 +61,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ==================== SALVAR E CARREGAR DADOS ====================
 function saveAllData() {
     window.setCached('usuarioLogado', usuarioLogado);
     window.setCached('notifications', notifications);
@@ -71,11 +69,16 @@ function saveAllData() {
 
 function loadAllData() {
     usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
+    
+    if (!usuarioLogado || !usuarioLogado.email) {
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
 }
 
-// ==================== NOTIFICAÇÕES ====================
 function updateNotificationBadge() {
     const badge = document.getElementById('notification-badge');
     const unreadCount = notifications.filter(n => !n.read).length;
@@ -147,7 +150,6 @@ function clearAllNotifications() {
     });
 }
 
-// ==================== CALENDÁRIO ====================
 function renderCalendar() {
     const calendarDays = document.getElementById('calendar-days');
     const currentMonthYear = document.getElementById('current-month-year');
@@ -283,7 +285,6 @@ function openEventModal(event) {
     modal.classList.add('active');
 }
 
-// ==================== NAVEGAÇÃO ====================
 function switchView(viewName) {
     if (viewName === 'home') window.location.href = '../index.html';
     else if (viewName === 'calendar') renderCalendar();
@@ -292,20 +293,19 @@ function switchView(viewName) {
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
 }
 
-// ==================== EVENT LISTENERS ====================
 document.addEventListener('DOMContentLoaded', () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
     
     if (usuarioLogado) {
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
     }
     
     updateNotificationBadge();
     renderCalendar();
     
-    // Notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
@@ -326,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Controles do calendário
     document.getElementById('prev-month')?.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
         selectedDay = 1;
@@ -340,12 +339,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     document.getElementById('btn-new-event')?.addEventListener('click', () => openEventModal(null));
-    
     document.querySelector('[data-modal="event-modal"]')?.addEventListener('click', () => {
         document.getElementById('event-modal').classList.remove('active');
     });
     
-    // Tipo de evento
     document.querySelectorAll('.event-types .type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.event-types .type-btn').forEach(b => b.classList.remove('active'));
@@ -354,7 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Cores
     document.querySelectorAll('#event-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#event-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -363,7 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Salvar evento
     document.getElementById('btn-save-event')?.addEventListener('click', () => {
         const title = document.getElementById('event-title')?.value.trim();
         const date = document.getElementById('event-date')?.value;
@@ -407,7 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCalendar();
     });
     
-    // Navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
