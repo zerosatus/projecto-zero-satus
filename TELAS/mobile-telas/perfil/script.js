@@ -1,4 +1,4 @@
-// mobile-telas/perfil/script.js
+// Perfil - Configurações do usuário
 
 let notifications = [];
 let usuarioLogado = null;
@@ -6,32 +6,6 @@ let notificacoesSettings = {};
 let appearanceSettings = {};
 let selectedTheme = 'dark';
 let selectedAccent = '#8b5cf6';
-
-function showConfirm(message, title = 'Confirmar', callback) {
-    const modal = document.getElementById('confirm-modal');
-    if (!modal) { callback?.(false); return; }
-    document.getElementById('confirm-title').textContent = title;
-    document.getElementById('confirm-message').textContent = message;
-    modal.classList.add('active');
-    const btnOk = document.getElementById('confirm-ok');
-    const btnCancel = document.getElementById('confirm-cancel');
-    
-    const handleOk = () => {
-        modal.classList.remove('active');
-        btnOk.removeEventListener('click', handleOk);
-        btnCancel.removeEventListener('click', handleCancel);
-        callback?.(true);
-    };
-    const handleCancel = () => {
-        modal.classList.remove('active');
-        btnOk.removeEventListener('click', handleOk);
-        btnCancel.removeEventListener('click', handleCancel);
-        callback?.(false);
-    };
-    
-    btnOk.onclick = handleOk;
-    btnCancel.onclick = handleCancel;
-}
 
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -49,6 +23,42 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
+function showConfirm(message, title, callback) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) { callback(false); return; }
+    
+    document.getElementById('confirm-title').textContent = title || 'Confirmar';
+    document.getElementById('confirm-message').textContent = message;
+    modal.classList.add('active');
+    
+    const handleConfirm = () => {
+        modal.classList.remove('active');
+        callback(true);
+        cleanup();
+    };
+    
+    const handleCancel = () => {
+        modal.classList.remove('active');
+        callback(false);
+        cleanup();
+    };
+    
+    const cleanup = () => {
+        document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
+        document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
+    };
+    
+    document.getElementById('confirm-ok').onclick = handleConfirm;
+    document.getElementById('confirm-cancel').onclick = handleCancel;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove('active');
@@ -63,12 +73,18 @@ function saveAllData() {
 
 function loadAllData() {
     usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
+    
+    if (!usuarioLogado || !usuarioLogado.email) {
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     notificacoesSettings = window.getCached('notificacoesSettings', window.getDefaultNotificacoesSettings());
     appearanceSettings = window.getCached('appearanceSettings', window.getDefaultAppearanceSettings());
     
-    if (appearanceSettings.accent) { 
-        document.documentElement.style.setProperty('--accent-purple', appearanceSettings.accent); 
+    if (appearanceSettings.accent) {
+        document.documentElement.style.setProperty('--accent-purple', appearanceSettings.accent);
     }
 }
 
@@ -81,7 +97,7 @@ function updateNotificationBadge() {
     }
 }
 
-function formatNotificationTime(timeString) {
+function formatTimeAgo(timeString) {
     if (!timeString) return '';
     const now = new Date();
     const notifTime = new Date(timeString);
@@ -116,7 +132,7 @@ function renderNotificationsModal(filter = 'all') {
             <div class="notification-content">
                 <div class="notification-title">${escapeHtml(notif.title)}</div>
                 <div class="notification-message">${escapeHtml(notif.message)}</div>
-                <div class="notification-time">${formatNotificationTime(notif.time)}</div>
+                <div class="notification-time">${formatTimeAgo(notif.time)}</div>
             </div>
         </div>`;
     });
@@ -128,6 +144,7 @@ function markAllAsRead() {
     updateNotificationBadge();
     renderNotificationsModal();
     window.setCached('notifications', notifications);
+    showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
 function clearAllNotifications() {
@@ -140,13 +157,6 @@ function clearAllNotifications() {
             showToast('Notificações limpas!', 'success');
         }
     });
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function loadProfileData() {
@@ -172,16 +182,20 @@ function loadNotificacoes() {
 }
 
 function loadAparencia() {
-    selectedTheme = appearanceSettings.theme;
-    selectedAccent = appearanceSettings.accent;
-    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.theme === selectedTheme));
-    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => option.classList.toggle('active', option.dataset.accent === selectedAccent));
+    selectedTheme = appearanceSettings.theme || 'dark';
+    selectedAccent = appearanceSettings.accent || '#8b5cf6';
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === selectedTheme);
+    });
+    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.accent === selectedAccent);
+    });
     const slider = document.getElementById('font-size-slider');
-    if (slider) slider.value = appearanceSettings.fontSize;
+    if (slider) slider.value = appearanceSettings.fontSize || 14;
 }
 
-window.toggleFaq = function(element) { 
-    element.classList.toggle('active'); 
+window.toggleFaq = function(element) {
+    element.classList.toggle('active');
 };
 
 function switchView(viewName) {
@@ -190,10 +204,6 @@ function switchView(viewName) {
     else if (viewName === 'tasks') window.location.href = '../tarefas/index.html';
     else if (viewName === 'notes') window.location.href = '../notas/index.html';
     else if (viewName === 'profile') loadProfileData();
-    
-    document.querySelectorAll('.nav-item').forEach(nav => { 
-        nav.classList.toggle('active', nav.dataset.view === viewName); 
-    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -201,97 +211,89 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAllData();
     
     if (usuarioLogado) {
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         const profileName = document.getElementById('profile-name');
         const profileEmail = document.getElementById('profile-email');
         const profileInitial = document.getElementById('profile-initial');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
-        if (profileName) profileName.textContent = usuarioLogado.nome;
+        
+        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+        if (profileName) profileName.textContent = usuarioLogado.nome || nomeExibicao;
         if (profileEmail) profileEmail.textContent = usuarioLogado.email;
-        if (profileInitial) profileInitial.textContent = usuarioLogado.nome.charAt(0).toUpperCase();
+        if (profileInitial) profileInitial.textContent = (usuarioLogado.nome || nomeExibicao).charAt(0).toUpperCase();
     }
     
     updateNotificationBadge();
     
-    document.getElementById('notification-bell')?.addEventListener('click', () => { 
-        document.getElementById('notifications-modal').classList.add('active'); 
-        renderNotificationsModal(); 
+    document.getElementById('notification-bell')?.addEventListener('click', () => {
+        document.getElementById('notifications-modal').classList.add('active');
+        renderNotificationsModal();
     });
     
-    document.getElementById('btn-close-notifications')?.addEventListener('click', () => { 
-        document.getElementById('notifications-modal').classList.remove('active'); 
+    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
+        document.getElementById('notifications-modal').classList.remove('active');
     });
     
     document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
     document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
     
-    document.querySelectorAll('.notification-tab').forEach(tab => { 
-        tab.addEventListener('click', () => { 
-            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active')); 
-            tab.classList.add('active'); 
-            renderNotificationsModal(tab.dataset.type); 
-        }); 
+    document.querySelectorAll('.notification-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderNotificationsModal(tab.dataset.type);
+        });
     });
     
     const profileMenuItems = document.querySelectorAll('.profile-menu .menu-item:not(.logout)');
     profileMenuItems.forEach(item => {
         item.addEventListener('click', () => {
             const action = item.dataset.action;
-            if (action === 'dados') { 
-                document.getElementById('dados-modal')?.classList.add('active'); 
-                loadProfileData(); 
-            }
-            else if (action === 'seguranca') { 
-                document.getElementById('seguranca-modal')?.classList.add('active'); 
-            }
-            else if (action === 'notificacoes') { 
-                document.getElementById('notificacoes-modal')?.classList.add('active'); 
-                loadNotificacoes(); 
-            }
-            else if (action === 'aparencia') { 
-                document.getElementById('aparencia-modal')?.classList.add('active'); 
-                loadAparencia(); 
-            }
-            else if (action === 'ajuda') { 
-                document.getElementById('ajuda-modal')?.classList.add('active'); 
+            if (action === 'dados') {
+                document.getElementById('dados-modal')?.classList.add('active');
+                loadProfileData();
+            } else if (action === 'seguranca') {
+                document.getElementById('seguranca-modal')?.classList.add('active');
+            } else if (action === 'notificacoes') {
+                document.getElementById('notificacoes-modal')?.classList.add('active');
+                loadNotificacoes();
+            } else if (action === 'aparencia') {
+                document.getElementById('aparencia-modal')?.classList.add('active');
+                loadAparencia();
+            } else if (action === 'ajuda') {
+                document.getElementById('ajuda-modal')?.classList.add('active');
             }
         });
     });
     
-    document.querySelectorAll('.btn-back').forEach(btn => { 
-        btn.addEventListener('click', () => { 
-            const modalId = btn.dataset.modal; 
-            if (modalId) closeModal(modalId); 
-        }); 
-    });
-    
-    document.querySelectorAll('[data-modal]').forEach(btn => { 
-        btn.addEventListener('click', () => { 
-            const modalId = btn.dataset.modal; 
-            if (modalId) closeModal(modalId); 
-        }); 
+    document.querySelectorAll('.btn-back, [data-modal]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modalId = btn.dataset.modal;
+            if (modalId) closeModal(modalId);
+        });
     });
     
     document.getElementById('btn-save-dados')?.addEventListener('click', () => {
         const nome = document.getElementById('profile-name-input')?.value.trim();
         const email = document.getElementById('profile-email-input')?.value.trim();
         
-        if (!nome || !email) { 
-            showToast('Preencha nome e e-mail!', 'error'); 
-            return; 
+        if (!nome || !email) {
+            showToast('Preencha nome e e-mail!', 'error');
+            return;
         }
         
         usuarioLogado.nome = nome;
         usuarioLogado.email = email;
         saveAllData();
         
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.querySelector('.greeting h1');
         const profileName = document.querySelector('.profile-name');
         const profileEmail = document.querySelector('.profile-email');
         const profileInitial = document.getElementById('profile-initial');
         const avatarPreview = document.getElementById('avatar-preview');
         
-        if (headerName) headerName.textContent = nome.split(' ')[0];
+        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
         if (profileName) profileName.textContent = nome;
         if (profileEmail) profileEmail.textContent = email;
         if (profileInitial) profileInitial.textContent = nome.charAt(0).toUpperCase();
@@ -305,17 +307,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const newPassword = document.getElementById('new-password')?.value;
         const confirmPassword = document.getElementById('confirm-password')?.value;
         
-        if (!newPassword || !confirmPassword) { 
-            showToast('Preencha todos os campos!', 'error'); 
-            return; 
+        if (!newPassword || !confirmPassword) {
+            showToast('Preencha todos os campos!', 'error');
+            return;
         }
-        if (newPassword.length < 6) { 
-            showToast('Senha deve ter 6+ caracteres!', 'error'); 
-            return; 
+        if (newPassword.length < 6) {
+            showToast('Senha deve ter 6+ caracteres!', 'error');
+            return;
         }
-        if (newPassword !== confirmPassword) { 
-            showToast('Senhas não coincidem!', 'error'); 
-            return; 
+        if (newPassword !== confirmPassword) {
+            showToast('Senhas não coincidem!', 'error');
+            return;
         }
         
         closeModal('seguranca-modal');
@@ -338,27 +340,27 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Notificações salvas!', 'success');
     });
     
-    document.querySelectorAll('.theme-btn').forEach(btn => { 
-        btn.addEventListener('click', () => { 
-            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active')); 
-            btn.classList.add('active'); 
-            selectedTheme = btn.dataset.theme; 
-        }); 
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedTheme = btn.dataset.theme;
+        });
     });
     
-    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => { 
-        option.addEventListener('click', () => { 
-            document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active')); 
-            option.classList.add('active'); 
-            selectedAccent = option.dataset.accent; 
-        }); 
+    document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active'));
+            option.classList.add('active');
+            selectedAccent = option.dataset.accent;
+        });
     });
     
     document.getElementById('btn-save-aparencia')?.addEventListener('click', () => {
-        appearanceSettings = { 
-            theme: selectedTheme, 
-            accent: selectedAccent, 
-            fontSize: document.getElementById('font-size-slider')?.value || 14 
+        appearanceSettings = {
+            theme: selectedTheme,
+            accent: selectedAccent,
+            fontSize: document.getElementById('font-size-slider')?.value || 14
         };
         saveAllData();
         document.documentElement.style.setProperty('--accent-purple', selectedAccent);
@@ -366,32 +368,32 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Aparência salva!', 'success');
     });
     
-    document.getElementById('btn-contato')?.addEventListener('click', () => { 
-        window.open('https://wa.me/5500000000000', '_blank'); 
+    document.getElementById('btn-contato')?.addEventListener('click', () => {
+        window.open('https://wa.me/5500000000000', '_blank');
     });
     
-    document.getElementById('btn-termos')?.addEventListener('click', () => { 
-        showToast('Termos de Uso em desenvolvimento!', 'info'); 
+    document.getElementById('btn-termos')?.addEventListener('click', () => {
+        showToast('Termos de Uso em desenvolvimento!', 'info');
     });
     
-    document.getElementById('btn-privacidade')?.addEventListener('click', () => { 
-        showToast('Política de Privacidade em desenvolvimento!', 'info'); 
+    document.getElementById('btn-privacidade')?.addEventListener('click', () => {
+        showToast('Política de Privacidade em desenvolvimento!', 'info');
     });
     
-    document.getElementById('btn-avaliar')?.addEventListener('click', () => { 
-        showToast('Obrigado por avaliar! ⭐⭐⭐⭐⭐', 'success'); 
+    document.getElementById('btn-avaliar')?.addEventListener('click', () => {
+        showToast('Obrigado por avaliar! ⭐⭐⭐⭐⭐', 'success');
     });
     
     document.querySelector('.menu-item.logout')?.addEventListener('click', () => {
         showConfirm('Deseja realmente sair da conta?', 'Sair', (confirmed) => {
             if (confirmed) {
                 localStorage.removeItem('usuarioLogado');
-                window.location.href = '../index.html';
+                window.location.href = '../../login/index.html';
             }
         });
     });
     
-    document.querySelectorAll('.nav-item').forEach(item => { 
-        item.addEventListener('click', () => switchView(item.dataset.view)); 
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => switchView(item.dataset.view));
     });
 });
