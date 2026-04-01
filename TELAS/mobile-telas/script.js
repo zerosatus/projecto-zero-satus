@@ -5,12 +5,13 @@ let weeklySchedule = {};
 let timeSlots = [];
 let calendarEvents = [];
 let tasks = [];
+let notes = [];
 let usuarioLogado = null;
 let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+let syncInProgress = false;
 
-// ==================== FUNÇÕES AUXILIARES ====================
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -82,6 +83,57 @@ function loadUserData() {
     }
 }
 
+async function loadFromCloud() {
+    if (syncInProgress) return;
+    syncInProgress = true;
+    
+    try {
+        showToast('Sincronizando dados da nuvem...', 'info', 2000);
+        const loaded = await window.CacheManager.loadFromCloud();
+        if (loaded) {
+            refreshHomeData();
+            showToast('Dados sincronizados!', 'success');
+        }
+    } catch (error) {
+        console.error('Erro ao sincronizar:', error);
+    } finally {
+        syncInProgress = false;
+    }
+}
+
+async function forceSync() {
+    if (!usuarioLogado || !usuarioLogado.uid) {
+        showToast('Faça login primeiro!', 'error');
+        return;
+    }
+    
+    try {
+        showToast('Sincronizando dados...', 'info');
+        
+        const allData = {
+            usuarioLogado: usuarioLogado,
+            notifications: notifications,
+            weeklySchedule: weeklySchedule,
+            timeSlots: timeSlots,
+            calendarEvents: calendarEvents,
+            tasks: tasks,
+            notes: notes
+        };
+        
+        const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
+        if (result) {
+            showToast('Dados sincronizados com sucesso!', 'success');
+        } else {
+            showToast('Erro ao sincronizar dados', 'error');
+        }
+    } catch (error) {
+        console.error('Erro na sincronização:', error);
+        showToast('Erro ao sincronizar dados', 'error');
+    }
+}
+
+window.forceSync = forceSync;
+
 function saveAllData() {
     if (!usuarioLogado || !usuarioLogado.uid) return;
     
@@ -91,6 +143,7 @@ function saveAllData() {
     window.setCached('timeSlots', timeSlots);
     window.setCached('calendarEvents', calendarEvents);
     window.setCached('tasks', tasks);
+    window.setCached('notes', notes);
 }
 
 function loadAllData() {
@@ -108,10 +161,15 @@ function loadAllData() {
     timeSlots = window.getCached('timeSlots', window.getDefaultTimeSlots());
     calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
     tasks = window.getCached('tasks', window.getDefaultTasks());
+    notes = window.getCached('notes', window.getDefaultNotes());
     
     days.forEach(day => {
         if (!weeklySchedule[day]) weeklySchedule[day] = [];
     });
+    
+    setTimeout(() => {
+        loadFromCloud();
+    }, 1000);
 }
 
 function updateSummaryCards() {

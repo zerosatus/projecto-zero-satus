@@ -1,10 +1,11 @@
-// Sistema centralizado de gerenciamento de cache com suporte a múltiplos usuários
+// Sistema centralizado de gerenciamento de cache com suporte a nuvem
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v4';
+        this.cacheVersion = 'v5';
         this.isInitialized = false;
         this.currentUserId = null;
+        this.isSyncing = false;
     }
 
     init() {
@@ -92,11 +93,60 @@ class CacheManager {
                 const callbacks = this.listeners.get(key);
                 callbacks.forEach(cb => cb(value));
             }
+            
+            if (!this.isSyncing && window.FirebaseSync && this.currentUserId !== 'default') {
+                this.syncToCloud(key, value);
+            }
+            
             return true;
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key}:`, error);
             return false;
         }
+    }
+    
+    async syncToCloud(key, value) {
+        try {
+            const userId = this.getCurrentUserId();
+            if (userId && userId !== 'default') {
+                await window.FirebaseSync.saveUserDataToCloud(userId, key, value);
+            }
+        } catch (error) {
+            console.error('[CacheManager] Erro ao sincronizar com nuvem:', error);
+        }
+    }
+    
+    async loadFromCloud() {
+        const userId = this.getCurrentUserId();
+        if (!userId || userId === 'default') return false;
+        
+        this.isSyncing = true;
+        
+        try {
+            const cloudData = await window.FirebaseSync.loadAllUserDataFromCloud(userId);
+            if (cloudData) {
+                const keys = ['usuarioLogado', 'notifications', 'weeklySchedule', 'timeSlots', 'calendarEvents', 'tasks', 'notes', 'notificacoesSettings', 'appearanceSettings'];
+                
+                for (const key of keys) {
+                    if (cloudData[key] !== undefined) {
+                        const storageKey = this.getStorageKey(key);
+                        localStorage.setItem(storageKey, JSON.stringify(cloudData[key]));
+                        
+                        if (this.listeners.has(key)) {
+                            const callbacks = this.listeners.get(key);
+                            callbacks.forEach(cb => cb(cloudData[key]));
+                        }
+                    }
+                }
+                console.log('[CacheManager] Dados carregados da nuvem!');
+                return true;
+            }
+        } catch (error) {
+            console.error('[CacheManager] Erro ao carregar da nuvem:', error);
+        } finally {
+            this.isSyncing = false;
+        }
+        return false;
     }
 
     addListener(key, callback) {
