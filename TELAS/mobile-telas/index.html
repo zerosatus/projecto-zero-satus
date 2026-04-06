@@ -10,16 +10,21 @@
 </head>
 <body>
     <div class="mobile-container">
-        <header>
-            <div class="greeting">
-                <h1 id="header-name">Usuário</h1>
-                <p>Bem-vindo de volta 👋</p>
-            </div>
-            <div class="profile-icon" id="notification-bell">
-                <ion-icon name="notifications-outline"></ion-icon>
-                <span class="notification-badge" id="notification-badge">3</span>
-            </div>
-        </header>
+      <header>
+    <div class="greeting">
+        <h1 id="header-name">Usuário</h1>
+        <p>Bem-vindo de volta 👋</p>
+    </div>
+    <!-- Botão Modo Foco (opcional) -->
+    <div class="profile-icon" id="focus-mode-btn" title="Modo Foco" onclick="window.location.href='modo-foco/index.html'">
+        <ion-icon name="flash-outline"></ion-icon>
+    </div>
+    <!-- APENAS UM sino de notificação -->
+    <div class="profile-icon" id="notification-bell">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <span class="notification-badge" id="notification-badge">3</span>
+    </div>
+</header>
 
         <div class="summary-cards">
             <div class="card">

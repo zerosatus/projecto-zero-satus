@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modo Foco - Dashboard</title>
+    <!-- Ícones Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="mobile-frame">
+        <!-- HEADER: Foco de Hoje -->
+        <header class="dashboard-header">
+            <div class="header-info">
+                <span class="subtitle">Foco de Hoje</span>
+                <div class="main-time">
+                    <span id="hours">3</span> <span class="label">horas</span>
+                    <span id="minutes">15</span> <span class="label">minutos</span>
+                </div>
+            </div>
+            <div class="progress-ring-container">
+                <svg class="progress-ring" width="80" height="80">
+                    <circle class="progress-ring-bg" cx="40" cy="40" r="32"/>
+                    <circle class="progress-ring-circle" cx="40" cy="40" r="32" id="progress-circle"/>
+                </svg>
+                <span class="progress-text" id="progress-percent">72%</span>
+            </div>
+        </header>
+
+        <!-- STATS GRID (Sessões, Dias, Sequência) -->
+        <div class="stats-grid">
+            <div class="stat-card fade-in" style="animation-delay: 0.1s;">
+                <div class="icon-box purple"><ion-icon name="play-back-outline"></ion-icon></div>
+                <span class="stat-value">6</span>
+                <span class="stat-label">Sessões</span>
+            </div>
+            <div class="stat-card fade-in" style="animation-delay: 0.2s;">
+                <div class="icon-box blue"><ion-icon name="calendar-outline"></ion-icon></div>
+                <span class="stat-value">1</span>
+                <span class="stat-label">Dias</span>
+            </div>
+            <div class="stat-card fade-in" style="animation-delay: 0.3s;">
+                <div class="icon-box orange"><ion-icon name="flame-outline"></ion-icon></div>
+                <span class="stat-value">5</span>
+                <span class="stat-label">Dias sequência</span>
+            </div>
+        </div>
+
+        <!-- MODE TOGGLES -->
+        <div class="mode-toggles fade-in" style="animation-delay: 0.4s;">
+            <button class="mode-btn active online" onclick="selectMode('online')">
+                <div class="mode-icon"><ion-icon name="wifi-outline"></ion-icon></div>
+                <div class="mode-info">
+                    <span class="mode-title">Online</span>
+                    <span class="mode-sub">Modo econômico</span>
+                </div>
+            </button>
+            <button class="mode-btn focus" onclick="selectMode('focus')">
+                <div class="mode-icon"><ion-icon name="bulb-outline"></ion-icon></div>
+                <div class="mode-info">
+                    <span class="mode-title">Foco Máximo</span>
+                    <span class="mode-sub">Temporizador</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- STATISTICS BUTTON -->
+        <div class="stats-row fade-in" style="animation-delay: 0.5s;">
+            <button class="full-width-btn">
+                <div class="btn-icon"><ion-icon name="stats-chart-outline"></ion-icon></div>
+                <div class="btn-text">
+                    <span class="btn-title">Estatísticas</span>
+                    <span class="btn-sub">Histórico - Rascunho semanal</span>
+                </div>
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+        </div>
+
+        <!-- WEEKLY SUMMARY CHART -->
+        <div class="chart-section fade-in" style="animation-delay: 0.6s;">
+            <div class="section-header">
+                <h3>Resumo Semanal</h3>
+                <span class="badge">17h 25min total</span>
+            </div>
+            <div class="chart-wrapper">
+                <div class="chart-bars" id="weekly-chart"></div>
+                <div class="chart-days" id="weekly-days"></div>
+            </div>
+        </div>
+
+        <!-- UPCOMING CLASSES -->
+        <div class="classes-section fade-in" style="animation-delay: 0.7s;">
+            <div class="section-header">
+                <h3>Próximas Aulas</h3>
+                <a href="#" class="view-all">Ver todas</a>
+            </div>
+            <div class="card-list" id="classes-list"></div>
+        </div>
+
+        <!-- SUBJECT BREAKDOWN -->
+        <div class="section fade-in" style="animation-delay: 0.8s;">
+            <div class="section-header">
+                <h3>Tempo por Disciplina</h3>
+            </div>
+            <div class="card-list" id="subjects-list"></div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

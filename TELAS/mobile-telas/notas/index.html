@@ -37,30 +37,29 @@
             <div class="notes-grid-minimal" id="notes-grid"></div>
         </div>
 
-        <nav class="bottom-nav">
-            <div class="nav-item" data-view="home">
-                <ion-icon name="home-outline"></ion-icon>
-                <span>Início</span>
-            </div>
-            <div class="nav-item" data-view="calendar">
-                <ion-icon name="calendar-outline"></ion-icon>
-                <span>Calendário</span>
-            </div>
-            <div class="nav-item" data-view="tasks">
-                <ion-icon name="checkbox-outline"></ion-icon>
-                <span>Tarefas</span>
-            </div>
-            <div class="nav-item active" data-view="notes">
-                <ion-icon name="document-text-outline"></ion-icon>
-                <span>Notas</span>
-            </div>
-            <div class="nav-item" data-view="profile">
-                <ion-icon name="person-outline"></ion-icon>
-                <span>Perfil</span>
-            </div>
-        </nav>
+    <!-- Barra de Navegação -->
+<nav class="bottom-nav">
+    <div class="nav-item" data-view="home" onclick="window.location.href='../index.html'">
+        <ion-icon name="home-outline"></ion-icon>
+        <span>Início</span>
     </div>
-
+    <div class="nav-item" data-view="calendar" onclick="window.location.href='../calendario/index.html'">
+        <ion-icon name="calendar-outline"></ion-icon>
+        <span>Calendário</span>
+    </div>
+    <div class="nav-item" data-view="tasks" onclick="window.location.href='../tarefas/index.html'">
+        <ion-icon name="checkbox-outline"></ion-icon>
+        <span>Tarefas</span>
+    </div>
+    <div class="nav-item active" data-view="notes">
+        <ion-icon name="document-text-outline"></ion-icon>
+        <span>Notas</span>
+    </div>
+    <div class="nav-item" data-view="profile" onclick="window.location.href='../perfil/index.html'">
+        <ion-icon name="person-outline"></ion-icon>
+        <span>Perfil</span>
+    </div>
+</nav>
     <div class="note-modal-minimal" id="note-modal">
         <div class="note-editor-container">
             <div class="note-editor-header">

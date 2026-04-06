@@ -623,3 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
 });
+// Botão Modo Foco
+document.getElementById('focus-mode-btn')?.addEventListener('click', () => {
+    window.location.href = 'modo-foco/index.html';
+});
