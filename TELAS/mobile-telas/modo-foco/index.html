@@ -3,112 +3,447 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modo Foco - Dashboard</title>
-    <!-- Ícones Ionicons -->
+    <title>Readdy — Modo Foco</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="mobile-frame">
-        <!-- HEADER: Foco de Hoje -->
-        <header class="dashboard-header">
-            <div class="header-info">
-                <span class="subtitle">Foco de Hoje</span>
-                <div class="main-time">
-                    <span id="hours">3</span> <span class="label">horas</span>
-                    <span id="minutes">15</span> <span class="label">minutos</span>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <!-- ══════════════════════════════════ -->
+    <!--  VIEW: DASHBOARD                  -->
+    <!-- ══════════════════════════════════ -->
+    <div class="view" id="view-dashboard">
+        <div class="mobile-frame">
+
+            <svg width="0" height="0" style="position:absolute">
+                <defs>
+                    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#a78bfa"/>
+                        <stop offset="100%" stop-color="#60a5fa"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+
+            <header class="header-card glass">
+                <div class="header-left">
+                    <span class="header-label">Foco de Hoje</span>
+                    <div class="header-time">
+                        <span class="time-big">3h</span>
+                        <span class="time-med">15min</span>
+                    </div>
+                    <span class="header-meta">Meta: 4h 30min</span>
+                </div>
+                <div class="ring-wrap">
+                    <svg class="ring-svg" viewBox="0 0 80 80" width="80" height="80">
+                        <circle class="ring-track" cx="40" cy="40" r="32"/>
+                        <circle class="ring-fill" cx="40" cy="40" r="32" id="progress-circle"/>
+                    </svg>
+                    <span class="ring-pct">72%</span>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card glass fade-in" style="--d:.05s">
+                    <div class="stat-icon ic-purple"><ion-icon name="book-outline"></ion-icon></div>
+                    <span class="stat-val">6</span>
+                    <span class="stat-lbl">Disciplinas</span>
+                </div>
+                <div class="stat-card glass fade-in" style="--d:.1s">
+                    <div class="stat-icon ic-teal"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+                    <span class="stat-val">1</span>
+                    <span class="stat-lbl">Metas<br>atingidas</span>
+                </div>
+                <div class="stat-card glass fade-in" style="--d:.15s">
+                    <div class="stat-icon ic-orange"><ion-icon name="flame-outline"></ion-icon></div>
+                    <span class="stat-val">5</span>
+                    <span class="stat-lbl">Dias<br>seguidos</span>
                 </div>
             </div>
-            <div class="progress-ring-container">
-                <svg class="progress-ring" width="80" height="80">
-                    <circle class="progress-ring-bg" cx="40" cy="40" r="32"/>
-                    <circle class="progress-ring-circle" cx="40" cy="40" r="32" id="progress-circle"/>
-                </svg>
-                <span class="progress-text" id="progress-percent">72%</span>
-            </div>
-        </header>
 
-        <!-- STATS GRID (Sessões, Dias, Sequência) -->
-        <div class="stats-grid">
-            <div class="stat-card fade-in" style="animation-delay: 0.1s;">
-                <div class="icon-box purple"><ion-icon name="play-back-outline"></ion-icon></div>
-                <span class="stat-value">6</span>
-                <span class="stat-label">Sessões</span>
-            </div>
-            <div class="stat-card fade-in" style="animation-delay: 0.2s;">
-                <div class="icon-box blue"><ion-icon name="calendar-outline"></ion-icon></div>
-                <span class="stat-value">1</span>
-                <span class="stat-label">Dias</span>
-            </div>
-            <div class="stat-card fade-in" style="animation-delay: 0.3s;">
-                <div class="icon-box orange"><ion-icon name="flame-outline"></ion-icon></div>
-                <span class="stat-value">5</span>
-                <span class="stat-label">Dias sequência</span>
-            </div>
-        </div>
-
-        <!-- MODE TOGGLES -->
-        <div class="mode-toggles fade-in" style="animation-delay: 0.4s;">
-            <button class="mode-btn active online" onclick="selectMode('online')">
-                <div class="mode-icon"><ion-icon name="wifi-outline"></ion-icon></div>
-                <div class="mode-info">
-                    <span class="mode-title">Online</span>
+            <div class="modes-grid fade-in" style="--d:.2s">
+                <button class="mode-card online-card active" onclick="goTo('view-estudo-online')">
+                    <div class="mode-icon-wrap ic-teal-grad">
+                        <ion-icon name="wifi-outline"></ion-icon>
+                    </div>
+                    <span class="mode-title">Estudo Online</span>
                     <span class="mode-sub">Modo econômico</span>
-                </div>
-            </button>
-            <button class="mode-btn focus" onclick="selectMode('focus')">
-                <div class="mode-icon"><ion-icon name="bulb-outline"></ion-icon></div>
-                <div class="mode-info">
+                </button>
+                <button class="mode-card focus-card" onclick="goTo('view-foco-maximo')">
+                    <div class="mode-icon-wrap ic-purple-grad">
+                        <ion-icon name="scan-circle-outline"></ion-icon>
+                    </div>
                     <span class="mode-title">Foco Máximo</span>
-                    <span class="mode-sub">Temporizador</span>
+                    <span class="mode-sub">Timer &amp; cronômetro</span>
+                </button>
+            </div>
+
+            <button class="stats-btn glass fade-in" style="--d:.25s" onclick="goTo('view-estatisticas')">
+                <div class="stats-btn-icon ic-blue-grad">
+                    <ion-icon name="bar-chart-outline"></ion-icon>
                 </div>
-            </button>
-        </div>
-
-        <!-- STATISTICS BUTTON -->
-        <div class="stats-row fade-in" style="animation-delay: 0.5s;">
-            <button class="full-width-btn">
-                <div class="btn-icon"><ion-icon name="stats-chart-outline"></ion-icon></div>
-                <div class="btn-text">
-                    <span class="btn-title">Estatísticas</span>
-                    <span class="btn-sub">Histórico - Rascunho semanal</span>
+                <div class="stats-btn-text">
+                    <span class="stats-btn-title">Estatísticas</span>
+                    <span class="stats-btn-sub">Histórico · Rascunho semanal · Disciplinas</span>
                 </div>
-                <ion-icon name="chevron-forward-outline"></ion-icon>
+                <ion-icon name="chevron-forward-outline" class="chevron"></ion-icon>
             </button>
-        </div>
 
-        <!-- WEEKLY SUMMARY CHART -->
-        <div class="chart-section fade-in" style="animation-delay: 0.6s;">
-            <div class="section-header">
-                <h3>Resumo Semanal</h3>
-                <span class="badge">17h 25min total</span>
+            <div class="chart-card glass fade-in" style="--d:.3s">
+                <div class="section-head">
+                    <span class="section-label">RESUMO SEMANAL</span>
+                    <span class="section-badge">17h 25min total</span>
+                </div>
+                <div class="chart-area">
+                    <div class="chart-bars" id="weekly-chart"></div>
+                    <div class="chart-labels" id="weekly-days"></div>
+                    <div class="chart-sessions" id="weekly-sessions"></div>
+                    <div class="chart-footer-label">sessões por dia</div>
+                </div>
             </div>
-            <div class="chart-wrapper">
-                <div class="chart-bars" id="weekly-chart"></div>
-                <div class="chart-days" id="weekly-days"></div>
-            </div>
-        </div>
 
-        <!-- UPCOMING CLASSES -->
-        <div class="classes-section fade-in" style="animation-delay: 0.7s;">
-            <div class="section-header">
-                <h3>Próximas Aulas</h3>
-                <a href="#" class="view-all">Ver todas</a>
+            <div class="section fade-in" style="--d:.35s">
+                <div class="section-head-row">
+                    <span class="section-title">Próximas Aulas</span>
+                    <a href="#" class="link-all">Ver todas</a>
+                </div>
+                <div class="aulas-list" id="classes-list"></div>
             </div>
-            <div class="card-list" id="classes-list"></div>
-        </div>
 
-        <!-- SUBJECT BREAKDOWN -->
-        <div class="section fade-in" style="animation-delay: 0.8s;">
-            <div class="section-header">
-                <h3>Tempo por Disciplina</h3>
+            <div class="section fade-in" style="--d:.4s">
+                <div class="section-head-row">
+                    <span class="section-title">Tempo por Disciplina</span>
+                    <span class="section-count">6 disciplinas</span>
+                </div>
+                <div class="disciplinas-list" id="subjects-list"></div>
             </div>
-            <div class="card-list" id="subjects-list"></div>
-        </div>
 
+        </div>
     </div>
+
+    <!-- ══════════════════════════════════ -->
+    <!--  VIEW: FOCO MÁXIMO                -->
+    <!-- ══════════════════════════════════ -->
+    <div class="view hidden" id="view-foco-maximo">
+        <div class="mobile-frame fm-frame">
+
+            <nav class="top-nav">
+                <button class="nav-back" onclick="goTo('view-dashboard')">
+                    <ion-icon name="chevron-back-outline"></ion-icon>
+                </button>
+                <span class="nav-title">FOCO MÁXIMO</span>
+                <button class="nav-settings">
+                    <ion-icon name="options-outline"></ion-icon>
+                </button>
+            </nav>
+
+            <div class="tab-bar">
+                <button class="tab active" id="tab-timer" onclick="switchTab('timer')">Timer</button>
+                <button class="tab" id="tab-crono" onclick="switchTab('crono')">Cronômetro</button>
+            </div>
+
+            <div class="clock-section">
+                <div class="clock-wrap">
+                    <svg class="clock-svg" viewBox="0 0 300 300" width="260" height="260">
+                        <defs>
+                            <radialGradient id="clockBg" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="rgba(80,40,120,0.35)"/>
+                                <stop offset="100%" stop-color="rgba(20,10,40,0.0)"/>
+                            </radialGradient>
+                            <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#d946ef"/>
+                                <stop offset="100%" stop-color="#7c3aed"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="150" cy="150" r="130" fill="url(#clockBg)" stroke="rgba(139,92,246,0.15)" stroke-width="1"/>
+                        <g id="ticks"></g>
+                        <circle id="progress-arc"
+                            cx="150" cy="150" r="118" fill="none"
+                            stroke="url(#arcGrad)" stroke-width="3" stroke-linecap="round"
+                            stroke-dasharray="741" stroke-dashoffset="741"
+                            transform="rotate(-90 150 150)"
+                            style="transition:stroke-dashoffset 1s linear;filter:drop-shadow(0 0 8px rgba(167,139,250,0.8));"/>
+                    </svg>
+                    <div class="clock-center">
+                        <span class="clock-time" id="clock-display">25:00</span>
+                        <span class="clock-sub" id="clock-sub">RESTANTE</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="presets" id="presets">
+                <button class="preset" onclick="setPreset(15)">15min</button>
+                <button class="preset active" onclick="setPreset(25)">25min</button>
+                <button class="preset" onclick="setPreset(45)">45min</button>
+                <button class="preset" onclick="setPreset(60)">60min</button>
+            </div>
+
+            <div class="fm-stats-row">
+                <div class="fm-stat glass">
+                    <ion-icon name="repeat-outline" class="fm-ico ic-purple"></ion-icon>
+                    <span class="fm-n" id="session-count">3</span>
+                    <span class="fm-l">Sessões</span>
+                </div>
+                <div class="fm-stat glass">
+                    <ion-icon name="time-outline" class="fm-ico ic-orange"></ion-icon>
+                    <span class="fm-n" id="today-time">00:00</span>
+                    <span class="fm-l">Hoje</span>
+                </div>
+                <div class="fm-stat glass">
+                    <ion-icon name="flame-outline" class="fm-ico ic-red-fm"></ion-icon>
+                    <span class="fm-n">5d</span>
+                    <span class="fm-l">Sequência</span>
+                </div>
+            </div>
+
+            <div class="fm-controls">
+                <button class="ctrl-btn glass" onclick="resetTimer()">
+                    <ion-icon name="refresh-outline"></ion-icon>
+                </button>
+                <button class="ctrl-play" id="play-btn" onclick="toggleTimer()">
+                    <ion-icon name="play" id="play-icon"></ion-icon>
+                </button>
+                <button class="ctrl-btn glass" onclick="goTo('view-dashboard')">
+                    <ion-icon name="home-outline"></ion-icon>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════ -->
+    <!--  VIEW: ESTUDO ONLINE              -->
+    <!-- ══════════════════════════════════ -->
+    <div class="view hidden" id="view-estudo-online">
+        <div class="mobile-frame eo-frame">
+
+            <!-- NAV -->
+            <nav class="top-nav">
+                <button class="nav-back" onclick="goTo('view-dashboard')">
+                    <ion-icon name="chevron-back-outline"></ion-icon>
+                </button>
+                <span class="nav-title">ESTUDO ONLINE</span>
+                <button class="nav-settings" onclick="toggleEoSettings()">
+                    <ion-icon name="color-palette-outline"></ion-icon>
+                </button>
+            </nav>
+
+            <!-- SETTINGS PANEL (hidden by default) -->
+            <div class="eo-settings glass" id="eo-settings" style="display:none;">
+                <p class="eo-settings-label">Cor do tema</p>
+                <div class="eo-colors">
+                    <div class="eo-color-opt active" data-color="#00e5ff" onclick="setEoColor(this)">
+                        <div class="swatch" style="background:#00e5ff;"></div>
+                        <span>Ciano</span>
+                    </div>
+                    <div class="eo-color-opt" data-color="#00e676" onclick="setEoColor(this)">
+                        <div class="swatch" style="background:#00e676;"></div>
+                        <span>Verde</span>
+                    </div>
+                    <div class="eo-color-opt" data-color="#ff9100" onclick="setEoColor(this)">
+                        <div class="swatch" style="background:#ff9100;"></div>
+                        <span>Laranja</span>
+                    </div>
+                    <div class="eo-color-opt" data-color="#f50057" onclick="setEoColor(this)">
+                        <div class="swatch" style="background:#f50057;"></div>
+                        <span>Rosa</span>
+                    </div>
+                    <div class="eo-color-opt" data-color="#ffd600" onclick="setEoColor(this)">
+                        <div class="swatch" style="background:#ffd600;"></div>
+                        <span>Dourado</span>
+                    </div>
+                </div>
+                <button class="eo-bg-btn glass">
+                    <ion-icon name="image-outline"></ion-icon>
+                    Adicionar foto de fundo
+                </button>
+                <button class="eo-close-btn" onclick="toggleEoSettings()">Fechar</button>
+            </div>
+
+            <!-- ANALOG CLOCK -->
+            <div class="eo-clock-wrap">
+                <svg id="eo-clock-svg" viewBox="0 0 300 300" width="280" height="280">
+                    <defs>
+                        <radialGradient id="eoBg" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="rgba(0,20,30,0.95)"/>
+                            <stop offset="100%" stop-color="rgba(0,8,15,0.98)"/>
+                        </radialGradient>
+                        <filter id="eoGlow">
+                            <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                    </defs>
+
+                    <!-- Face -->
+                    <circle cx="150" cy="150" r="140" fill="url(#eoBg)"/>
+                    <circle cx="150" cy="150" r="138" fill="none" stroke-width="2" id="eo-border-outer" stroke="#00e5ff" opacity="0.6"/>
+                    <circle cx="150" cy="150" r="130" fill="none" stroke-width="0.5" id="eo-border-inner" stroke="#00e5ff" opacity="0.2"/>
+
+                    <!-- Tick marks -->
+                    <g id="eo-ticks"></g>
+
+                    <!-- Numbers 12, 3, 6, 9 -->
+                    <text x="150" y="38" text-anchor="middle" dominant-baseline="middle" id="eo-num" font-size="16" font-weight="700" font-family="'DM Mono',monospace" fill="#00e5ff">12</text>
+                    <text x="262" y="154" text-anchor="middle" dominant-baseline="middle" id="eo-num" font-size="16" font-weight="700" font-family="'DM Mono',monospace" fill="#00e5ff">3</text>
+                    <text x="150" y="270" text-anchor="middle" dominant-baseline="middle" id="eo-num" font-size="16" font-weight="700" font-family="'DM Mono',monospace" fill="#00e5ff">6</text>
+                    <text x="38" y="154" text-anchor="middle" dominant-baseline="middle" id="eo-num" font-size="16" font-weight="700" font-family="'DM Mono',monospace" fill="#00e5ff">9</text>
+
+                    <!-- Center info (battery, temp) -->
+                    <text x="150" y="178" text-anchor="middle" font-size="10" font-family="'DM Mono',monospace" fill="#00e5ff" opacity="0.7">19% 🔋 26°C ☁</text>
+
+                    <!-- Hands -->
+                    <line id="eo-hour"   x1="150" y1="150" x2="150" y2="90"  stroke-width="4" stroke-linecap="round" filter="url(#eoGlow)" stroke="#00e5ff"/>
+                    <line id="eo-minute" x1="150" y1="150" x2="150" y2="65"  stroke-width="2.5" stroke-linecap="round" filter="url(#eoGlow)" stroke="#00e5ff"/>
+                    <line id="eo-second" x1="150" y1="160" x2="150" y2="55"  stroke-width="1.5" stroke-linecap="round" filter="url(#eoGlow)" stroke="#ffffff"/>
+
+                    <!-- Center dot -->
+                    <circle cx="150" cy="150" r="5" fill="#00e5ff" filter="url(#eoGlow)"/>
+                </svg>
+            </div>
+
+            <!-- TAB TOGGLE -->
+            <div class="eo-tab-bar">
+                <button class="eo-tab active" id="eo-tab-relogio"  onclick="switchEoTab('relogio')">Relógio</button>
+                <button class="eo-tab"        id="eo-tab-crono"    onclick="switchEoTab('crono')">Cronômetro</button>
+                <button class="eo-tab"        id="eo-tab-timer"    onclick="switchEoTab('timer')">Timer</button>
+            </div>
+
+            <!-- DIGITAL TIME -->
+            <div class="eo-digital">
+                <span class="eo-time-display" id="eo-digital-time">01:25:27</span>
+                <span class="eo-date" id="eo-date">Terça-Feira, 7 De Abril</span>
+            </div>
+
+            <!-- APP SHORTCUTS -->
+            <div class="eo-apps">
+                <div class="eo-app">
+                    <div class="eo-app-icon" style="background:#ff0000;">
+                        <ion-icon name="logo-youtube"></ion-icon>
+                    </div>
+                    <span>YouTube</span>
+                </div>
+                <div class="eo-app">
+                    <div class="eo-app-icon" style="background:#25d366;">
+                        <ion-icon name="logo-whatsapp"></ion-icon>
+                    </div>
+                    <span>WhatsApp</span>
+                </div>
+                <div class="eo-app">
+                    <div class="eo-app-icon" style="background:#1db954;">
+                        <ion-icon name="musical-notes-outline"></ion-icon>
+                    </div>
+                    <span>Spotify</span>
+                </div>
+                <div class="eo-app">
+                    <div class="eo-app-icon" style="background:#4285f4;">
+                        <ion-icon name="globe-outline"></ion-icon>
+                    </div>
+                    <span>Chrome</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════ -->
+    <!--  VIEW: ESTATÍSTICAS               -->
+    <!-- ══════════════════════════════════ -->
+    <div class="view hidden" id="view-estatisticas">
+        <div class="mobile-frame est-frame">
+
+            <nav class="top-nav">
+                <button class="nav-back" onclick="goTo('view-dashboard')">
+                    <ion-icon name="chevron-back-outline"></ion-icon>
+                </button>
+                <span class="nav-title">ESTATÍSTICAS</span>
+                <button class="nav-settings">
+                    <ion-icon name="person-outline"></ion-icon>
+                </button>
+            </nav>
+
+            <div class="est-card glass">
+                <div class="est-card-head">
+                    <span class="est-card-label">RASCUNHO SEMANAL</span>
+                    <span class="est-card-badge">17h 25min total</span>
+                </div>
+                <div class="est-chart-bars" id="est-chart"></div>
+                <div class="est-chart-days" id="est-days"></div>
+            </div>
+
+            <div class="est-tabs">
+                <button class="est-tab active" onclick="switchEstTab(this,'geral')">Visão Geral</button>
+                <button class="est-tab" onclick="switchEstTab(this,'historico')">Histórico</button>
+                <button class="est-tab" onclick="switchEstTab(this,'disciplinas')">Disciplinas</button>
+            </div>
+
+            <div class="est-stats-grid">
+                <div class="est-stat-box glass">
+                    <ion-icon name="time-outline" class="est-ico ic-teal"></ion-icon>
+                    <span class="est-stat-label">Tempo esta semana</span>
+                    <span class="est-stat-val">17h 25min</span>
+                    <span class="est-stat-sub">7 dias</span>
+                </div>
+                <div class="est-stat-box glass">
+                    <ion-icon name="repeat-outline" class="est-ico ic-purple"></ion-icon>
+                    <span class="est-stat-label">Sessões totais</span>
+                    <span class="est-stat-val">26</span>
+                    <span class="est-stat-sub">nesta semana</span>
+                </div>
+                <div class="est-stat-box glass">
+                    <ion-icon name="stats-chart-outline" class="est-ico ic-blue"></ion-icon>
+                    <span class="est-stat-label">Média diária</span>
+                    <span class="est-stat-val">2h 29min</span>
+                    <span class="est-stat-sub">por sessão</span>
+                </div>
+                <div class="est-stat-box glass">
+                    <ion-icon name="trophy-outline" class="est-ico ic-yellow"></ion-icon>
+                    <span class="est-stat-label">Melhor dia</span>
+                    <span class="est-stat-val">Sáb</span>
+                    <span class="est-stat-sub">desta semana</span>
+                </div>
+            </div>
+
+            <div class="est-streak glass">
+                <div class="est-streak-left">
+                    <div class="est-streak-icon">
+                        <ion-icon name="flame-outline"></ion-icon>
+                    </div>
+                    <div>
+                        <span class="est-streak-val">5 dias seguidos</span>
+                        <span class="est-streak-sub">Sequência atual do estudante</span>
+                    </div>
+                </div>
+                <ion-icon name="flame-outline" class="est-streak-fire"></ion-icon>
+            </div>
+
+            <div class="est-hoje">
+                <div class="est-hoje-head">
+                    <span class="est-hoje-title">HOJE</span>
+                    <span class="est-hoje-meta">meta: 2h</span>
+                </div>
+                <div class="est-hoje-card glass">
+                    <div class="est-hoje-info">
+                        <span class="est-hoje-time">1h 50min</span>
+                        <span class="est-hoje-pct">91% da meta diária</span>
+                    </div>
+                    <div class="est-hoje-bar">
+                        <div class="est-hoje-fill" style="width:91%;"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <input type="file" id="wallpaper-input" accept="image/*" style="display:none;">
 
     <script src="script.js"></script>
 </body>
