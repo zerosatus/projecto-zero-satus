@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Zero · plataforma acadêmica</title>
-<link rel="icon" href="../../imagem/favicon.png" type="image/png">
+<link rel="icon" href="imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -29,7 +29,6 @@
             --danger: #ef4444;
             --card-bg: rgba(30, 41, 59, 0.7);
             
-            /* Mobile variables */
             --header-height: 70px;
             --container-padding: 16px;
         }
@@ -50,7 +49,6 @@
             width: 100%;
         }
 
-        /* ========== HEADER RESPONSIVO ========== */
         header {
             padding: 12px 0;
             position: fixed;
@@ -106,7 +104,6 @@
             letter-spacing: -0.5px;
         }
 
-        /* Menu Desktop */
         .desktop-menu {
             display: none;
         }
@@ -129,7 +126,6 @@
             color: var(--accent);
         }
 
-        /* Menu Mobile */
         .mobile-menu-btn {
             display: block;
             background: none;
@@ -209,7 +205,6 @@
             transform: translateY(-2px);
         }
 
-        /* ========== HERO RESPONSIVO ========== */
         .hero {
             min-height: 100vh;
             display: flex;
@@ -353,7 +348,6 @@
             display: none;
         }
 
-        /* ========== FEATURES RESPONSIVO ========== */
         .features, .dashboard-preview, .modules, .testimonials {
             padding: 60px 0;
         }
@@ -438,7 +432,6 @@
             font-size: 0.85rem;
         }
 
-        /* ========== DASHBOARD PREVIEW RESPONSIVO ========== */
         .preview-container {
             background: var(--card-bg);
             border: 1px solid rgba(147, 51, 234, 0.2);
@@ -543,7 +536,6 @@
             color: white;
         }
 
-        /* ========== MODULES RESPONSIVO ========== */
         .modules-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -588,7 +580,6 @@
             font-size: 0.7rem;
         }
 
-        /* ========== TESTIMONIALS RESPONSIVO ========== */
         .testimonials-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -644,7 +635,6 @@
             font-size: 0.8rem;
         }
 
-        /* ========== CTA RESPONSIVO ========== */
         .cta {
             padding: 60px 16px;
             background: linear-gradient(135deg, var(--accent-light), transparent);
@@ -675,7 +665,6 @@
             gap: 12px;
         }
 
-        /* ========== FOOTER RESPONSIVO ========== */
         footer {
             background: rgba(15, 23, 42, 0.95);
             border-top: 1px solid rgba(147, 51, 234, 0.3);
@@ -740,7 +729,6 @@
             font-size: 0.8rem;
         }
 
-        /* ========== TABLET BREAKPOINT ========== */
         @media (min-width: 640px) {
             :root {
                 --container-padding: 24px;
@@ -773,7 +761,6 @@
             }
         }
 
-        /* ========== DESKTOP BREAKPOINT ========== */
         @media (min-width: 1024px) {
             .desktop-menu {
                 display: block;
@@ -835,7 +822,6 @@
             }
         }
 
-        /* ========== LARGE DESKTOP ========== */
         @media (min-width: 1280px) {
             .floating-card {
                 position: absolute;
@@ -890,7 +876,6 @@
             50% { transform: translateY(-10px); }
         }
 
-        /* Ajustes para telas muito pequenas */
         @media (max-width: 360px) {
             .logo-text {
                 font-size: 18px;
@@ -912,12 +897,11 @@
         <div class="container header-content">
             <div class="logo">
                 <div class="logo-icon">
-                    <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero logo" onerror="this.src='https://via.placeholder.com/40x40/9333ea/ffffff?text=Z'">
+                    <img src="imagem/icon.jpg" alt="Zero logo" onerror="this.src='https://via.placeholder.com/40x40/9333ea/ffffff?text=Z'">
                 </div>
                 <span class="logo-text">Zero</span>
             </div>
             
-            <!-- Menu Desktop -->
             <nav class="desktop-menu">
                 <ul>
                     <li><a href="#home">Início</a></li>
@@ -928,15 +912,13 @@
                 </ul>
             </nav>
 
-            <!-- Menu Mobile Button -->
             <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
                 <i class="fas fa-bars"></i>
             </button>
 
-            <button class="btn-login" onclick="window.location.href='TELAS/login/index.html'">Entrar</button>
+            <button class="btn-login" onclick="window.location.href='login/index.html'">Entrar</button>
         </div>
 
-        <!-- Mobile Navigation -->
         <nav class="mobile-nav" id="mobileNav">
             <ul>
                 <li><a href="#home" class="mobile-link">Início</a></li>
@@ -944,7 +926,7 @@
                 <li><a href="#modules" class="mobile-link">Módulos</a></li>
                 <li><a href="#testimonials" class="mobile-link">Depoimentos</a></li>
                 <li><a href="#contact" class="mobile-link">Contato</a></li>
-                <li><a href="TELAS/login/index.html" class="mobile-link">Entrar</a></li>
+                <li><a href="login/index.html" class="mobile-link">Entrar</a></li>
             </ul>
         </nav>
     </header>
@@ -960,10 +942,10 @@
                     com a plataforma completa para estudantes.
                 </p>
                 <div class="hero-buttons">
-                    <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
+                    <button class="btn-primary" onclick="window.location.href='login/index.html'">
                         <i class="fas fa-rocket"></i> Começar Agora
                     </button>
-                    <button class="btn-secondary" onclick="window.location.href='TELAS/login/index.html'">
+                    <button class="btn-secondary" onclick="window.location.href='login/index.html'">
                         <i class="fas fa-play"></i> Ver Demo
                     </button>
                 </div>
@@ -1168,32 +1150,32 @@
                 <p>Acesse cada área com um clique</p>
             </div>
             <div class="modules-grid">
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
+                <div class="module-card" onclick="window.location.href='login/index.html'">
                     <div class="module-icon"><i class="fas fa-home"></i></div>
                     <h3>Início</h3>
                     <p>Visão geral do seu progresso</p>
                 </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
+                <div class="module-card" onclick="window.location.href='login/index.html'">
                     <div class="module-icon"><i class="fas fa-tasks"></i></div>
                     <h3>Tarefas</h3>
                     <p>Gerencie suas atividades</p>
                 </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
+                <div class="module-card" onclick="window.location.href='login/index.html'">
                     <div class="module-icon"><i class="fas fa-edit"></i></div>
                     <h3>Anotações</h3>
                     <p>Crie e organize suas notas</p>
                 </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
+                <div class="module-card" onclick="window.location.href='login/index.html'">
                     <div class="module-icon"><i class="fas fa-calendar-alt"></i></div>
                     <h3>Calendário</h3>
                     <p>Acompanhe eventos e provas</p>
                 </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
+                <div class="module-card" onclick="window.location.href='login/index.html'">
                     <div class="module-icon"><i class="fas fa-mobile-alt"></i></div>
                     <h3>Versão Mobile</h3>
                     <p>Acesse de qualquer lugar</p>
                 </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
+                <div class="module-card" onclick="window.location.href='login/index.html'">
                     <div class="module-icon"><i class="fas fa-user"></i></div>
                     <h3>Perfil</h3>
                     <p>Gerencie suas informações</p>
@@ -1269,10 +1251,10 @@
             <h2>Pronto para organizar sua vida acadêmica?</h2>
             <p>Junte-se a milhares de estudantes que já estão utilizando a plataforma</p>
             <div class="cta-buttons">
-                <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
+                <button class="btn-primary" onclick="window.location.href='login/index.html'">
                     <i class="fas fa-rocket"></i> Criar conta gratuita
                 </button>
-                <button class="btn-secondary" onclick="window.location.href='TELAS/login/index.html'">
+                <button class="btn-secondary" onclick="window.location.href='login/index.html'">
                     <i class="fas fa-sign-in-alt"></i> Fazer login
                 </button>
             </div>
@@ -1285,7 +1267,7 @@
                 <div class="footer-col">
                     <div class="logo" style="margin-bottom: 20px;">
                         <div class="logo-icon">
-                            <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero logo" onerror="this.src='https://via.placeholder.com/40x40/9333ea/ffffff?text=Z'">
+                            <img src="imagem/icon.jpg" alt="Zero logo" onerror="this.src='https://via.placeholder.com/40x40/9333ea/ffffff?text=Z'">
                         </div>
                         <span class="logo-text">Zero</span>
                     </div>
@@ -1301,21 +1283,21 @@
                 <div class="footer-col">
                     <h4>Módulos</h4>
                     <ul>
-                        <li><a href='TELAS/login/index.html'>Início</a></li>
-                        <li><a href='TELAS/login/index.html'>Tarefas</a></li>
-                        <li><a href='TELAS/login/index.html'>Anotações</a></li>
-                        <li><a href='TELAS/login/index.html'>Calendário</a></li>
-                        <li><a href='TELAS/login/index.html'>Perfil</a></li>
+                        <li><a href='login/index.html'>Início</a></li>
+                        <li><a href='login/index.html'>Tarefas</a></li>
+                        <li><a href='login/index.html'>Anotações</a></li>
+                        <li><a href='login/index.html'>Calendário</a></li>
+                        <li><a href='login/index.html'>Perfil</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
                     <h4>Links Úteis</h4>
                     <ul>
-                        <li><a href='TELAS/login/index.html'>Sobre nós</a></li>
-                        <li><a href='TELAS/login/index.html'>Blog</a></li>
-                        <li><a href='TELAS/login/index.html'>FAQ</a></li>
-                        <li><a href='TELAS/login/index.html'>Suporte</a></li>
-                        <li><a href='TELAS/login/index.html'>Termos de uso</a></li>
+                        <li><a href='login/index.html'>Sobre nós</a></li>
+                        <li><a href='login/index.html'>Blog</a></li>
+                        <li><a href='login/index.html'>FAQ</a></li>
+                        <li><a href='login/index.html'>Suporte</a></li>
+                        <li><a href='login/index.html'>Termos de uso</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
@@ -1341,7 +1323,6 @@
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
                     target.scrollIntoView({ behavior: 'smooth' });
-                    // Fechar menu mobile se estiver aberto
                     if (mobileNav.classList.contains('active')) {
                         mobileNav.classList.remove('active');
                         const icon = mobileMenuBtn.querySelector('i');
@@ -1370,7 +1351,6 @@
             e.stopPropagation();
             mobileNav.classList.toggle('active');
             
-            // Mudar ícone do botão
             const icon = mobileMenuBtn.querySelector('i');
             if (mobileNav.classList.contains('active')) {
                 icon.classList.remove('fa-bars');
@@ -1381,7 +1361,6 @@
             }
         });
 
-        // Fechar menu ao clicar em um link
         document.querySelectorAll('.mobile-link').forEach(link => {
             link.addEventListener('click', () => {
                 mobileNav.classList.remove('active');
@@ -1391,7 +1370,6 @@
             });
         });
 
-        // Fechar menu ao clicar fora
         document.addEventListener('click', (e) => {
             if (!mobileNav.contains(e.target) && !mobileMenuBtn.contains(e.target) && mobileNav.classList.contains('active')) {
                 mobileNav.classList.remove('active');
@@ -1401,7 +1379,6 @@
             }
         });
 
-        // Animação de entrada
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -1418,7 +1395,6 @@
             observer.observe(el);
         });
 
-        // Fechar menu ao redimensionar para desktop
         window.addEventListener('resize', () => {
             if (window.innerWidth >= 1024) {
                 mobileNav.classList.remove('active');
@@ -1430,7 +1406,6 @@
             }
         });
 
-        // Garantir que a logo seja exibida corretamente
         const logoImages = document.querySelectorAll('.logo-icon img');
         logoImages.forEach(img => {
             img.onerror = function() {
