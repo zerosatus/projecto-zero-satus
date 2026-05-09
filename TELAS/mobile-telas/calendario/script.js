@@ -1,4 +1,4 @@
-// Calendário - Gerenciamento de eventos com sincronização
+// Calendário - Gerenciamento de eventos
 
 let notifications = [];
 let calendarEvents = [];
@@ -77,53 +77,6 @@ function loadAllData() {
     
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
-    
-    console.log('📅 Eventos carregados localmente:', calendarEvents.length);
-}
-
-async function syncEventsFromCloud() {
-    if (!usuarioLogado) return false;
-    
-    console.log('🔄 Sincronizando eventos da nuvem...');
-    
-    try {
-        const loaded = await window.CacheManager.loadFromCloud();
-        if (loaded) {
-            const newEvents = window.getCached('calendarEvents', []);
-            if (JSON.stringify(newEvents) !== JSON.stringify(calendarEvents)) {
-                calendarEvents = newEvents;
-                renderCalendar();
-                console.log('✅ Eventos sincronizados! Total:', calendarEvents.length);
-                showToast('Eventos sincronizados!', 'success');
-            }
-            return true;
-        }
-    } catch (error) {
-        console.error('❌ Erro ao sincronizar eventos:', error);
-    }
-    return false;
-}
-
-function setupCacheListeners() {
-    if (window.CacheManager) {
-        window.CacheManager.addListener('calendarEvents', (newEvents) => {
-            if (newEvents && JSON.stringify(newEvents) !== JSON.stringify(calendarEvents)) {
-                console.log('🔄 Eventos atualizados em outra aba!');
-                calendarEvents = newEvents;
-                renderCalendar();
-                showToast('Eventos atualizados!', 'success');
-            }
-        });
-    }
-    
-    window.addEventListener('cloudDataLoaded', (event) => {
-        const cloudData = event.detail;
-        if (cloudData && cloudData.calendarEvents && JSON.stringify(cloudData.calendarEvents) !== JSON.stringify(calendarEvents)) {
-            calendarEvents = cloudData.calendarEvents;
-            renderCalendar();
-            showToast('Eventos sincronizados da nuvem!', 'success');
-        }
-    });
 }
 
 function updateNotificationBadge() {
@@ -290,7 +243,6 @@ function renderEvents() {
                     renderEvents();
                     renderCalendar();
                     showToast('Evento excluído!', 'success');
-                    setTimeout(() => syncEventsFromCloud(), 100);
                 }
             });
         });
@@ -342,22 +294,13 @@ function switchView(viewName) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando página de Calendário...');
-    
-    if (window.CacheManager) {
-        window.CacheManager.init();
-        console.log('✅ CacheManager inicializado');
-    }
-    
+    if (window.CacheManager) window.CacheManager.init();
     loadAllData();
-    setupCacheListeners();
     
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        
-        setTimeout(() => syncEventsFromCloud(), 500);
     }
     
     updateNotificationBadge();
@@ -457,43 +400,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('event-modal').classList.remove('active');
         renderEvents();
         renderCalendar();
-        
-        setTimeout(() => syncEventsFromCloud(), 100);
     });
     
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
-    
-    // Botão de sincronização manual
-    const addSyncButton = () => {
-        const header = document.querySelector('header');
-        if (header && !document.getElementById('manual-sync-btn')) {
-            const syncBtn = document.createElement('div');
-            syncBtn.id = 'manual-sync-btn';
-            syncBtn.className = 'profile-icon';
-            syncBtn.style.marginRight = '8px';
-            syncBtn.innerHTML = '<ion-icon name="sync-outline"></ion-icon>';
-            syncBtn.title = 'Sincronizar com nuvem';
-            syncBtn.onclick = async () => {
-                syncBtn.style.animation = 'spin 0.5s linear';
-                await syncEventsFromCloud();
-                setTimeout(() => {
-                    syncBtn.style.animation = '';
-                }, 500);
-            };
-            const notificationBell = document.getElementById('notification-bell');
-            if (notificationBell) {
-                notificationBell.parentNode.insertBefore(syncBtn, notificationBell);
-            }
-            
-            const style = document.createElement('style');
-            style.textContent = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
-            document.head.appendChild(style);
-        }
-    };
-    
-    setTimeout(addSyncButton, 1000);
-    
-    console.log('✅ Página de Calendário inicializada com sucesso!');
 });
