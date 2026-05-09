@@ -2,59 +2,17 @@
 
 const updates = [
     {
-        version: "v2.1.0",
-        date: "01/04/2026",
-        title: "🎉 Nova Versão!",
+        version: "v2.2.0",
+        date: "09/05/2026",
+        title: "🔥 Banco de Dados em Tempo Real!",
         features: [
-            "✨ Sistema de persistência de dados por usuário",
-            "📱 Interface otimizada para dispositivos móveis",
-            "🔒 Segurança aprimorada com cache por usuário",
-            "📝 Anotações agora são salvas permanentemente",
-            "📅 Calendário com eventos personalizados",
-            "✅ Gerenciamento de tarefas completo",
-            "🎨 Tema escuro e personalização de cores",
-            "🚀 Performance e carregamento mais rápido",
-            "🖼️ Upload de foto de perfil",
-            "☁️ Sincronização com nuvem via Firebase",
-            "📱 Aplicativo responsivo para todos os dispositivos"
-        ]
-    },
-    {
-        version: "v2.0.0",
-        date: "25/03/2026",
-        title: "🚀 Sincronização em Nuvem",
-        features: [
-            "☁️ Sincronização automática com Firebase",
-            "💾 Dados salvos localmente e na nuvem",
-            "🔄 Sincronização entre múltiplos dispositivos",
-            "📱 Login com Google e GitHub",
-            "🔐 Segurança aprimorada"
-        ]
-    },
-    {
-        version: "v1.5.0",
-        date: "15/03/2026",
-        title: "⚡ Melhorias de Performance",
-        features: [
-            "⚡ Carregamento mais rápido",
-            "💾 Melhor sincronização de dados",
-            "🐛 Correção de bugs no horário semanal",
-            "📱 Melhor responsividade em tablets",
-            "🎨 Interface mais intuitiva"
-        ]
-    },
-    {
-        version: "v1.0.0",
-        date: "01/03/2026",
-        title: "🎯 Lançamento Oficial",
-        features: [
-            "🏠 Dashboard com resumo de atividades",
-            "📊 Horário semanal personalizável",
-            "📝 Sistema de anotações",
-            "📅 Calendário acadêmico",
-            "✅ Lista de tarefas com prioridades",
-            "👤 Perfil do usuário com configurações",
-            "🔔 Sistema de notificações"
+            "☁️ Realtime Database do Firebase totalmente integrado",
+            "🔄 Sincronização automática entre dispositivos",
+            "💾 Seus dados salvos com segurança na nuvem",
+            "📱 Acesse suas anotações, tarefas e calendário em qualquer lugar",
+            "⚡ Atualizações em tempo real sem precisar recarregar",
+            "🔒 Segurança com autenticação por usuário",
+            "🚀 Dados sincronizados automaticamente ao fazer login"
         ]
     }
 ];
@@ -81,21 +39,21 @@ function showUpdatesPopup() {
         <div class="updates-popup-content">
             <div class="updates-popup-header">
                 <div class="updates-popup-icon">
-                    <i class="fas fa-rocket"></i>
+                    <i class="fas fa-cloud-upload-alt"></i>
                 </div>
-                <h2>Novidades!</h2>
+                <h2>Banco de Dados em Tempo Real!</h2>
                 <button class="updates-popup-close">&times;</button>
             </div>
             <div class="updates-popup-body">
                 <div class="update-badge">
-                    <i class="fas fa-star"></i> Nova versão disponível!
+                    <i class="fas fa-database"></i> Realtime Database conectado!
                 </div>
                 ${updates.map(update => `
-                    <div class="update-version ${update.version === latestVersion ? 'latest' : ''}">
+                    <div class="update-version latest">
                         <div class="update-version-header">
                             <span class="update-version-tag">${update.version}</span>
                             <span class="update-version-date">${update.date}</span>
-                            ${update.version === latestVersion ? '<span class="new-badge">NOVO!</span>' : ''}
+                            <span class="new-badge">ATIVO!</span>
                         </div>
                         <h3>${update.title}</h3>
                         <ul>
@@ -103,10 +61,13 @@ function showUpdatesPopup() {
                         </ul>
                     </div>
                 `).join('')}
+                <div style="text-align: center; margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 12px;">
+                    <i class="fas fa-sync-alt" style="color: #10b981; margin-right: 8px;"></i>
+                    <span style="color: #10b981; font-size: 12px;">Sincronização automática ativada!</span>
+                </div>
             </div>
             <div class="updates-popup-footer">
-                <button class="updates-popup-btn" id="updates-gotit">Entendi!</button>
-                <button class="updates-popup-skip" id="updates-skip">Ignorar esta versão</button>
+                <button class="updates-popup-btn" id="updates-gotit">Continuar</button>
             </div>
         </div>
     `;
@@ -140,20 +101,20 @@ function showUpdatesPopup() {
         
         .updates-popup-content {
             position: relative;
-            max-width: 550px;
+            max-width: 500px;
             width: 90%;
-            max-height: 85vh;
+            max-height: 80vh;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 28px;
             overflow: hidden;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(147, 51, 234, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.3);
             animation: slideUp 0.3s ease;
         }
         
         .updates-popup-header {
             padding: 20px 24px;
-            background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
             display: flex;
             align-items: center;
             gap: 12px;
@@ -178,7 +139,7 @@ function showUpdatesPopup() {
         
         .updates-popup-header h2 {
             color: white;
-            font-size: 28px;
+            font-size: 22px;
             margin: 0;
             flex: 1;
             font-weight: 700;
@@ -221,7 +182,7 @@ function showUpdatesPopup() {
         }
         
         .updates-popup-body::-webkit-scrollbar-thumb {
-            background: #9333ea;
+            background: #10b981;
             border-radius: 3px;
         }
         
@@ -259,11 +220,11 @@ function showUpdatesPopup() {
         }
         
         .update-version.latest {
-            background: rgba(147, 51, 234, 0.1);
+            background: rgba(16, 185, 129, 0.1);
             border-radius: 16px;
             padding: 16px;
-            margin: -8px -8px 24px -8px;
-            border: 1px solid rgba(147, 51, 234, 0.3);
+            margin: -8px -8px 0 -8px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
         
         .update-version-header {
@@ -276,13 +237,13 @@ function showUpdatesPopup() {
         }
         
         .update-version-tag {
-            background: rgba(147, 51, 234, 0.2);
-            color: #c084fc;
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            border: 1px solid rgba(147, 51, 234, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
         
         .update-version-date {
@@ -338,16 +299,14 @@ function showUpdatesPopup() {
             padding: 16px 24px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
-            display: flex;
-            gap: 12px;
             background: rgba(0, 0, 0, 0.3);
         }
         
         .updates-popup-btn {
-            flex: 2;
-            background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+            width: 100%;
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
             border: none;
-            padding: 12px 20px;
+            padding: 14px 20px;
             border-radius: 40px;
             color: white;
             font-size: 14px;
@@ -358,25 +317,7 @@ function showUpdatesPopup() {
         
         .updates-popup-btn:hover {
             transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
-        }
-        
-        .updates-popup-skip {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 12px 20px;
-            border-radius: 40px;
-            color: #aaa;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .updates-popup-skip:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
         
         @keyframes fadeIn {
@@ -419,15 +360,14 @@ function showUpdatesPopup() {
             }
             
             .updates-popup-header h2 {
-                font-size: 22px;
+                font-size: 18px;
             }
             
             .updates-popup-footer {
                 flex-direction: column;
             }
             
-            .updates-popup-btn,
-            .updates-popup-skip {
+            .updates-popup-btn {
                 width: 100%;
             }
         }
@@ -436,64 +376,55 @@ function showUpdatesPopup() {
     
     const closeBtn = popup.querySelector('.updates-popup-close');
     const gotitBtn = popup.querySelector('#updates-gotit');
-    const skipBtn = popup.querySelector('#updates-skip');
     const overlay = popup.querySelector('.updates-popup-overlay');
     
-    const closePopup = (saveSkip = false) => {
+    const closePopup = () => {
         popup.style.animation = 'fadeOut 0.3s ease';
         setTimeout(() => popup.remove(), 300);
         
-        if (saveSkip) {
-            localStorage.setItem(`update_seen_${latestVersion}`, 'skipped');
-        } else {
-            localStorage.setItem(`update_seen_${latestVersion}`, 'seen');
-        }
+        localStorage.setItem(`update_seen_${latestVersion}`, 'seen');
         localStorage.setItem('last_seen_update_version', latestVersion);
     };
     
-    closeBtn.addEventListener('click', () => closePopup(false));
-    gotitBtn.addEventListener('click', () => closePopup(false));
-    skipBtn.addEventListener('click', () => closePopup(true));
-    overlay.addEventListener('click', () => closePopup(false));
+    closeBtn.addEventListener('click', () => closePopup());
+    gotitBtn.addEventListener('click', () => closePopup());
+    overlay.addEventListener('click', () => closePopup());
     
-    // Adicionar efeito de confete para versões importantes
-    if (latestVersion === 'v2.1.0') {
-        setTimeout(() => {
-            // Efeito simples de confete
-            for (let i = 0; i < 30; i++) {
-                const confetti = document.createElement('div');
-                confetti.style.cssText = `
-                    position: fixed;
-                    width: 8px;
-                    height: 8px;
-                    background: ${['#9333ea', '#10b981', '#f59e0b', '#ef4444'][Math.floor(Math.random() * 4)]};
-                    top: -10px;
-                    left: ${Math.random() * 100}%;
-                    border-radius: 2px;
-                    animation: confettiFall ${1 + Math.random() * 2}s linear forwards;
-                    z-index: 10001;
-                    pointer-events: none;
-                `;
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 3000);
-            }
-            
-            const confettiStyle = document.createElement('style');
-            confettiStyle.textContent = `
-                @keyframes confettiFall {
-                    0% {
-                        transform: translateY(0) rotate(0deg);
-                        opacity: 1;
-                    }
-                    100% {
-                        transform: translateY(100vh) rotate(360deg);
-                        opacity: 0;
-                    }
-                }
+    // Efeito de confete para celebrar o novo banco de dados
+    setTimeout(() => {
+        for (let i = 0; i < 40; i++) {
+            const confetti = document.createElement('div');
+            confetti.style.cssText = `
+                position: fixed;
+                width: 10px;
+                height: 10px;
+                background: ${['#10b981', '#059669', '#34d399', '#6ee7b7'][Math.floor(Math.random() * 4)]};
+                top: -10px;
+                left: ${Math.random() * 100}%;
+                border-radius: 2px;
+                animation: confettiFall ${1 + Math.random() * 2}s linear forwards;
+                z-index: 10001;
+                pointer-events: none;
             `;
-            document.head.appendChild(confettiStyle);
-        }, 100);
-    }
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 3000);
+        }
+        
+        const confettiStyle = document.createElement('style');
+        confettiStyle.textContent = `
+            @keyframes confettiFall {
+                0% {
+                    transform: translateY(0) rotate(0deg);
+                    opacity: 1;
+                }
+                100% {
+                    transform: translateY(100vh) rotate(360deg);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(confettiStyle);
+    }, 100);
 }
 
 // Verificar se é a primeira vez que o usuário vê o popup
