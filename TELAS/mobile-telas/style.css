@@ -1197,3 +1197,10 @@ section {
 @keyframes spin {
     to { transform: translateY(-50%) rotate(360deg); }
 }
+
+
+
+/* Esconder botão de Modo Foco na tela inicial */
+#focus-mode-btn {
+    display: none !important;
+}

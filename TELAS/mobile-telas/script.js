@@ -1,4 +1,4 @@
-// Página Principal - Dashboard
+// Página Principal - Dashboard (com suporte a Realtime DB)
 
 let notifications = [];
 let weeklySchedule = {};
@@ -66,20 +66,27 @@ function escapeHtml(text) {
 
 function loadUserData() {
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (usuarioSalvo) {
-        try {
-            const user = JSON.parse(usuarioSalvo);
-            if (usuarioLogado) {
-                usuarioLogado.nome = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
-                usuarioLogado.email = user.email;
-                usuarioLogado.uid = user.uid;
-            }
-        } catch(e) {}
-    }
+    if (!usuarioSalvo) return;
     
-    if (usuarioLogado && usuarioLogado.nome) {
+    try {
+        const user = JSON.parse(usuarioSalvo);
+        
+        // Garantir que usuarioLogado existe
+        if (!usuarioLogado) {
+            usuarioLogado = {};
+        }
+        
+        usuarioLogado.nome = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
+        usuarioLogado.email = user.email;
+        usuarioLogado.uid = user.uid;
+        
+        // Atualizar o header com o nome do usuário
         const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        if (headerName) {
+            headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        }
+    } catch(e) {
+        console.error('Erro ao carregar usuário:', e);
     }
 }
 
@@ -88,9 +95,24 @@ async function loadFromCloud() {
     syncInProgress = true;
     
     try {
-        showToast('Sincronizando dados da nuvem...', 'info', 2000);
+        console.log('Carregando dados da nuvem...');
         const loaded = await window.CacheManager.loadFromCloud();
         if (loaded) {
+            // Recarregar dados do cache após sincronização
+            const cachedUser = window.getCached('usuarioLogado', null);
+            if (cachedUser) usuarioLogado = cachedUser;
+            notifications = window.getCached('notifications', []);
+            weeklySchedule = window.getCached('weeklySchedule', {});
+            timeSlots = window.getCached('timeSlots', []);
+            calendarEvents = window.getCached('calendarEvents', []);
+            tasks = window.getCached('tasks', []);
+            notes = window.getCached('notes', []);
+            
+            // Garantir estrutura do weeklySchedule
+            days.forEach(day => {
+                if (!weeklySchedule[day]) weeklySchedule[day] = [];
+            });
+            
             refreshHomeData();
             showToast('Dados sincronizados!', 'success');
         }
@@ -107,8 +129,15 @@ async function forceSync() {
         return;
     }
     
+    if (syncInProgress) {
+        showToast('Sincronização já em andamento...', 'info');
+        return;
+    }
+    
+    syncInProgress = true;
+    
     try {
-        showToast('Sincronizando dados...', 'info');
+        showToast('Enviando dados para a nuvem...', 'info');
         
         const allData = {
             usuarioLogado: usuarioLogado,
@@ -120,15 +149,21 @@ async function forceSync() {
             notes: notes
         };
         
-        const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
-        if (result) {
-            showToast('Dados sincronizados com sucesso!', 'success');
+        if (window.FirebaseSync) {
+            const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
+            if (result) {
+                showToast('✅ Dados sincronizados com sucesso!', 'success');
+            } else {
+                showToast('❌ Erro ao sincronizar dados', 'error');
+            }
         } else {
-            showToast('Erro ao sincronizar dados', 'error');
+            showToast('Firebase não disponível', 'error');
         }
     } catch (error) {
         console.error('Erro na sincronização:', error);
         showToast('Erro ao sincronizar dados', 'error');
+    } finally {
+        syncInProgress = false;
     }
 }
 
@@ -147,29 +182,36 @@ function saveAllData() {
 }
 
 function loadAllData() {
-    usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
-    
-    if (!usuarioLogado || !usuarioLogado.email) {
-        window.location.href = '../../login/index.html';
-        return;
+    try {
+        usuarioLogado = window.getCached('usuarioLogado', null);
+        
+        if (!usuarioLogado || !usuarioLogado.email) {
+            window.location.href = '../../login/index.html';
+            return;
+        }
+        
+        loadUserData();
+        
+        notifications = window.getCached('notifications', []);
+        weeklySchedule = window.getCached('weeklySchedule', {});
+        timeSlots = window.getCached('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
+        calendarEvents = window.getCached('calendarEvents', []);
+        tasks = window.getCached('tasks', []);
+        notes = window.getCached('notes', []);
+        
+        days.forEach(day => {
+            if (!weeklySchedule[day]) weeklySchedule[day] = [];
+        });
+        
+        console.log('Dados carregados localmente');
+        
+        // Carregar dados da nuvem após 1.5 segundos
+        setTimeout(() => {
+            loadFromCloud();
+        }, 1500);
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
     }
-    
-    loadUserData();
-    
-    notifications = window.getCached('notifications', window.getDefaultNotifications());
-    weeklySchedule = window.getCached('weeklySchedule', window.getDefaultWeeklySchedule());
-    timeSlots = window.getCached('timeSlots', window.getDefaultTimeSlots());
-    calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
-    tasks = window.getCached('tasks', window.getDefaultTasks());
-    notes = window.getCached('notes', window.getDefaultNotes());
-    
-    days.forEach(day => {
-        if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    });
-    
-    setTimeout(() => {
-        loadFromCloud();
-    }, 1000);
 }
 
 function updateSummaryCards() {
@@ -181,9 +223,9 @@ function updateSummaryCards() {
     const concluidas = tasks.filter(t => t.completed).length;
     const pendentes = tasks.filter(t => !t.completed).length;
     
-    const cardDisciplinas = document.querySelector('.card:nth-child(1) .card-number');
-    const cardConcluidas = document.querySelector('.card:nth-child(2) .card-number');
-    const cardPendentes = document.querySelector('.card:nth-child(3) .card-number');
+    const cardDisciplinas = document.getElementById('card-disciplinas');
+    const cardConcluidas = document.getElementById('card-concluidas');
+    const cardPendentes = document.getElementById('card-pendentes');
     
     if (cardDisciplinas) cardDisciplinas.textContent = disciplinas;
     if (cardConcluidas) cardConcluidas.textContent = concluidas;
@@ -518,6 +560,7 @@ function addNewTimeSlot() {
 }
 
 function switchView(viewName) {
+    console.log('Mudando para:', viewName);
     if (viewName === 'home') {
         refreshHomeData();
     } else if (viewName === 'calendar') {
@@ -560,35 +603,70 @@ function clearAllNotifications() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.CacheManager) window.CacheManager.init();
+    console.log('DOM carregado - Inicializando...');
+    
+    if (window.CacheManager) {
+        window.CacheManager.init();
+        console.log('CacheManager inicializado');
+    } else {
+        console.error('CacheManager não encontrado!');
+    }
+    
     loadAllData();
     
-    if (usuarioLogado) {
-        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
-        const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+    // Garantir que o nome do usuário seja exibido mesmo se loadUserData não foi chamado corretamente
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo && (!usuarioLogado || !usuarioLogado.nome)) {
+        try {
+            const user = JSON.parse(usuarioSalvo);
+            const nomeExibicao = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
+            const headerName = document.getElementById('header-name');
+            if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+        } catch(e) {}
     }
     
     updateNotificationBadge();
     refreshHomeData();
     
-    document.getElementById('notification-bell')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.add('active');
-        renderNotificationsModal();
-    });
+    // Botão de notificações
+    const notificationBell = document.getElementById('notification-bell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', () => {
+            const modal = document.getElementById('notifications-modal');
+            if (modal) {
+                modal.classList.add('active');
+                renderNotificationsModal();
+            }
+        });
+    }
     
-    document.getElementById('notification-bell-link')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.add('active');
-        renderNotificationsModal();
-    });
+    const notificationBellLink = document.getElementById('notification-bell-link');
+    if (notificationBellLink) {
+        notificationBellLink.addEventListener('click', () => {
+            const modal = document.getElementById('notifications-modal');
+            if (modal) {
+                modal.classList.add('active');
+                renderNotificationsModal();
+            }
+        });
+    }
     
-    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.remove('active');
-    });
+    // Fechar modal de notificações
+    const closeNotificationsBtn = document.getElementById('btn-close-notifications');
+    if (closeNotificationsBtn) {
+        closeNotificationsBtn.addEventListener('click', () => {
+            document.getElementById('notifications-modal').classList.remove('active');
+        });
+    }
     
-    document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
-    document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
+    // Botões de ações
+    const markReadBtn = document.getElementById('btn-mark-read');
+    if (markReadBtn) markReadBtn.addEventListener('click', markAllAsRead);
     
+    const clearAllBtn = document.getElementById('btn-clear-all');
+    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllNotifications);
+    
+    // Tabs de notificações
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -597,19 +675,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    document.getElementById('toggle-edit-mode')?.addEventListener('click', openEditModal);
-    document.getElementById('btn-back')?.addEventListener('click', closeEditModal);
-    document.getElementById('btn-save')?.addEventListener('click', closeEditModal);
-    document.getElementById('btn-add-time')?.addEventListener('click', addNewTimeSlot);
-    document.getElementById('btn-cancel-time')?.addEventListener('click', () => {
-        document.getElementById('new-time-input').value = '11:00';
-    });
+    // Modais de edição
+    const editModeBtn = document.getElementById('toggle-edit-mode');
+    if (editModeBtn) editModeBtn.addEventListener('click', openEditModal);
     
-    document.querySelector('[data-modal="subject-modal"]')?.addEventListener('click', () => {
-        document.getElementById('subject-modal').classList.remove('active');
-    });
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) btnBack.addEventListener('click', closeEditModal);
     
-    document.getElementById('btn-save-subject')?.addEventListener('click', saveSubject);
+    const btnSave = document.getElementById('btn-save');
+    if (btnSave) btnSave.addEventListener('click', closeEditModal);
+    
+    const btnAddTime = document.getElementById('btn-add-time');
+    if (btnAddTime) btnAddTime.addEventListener('click', addNewTimeSlot);
+    
+    const btnCancelTime = document.getElementById('btn-cancel-time');
+    if (btnCancelTime) {
+        btnCancelTime.addEventListener('click', () => {
+            document.getElementById('new-time-input').value = '11:00';
+        });
+    }
+    
+    const modalSubjectClose = document.querySelector('[data-modal="subject-modal"]');
+    if (modalSubjectClose) {
+        modalSubjectClose.addEventListener('click', () => {
+            document.getElementById('subject-modal').classList.remove('active');
+        });
+    }
+    
+    const btnSaveSubject = document.getElementById('btn-save-subject');
+    if (btnSaveSubject) btnSaveSubject.addEventListener('click', saveSubject);
     
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
@@ -619,11 +713,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => switchView(item.dataset.view));
+        item.addEventListener('click', () => {
+            const view = item.dataset.view;
+            if (view) switchView(view);
+        });
     });
-});
-// Botão Modo Foco
-document.getElementById('focus-mode-btn')?.addEventListener('click', () => {
-    window.location.href = 'modo-foco/index.html';
+    
+    // Botão Modo Foco
+    const focusBtn = document.getElementById('focus-mode-btn');
+    if (focusBtn) {
+        focusBtn.addEventListener('click', () => {
+            window.location.href = 'modo-foco/index.html';
+        });
+    }
+    
+    console.log('Inicialização concluída');
 });

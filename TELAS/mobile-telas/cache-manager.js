@@ -94,7 +94,8 @@ class CacheManager {
                 callbacks.forEach(cb => cb(value));
             }
             
-            if (!this.isSyncing && window.FirebaseSync && this.currentUserId !== 'default') {
+            // Sincronizar com a nuvem (Realtime DB)
+            if (!this.isSyncing && window.FirebaseSync && this.currentUserId && this.currentUserId !== 'default') {
                 this.syncToCloud(key, value);
             }
             
@@ -126,19 +127,28 @@ class CacheManager {
             const cloudData = await window.FirebaseSync.loadAllUserDataFromCloud(userId);
             if (cloudData) {
                 const keys = ['usuarioLogado', 'notifications', 'weeklySchedule', 'timeSlots', 'calendarEvents', 'tasks', 'notes', 'notificacoesSettings', 'appearanceSettings'];
+                let hasChanges = false;
                 
                 for (const key of keys) {
-                    if (cloudData[key] !== undefined) {
-                        const storageKey = this.getStorageKey(key);
-                        localStorage.setItem(storageKey, JSON.stringify(cloudData[key]));
-                        
-                        if (this.listeners.has(key)) {
-                            const callbacks = this.listeners.get(key);
-                            callbacks.forEach(cb => cb(cloudData[key]));
+                    if (cloudData[key] !== undefined && cloudData[key] !== null) {
+                        // Evitar sobrescrever dados mais recentes localmente (opcional)
+                        const localData = this.get(key, null);
+                        // Se não tem dados locais OU os dados da nuvem são mais recentes
+                        if (localData === null) {
+                            const storageKey = this.getStorageKey(key);
+                            localStorage.setItem(storageKey, JSON.stringify(cloudData[key]));
+                            hasChanges = true;
+                            
+                            if (this.listeners.has(key)) {
+                                const callbacks = this.listeners.get(key);
+                                callbacks.forEach(cb => cb(cloudData[key]));
+                            }
                         }
                     }
                 }
-                console.log('[CacheManager] Dados carregados da nuvem!');
+                if (hasChanges) {
+                    console.log('[CacheManager] Dados carregados da nuvem (Realtime DB)!');
+                }
                 return true;
             }
         } catch (error) {
