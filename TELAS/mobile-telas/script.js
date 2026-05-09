@@ -71,6 +71,7 @@ function loadUserData() {
     try {
         const user = JSON.parse(usuarioSalvo);
         
+        // Garantir que usuarioLogado existe
         if (!usuarioLogado) {
             usuarioLogado = {};
         }
@@ -79,6 +80,7 @@ function loadUserData() {
         usuarioLogado.email = user.email;
         usuarioLogado.uid = user.uid;
         
+        // Atualizar o header com o nome do usuário
         const headerName = document.getElementById('header-name');
         if (headerName) {
             headerName.textContent = usuarioLogado.nome.split(' ')[0];
@@ -87,6 +89,85 @@ function loadUserData() {
         console.error('Erro ao carregar usuário:', e);
     }
 }
+
+async function loadFromCloud() {
+    if (syncInProgress) return;
+    syncInProgress = true;
+    
+    try {
+        console.log('Carregando dados da nuvem...');
+        const loaded = await window.CacheManager.loadFromCloud();
+        if (loaded) {
+            // Recarregar dados do cache após sincronização
+            const cachedUser = window.getCached('usuarioLogado', null);
+            if (cachedUser) usuarioLogado = cachedUser;
+            notifications = window.getCached('notifications', []);
+            weeklySchedule = window.getCached('weeklySchedule', {});
+            timeSlots = window.getCached('timeSlots', []);
+            calendarEvents = window.getCached('calendarEvents', []);
+            tasks = window.getCached('tasks', []);
+            notes = window.getCached('notes', []);
+            
+            // Garantir estrutura do weeklySchedule
+            days.forEach(day => {
+                if (!weeklySchedule[day]) weeklySchedule[day] = [];
+            });
+            
+            refreshHomeData();
+            showToast('Dados sincronizados!', 'success');
+        }
+    } catch (error) {
+        console.error('Erro ao sincronizar:', error);
+    } finally {
+        syncInProgress = false;
+    }
+}
+
+async function forceSync() {
+    if (!usuarioLogado || !usuarioLogado.uid) {
+        showToast('Faça login primeiro!', 'error');
+        return;
+    }
+    
+    if (syncInProgress) {
+        showToast('Sincronização já em andamento...', 'info');
+        return;
+    }
+    
+    syncInProgress = true;
+    
+    try {
+        showToast('Enviando dados para a nuvem...', 'info');
+        
+        const allData = {
+            usuarioLogado: usuarioLogado,
+            notifications: notifications,
+            weeklySchedule: weeklySchedule,
+            timeSlots: timeSlots,
+            calendarEvents: calendarEvents,
+            tasks: tasks,
+            notes: notes
+        };
+        
+        if (window.FirebaseSync) {
+            const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
+            if (result) {
+                showToast('✅ Dados sincronizados com sucesso!', 'success');
+            } else {
+                showToast('❌ Erro ao sincronizar dados', 'error');
+            }
+        } else {
+            showToast('Firebase não disponível', 'error');
+        }
+    } catch (error) {
+        console.error('Erro na sincronização:', error);
+        showToast('Erro ao sincronizar dados', 'error');
+    } finally {
+        syncInProgress = false;
+    }
+}
+
+window.forceSync = forceSync;
 
 function saveAllData() {
     if (!usuarioLogado || !usuarioLogado.uid) return;
@@ -122,101 +203,15 @@ function loadAllData() {
             if (!weeklySchedule[day]) weeklySchedule[day] = [];
         });
         
-        console.log('📦 Dados carregados localmente - Tarefas:', tasks.length, 'Notas:', notes.length);
+        console.log('Dados carregados localmente');
+        
+        // Carregar dados da nuvem após 1.5 segundos
+        setTimeout(() => {
+            loadFromCloud();
+        }, 1500);
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
     }
-}
-
-async function syncFromCloud() {
-    if (syncInProgress) return;
-    syncInProgress = true;
-    
-    try {
-        console.log('☁️ Sincronizando dados da nuvem...');
-        const loaded = await window.CacheManager.loadFromCloud();
-        if (loaded) {
-            // Recarregar todos os dados após sync
-            const newTasks = window.getCached('tasks', []);
-            const newNotes = window.getCached('notes', []);
-            const newEvents = window.getCached('calendarEvents', []);
-            const newSchedule = window.getCached('weeklySchedule', {});
-            
-            let hasChanges = false;
-            
-            if (JSON.stringify(newTasks) !== JSON.stringify(tasks)) {
-                tasks = newTasks;
-                hasChanges = true;
-            }
-            if (JSON.stringify(newNotes) !== JSON.stringify(notes)) {
-                notes = newNotes;
-                hasChanges = true;
-            }
-            if (JSON.stringify(newEvents) !== JSON.stringify(calendarEvents)) {
-                calendarEvents = newEvents;
-                hasChanges = true;
-            }
-            if (JSON.stringify(newSchedule) !== JSON.stringify(weeklySchedule)) {
-                weeklySchedule = newSchedule;
-                hasChanges = true;
-            }
-            
-            if (hasChanges) {
-                console.log('✅ Dados atualizados da nuvem!');
-                refreshHomeData();
-                showToast('Dados sincronizados!', 'success');
-            }
-        }
-    } catch (error) {
-        console.error('Erro ao sincronizar:', error);
-    } finally {
-        syncInProgress = false;
-    }
-}
-
-function setupCacheListeners() {
-    if (!window.CacheManager) return;
-    
-    window.CacheManager.addListener('tasks', (newTasks) => {
-        if (newTasks && JSON.stringify(newTasks) !== JSON.stringify(tasks)) {
-            console.log('🔄 Tarefas atualizadas em outra aba!');
-            tasks = newTasks;
-            refreshHomeData();
-        }
-    });
-    
-    window.CacheManager.addListener('notes', (newNotes) => {
-        if (newNotes && JSON.stringify(newNotes) !== JSON.stringify(notes)) {
-            console.log('🔄 Notas atualizadas em outra aba!');
-            notes = newNotes;
-            refreshHomeData();
-        }
-    });
-    
-    window.CacheManager.addListener('calendarEvents', (newEvents) => {
-        if (newEvents && JSON.stringify(newEvents) !== JSON.stringify(calendarEvents)) {
-            console.log('🔄 Eventos atualizados em outra aba!');
-            calendarEvents = newEvents;
-            refreshHomeData();
-        }
-    });
-    
-    window.addEventListener('cloudDataLoaded', (event) => {
-        console.log('☁️ Dados carregados da nuvem!');
-        const cloudData = event.detail;
-        if (cloudData) {
-            if (cloudData.tasks && JSON.stringify(cloudData.tasks) !== JSON.stringify(tasks)) {
-                tasks = cloudData.tasks;
-            }
-            if (cloudData.notes && JSON.stringify(cloudData.notes) !== JSON.stringify(notes)) {
-                notes = cloudData.notes;
-            }
-            if (cloudData.calendarEvents && JSON.stringify(cloudData.calendarEvents) !== JSON.stringify(calendarEvents)) {
-                calendarEvents = cloudData.calendarEvents;
-            }
-            refreshHomeData();
-        }
-    });
 }
 
 function updateSummaryCards() {
@@ -400,6 +395,185 @@ function renderSchedule() {
     grid.innerHTML = html;
 }
 
+function openEditModal() {
+    const editModal = document.getElementById('edit-modal');
+    if (editModal) {
+        editModal.classList.add('active');
+        renderEditSchedule();
+    }
+}
+
+function closeEditModal() {
+    const editModal = document.getElementById('edit-modal');
+    if (editModal) {
+        editModal.classList.remove('active');
+        renderSchedule();
+        updateSummaryCards();
+    }
+}
+
+function renderEditSchedule() {
+    const grid = document.getElementById('edit-schedule-grid');
+    if (!grid) return;
+    
+    let html = '<div class="day-header">Hora</div>';
+    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    
+    timeSlots.forEach(time => {
+        html += `<div class="time-slot">
+            ${time}
+            <button class="btn-delete-row" data-time="${time}">
+                <ion-icon name="trash-outline"></ion-icon>
+            </button>
+        </div>`;
+        days.forEach(day => {
+            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (classItem) {
+                html += `<div class="edit-cell">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color}">
+                        ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="edit-cell">
+                    <button class="btn-add" data-day="${day}" data-time="${time}">+</button>
+                </div>`;
+            }
+        });
+    });
+    grid.innerHTML = html;
+    
+    document.querySelectorAll('.btn-delete-row').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const time = btn.dataset.time;
+            showConfirm(`Remover horário ${time}?`, 'Excluir Horário', (confirmed) => {
+                if (confirmed) {
+                    timeSlots = timeSlots.filter(t => t !== time);
+                    days.forEach(day => {
+                        if (weeklySchedule[day]) {
+                            weeklySchedule[day] = weeklySchedule[day].filter(c => c.horaInicio !== time);
+                        }
+                    });
+                    saveAllData();
+                    renderEditSchedule();
+                    showToast('Horário removido!', 'success');
+                }
+            });
+        });
+    });
+    
+    document.querySelectorAll('.btn-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+            openSubjectModal(null, btn.dataset.day, btn.dataset.time);
+        });
+    });
+}
+
+function openSubjectModal(subject, day, time) {
+    const modal = document.getElementById('subject-modal');
+    const title = document.getElementById('subject-modal-title');
+    const nameInput = document.getElementById('subject-name-input');
+    const teacherInput = document.getElementById('subject-teacher-input');
+    const startInput = document.getElementById('subject-start-input');
+    const endInput = document.getElementById('subject-end-input');
+    const dayInput = document.getElementById('subject-day-input');
+    
+    if (!modal) return;
+    
+    editingSubject = subject;
+    if (dayInput) dayInput.value = day;
+    
+    if (subject) {
+        title.textContent = 'Editar Matéria';
+        if (nameInput) nameInput.value = subject.materia;
+        if (teacherInput) teacherInput.value = subject.professor || '';
+        if (startInput) startInput.value = subject.horaInicio;
+        if (endInput) endInput.value = subject.horaFim || '';
+        selectedSubjectColor = subject.color;
+    } else {
+        title.textContent = 'Adicionar Matéria';
+        if (nameInput) nameInput.value = '';
+        if (teacherInput) teacherInput.value = '';
+        if (startInput) startInput.value = time;
+        if (endInput) endInput.value = '';
+        selectedSubjectColor = '#6366f1';
+    }
+    
+    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
+    });
+    modal.classList.add('active');
+}
+
+function saveSubject() {
+    const name = document.getElementById('subject-name-input')?.value.trim();
+    const teacher = document.getElementById('subject-teacher-input')?.value.trim();
+    const startTime = document.getElementById('subject-start-input')?.value;
+    const endTime = document.getElementById('subject-end-input')?.value;
+    const day = document.getElementById('subject-day-input')?.value;
+    
+    if (!name) { showToast('Preencha o nome da matéria!', 'error'); return; }
+    if (!startTime || !endTime) { showToast('Defina início e término!', 'error'); return; }
+    if (endTime <= startTime) { showToast('Término deve ser depois do início!', 'error'); return; }
+    
+    if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    
+    if (editingSubject) {
+        const oldStart = editingSubject.horaInicio;
+        weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
+    }
+    
+    weeklySchedule[day].push({
+        materia: name,
+        professor: teacher,
+        color: selectedSubjectColor,
+        horaInicio: startTime,
+        horaFim: endTime
+    });
+    weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+    
+    saveAllData();
+    updateSummaryCards();
+    document.getElementById('subject-modal').classList.remove('active');
+    showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
+    
+    const editModal = document.getElementById('edit-modal');
+    if (editModal && editModal.classList.contains('active')) {
+        renderEditSchedule();
+    } else {
+        renderSchedule();
+    }
+}
+
+function addNewTimeSlot() {
+    const newTime = document.getElementById('new-time-input')?.value;
+    if (!newTime) { showToast('Selecione um horário!', 'error'); return; }
+    if (timeSlots.includes(newTime)) { showToast('Este horário já existe!', 'error'); return; }
+    
+    timeSlots.push(newTime);
+    timeSlots.sort();
+    saveAllData();
+    document.getElementById('new-time-input').value = '11:00';
+    renderEditSchedule();
+    showToast('Horário adicionado!', 'success');
+}
+
+function switchView(viewName) {
+    console.log('Mudando para:', viewName);
+    if (viewName === 'home') {
+        refreshHomeData();
+    } else if (viewName === 'calendar') {
+        window.location.href = 'calendario/index.html';
+    } else if (viewName === 'tasks') {
+        window.location.href = 'tarefas/index.html';
+    } else if (viewName === 'notes') {
+        window.location.href = 'notas/index.html';
+    } else if (viewName === 'profile') {
+        window.location.href = 'perfil/index.html';
+    }
+}
+
 function refreshHomeData() {
     updateSummaryCards();
     renderSchedule();
@@ -428,39 +602,33 @@ function clearAllNotifications() {
     });
 }
 
-function switchView(viewName) {
-    if (viewName === 'home') {
-        refreshHomeData();
-    } else if (viewName === 'calendar') {
-        window.location.href = '../calendario/index.html';
-    } else if (viewName === 'tasks') {
-        window.location.href = '../tarefas/index.html';
-    } else if (viewName === 'notes') {
-        window.location.href = '../notas/index.html';
-    } else if (viewName === 'profile') {
-        window.location.href = '../perfil/index.html';
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando página Inicial...');
+    console.log('DOM carregado - Inicializando...');
     
     if (window.CacheManager) {
         window.CacheManager.init();
-        console.log('✅ CacheManager inicializado');
+        console.log('CacheManager inicializado');
+    } else {
+        console.error('CacheManager não encontrado!');
     }
     
     loadAllData();
-    setupCacheListeners();
+    
+    // Garantir que o nome do usuário seja exibido mesmo se loadUserData não foi chamado corretamente
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo && (!usuarioLogado || !usuarioLogado.nome)) {
+        try {
+            const user = JSON.parse(usuarioSalvo);
+            const nomeExibicao = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
+            const headerName = document.getElementById('header-name');
+            if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+        } catch(e) {}
+    }
     
     updateNotificationBadge();
     refreshHomeData();
     
-    // Sincronizar da nuvem após carregar
-    setTimeout(() => {
-        syncFromCloud();
-    }, 1000);
-    
+    // Botão de notificações
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
         notificationBell.addEventListener('click', () => {
@@ -483,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Fechar modal de notificações
     const closeNotificationsBtn = document.getElementById('btn-close-notifications');
     if (closeNotificationsBtn) {
         closeNotificationsBtn.addEventListener('click', () => {
@@ -490,12 +659,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Botões de ações
     const markReadBtn = document.getElementById('btn-mark-read');
     if (markReadBtn) markReadBtn.addEventListener('click', markAllAsRead);
     
     const clearAllBtn = document.getElementById('btn-clear-all');
     if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllNotifications);
     
+    // Tabs de notificações
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -504,6 +675,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Modais de edição
+    const editModeBtn = document.getElementById('toggle-edit-mode');
+    if (editModeBtn) editModeBtn.addEventListener('click', openEditModal);
+    
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) btnBack.addEventListener('click', closeEditModal);
+    
+    const btnSave = document.getElementById('btn-save');
+    if (btnSave) btnSave.addEventListener('click', closeEditModal);
+    
+    const btnAddTime = document.getElementById('btn-add-time');
+    if (btnAddTime) btnAddTime.addEventListener('click', addNewTimeSlot);
+    
+    const btnCancelTime = document.getElementById('btn-cancel-time');
+    if (btnCancelTime) {
+        btnCancelTime.addEventListener('click', () => {
+            document.getElementById('new-time-input').value = '11:00';
+        });
+    }
+    
+    const modalSubjectClose = document.querySelector('[data-modal="subject-modal"]');
+    if (modalSubjectClose) {
+        modalSubjectClose.addEventListener('click', () => {
+            document.getElementById('subject-modal').classList.remove('active');
+        });
+    }
+    
+    const btnSaveSubject = document.getElementById('btn-save-subject');
+    if (btnSaveSubject) btnSaveSubject.addEventListener('click', saveSubject);
+    
+    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
+            option.classList.add('active');
+            selectedSubjectColor = option.dataset.color;
+        });
+    });
+    
+    // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
@@ -511,34 +721,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Botão Modo Foco
     const focusBtn = document.getElementById('focus-mode-btn');
     if (focusBtn) {
         focusBtn.addEventListener('click', () => {
-            window.location.href = '../modo-foco/index.html';
+            window.location.href = 'modo-foco/index.html';
         });
     }
     
-    // Botão de sincronização manual
-    const addSyncButton = () => {
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions && !document.getElementById('manual-sync-btn')) {
-            const syncBtn = document.createElement('button');
-            syncBtn.id = 'manual-sync-btn';
-            syncBtn.className = 'icon-btn';
-            syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            syncBtn.title = 'Sincronizar com nuvem';
-            syncBtn.onclick = async () => {
-                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                await syncFromCloud();
-                setTimeout(() => {
-                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                }, 1000);
-            };
-            headerActions.prepend(syncBtn);
-        }
-    };
-    
-    setTimeout(addSyncButton, 1000);
-    
-    console.log('✅ Página Inicial inicializada com sucesso!');
+    console.log('Inicialização concluída');
 });
