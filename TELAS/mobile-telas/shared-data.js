@@ -1,4 +1,4 @@
-// Dados compartilhados entre as telas - SEM DADOS DE EXEMPLO
+// Dados compartilhados entre as telas - COM SISTEMA DE RECARGA AUTOMÁTICA
 
 function getDefaultUser() {
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -48,6 +48,26 @@ function getDefaultAppearanceSettings() {
     return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
 }
 
+// Função para forçar recarregamento de dados da nuvem em todas as abas
+async function syncAllDataFromCloud() {
+    if (window.CacheManager) {
+        const result = await window.CacheManager.forceSync();
+        if (result) {
+            console.log('✅ Sincronização manual concluída');
+        }
+        return result;
+    }
+    return false;
+}
+
+// Função para recarregar a página atual (útil para atualizações críticas)
+function reloadPageAfterSync() {
+    console.log('🔄 Recarregando página após sincronização...');
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
+}
+
 window.getDefaultUser = getDefaultUser;
 window.getDefaultNotifications = getDefaultNotifications;
 window.getDefaultTasks = getDefaultTasks;
@@ -57,3 +77,5 @@ window.getDefaultWeeklySchedule = getDefaultWeeklySchedule;
 window.getDefaultTimeSlots = getDefaultTimeSlots;
 window.getDefaultNotificacoesSettings = getDefaultNotificacoesSettings;
 window.getDefaultAppearanceSettings = getDefaultAppearanceSettings;
+window.syncAllDataFromCloud = syncAllDataFromCloud;
+window.reloadPageAfterSync = reloadPageAfterSync;

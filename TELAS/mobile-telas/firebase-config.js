@@ -13,6 +13,7 @@
     // Inicializar Firebase apenas se ainda não foi inicializado
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
+        console.log('[Firebase] Firebase inicializado!');
     }
     
     const database = firebase.database();
@@ -26,10 +27,10 @@
                 const userRef = database.ref(`users/${userId}/${dataType}`);
                 await userRef.set(data);
                 await database.ref(`users/${userId}/lastUpdated`).set(firebase.database.ServerValue.TIMESTAMP);
-                console.log(`[Cloud] ${dataType} salvo!`);
+                console.log(`[Cloud] ✅ ${dataType} salvo na nuvem!`);
                 return true;
             } catch (error) {
-                console.error('[Cloud] Erro ao salvar:', error);
+                console.error('[Cloud] ❌ Erro ao salvar:', error);
                 return false;
             }
         },
@@ -41,7 +42,7 @@
                 const snapshot = await database.ref(`users/${userId}/${dataType}`).once('value');
                 return snapshot.val();
             } catch (error) {
-                console.error('[Cloud] Erro ao carregar:', error);
+                console.error('[Cloud] ❌ Erro ao carregar:', error);
                 return null;
             }
         },
@@ -50,20 +51,23 @@
         async syncAllDataToCloud(userId, data) {
             if (!userId) return false;
             try {
+                // Remover dados sensíveis ou circulares
+                const cleanData = { ...data };
+                delete cleanData.saveAllData;
+                delete cleanData.loadAllData;
+                delete cleanData.syncAllDataToCloud;
+                
                 const userData = {
-                    ...data,
+                    ...cleanData,
                     lastUpdated: firebase.database.ServerValue.TIMESTAMP,
                     userId: userId
                 };
-                // Remover campos circulares ou funções que possam causar erro
-                delete userData.saveAllData;
-                delete userData.loadAllData;
                 
                 await database.ref(`users/${userId}`).update(userData);
-                console.log('[Cloud] Todos dados sincronizados!');
+                console.log('[Cloud] ✅ Todos dados sincronizados com a nuvem!');
                 return true;
             } catch (error) {
-                console.error('[Cloud] Erro na sincronização total:', error);
+                console.error('[Cloud] ❌ Erro na sincronização total:', error);
                 return false;
             }
         },
@@ -72,30 +76,55 @@
         async loadAllUserDataFromCloud(userId) {
             if (!userId) return null;
             try {
+                console.log('[Cloud] 🔍 Buscando dados do usuário na nuvem...');
                 const snapshot = await database.ref(`users/${userId}`).once('value');
                 const data = snapshot.val();
-                if (data) {
-                    console.log('[Cloud] Dados carregados com sucesso!');
+                if (data && Object.keys(data).length > 0) {
+                    console.log('[Cloud] ✅ Dados carregados da nuvem com sucesso!');
                     return data;
                 }
+                console.log('[Cloud] ⚠️ Nenhum dado encontrado na nuvem');
                 return null;
             } catch (error) {
-                console.error('[Cloud] Erro ao carregar todos dados:', error);
+                console.error('[Cloud] ❌ Erro ao carregar todos dados:', error);
                 return null;
             }
         },
         
-        // Escutar mudanças em tempo real (opcional)
+        // Escutar mudanças em tempo real
         listenToUserData(userId, callback) {
             if (!userId) return null;
+            console.log('[Cloud] 📡 Iniciando escuta em tempo real...');
             const userRef = database.ref(`users/${userId}`);
             const listener = userRef.on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && callback) callback(data);
+                if (data && callback) {
+                    console.log('[Cloud] 🔔 Mudança detectada na nuvem!');
+                    callback(data);
+                }
             });
-            return () => userRef.off('value', listener);
+            return () => {
+                console.log('[Cloud] 🔌 Parando escuta em tempo real');
+                userRef.off('value', listener);
+            };
+        },
+        
+        // Configurar sincronização automática com keepSynced
+        enableAutoSync(userId) {
+            if (!userId) return;
+            const userRef = database.ref(`users/${userId}`);
+            userRef.keepSynced(true);
+            console.log('[Cloud] 🔄 Auto-sync ativado para o usuário');
         }
     };
+    
+    // Configurar auto-sync quando usuário logar
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            console.log('[Firebase] Usuário autenticado:', user.uid);
+            window.FirebaseSync.enableAutoSync(user.uid);
+        }
+    });
     
     console.log('[Firebase] Configuração do Realtime Database carregada!');
 })();
