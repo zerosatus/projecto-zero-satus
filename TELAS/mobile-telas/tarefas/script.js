@@ -1,4 +1,4 @@
-// Tarefas - Gerenciamento de tarefas com sincronização
+// Tarefas - Gerenciamento de tarefas
 
 let notifications = [];
 let tasks = [];
@@ -76,53 +76,6 @@ function loadAllData() {
     
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     tasks = window.getCached('tasks', window.getDefaultTasks());
-    
-    console.log('📋 Tarefas carregadas localmente:', tasks.length);
-}
-
-async function syncTasksFromCloud() {
-    if (!usuarioLogado) return false;
-    
-    console.log('🔄 Sincronizando tarefas da nuvem...');
-    
-    try {
-        const loaded = await window.CacheManager.loadFromCloud();
-        if (loaded) {
-            const newTasks = window.getCached('tasks', []);
-            if (JSON.stringify(newTasks) !== JSON.stringify(tasks)) {
-                tasks = newTasks;
-                renderTasks();
-                console.log('✅ Tarefas sincronizadas! Total:', tasks.length);
-                showToast('Tarefas sincronizadas!', 'success');
-            }
-            return true;
-        }
-    } catch (error) {
-        console.error('❌ Erro ao sincronizar tarefas:', error);
-    }
-    return false;
-}
-
-function setupCacheListeners() {
-    if (window.CacheManager) {
-        window.CacheManager.addListener('tasks', (newTasks) => {
-            if (newTasks && JSON.stringify(newTasks) !== JSON.stringify(tasks)) {
-                console.log('🔄 Tarefas atualizadas em outra aba!');
-                tasks = newTasks;
-                renderTasks();
-                showToast('Tarefas atualizadas!', 'success');
-            }
-        });
-    }
-    
-    window.addEventListener('cloudDataLoaded', (event) => {
-        const cloudData = event.detail;
-        if (cloudData && cloudData.tasks && JSON.stringify(cloudData.tasks) !== JSON.stringify(tasks)) {
-            tasks = cloudData.tasks;
-            renderTasks();
-            showToast('Tarefas sincronizadas da nuvem!', 'success');
-        }
-    });
 }
 
 function updateNotificationBadge() {
@@ -235,7 +188,6 @@ function renderTasks() {
                 saveAllData();
                 renderTasks();
                 showToast(task.completed ? 'Tarefa concluída!' : 'Tarefa reaberta!', 'success');
-                setTimeout(() => syncTasksFromCloud(), 100);
             }
         });
     });
@@ -292,22 +244,13 @@ function switchView(viewName) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando página de Tarefas...');
-    
-    if (window.CacheManager) {
-        window.CacheManager.init();
-        console.log('✅ CacheManager inicializado');
-    }
-    
+    if (window.CacheManager) window.CacheManager.init();
     loadAllData();
-    setupCacheListeners();
     
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        
-        setTimeout(() => syncTasksFromCloud(), 500);
     }
     
     updateNotificationBadge();
@@ -401,40 +344,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
         document.getElementById('task-modal').classList.remove('active');
         renderTasks();
-        
-        setTimeout(() => syncTasksFromCloud(), 100);
     });
     
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
-    
-    // Botão de sincronização manual
-    const addSyncButton = () => {
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions && !document.getElementById('manual-sync-btn')) {
-            const syncBtn = document.createElement('button');
-            syncBtn.id = 'manual-sync-btn';
-            syncBtn.className = 'icon-btn';
-            syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            syncBtn.title = 'Sincronizar com nuvem';
-            syncBtn.style.background = 'var(--card-bg)';
-            syncBtn.style.border = 'none';
-            syncBtn.style.borderRadius = '10px';
-            syncBtn.style.padding = '8px 12px';
-            syncBtn.style.cursor = 'pointer';
-            syncBtn.onclick = async () => {
-                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                await syncTasksFromCloud();
-                setTimeout(() => {
-                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                }, 1000);
-            };
-            headerActions.prepend(syncBtn);
-        }
-    };
-    
-    setTimeout(addSyncButton, 1000);
-    
-    console.log('✅ Página de Tarefas inicializada com sucesso!');
 });
