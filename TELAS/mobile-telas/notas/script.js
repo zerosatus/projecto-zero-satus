@@ -1,9 +1,11 @@
-// Notas - Gerenciamento de anotações
+// Notas - Gerenciamento de anotações com sincronização em tempo real
 
 let notifications = [];
 let notes = [];
 let usuarioLogado = null;
 let editingNoteId = null;
+let unsubscribeCloudListener = null;
+let syncTimeout = null;
 
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -73,6 +75,8 @@ function loadAllData() {
     
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     notes = window.getCached('notes', window.getDefaultNotes());
+    
+    console.log('📝 Notas carregadas localmente:', notes.length);
 }
 
 function updateNotificationBadge() {
@@ -253,14 +257,85 @@ function switchView(viewName) {
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.CacheManager) window.CacheManager.init();
+// Função para sincronizar da nuvem e recarregar UI
+async function syncNotesFromCloud() {
+    if (!usuarioLogado) return false;
+    
+    console.log('🔄 Sincronizando notas da nuvem...');
+    showToast('Sincronizando notas...', 'info');
+    
+    try {
+        const loaded = await window.CacheManager.loadFromCloud();
+        if (loaded) {
+            // Recarregar dados após sync
+            const newNotes = window.getCached('notes', []);
+            if (JSON.stringify(newNotes) !== JSON.stringify(notes)) {
+                notes = newNotes;
+                renderNotes(document.getElementById('notes-search-input')?.value || '');
+                console.log('✅ Notas sincronizadas! Total:', notes.length);
+                showToast('Notas sincronizadas!', 'success');
+            } else {
+                console.log('📝 Nenhuma mudança nas notas');
+            }
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao sincronizar notas:', error);
+        showToast('Erro ao sincronizar', 'error');
+    }
+    return false;
+}
+
+// Configurar listener para mudanças no cache
+function setupCacheListener() {
+    if (window.CacheManager) {
+        window.CacheManager.addListener('notes', (newNotes) => {
+            if (newNotes && JSON.stringify(newNotes) !== JSON.stringify(notes)) {
+                console.log('🔄 Notas atualizadas em outra aba/sincronização!');
+                notes = newNotes;
+                renderNotes(document.getElementById('notes-search-input')?.value || '');
+                showToast('Notas atualizadas!', 'success');
+            }
+        });
+    }
+}
+
+// Configurar listener para eventos de sincronização da nuvem
+function setupCloudListener() {
+    window.addEventListener('cloudDataLoaded', (event) => {
+        console.log('☁️ Dados carregados da nuvem!');
+        const cloudData = event.detail;
+        if (cloudData && cloudData.notes) {
+            if (JSON.stringify(cloudData.notes) !== JSON.stringify(notes)) {
+                notes = cloudData.notes;
+                renderNotes(document.getElementById('notes-search-input')?.value || '');
+                showToast('Notas sincronizadas da nuvem!', 'success');
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Inicializando página de Notas...');
+    
+    if (window.CacheManager) {
+        window.CacheManager.init();
+        console.log('✅ CacheManager inicializado');
+    }
+    
     loadAllData();
+    setupCacheListener();
+    setupCloudListener();
     
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+        
+        // Tentar carregar dados da nuvem imediatamente
+        setTimeout(async () => {
+            await syncNotesFromCloud();
+        }, 500);
     }
     
     updateNotificationBadge();
@@ -326,9 +401,45 @@ document.addEventListener('DOMContentLoaded', () => {
         renderNotes(document.getElementById('notes-search-input')?.value || '');
         document.getElementById('note-modal').classList.remove('active');
         showToast(editingNoteId ? 'Anotação atualizada!' : 'Anotação criada!', 'success');
+        
+        // Forçar sincronização após salvar
+        setTimeout(() => syncNotesFromCloud(), 100);
     });
     
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
+    
+    // Botão de sincronização manual (adicione no HTML se quiser)
+    const addSyncButton = () => {
+        const header = document.querySelector('header');
+        if (header && !document.getElementById('manual-sync-btn')) {
+            const syncBtn = document.createElement('div');
+            syncBtn.id = 'manual-sync-btn';
+            syncBtn.className = 'profile-icon';
+            syncBtn.style.marginRight = '8px';
+            syncBtn.innerHTML = '<ion-icon name="sync-outline"></ion-icon>';
+            syncBtn.title = 'Sincronizar com nuvem';
+            syncBtn.onclick = async () => {
+                syncBtn.style.animation = 'spin 0.5s linear';
+                await syncNotesFromCloud();
+                setTimeout(() => {
+                    syncBtn.style.animation = '';
+                }, 500);
+            };
+            const notificationBell = document.getElementById('notification-bell');
+            if (notificationBell) {
+                notificationBell.parentNode.insertBefore(syncBtn, notificationBell);
+            }
+            
+            // Adicionar estilo de animação
+            const style = document.createElement('style');
+            style.textContent = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+            document.head.appendChild(style);
+        }
+    };
+    
+    setTimeout(addSyncButton, 1000);
+    
+    console.log('✅ Página de Notas inicializada com sucesso!');
 });
