@@ -58,4 +58,5 @@ A tela de apresentação ja esta feita e responsiva, adaptase automaticamente pa
 telas de mobile terminadas e sistema de mudaca de telas de pc para mobile finalizado so falta testar 
  telas de mobile finalizada pronto
  
- 
+ 09.05.26
+ a base de dados ja funciona(realtime) e finalmete ja é usavel.
