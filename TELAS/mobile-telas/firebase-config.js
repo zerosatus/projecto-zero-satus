@@ -113,7 +113,7 @@
         enableAutoSync(userId) {
             if (!userId) return;
             const userRef = database.ref(`users/${userId}`);
-            userRef.keepSynced(true);
+           // userRef.keepSynced(true);
             console.log('[Cloud] 🔄 Auto-sync ativado para o usuário');
         }
     };

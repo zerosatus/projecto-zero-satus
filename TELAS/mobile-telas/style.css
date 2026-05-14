@@ -1173,6 +1173,8 @@ section {
     to { transform: translateX(0); opacity: 1; }
 }
 
+/* ... (todo CSS anterior) ... */
+
 /* ==================== ANIMAÇÃO DE SALVAMENTO ==================== */
 .btn-saving {
     position: relative;
@@ -1198,9 +1200,7 @@ section {
     to { transform: translateY(-50%) rotate(360deg); }
 }
 
-
-
-/* Esconder botão de Modo Foco na tela inicial */
+/* ✅ NOVO: Esconder botão de Modo Foco na tela inicial */
 #focus-mode-btn {
     display: none !important;
 }

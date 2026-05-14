@@ -1,5 +1,4 @@
-// Página Principal - Dashboard (com suporte a Realtime DB)
-
+// Página Principal - Dashboard (CORRIGIDO)
 let notifications = [];
 let weeklySchedule = {};
 let timeSlots = [];
@@ -53,8 +52,9 @@ function showConfirm(message, title, callback) {
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
     
-    document.getElementById('confirm-ok').onclick = handleConfirm;
-    document.getElementById('confirm-cancel').onclick = handleCancel;
+    // ✅ CORREÇÃO: Usar addEventListener para combinar com removeEventListener no cleanup
+    document.getElementById('confirm-ok').addEventListener('click', handleConfirm);
+    document.getElementById('confirm-cancel').addEventListener('click', handleCancel);
 }
 
 function escapeHtml(text) {
@@ -67,52 +67,32 @@ function escapeHtml(text) {
 function loadUserData() {
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) return;
-    
     try {
         const user = JSON.parse(usuarioSalvo);
-        
-        // Garantir que usuarioLogado existe
-        if (!usuarioLogado) {
-            usuarioLogado = {};
-        }
-        
+        if (!usuarioLogado) usuarioLogado = {};
         usuarioLogado.nome = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
         usuarioLogado.email = user.email;
         usuarioLogado.uid = user.uid;
-        
-        // Atualizar o header com o nome do usuário
         const headerName = document.getElementById('header-name');
-        if (headerName) {
-            headerName.textContent = usuarioLogado.nome.split(' ')[0];
-        }
-    } catch(e) {
-        console.error('Erro ao carregar usuário:', e);
-    }
+        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
+    } catch(e) { console.error('Erro ao carregar usuário:', e); }
 }
 
 async function loadFromCloud() {
     if (syncInProgress) return;
     syncInProgress = true;
-    
     try {
-        console.log('Carregando dados da nuvem...');
+        showToast('Sincronizando dados da nuvem...', 'info', 2000);
         const loaded = await window.CacheManager.loadFromCloud();
         if (loaded) {
-            // Recarregar dados do cache após sincronização
-            const cachedUser = window.getCached('usuarioLogado', null);
-            if (cachedUser) usuarioLogado = cachedUser;
+            // Recarrega variáveis locais após sync
             notifications = window.getCached('notifications', []);
             weeklySchedule = window.getCached('weeklySchedule', {});
             timeSlots = window.getCached('timeSlots', []);
             calendarEvents = window.getCached('calendarEvents', []);
             tasks = window.getCached('tasks', []);
             notes = window.getCached('notes', []);
-            
-            // Garantir estrutura do weeklySchedule
-            days.forEach(day => {
-                if (!weeklySchedule[day]) weeklySchedule[day] = [];
-            });
-            
+            days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
             refreshHomeData();
             showToast('Dados sincronizados!', 'success');
         }
@@ -124,54 +104,27 @@ async function loadFromCloud() {
 }
 
 async function forceSync() {
-    if (!usuarioLogado || !usuarioLogado.uid) {
-        showToast('Faça login primeiro!', 'error');
-        return;
-    }
-    
-    if (syncInProgress) {
-        showToast('Sincronização já em andamento...', 'info');
-        return;
-    }
-    
+    if (!usuarioLogado || !usuarioLogado.uid) { showToast('Faça login primeiro!', 'error'); return; }
+    if (syncInProgress) { showToast('Sincronização já em andamento...', 'info'); return; }
     syncInProgress = true;
-    
     try {
         showToast('Enviando dados para a nuvem...', 'info');
-        
         const allData = {
-            usuarioLogado: usuarioLogado,
-            notifications: notifications,
-            weeklySchedule: weeklySchedule,
-            timeSlots: timeSlots,
-            calendarEvents: calendarEvents,
-            tasks: tasks,
-            notes: notes
+            usuarioLogado, notifications, weeklySchedule, timeSlots, calendarEvents, tasks, notes
         };
-        
         if (window.FirebaseSync) {
             const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
-            if (result) {
-                showToast('✅ Dados sincronizados com sucesso!', 'success');
-            } else {
-                showToast('❌ Erro ao sincronizar dados', 'error');
-            }
-        } else {
-            showToast('Firebase não disponível', 'error');
-        }
+            showToast(result ? '✅ Dados sincronizados com sucesso!' : '❌ Erro ao sincronizar dados', result ? 'success' : 'error');
+        } else { showToast('Firebase não disponível', 'error'); }
     } catch (error) {
         console.error('Erro na sincronização:', error);
         showToast('Erro ao sincronizar dados', 'error');
-    } finally {
-        syncInProgress = false;
-    }
+    } finally { syncInProgress = false; }
 }
-
 window.forceSync = forceSync;
 
 function saveAllData() {
     if (!usuarioLogado || !usuarioLogado.uid) return;
-    
     window.setCached('usuarioLogado', usuarioLogado);
     window.setCached('notifications', notifications);
     window.setCached('weeklySchedule', weeklySchedule);
@@ -184,34 +137,19 @@ function saveAllData() {
 function loadAllData() {
     try {
         usuarioLogado = window.getCached('usuarioLogado', null);
-        
-        if (!usuarioLogado || !usuarioLogado.email) {
-            window.location.href = '../../login/index.html';
-            return;
-        }
-        
+        if (!usuarioLogado || !usuarioLogado.email) { window.location.href = '../../login/index.html'; return; }
         loadUserData();
-        
         notifications = window.getCached('notifications', []);
         weeklySchedule = window.getCached('weeklySchedule', {});
         timeSlots = window.getCached('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
         calendarEvents = window.getCached('calendarEvents', []);
         tasks = window.getCached('tasks', []);
         notes = window.getCached('notes', []);
-        
-        days.forEach(day => {
-            if (!weeklySchedule[day]) weeklySchedule[day] = [];
-        });
-        
-        console.log('Dados carregados localmente');
-        
-        // Carregar dados da nuvem após 1.5 segundos
-        setTimeout(() => {
-            loadFromCloud();
-        }, 1500);
-    } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-    }
+        days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
+        console.log('✅ Dados carregados localmente');
+        refreshHomeData();
+        // ⚠️ setTimeout removido para evitar sobrescrita silenciosa. Use o botão "Sincronizar" ou listener em tempo real.
+    } catch (error) { console.error('❌ Erro ao carregar dados:', error); }
 }
 
 function updateSummaryCards() {
@@ -222,11 +160,9 @@ function updateSummaryCards() {
     const disciplinas = materias.size;
     const concluidas = tasks.filter(t => t.completed).length;
     const pendentes = tasks.filter(t => !t.completed).length;
-    
     const cardDisciplinas = document.getElementById('card-disciplinas');
     const cardConcluidas = document.getElementById('card-concluidas');
     const cardPendentes = document.getElementById('card-pendentes');
-    
     if (cardDisciplinas) cardDisciplinas.textContent = disciplinas;
     if (cardConcluidas) cardConcluidas.textContent = concluidas;
     if (cardPendentes) cardPendentes.textContent = pendentes;
@@ -244,17 +180,14 @@ function updateNotificationBadge() {
 function renderNotificationsModal(filter = 'all') {
     const list = document.getElementById('notifications-list-modal');
     if (!list) return;
-    
     let filtered = [...notifications];
     if (filter === 'unread') filtered = notifications.filter(n => !n.read);
     else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
     else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-    
     if (filtered.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
         return;
     }
-    
     let html = '';
     filtered.forEach(notif => {
         const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
@@ -286,13 +219,11 @@ function formatTime(timeString) {
 function renderNotificationsDynamic() {
     const list = document.getElementById('notifications-list');
     if (!list) return;
-    
     const unreadNotifications = notifications.filter(n => !n.read).slice(0, 3);
     if (unreadNotifications.length === 0) {
         list.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
         return;
     }
-    
     let html = '';
     unreadNotifications.forEach(item => {
         const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
@@ -313,19 +244,16 @@ function renderNotificationsDynamic() {
 function renderNextEvent() {
     const container = document.getElementById('next-event-container');
     if (!container) return;
-    
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const sortedEvents = [...calendarEvents]
-        .filter(e => e.date >= todayStr)
+        .filter(e => e.date && e.date >= todayStr) // ✅ Proteção contra undefined
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, 3);
-    
     if (sortedEvents.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
         return;
     }
-    
     let html = '';
     sortedEvents.forEach(event => {
         const [year, month, day] = event.date.split('-');
@@ -347,13 +275,11 @@ function renderNextEvent() {
 function renderNextTasks() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
-    
     const upcomingTasks = tasks.filter(t => !t.completed).slice(0, 3);
     if (upcomingTasks.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma tarefa pendente ✨</div></div></div>';
         return;
     }
-    
     let html = '';
     upcomingTasks.forEach(task => {
         html += `<div class="list-item" data-id="${task.id}">
@@ -362,7 +288,7 @@ function renderNextTasks() {
             </div>
             <div class="item-info">
                 <div class="item-title">${escapeHtml(task.title)}</div>
-                <div class="item-subtitle">${escapeHtml(task.subject)} • ${task.date}</div>
+                <div class="item-subtitle">${escapeHtml(task.subject || 'Geral')} • ${task.date}</div>
             </div>
             <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
         </div>`;
@@ -373,10 +299,8 @@ function renderNextTasks() {
 function renderSchedule() {
     const grid = document.getElementById('schedule-grid');
     if (!grid) return;
-    
     let html = '<div class="day-header">Hora</div>';
     days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    
     timeSlots.forEach(time => {
         html += `<div class="time-slot">${time}</div>`;
         days.forEach(day => {
@@ -397,28 +321,19 @@ function renderSchedule() {
 
 function openEditModal() {
     const editModal = document.getElementById('edit-modal');
-    if (editModal) {
-        editModal.classList.add('active');
-        renderEditSchedule();
-    }
+    if (editModal) { editModal.classList.add('active'); renderEditSchedule(); }
 }
 
 function closeEditModal() {
     const editModal = document.getElementById('edit-modal');
-    if (editModal) {
-        editModal.classList.remove('active');
-        renderSchedule();
-        updateSummaryCards();
-    }
+    if (editModal) { editModal.classList.remove('active'); renderSchedule(); updateSummaryCards(); }
 }
 
 function renderEditSchedule() {
     const grid = document.getElementById('edit-schedule-grid');
     if (!grid) return;
-    
     let html = '<div class="day-header">Hora</div>';
     days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    
     timeSlots.forEach(time => {
         html += `<div class="time-slot">
             ${time}
@@ -442,7 +357,6 @@ function renderEditSchedule() {
         });
     });
     grid.innerHTML = html;
-    
     document.querySelectorAll('.btn-delete-row').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -451,9 +365,7 @@ function renderEditSchedule() {
                 if (confirmed) {
                     timeSlots = timeSlots.filter(t => t !== time);
                     days.forEach(day => {
-                        if (weeklySchedule[day]) {
-                            weeklySchedule[day] = weeklySchedule[day].filter(c => c.horaInicio !== time);
-                        }
+                        if (weeklySchedule[day]) weeklySchedule[day] = weeklySchedule[day].filter(c => c.horaInicio !== time);
                     });
                     saveAllData();
                     renderEditSchedule();
@@ -462,11 +374,8 @@ function renderEditSchedule() {
             });
         });
     });
-    
     document.querySelectorAll('.btn-add').forEach(btn => {
-        btn.addEventListener('click', () => {
-            openSubjectModal(null, btn.dataset.day, btn.dataset.time);
-        });
+        btn.addEventListener('click', () => openSubjectModal(null, btn.dataset.day, btn.dataset.time));
     });
 }
 
@@ -478,12 +387,9 @@ function openSubjectModal(subject, day, time) {
     const startInput = document.getElementById('subject-start-input');
     const endInput = document.getElementById('subject-end-input');
     const dayInput = document.getElementById('subject-day-input');
-    
     if (!modal) return;
-    
     editingSubject = subject;
     if (dayInput) dayInput.value = day;
-    
     if (subject) {
         title.textContent = 'Editar Matéria';
         if (nameInput) nameInput.value = subject.materia;
@@ -499,7 +405,6 @@ function openSubjectModal(subject, day, time) {
         if (endInput) endInput.value = '';
         selectedSubjectColor = '#6366f1';
     }
-    
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
     });
@@ -512,18 +417,19 @@ function saveSubject() {
     const startTime = document.getElementById('subject-start-input')?.value;
     const endTime = document.getElementById('subject-end-input')?.value;
     const day = document.getElementById('subject-day-input')?.value;
-    
     if (!name) { showToast('Preencha o nome da matéria!', 'error'); return; }
     if (!startTime || !endTime) { showToast('Defina início e término!', 'error'); return; }
     if (endTime <= startTime) { showToast('Término deve ser depois do início!', 'error'); return; }
-    
     if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    
     if (editingSubject) {
         const oldStart = editingSubject.horaInicio;
         weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
     }
-    
+    // ✅ Adiciona novo horário ao array timeSlots se não existir
+    if (!timeSlots.includes(startTime)) {
+        timeSlots.push(startTime);
+        timeSlots.sort();
+    }
     weeklySchedule[day].push({
         materia: name,
         professor: teacher,
@@ -532,25 +438,18 @@ function saveSubject() {
         horaFim: endTime
     });
     weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-    
     saveAllData();
     updateSummaryCards();
     document.getElementById('subject-modal').classList.remove('active');
     showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
-    
     const editModal = document.getElementById('edit-modal');
-    if (editModal && editModal.classList.contains('active')) {
-        renderEditSchedule();
-    } else {
-        renderSchedule();
-    }
+    if (editModal && editModal.classList.contains('active')) { renderEditSchedule(); } else { renderSchedule(); }
 }
 
 function addNewTimeSlot() {
     const newTime = document.getElementById('new-time-input')?.value;
     if (!newTime) { showToast('Selecione um horário!', 'error'); return; }
     if (timeSlots.includes(newTime)) { showToast('Este horário já existe!', 'error'); return; }
-    
     timeSlots.push(newTime);
     timeSlots.sort();
     saveAllData();
@@ -562,6 +461,14 @@ function addNewTimeSlot() {
 function switchView(viewName) {
     console.log('Mudando para:', viewName);
     if (viewName === 'home') {
+        // ✅ RECARGA DADOS DO CACHE AO VOLTAR PARA HOME
+        notifications = window.getCached('notifications', window.getDefaultNotifications());
+        weeklySchedule = window.getCached('weeklySchedule', window.getDefaultWeeklySchedule());
+        timeSlots = window.getCached('timeSlots', window.getDefaultTimeSlots());
+        calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
+        tasks = window.getCached('tasks', window.getDefaultTasks());
+        notes = window.getCached('notes', window.getDefaultNotes());
+        days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
         refreshHomeData();
     } else if (viewName === 'calendar') {
         window.location.href = 'calendario/index.html';
@@ -603,68 +510,35 @@ function clearAllNotifications() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM carregado - Inicializando...');
-    
-    if (window.CacheManager) {
-        window.CacheManager.init();
-        console.log('CacheManager inicializado');
-    } else {
-        console.error('CacheManager não encontrado!');
-    }
+    console.log('🚀 Dashboard inicializando...');
+    if (window.CacheManager) { window.CacheManager.init(); console.log('✅ CacheManager inicializado'); }
+    else { console.error('❌ CacheManager não encontrado!'); }
     
     loadAllData();
     
-    // Garantir que o nome do usuário seja exibido mesmo se loadUserData não foi chamado corretamente
-    const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (usuarioSalvo && (!usuarioLogado || !usuarioLogado.nome)) {
-        try {
-            const user = JSON.parse(usuarioSalvo);
-            const nomeExibicao = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
-            const headerName = document.getElementById('header-name');
-            if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        } catch(e) {}
+    if (usuarioLogado) {
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
+        const headerName = document.getElementById('header-name');
+        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
     }
     
     updateNotificationBadge();
     refreshHomeData();
     
     // Botão de notificações
-    const notificationBell = document.getElementById('notification-bell');
-    if (notificationBell) {
-        notificationBell.addEventListener('click', () => {
-            const modal = document.getElementById('notifications-modal');
-            if (modal) {
-                modal.classList.add('active');
-                renderNotificationsModal();
-            }
-        });
-    }
-    
-    const notificationBellLink = document.getElementById('notification-bell-link');
-    if (notificationBellLink) {
-        notificationBellLink.addEventListener('click', () => {
-            const modal = document.getElementById('notifications-modal');
-            if (modal) {
-                modal.classList.add('active');
-                renderNotificationsModal();
-            }
-        });
-    }
-    
-    // Fechar modal de notificações
-    const closeNotificationsBtn = document.getElementById('btn-close-notifications');
-    if (closeNotificationsBtn) {
-        closeNotificationsBtn.addEventListener('click', () => {
-            document.getElementById('notifications-modal').classList.remove('active');
-        });
-    }
-    
-    // Botões de ações
-    const markReadBtn = document.getElementById('btn-mark-read');
-    if (markReadBtn) markReadBtn.addEventListener('click', markAllAsRead);
-    
-    const clearAllBtn = document.getElementById('btn-clear-all');
-    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllNotifications);
+    document.getElementById('notification-bell')?.addEventListener('click', () => {
+        document.getElementById('notifications-modal').classList.add('active');
+        renderNotificationsModal();
+    });
+    document.getElementById('notification-bell-link')?.addEventListener('click', () => {
+        document.getElementById('notifications-modal').classList.add('active');
+        renderNotificationsModal();
+    });
+    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
+        document.getElementById('notifications-modal').classList.remove('active');
+    });
+    document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
+    document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
     
     // Tabs de notificações
     document.querySelectorAll('.notification-tab').forEach(tab => {
@@ -676,35 +550,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Modais de edição
-    const editModeBtn = document.getElementById('toggle-edit-mode');
-    if (editModeBtn) editModeBtn.addEventListener('click', openEditModal);
+    document.getElementById('toggle-edit-mode')?.addEventListener('click', openEditModal);
+    document.getElementById('btn-back')?.addEventListener('click', closeEditModal);
+    document.getElementById('btn-save')?.addEventListener('click', closeEditModal);
+    document.getElementById('btn-add-time')?.addEventListener('click', addNewTimeSlot);
+    document.getElementById('btn-cancel-time')?.addEventListener('click', () => {
+        document.getElementById('new-time-input').value = '11:00';
+    });
+    document.querySelector('[data-modal="subject-modal"]')?.addEventListener('click', () => {
+        document.getElementById('subject-modal').classList.remove('active');
+    });
+    document.getElementById('btn-save-subject')?.addEventListener('click', saveSubject);
     
-    const btnBack = document.getElementById('btn-back');
-    if (btnBack) btnBack.addEventListener('click', closeEditModal);
-    
-    const btnSave = document.getElementById('btn-save');
-    if (btnSave) btnSave.addEventListener('click', closeEditModal);
-    
-    const btnAddTime = document.getElementById('btn-add-time');
-    if (btnAddTime) btnAddTime.addEventListener('click', addNewTimeSlot);
-    
-    const btnCancelTime = document.getElementById('btn-cancel-time');
-    if (btnCancelTime) {
-        btnCancelTime.addEventListener('click', () => {
-            document.getElementById('new-time-input').value = '11:00';
-        });
-    }
-    
-    const modalSubjectClose = document.querySelector('[data-modal="subject-modal"]');
-    if (modalSubjectClose) {
-        modalSubjectClose.addEventListener('click', () => {
-            document.getElementById('subject-modal').classList.remove('active');
-        });
-    }
-    
-    const btnSaveSubject = document.getElementById('btn-save-subject');
-    if (btnSaveSubject) btnSaveSubject.addEventListener('click', saveSubject);
-    
+    // Cores das matérias
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -715,19 +573,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const view = item.dataset.view;
-            if (view) switchView(view);
-        });
+        item.addEventListener('click', () => switchView(item.dataset.view));
     });
     
     // Botão Modo Foco
-    const focusBtn = document.getElementById('focus-mode-btn');
-    if (focusBtn) {
-        focusBtn.addEventListener('click', () => {
-            window.location.href = 'modo-foco/index.html';
-        });
-    }
+    document.getElementById('focus-mode-btn')?.addEventListener('click', () => {
+        window.location.href = 'modo-foco/index.html';
+    });
     
-    console.log('Inicialização concluída');
+    console.log('✅ Inicialização concluída');
+});
+
+// ✅ Garante atualização ao voltar para a tela via botão "Voltar" do navegador
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        console.log('🔄 Página restaurada do cache, recarregando dados...');
+        loadAllData();
+    }
 });
