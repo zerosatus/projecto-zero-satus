@@ -8,10 +8,12 @@ function ehCelular() {
 const eMobile = ehCelular();
 console.log('É celular?', eMobile);
 
-// VERIFICAR SE JÁ ESTÁ LOGADO
+// VERIFICAR SE JÁ ESTÁ LOGADO - NÃO redirecionar se já está na página de login
 const usuarioSalvo = localStorage.getItem('usuarioLogado');
+const isLoginPage = window.location.pathname.includes('/login/');
 
-if (usuarioSalvo) {
+// Só redireciona se NÃO estiver na página de login
+if (usuarioSalvo && !isLoginPage) {
     if (eMobile) {
         window.location.href = '/TELAS/mobile-telas/index.html';
     } else {
