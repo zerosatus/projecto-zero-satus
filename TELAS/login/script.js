@@ -12,10 +12,19 @@ console.log('É celular?', eMobile);
 const usuarioSalvo = localStorage.getItem('usuarioLogado');
 
 if (usuarioSalvo) {
-    if (eMobile) {
-        window.location.href = '../mobile-telas/index.html';
-    } else {
-        window.location.href = '../inicio/index.html';
+    try {
+        const user = JSON.parse(usuarioSalvo);
+        if (user && user.email) {
+            console.log('Usuário já logado:', user.email);
+            if (eMobile) {
+                window.location.href = '../mobile-telas/index.html';
+            } else {
+                window.location.href = '../inicio/index.html';
+            }
+        }
+    } catch(e) {
+        console.error('Erro ao verificar usuário salvo:', e);
+        localStorage.removeItem('usuarioLogado');
     }
 }
 
@@ -27,10 +36,16 @@ const firebaseConfig = {
     storageBucket: "zero-5e74d.firebasestorage.app",
     messagingSenderId: "431244473899",
     appId: "1:431244473899:web:da9424fd226f7386dddc6e",
-    measurementId: "G-HTX5HLKYHJ"
+    measurementId: "G-HTX5HLKYHJ",
+    databaseURL: "https://zero-5e74d-default-rtdb.firebaseio.com/"
 };
 
-firebase.initializeApp(firebaseConfig);
+// Inicializar Firebase
+if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+    console.log('🔥 Firebase inicializado!');
+}
+
 const auth = firebase.auth();
 
 // Tabs functionality
@@ -54,6 +69,7 @@ tabBtns.forEach(btn => {
     });
 });
 
+// ==================== FUNÇÕES AUXILIARES ====================
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);
     const icon = event.currentTarget.querySelector('i');
@@ -80,7 +96,7 @@ function showMessage(message, isError = false) {
     }, 3000);
 }
 
-function setLoading(button, isLoading, originalText = null) {
+function setLoading(button, isLoading) {
     if (isLoading) {
         button.dataset.originalHtml = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AGUARDE...';
@@ -91,10 +107,11 @@ function setLoading(button, isLoading, originalText = null) {
     }
 }
 
+// ==================== FUNÇÃO DE LOGIN ====================
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     const loginBtn = document.getElementById('login-btn');
     
@@ -109,12 +126,39 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        localStorage.setItem('usuarioLogado', JSON.stringify({
+        // Buscar dados adicionais do Firebase Realtime Database
+        let nome = user.displayName || email.split('@')[0];
+        let avatar = null;
+        let telefone = '';
+        let nascimento = '';
+        
+        try {
+            const db = firebase.database();
+            const snapshot = await db.ref(`users/${user.uid}/perfil`).once('value');
+            const perfilData = snapshot.val();
+            if (perfilData) {
+                nome = perfilData.nome || nome;
+                avatar = perfilData.avatar || null;
+                telefone = perfilData.telefone || '';
+                nascimento = perfilData.nascimento || '';
+            }
+        } catch(dbError) {
+            console.warn('Erro ao buscar dados do Realtime DB:', dbError);
+        }
+        
+        // Salvar dados do usuário no localStorage
+        const usuarioData = {
             uid: user.uid,
             email: user.email,
-            nome: user.displayName || email.split('@')[0],
-            logado: true
-        }));
+            nome: nome,
+            avatar: avatar,
+            telefone: telefone,
+            nascimento: nascimento,
+            logado: true,
+            dataLogin: new Date().toISOString()
+        };
+        
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioData));
         
         showMessage('Login realizado com sucesso! Redirecionando...');
         
@@ -125,6 +169,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
                 window.location.href = '../inicio/index.html';
             }
         }, 1500);
+        
     } catch (error) {
         console.error('Erro no login:', error);
         
@@ -154,11 +199,12 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     }
 });
 
+// ==================== FUNÇÃO DE REGISTRO ====================
 document.getElementById('registro-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const nome = document.getElementById('registro-nome').value;
-    const email = document.getElementById('registro-email').value;
+    const nome = document.getElementById('registro-nome').value.trim();
+    const email = document.getElementById('registro-email').value.trim();
     const password = document.getElementById('registro-password').value;
     const registroBtn = document.getElementById('registro-btn');
     
@@ -178,9 +224,26 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
+        // Atualizar perfil com nome
         await user.updateProfile({
             displayName: nome
         });
+        
+        // Salvar dados adicionais no Realtime Database
+        try {
+            const db = firebase.database();
+            await db.ref(`users/${user.uid}/perfil`).set({
+                nome: nome,
+                email: email,
+                dataCriacao: new Date().toISOString(),
+                avatar: null,
+                telefone: '',
+                nascimento: ''
+            });
+            console.log('✅ Dados salvos no Realtime Database');
+        } catch(dbError) {
+            console.warn('Erro ao salvar no Realtime DB:', dbError);
+        }
         
         showMessage('Conta criada com sucesso! Faça login para continuar.');
         
@@ -218,10 +281,11 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     }
 });
 
+// ==================== ESQUECI A SENHA ====================
 document.getElementById('forgot-password').addEventListener('click', async (e) => {
     e.preventDefault();
     
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim();
     
     if (!email) {
         showMessage('Por favor, digite seu e-mail primeiro.', true);
@@ -246,17 +310,34 @@ document.getElementById('forgot-password').addEventListener('click', async (e) =
     }
 });
 
+// ==================== MONITORAR ESTADO DE AUTENTICAÇÃO ====================
 auth.onAuthStateChanged((user) => {
     if (user && !localStorage.getItem('usuarioLogado')) {
-        localStorage.setItem('usuarioLogado', JSON.stringify({
+        // Se usuário está autenticado mas não tem dados no localStorage
+        console.log('Usuário autenticado, salvando dados...');
+        
+        const usuarioData = {
             uid: user.uid,
             email: user.email,
             nome: user.displayName || user.email.split('@')[0],
-            logado: true
-        }));
+            logado: true,
+            dataLogin: new Date().toISOString()
+        };
+        
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioData));
+        
+        // Redirecionar
+        setTimeout(() => {
+            if (eMobile) {
+                window.location.href = '../mobile-telas/index.html';
+            } else {
+                window.location.href = '../inicio/index.html';
+            }
+        }, 500);
     }
 });
 
+// ==================== ANIMAÇÕES DOS INPUTS ====================
 const inputs = document.querySelectorAll('input');
 inputs.forEach(input => {
     input.addEventListener('focus', () => {
@@ -269,3 +350,16 @@ inputs.forEach(input => {
         }
     });
 });
+
+// ==================== PREVENIR SUBMIT COM ENTER NOS BOTÕES ====================
+document.querySelectorAll('.btn-primary').forEach(btn => {
+    btn.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btn.click();
+        }
+    });
+});
+
+console.log('%c🔐 Painel Zero - Login', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%cSistema de autenticação carregado!', 'color: #10b981; font-size: 14px;');
