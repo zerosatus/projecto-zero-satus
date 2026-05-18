@@ -1,4 +1,4 @@
-// Página Principal - Dashboard (CORRIGIDO)
+// Página Principal - Dashboard (CORRIGIDO PARA VERCEL)
 let notifications = [];
 let weeklySchedule = {};
 let timeSlots = [];
@@ -77,74 +77,29 @@ function loadUserData() {
     } catch(e) { console.error('Erro ao carregar usuário:', e); }
 }
 
-async function loadFromCloud() {
-    if (syncInProgress) return;
-    syncInProgress = true;
-    try {
-        showToast('Sincronizando dados da nuvem...', 'info', 2000);
-        const loaded = await window.CacheManager.loadFromCloud();
-        if (loaded) {
-            notifications = window.getCached('notifications', []);
-            weeklySchedule = window.getCached('weeklySchedule', {});
-            timeSlots = window.getCached('timeSlots', []);
-            calendarEvents = window.getCached('calendarEvents', []);
-            tasks = window.getCached('tasks', []);
-            notes = window.getCached('notes', []);
-            days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
-            refreshHomeData();
-            showToast('Dados sincronizados!', 'success');
-        }
-    } catch (error) {
-        console.error('Erro ao sincronizar:', error);
-    } finally {
-        syncInProgress = false;
-    }
-}
-
-async function forceSync() {
-    if (!usuarioLogado || !usuarioLogado.uid) { showToast('Faça login primeiro!', 'error'); return; }
-    if (syncInProgress) { showToast('Sincronização já em andamento...', 'info'); return; }
-    syncInProgress = true;
-    try {
-        showToast('Enviando dados para a nuvem...', 'info');
-        const allData = {
-            usuarioLogado, notifications, weeklySchedule, timeSlots, calendarEvents, tasks, notes
-        };
-        if (window.FirebaseSync) {
-            const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
-            showToast(result ? '✅ Dados sincronizados com sucesso!' : '❌ Erro ao sincronizar dados', result ? 'success' : 'error');
-        } else { showToast('Firebase não disponível', 'error'); }
-    } catch (error) {
-        console.error('Erro na sincronização:', error);
-        showToast('Erro ao sincronizar dados', 'error');
-    } finally { syncInProgress = false; }
-}
-window.forceSync = forceSync;
-
 function saveAllData() {
     if (!usuarioLogado || !usuarioLogado.uid) return;
-    window.setCached('usuarioLogado', usuarioLogado);
-    window.setCached('notifications', notifications);
-    window.setCached('weeklySchedule', weeklySchedule);
-    window.setCached('timeSlots', timeSlots);
-    window.setCached('calendarEvents', calendarEvents);
-    window.setCached('tasks', tasks);
-    window.setCached('notes', notes);
+    if (window.setCached) {
+        window.setCached('usuarioLogado', usuarioLogado);
+        window.setCached('notifications', notifications);
+        window.setCached('weeklySchedule', weeklySchedule);
+        window.setCached('timeSlots', timeSlots);
+        window.setCached('calendarEvents', calendarEvents);
+        window.setCached('tasks', tasks);
+        window.setCached('notes', notes);
+    }
 }
 
 function loadAllData() {
     try {
         usuarioLogado = window.getCached('usuarioLogado', null);
-        // ⚠️ NÃO REDIRECIONAR AQUI - apenas carregar dados ou criar dados padrão
-        if (!usuarioLogado || !usuarioLogado.email) {
-            console.log('⚠️ Usuário não encontrado no cache, usando dados padrão');
-            // Criar dados padrão temporários para evitar loop
-            usuarioLogado = {
-                nome: 'Usuário',
-                email: 'usuario@temp.com',
-                uid: 'temp_' + Date.now()
-            };
+        
+        // CORREÇÃO PARA VERCEL - caminho absoluto
+        if (!usuarioLogado || !usuarioLogado.email) { 
+            window.location.href = '/TELAS/login/index.html';
+            return; 
         }
+        
         loadUserData();
         notifications = window.getCached('notifications', []);
         weeklySchedule = window.getCached('weeklySchedule', {});
@@ -155,7 +110,10 @@ function loadAllData() {
         days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
         console.log('✅ Dados carregados localmente');
         refreshHomeData();
-    } catch (error) { console.error('❌ Erro ao carregar dados:', error); }
+    } catch (error) { 
+        console.error('❌ Erro ao carregar dados:', error); 
+        window.location.href = '/TELAS/login/index.html';
+    }
 }
 
 function updateSummaryCards() {
@@ -513,6 +471,17 @@ function clearAllNotifications() {
     });
 }
 
+// FUNÇÃO DE LOGOUT
+function logout() {
+    if (confirm('Deseja realmente sair da sua conta?')) {
+        localStorage.removeItem('usuarioLogado');
+        if (window.CacheManager) {
+            window.CacheManager.clearAllCache();
+        }
+        window.location.href = '/TELAS/login/index.html';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Dashboard inicializando...');
     if (window.CacheManager) { window.CacheManager.init(); console.log('✅ CacheManager inicializado'); }
@@ -579,13 +548,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'modo-foco/index.html';
     });
     
-    // Botão de logout na interface mobile
+    // Botão de logout
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('usuarioLogado');
-            window.location.href = '../login/index.html';
-        });
+        logoutBtn.addEventListener('click', logout);
     }
     
     console.log('✅ Inicialização concluída');
@@ -596,24 +562,7 @@ window.addEventListener('pageshow', (event) => {
         console.log('🔄 Página restaurada do cache, recarregando dados...');
         loadAllData();
     }
-});
-
-// Botão de logout mobile
-const logoutMobileBtn = document.getElementById('logout-btn');
-if (logoutMobileBtn) {
-    logoutMobileBtn.addEventListener('click', () => {
-        if (confirm('Deseja realmente sair da sua conta?')) {
-            localStorage.removeItem('usuarioLogado');
-            // Limpar também o cache do usuário
-            if (window.CacheManager) {
-                window.CacheManager.clearAllCache();
-            }
-            window.location.href = '../login/index.html';
-        }
-    });
-}
-
-
+});   
 
 
 // =====================================================
