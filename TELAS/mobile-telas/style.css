@@ -1200,7 +1200,39 @@ section {
     to { transform: translateY(-50%) rotate(360deg); }
 }
 
+
 /* ✅ NOVO: Esconder botão de Modo Foco na tela inicial */
 #focus-mode-btn {
     display: none !important;
+}
+
+
+
+
+/* Botão de Logout Mobile */
+.logout-mobile-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 30px;
+    color: #ef4444;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.logout-mobile-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: #ef4444;
+    transform: scale(1.02);
+}
+
+.logout-mobile-btn ion-icon {
+    font-size: 1.2rem;
 }

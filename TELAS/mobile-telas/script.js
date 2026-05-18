@@ -52,7 +52,6 @@ function showConfirm(message, title, callback) {
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
     
-    // ✅ CORREÇÃO: Usar addEventListener para combinar com removeEventListener no cleanup
     document.getElementById('confirm-ok').addEventListener('click', handleConfirm);
     document.getElementById('confirm-cancel').addEventListener('click', handleCancel);
 }
@@ -85,7 +84,6 @@ async function loadFromCloud() {
         showToast('Sincronizando dados da nuvem...', 'info', 2000);
         const loaded = await window.CacheManager.loadFromCloud();
         if (loaded) {
-            // Recarrega variáveis locais após sync
             notifications = window.getCached('notifications', []);
             weeklySchedule = window.getCached('weeklySchedule', {});
             timeSlots = window.getCached('timeSlots', []);
@@ -137,7 +135,16 @@ function saveAllData() {
 function loadAllData() {
     try {
         usuarioLogado = window.getCached('usuarioLogado', null);
-        if (!usuarioLogado || !usuarioLogado.email) { window.location.href = '../../login/index.html'; return; }
+        // ⚠️ NÃO REDIRECIONAR AQUI - apenas carregar dados ou criar dados padrão
+        if (!usuarioLogado || !usuarioLogado.email) {
+            console.log('⚠️ Usuário não encontrado no cache, usando dados padrão');
+            // Criar dados padrão temporários para evitar loop
+            usuarioLogado = {
+                nome: 'Usuário',
+                email: 'usuario@temp.com',
+                uid: 'temp_' + Date.now()
+            };
+        }
         loadUserData();
         notifications = window.getCached('notifications', []);
         weeklySchedule = window.getCached('weeklySchedule', {});
@@ -148,7 +155,6 @@ function loadAllData() {
         days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
         console.log('✅ Dados carregados localmente');
         refreshHomeData();
-        // ⚠️ setTimeout removido para evitar sobrescrita silenciosa. Use o botão "Sincronizar" ou listener em tempo real.
     } catch (error) { console.error('❌ Erro ao carregar dados:', error); }
 }
 
@@ -247,7 +253,7 @@ function renderNextEvent() {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const sortedEvents = [...calendarEvents]
-        .filter(e => e.date && e.date >= todayStr) // ✅ Proteção contra undefined
+        .filter(e => e.date && e.date >= todayStr)
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, 3);
     if (sortedEvents.length === 0) {
@@ -425,7 +431,6 @@ function saveSubject() {
         const oldStart = editingSubject.horaInicio;
         weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
     }
-    // ✅ Adiciona novo horário ao array timeSlots se não existir
     if (!timeSlots.includes(startTime)) {
         timeSlots.push(startTime);
         timeSlots.sort();
@@ -461,7 +466,6 @@ function addNewTimeSlot() {
 function switchView(viewName) {
     console.log('Mudando para:', viewName);
     if (viewName === 'home') {
-        // ✅ RECARGA DADOS DO CACHE AO VOLTAR PARA HOME
         notifications = window.getCached('notifications', window.getDefaultNotifications());
         weeklySchedule = window.getCached('weeklySchedule', window.getDefaultWeeklySchedule());
         timeSlots = window.getCached('timeSlots', window.getDefaultTimeSlots());
@@ -525,7 +529,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateNotificationBadge();
     refreshHomeData();
     
-    // Botão de notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
@@ -540,7 +543,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
     document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
     
-    // Tabs de notificações
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -549,7 +551,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Modais de edição
     document.getElementById('toggle-edit-mode')?.addEventListener('click', openEditModal);
     document.getElementById('btn-back')?.addEventListener('click', closeEditModal);
     document.getElementById('btn-save')?.addEventListener('click', closeEditModal);
@@ -562,7 +563,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('btn-save-subject')?.addEventListener('click', saveSubject);
     
-    // Cores das matérias
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -571,23 +571,351 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
     
-    // Botão Modo Foco
     document.getElementById('focus-mode-btn')?.addEventListener('click', () => {
         window.location.href = 'modo-foco/index.html';
     });
     
+    // Botão de logout na interface mobile
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('usuarioLogado');
+            window.location.href = '../login/index.html';
+        });
+    }
+    
     console.log('✅ Inicialização concluída');
 });
 
-// ✅ Garante atualização ao voltar para a tela via botão "Voltar" do navegador
 window.addEventListener('pageshow', (event) => {
     if (event.persisted) {
         console.log('🔄 Página restaurada do cache, recarregando dados...');
         loadAllData();
     }
 });
+
+// Botão de logout mobile
+const logoutMobileBtn = document.getElementById('logout-btn');
+if (logoutMobileBtn) {
+    logoutMobileBtn.addEventListener('click', () => {
+        if (confirm('Deseja realmente sair da sua conta?')) {
+            localStorage.removeItem('usuarioLogado');
+            // Limpar também o cache do usuário
+            if (window.CacheManager) {
+                window.CacheManager.clearAllCache();
+            }
+            window.location.href = '../login/index.html';
+        }
+    });
+}
+
+
+
+
+// =====================================================
+// NOTIFICAÇÕES NATIVAS PARA ANDROID
+// =====================================================
+
+// Detectar se está rodando dentro do app Android
+function isAndroidApp() {
+    return typeof Android !== 'undefined';
+}
+
+// Enviar notificação nativa para o Android
+function sendNativeNotification(title, message, type) {
+    console.log('[NativeNotif] Tentando enviar:', title);
+    
+    if (isAndroidApp()) {
+        try {
+            Android.showNotification(title, message, type);
+            console.log('[NativeNotif] ✅ Notificação enviada para Android');
+            return true;
+        } catch(e) {
+            console.error('[NativeNotif] Erro ao enviar:', e);
+        }
+    } else {
+        // Fallback: usar notificação do navegador (PC/Web)
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, { body: message, icon: '/favicon.png' });
+            console.log('[NativeNotif] Notificação do navegador enviada');
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            Notification.requestPermission();
+        }
+    }
+    return false;
+}
+
+// Verificar tarefas pendentes e enviar notificações
+async function checkPendingTasks() {
+    console.log('[NativeNotif] Verificando tarefas pendentes...');
+    
+    try {
+        // Buscar tarefas do localStorage
+        let tasks = [];
+        const cachedTasks = window.getCached ? window.getCached('tasks', []) : [];
+        tasks = cachedTasks;
+        
+        if (!tasks || tasks.length === 0) {
+            console.log('[NativeNotif] Nenhuma tarefa encontrada');
+            return;
+        }
+        
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        
+        let pendingTasks = [];
+        
+        tasks.forEach(task => {
+            if (!task.completed) {
+                pendingTasks.push(task);
+                
+                // Verificar tarefas que vencem hoje
+                if (task.date === todayStr) {
+                    sendNativeNotification(
+                        '📋 Tarefa Vence Hoje!',
+                        `${task.title} - ${task.subject || 'Geral'}`,
+                        'tarefa'
+                    );
+                }
+                // Verificar tarefas que vencem amanhã
+                else if (task.date === tomorrowStr) {
+                    sendNativeNotification(
+                        '⏰ Tarefa Vence Amanhã',
+                        `${task.title} - ${task.subject || 'Geral'}`,
+                        'tarefa'
+                    );
+                }
+            }
+        });
+        
+        // Salvar tarefas pendentes no Android
+        if (isAndroidApp() && pendingTasks.length > 0) {
+            try {
+                Android.saveTasks(JSON.stringify(pendingTasks));
+                console.log('[NativeNotif] Tarefas salvas no Android:', pendingTasks.length);
+            } catch(e) {}
+        }
+        
+        console.log('[NativeNotif] Total de tarefas pendentes:', pendingTasks.length);
+        
+    } catch (error) {
+        console.error('[NativeNotif] Erro ao verificar tarefas:', error);
+    }
+}
+
+// Verificar horários de aula e enviar notificações
+async function checkUpcomingClasses() {
+    console.log('[NativeNotif] Verificando horários de aula...');
+    
+    try {
+        // Buscar horário semanal
+        let weeklySchedule = {};
+        if (window.getCached) {
+            weeklySchedule = window.getCached('weeklySchedule', {});
+        }
+        
+        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
+            console.log('[NativeNotif] Nenhum horário encontrado');
+            return;
+        }
+        
+        const now = new Date();
+        const daysMap = {
+            'Dom': 0, 'Seg': 1, 'Ter': 2, 'Qua': 3, 'Qui': 4, 'Sex': 5, 'Sáb': 6
+        };
+        const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const todayName = dayNames[now.getDay()];
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTotalMinutes = currentHour * 60 + currentMinute;
+        
+        const todayClasses = weeklySchedule[todayName] || [];
+        console.log('[NativeNotif] Aulas de hoje:', todayClasses.length);
+        
+        let upcomingClasses = [];
+        
+        todayClasses.forEach(classItem => {
+            if (classItem.horaInicio) {
+                const [classHour, classMinute] = classItem.horaInicio.split(':').map(Number);
+                const classTotalMinutes = classHour * 60 + classMinute;
+                const minutesUntilClass = classTotalMinutes - currentTotalMinutes;
+                
+                // Notificar 15 minutos antes da aula
+                if (minutesUntilClass <= 15 && minutesUntilClass > 0) {
+                    sendNativeNotification(
+                        '📚 Aula em Breve!',
+                        `${classItem.materia} começa em ${minutesUntilClass} minutos`,
+                        'aula'
+                    );
+                    upcomingClasses.push(classItem);
+                }
+                // Notificar 1 hora antes
+                else if (minutesUntilClass <= 60 && minutesUntilClass > 15 && minutesUntilClass % 30 === 0) {
+                    const hours = Math.floor(minutesUntilClass / 60);
+                    const mins = minutesUntilClass % 60;
+                    let timeMsg = '';
+                    if (hours > 0) timeMsg = `${hours}h`;
+                    if (mins > 0) timeMsg += `${mins}min`;
+                    
+                    sendNativeNotification(
+                        '📖 Lembrete de Aula',
+                        `${classItem.materia} começa em ${timeMsg}`,
+                        'aula'
+                    );
+                }
+            }
+        });
+        
+        // Salvar aulas do dia no Android
+        if (isAndroidApp() && todayClasses.length > 0) {
+            try {
+                Android.saveClasses(JSON.stringify(todayClasses));
+                console.log('[NativeNotif] Aulas salvas no Android:', todayClasses.length);
+            } catch(e) {}
+        }
+        
+    } catch (error) {
+        console.error('[NativeNotif] Erro ao verificar aulas:', error);
+    }
+}
+
+// Verificar eventos do calendário
+async function checkCalendarEvents() {
+    console.log('[NativeNotif] Verificando eventos do calendário...');
+    
+    try {
+        let calendarEvents = [];
+        if (window.getCached) {
+            calendarEvents = window.getCached('calendarEvents', []);
+        }
+        
+        if (!calendarEvents || calendarEvents.length === 0) return;
+        
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        
+        calendarEvents.forEach(event => {
+            if (event.date === todayStr) {
+                sendNativeNotification(
+                    '📅 Evento Hoje',
+                    `${event.title} - ${event.start || 'Hoje'}`,
+                    'geral'
+                );
+            } else if (event.date === tomorrowStr) {
+                sendNativeNotification(
+                    '📅 Evento Amanhã',
+                    `${event.title} - ${event.start || 'Amanhã'}`,
+                    'geral'
+                );
+            }
+        });
+        
+    } catch (error) {
+        console.error('[NativeNotif] Erro ao verificar eventos:', error);
+    }
+}
+
+// Função principal de verificação
+function runNotificationChecks() {
+    console.log('[NativeNotif] ===== INICIANDO VERIFICAÇÃO =====');
+    checkPendingTasks();
+    checkUpcomingClasses();
+    checkCalendarEvents();
+    console.log('[NativeNotif] ===== VERIFICAÇÃO CONCLUÍDA =====');
+}
+
+// Inicializar sistema de notificações
+function initNativeNotifications() {
+    console.log('[NativeNotif] Inicializando sistema de notificações...');
+    
+    if (isAndroidApp()) {
+        console.log('[NativeNotif] ✅ Rodando dentro do app Android');
+        // Notificar Android que o app está pronto
+        try {
+            Android.log('App web carregado com sucesso');
+        } catch(e) {}
+    } else {
+        console.log('[NativeNotif] Rodando no navegador/web');
+        // Solicitar permissão para notificações do navegador
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            setTimeout(() => {
+                Notification.requestPermission();
+            }, 3000);
+        }
+    }
+    
+    // Executar verificação inicial
+    setTimeout(runNotificationChecks, 2000);
+    
+    // Configurar verificações periódicas
+    // A cada 15 minutos
+    setInterval(runNotificationChecks, 15 * 60 * 1000);
+    
+    // A cada 1 minuto verificar apenas aulas próximas (mais frequente)
+    setInterval(() => {
+        checkUpcomingClasses();
+    }, 60 * 1000);
+}
+
+// Salvar dados no Android quando alterar
+function setupAutoSaveForNotifications() {
+    // Interceptar saves para sincronizar com Android
+    const originalSetCached = window.setCached;
+    if (originalSetCached) {
+        window.setCached = function(key, value, notify) {
+            const result = originalSetCached(key, value, notify);
+            
+            // Quando tarefas ou horários mudam, notificar Android
+            if (isAndroidApp() && (key === 'tasks' || key === 'weeklySchedule')) {
+                if (key === 'tasks') {
+                    const pendingTasks = (value || []).filter(t => !t.completed);
+                    try {
+                        Android.saveTasks(JSON.stringify(pendingTasks));
+                    } catch(e) {}
+                }
+                if (key === 'weeklySchedule') {
+                    const now = new Date();
+                    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                    const today = days[now.getDay()];
+                    const todayClasses = (value || {})[today] || [];
+                    try {
+                        Android.saveClasses(JSON.stringify(todayClasses));
+                    } catch(e) {}
+                }
+            }
+            
+            return result;
+        };
+    }
+}
+
+// Expor funções globalmente
+window.isAndroidApp = isAndroidApp;
+window.sendNativeNotification = sendNativeNotification;
+window.checkPendingTasks = checkPendingTasks;
+window.checkUpcomingClasses = checkUpcomingClasses;
+window.checkCalendarEvents = checkCalendarEvents;
+window.runNotificationChecks = runNotificationChecks;
+
+// Inicializar quando o documento estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initNativeNotifications();
+        setupAutoSaveForNotifications();
+    });
+} else {
+    initNativeNotifications();
+    setupAutoSaveForNotifications();
+}
+
+console.log('[NativeNotif] ✅ Sistema de notificações nativas carregado!');

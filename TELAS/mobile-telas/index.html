@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Painel do Aluno Mobile</title>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -10,21 +10,16 @@
 </head>
 <body>
     <div class="mobile-container">
-      <header>
-    <div class="greeting">
-        <h1 id="header-name">Usuário</h1>
-        <p>Bem-vindo de volta 👋</p>
-    </div>
-    <!-- Botão Modo Foco (opcional) -->
-    <div class="profile-icon" id="focus-mode-btn" title="Modo Foco" onclick="window.location.href='modo-foco/index.html'">
-        <ion-icon name="flash-outline"></ion-icon>
-    </div>
-    <!-- APENAS UM sino de notificação -->
-    <div class="profile-icon" id="notification-bell">
-        <ion-icon name="notifications-outline"></ion-icon>
-        <span class="notification-badge" id="notification-badge">3</span>
-    </div>
-</header>
+        <header>
+            <div class="greeting">
+                <h1 id="header-name">Usuário</h1>
+                <p>Bem-vindo de volta 👋</p>
+            </div>
+            <div class="profile-icon" id="notification-bell">
+                <ion-icon name="notifications-outline"></ion-icon>
+                <span class="notification-badge" id="notification-badge">0</span>
+            </div>
+        </header>
 
         <div class="summary-cards">
             <div class="card">
@@ -78,15 +73,39 @@
             <div id="notifications-list"></div>
         </section>
 
+        <!-- Botão de Logout -->
+        <div class="logout-button-container" style="padding: 20px; margin-top: 10px;">
+            <button id="logout-btn" class="logout-mobile-btn">
+                <ion-icon name="log-out-outline"></ion-icon>
+                <span>Sair da Conta</span>
+            </button>
+        </div>
+
         <nav class="bottom-nav">
-            <div class="nav-item active" data-view="home"><ion-icon name="home-outline"></ion-icon><span>Início</span></div>
-            <div class="nav-item" data-view="calendar"><ion-icon name="calendar-outline"></ion-icon><span>Calendário</span></div>
-            <div class="nav-item" data-view="tasks"><ion-icon name="checkbox-outline"></ion-icon><span>Tarefas</span></div>
-            <div class="nav-item" data-view="notes"><ion-icon name="document-text-outline"></ion-icon><span>Notas</span></div>
-            <div class="nav-item" data-view="profile"><ion-icon name="person-outline"></ion-icon><span>Perfil</span></div>
+            <div class="nav-item active" data-view="home">
+                <ion-icon name="home-outline"></ion-icon>
+                <span>Início</span>
+            </div>
+            <div class="nav-item" data-view="calendar">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Calendário</span>
+            </div>
+            <div class="nav-item" data-view="tasks">
+                <ion-icon name="checkbox-outline"></ion-icon>
+                <span>Tarefas</span>
+            </div>
+            <div class="nav-item" data-view="notes">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>Notas</span>
+            </div>
+            <div class="nav-item" data-view="profile">
+                <ion-icon name="person-outline"></ion-icon>
+                <span>Perfil</span>
+            </div>
         </nav>
     </div>
 
+    <!-- Modal de Edição de Horário -->
     <div class="edit-modal" id="edit-modal">
         <div class="edit-modal-content">
             <div class="edit-modal-header">
@@ -107,6 +126,7 @@
         </div>
     </div>
 
+    <!-- Modal de Matéria -->
     <div class="subject-modal" id="subject-modal">
         <div class="subject-modal-content">
             <div class="subject-modal-header">
@@ -122,7 +142,13 @@
                     <div class="input-group"><label>Fim</label><input type="time" id="subject-end-input"></div>
                 </div>
                 <div class="input-group"><label>Dia da Semana</label>
-                    <select id="subject-day-input"><option value="Seg">Segunda-feira</option><option value="Ter">Terça-feira</option><option value="Qua">Quarta-feira</option><option value="Qui">Quinta-feira</option><option value="Sex">Sexta-feira</option></select>
+                    <select id="subject-day-input">
+                        <option value="Seg">Segunda-feira</option>
+                        <option value="Ter">Terça-feira</option>
+                        <option value="Qua">Quarta-feira</option>
+                        <option value="Qui">Quinta-feira</option>
+                        <option value="Sex">Sexta-feira</option>
+                    </select>
                 </div>
                 <div class="input-group"><label>Cor</label>
                     <div class="color-options">
@@ -139,9 +165,11 @@
         </div>
     </div>
 
+    <!-- Modal de Notificações -->
     <div class="notifications-modal" id="notifications-modal">
         <div class="notifications-modal-content">
-            <div class="notifications-modal-header"><h2>Notificações</h2>
+            <div class="notifications-modal-header">
+                <h2>Notificações</h2>
                 <div class="notifications-actions">
                     <button class="btn-mark-read" id="btn-mark-read"><ion-icon name="checkmark-done-outline"></ion-icon> Marcar todas</button>
                     <button class="btn-clear-all" id="btn-clear-all"><ion-icon name="trash-outline"></ion-icon></button>
@@ -158,26 +186,30 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmação -->
     <div class="confirm-modal" id="confirm-modal">
         <div class="confirm-modal-content">
             <div class="confirm-icon"><ion-icon name="warning-outline"></ion-icon></div>
             <h3 id="confirm-title">Confirmar ação</h3>
             <p id="confirm-message">Tem certeza que deseja continuar?</p>
-            <div class="confirm-buttons"><button class="btn-cancel" id="confirm-cancel">Cancelar</button><button class="btn-ok" id="confirm-ok">Confirmar</button></div>
+            <div class="confirm-buttons">
+                <button class="btn-cancel" id="confirm-cancel">Cancelar</button>
+                <button class="btn-ok" id="confirm-ok">Confirmar</button>
+            </div>
         </div>
     </div>
 
     <div id="toast-container"></div>
 
-    <!-- ✅ CAMINHOS CORRIGIDOS - SEM ../ -->
+    <!-- Scripts -->
     <script src="cache-manager.js"></script>
     <script src="shared-data.js"></script>
     <script src="script.js"></script>
     
-    <!-- ✅ FIREBASE COMPAT (Realtime Database) -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <script src="../firebase-config.js"></script>
 </body>
 </html>
