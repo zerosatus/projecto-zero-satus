@@ -1,4 +1,4 @@
-// Página Principal - Dashboard (CORRIGIDO PARA VERCEL)
+// Página Principal - Dashboard (CORRIGIDO - SEM LOOP)
 let notifications = [];
 let weeklySchedule = {};
 let timeSlots = [];
@@ -94,10 +94,16 @@ function loadAllData() {
     try {
         usuarioLogado = window.getCached('usuarioLogado', null);
         
-        // CORREÇÃO PARA VERCEL - caminho absoluto
-        if (!usuarioLogado || !usuarioLogado.email) { 
-            window.location.href = '/TELAS/login/index.html';
-            return; 
+        // CORREÇÃO: NÃO redirecionar - usar dados padrão temporários
+        if (!usuarioLogado || !usuarioLogado.email) {
+            console.log('⚠️ Usuário não encontrado no cache, usando dados padrão');
+            // Criar dados temporários para não quebrar a UI
+            usuarioLogado = {
+                nome: 'Visitante',
+                email: 'visitante@temp.com',
+                uid: 'temp_' + Date.now()
+            };
+            // NÃO redirecionar!
         }
         
         loadUserData();
@@ -111,8 +117,7 @@ function loadAllData() {
         console.log('✅ Dados carregados localmente');
         refreshHomeData();
     } catch (error) { 
-        console.error('❌ Erro ao carregar dados:', error); 
-        window.location.href = '/TELAS/login/index.html';
+        console.error('❌ Erro ao carregar dados:', error);
     }
 }
 
@@ -489,10 +494,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     loadAllData();
     
-    if (usuarioLogado) {
+    if (usuarioLogado && usuarioLogado.nome !== 'Visitante') {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+    } else {
+        const headerName = document.getElementById('header-name');
+        if (headerName) headerName.textContent = 'Usuário';
     }
     
     updateNotificationBadge();
@@ -562,7 +570,8 @@ window.addEventListener('pageshow', (event) => {
         console.log('🔄 Página restaurada do cache, recarregando dados...');
         loadAllData();
     }
-});   
+});
+
 
 
 // =====================================================
