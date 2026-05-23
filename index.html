@@ -906,6 +906,19 @@
             }
         }
     </style>
+    <script>
+  // Verifica autenticação imediatamente ao carregar a página
+  (function() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const token = localStorage.getItem('authToken'); // opcional
+
+    // Se o usuário já está logado, redireciona direto para a área interna
+    if (isLoggedIn || token) {
+      // 🔁 ALTERE AQUI para o caminho real da sua dashboard/painel
+      window.location.replace('dashboard.html');
+    }
+  })();
+</script>
 </head>
 <body>
     <header>
