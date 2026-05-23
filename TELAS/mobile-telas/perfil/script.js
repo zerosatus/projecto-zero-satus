@@ -645,3 +645,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+  
+
+
+// =====================================================
+// NOTIFICAÇÕES NATIVAS PARA ANDROID (COMPARTILHADAS)
+// =====================================================
+
+function isAndroidApp() {
+    return typeof Android !== 'undefined';
+}
+
+function sendNativeNotification(title, message, type) {
+    if (isAndroidApp()) {
+        try {
+            Android.showNotification(title, message, type);
+        } catch(e) {}
+    }
+}
+
+function checkPendingTasks() {
+    const tasks = window.getCached ? window.getCached('tasks', []) : [];
+    const today = new Date().toISOString().split('T')[0];
+    tasks.forEach(task => {
+        if (!task.completed && task.date === today) {
+            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
+        }
+    });
+}
+
+function checkUpcomingClasses() {
+    const schedule = window.getCached ? window.getCached('weeklySchedule', {}) : {};
+    const now = new Date();
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const today = days[now.getDay()];
+    const currentTotal = now.getHours() * 60 + now.getMinutes();
+    
+    (schedule[today] || []).forEach(cls => {
+        if (cls.horaInicio) {
+            const [h, m] = cls.horaInicio.split(':').map(Number);
+            const minutesUntil = (h * 60 + m) - currentTotal;
+            if (minutesUntil <= 15 && minutesUntil > 0) {
+                sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+            }
+        }
+    });
+}
+
+// Executar verificações
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
+        setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
+    });
+} else {
+    setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
+    setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
+}
