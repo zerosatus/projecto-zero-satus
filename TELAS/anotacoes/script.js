@@ -66,7 +66,7 @@ function configurarEventos() {
     });
 }
 
-// ===== CARREGAR ANOTAÇÕES DO LOCALSTORAGE =====
+// ===== CARREGAR ANOTAÇÕES =====
 function carregarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
@@ -77,53 +77,8 @@ function carregarAnotacoes() {
     if (anotacoesSalvas) {
         anotacoes = JSON.parse(anotacoesSalvas);
     } else {
-        // Anotações padrão para primeiro acesso
-        anotacoes = [
-            {
-                id: gerarId(),
-                titulo: 'Introdução à Física Quântica',
-                conteudo: `<h2>Introdução à Física Quântica</h2>
-                        <h3>Conceitos Fundamentais</h3>
-                        <p>A física quântica estuda o comportamento da matéria e energia em escalas atômicas e subatômicas.</p>
-                        <h3>Princípios Básicos</h3>
-                        <ul>
-                            <li><strong>Dualidade onda-partícula</strong>: Partículas podem se comportar como ondas</li>
-                            <li><strong>Princípio da Incerteza de Heisenberg</strong>: Impossível medir posição e momento simultaneamente</li>
-                            <li><strong>Quantização de energia</strong>: Energia existe em pacotes discretos chamados "quanta"</li>
-                            <li><strong>Superposição quântica</strong>: Um sistema pode existir em múltiplos estados</li>
-                        </ul>
-                        <h3>Equação de Schrödinger</h3>
-                        <p>A equação fundamental da mecânica quântica:</p>
-                        <pre>iℏ ∂ψ/∂t = Ĥψ</pre>
-                        <p>Onde <strong>ψ</strong> é a função de onda e <strong>Ĥ</strong> é o operador hamiltoniano.</p>
-                        <h3>Aplicações Práticas</h3>
-                        <ol>
-                            <li>Computação quântica</li>
-                            <li>Criptografia quântica</li>
-                            <li>Sensores de alta precisão</li>
-                            <li>Lasers e semicondutores</li>
-                        </ol>
-                        <blockquote>"Qualquer pessoa que não ficou chocada com a física quântica não a entendeu." - Niels Bohr</blockquote>
-                        <h3>Links Relacionados</h3>
-                        <p><a href="#">[Mecânica Clássica]</a></p>`,
-                dataModificacao: new Date().toISOString(),
-                dataCriacao: new Date().toISOString()
-            },
-            {
-                id: gerarId(),
-                titulo: 'Cálculo Diferencial',
-                conteudo: '<h2>Cálculo Diferencial</h2><p>Derivadas e aplicações...</p>',
-                dataModificacao: new Date(Date.now() - 86400000).toISOString(), // ontem
-                dataCriacao: new Date(Date.now() - 86400000).toISOString()
-            },
-            {
-                id: gerarId(),
-                titulo: 'Programação Web',
-                conteudo: '<h2>Programação Web</h2><p>HTML, CSS e JavaScript...</p>',
-                dataModificacao: new Date(Date.now() - 172800000).toISOString(), // 2 dias atrás
-                dataCriacao: new Date(Date.now() - 172800000).toISOString()
-            }
-        ];
+        // ✅ Dados padrão VAZIOS
+        anotacoes = [];
         salvarAnotacoes();
     }
     
@@ -140,7 +95,7 @@ function renderizarListaAnotacoes() {
     anotacoes.sort((a, b) => new Date(b.dataModificacao) - new Date(a.dataModificacao));
     
     anotacoes.forEach(anotacao => {
-        const preview = anotacao.conteudo.replace(/<[^>]*>/g, '').substring(0, 50) + '...';
+        const preview = anotacao.conteudo ? anotacao.conteudo.replace(/<[^>]*>/g, '').substring(0, 50) + '...' : 'Anotação vazia';
         const data = new Date(anotacao.dataModificacao);
         const dataFormatada = formatarData(data);
         
@@ -151,7 +106,7 @@ function renderizarListaAnotacoes() {
         }
         noteItem.dataset.id = anotacao.id;
         noteItem.innerHTML = `
-            <div class="note-item-title">${anotacao.titulo}</div>
+            <div class="note-item-title">${anotacao.titulo || 'Sem título'}</div>
             <div class="note-item-preview">${preview}</div>
             <div class="note-item-date">${dataFormatada}</div>
         `;
@@ -162,6 +117,11 @@ function renderizarListaAnotacoes() {
         
         notesList.appendChild(noteItem);
     });
+    
+    // Se não há anotações, mostrar mensagem
+    if (anotacoes.length === 0) {
+        notesList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma anotação<br>Clique em + para criar</div>';
+    }
 }
 
 // ===== FORMATAR DATA =====
@@ -183,8 +143,6 @@ function formatarData(data) {
 function carregarPrimeiraAnotacao() {
     if (anotacoes.length > 0) {
         carregarAnotacao(anotacoes[0].id);
-    } else {
-        criarNovaAnotacao();
     }
 }
 
@@ -198,8 +156,8 @@ function carregarAnotacao(id) {
     const noteTitle = document.querySelector('.note-title');
     const editor = document.getElementById('editor');
     
-    noteTitle.value = anotacao.titulo;
-    editor.innerHTML = anotacao.conteudo;
+    noteTitle.value = anotacao.titulo || '';
+    editor.innerHTML = anotacao.conteudo || '';
     
     document.querySelectorAll('.note-item').forEach(item => {
         if (item.dataset.id === id) {
@@ -217,12 +175,12 @@ function criarNovaAnotacao() {
     const novaAnotacao = {
         id: gerarId(),
         titulo: 'Nova Anotação',
-        conteudo: '<h2>Nova Anotação</h2><p>Comece a escrever...</p>',
+        conteudo: '',
         dataModificacao: new Date().toISOString(),
         dataCriacao: new Date().toISOString()
     };
     
-    anotacoes.push(novaAnotacao);
+    anotacoes.unshift(novaAnotacao);
     salvarAnotacoes();
     
     anotacaoAtualId = novaAnotacao.id;
@@ -235,7 +193,6 @@ function criarNovaAnotacao() {
     
     renderizarListaAnotacoes();
     
-    // Focar no título para edição imediata
     noteTitle.focus();
     noteTitle.select();
     
@@ -266,20 +223,28 @@ function salvarAnotacaoAtual() {
     mostrarToast('Anotação salva com sucesso!');
 }
 
-// ===== SALVAR TODAS ANOTAÇÕES NO LOCALSTORAGE =====
+// ===== SALVAR TODAS ANOTAÇÕES =====
 function salvarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
     
     const storageKey = `anotacoes_${usuario.email}`;
     localStorage.setItem(storageKey, JSON.stringify(anotacoes));
+    
+    // Notificar outras abas
+    notificarSincronizacao();
+    
+    // Sincronizar com CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.set('notes', anotacoes, true);
+    }
 }
 
 // ===== AUTO SAVE =====
 let autoSaveTimer;
 function programarAutoSave() {
     const lastSaved = document.querySelector('.last-saved');
-    lastSaved.textContent = 'Digitando...';
+    if (lastSaved) lastSaved.textContent = 'Digitando...';
     
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
@@ -328,31 +293,24 @@ function formatText(command, value = null) {
 // ===== FUNÇÕES DE INTERFACE =====
 function mostrarToast(mensagem) {
     const toast = document.getElementById('toast');
+    if (!toast) return;
     const toastSpan = toast.querySelector('span');
-    toastSpan.textContent = mensagem;
+    if (toastSpan) toastSpan.textContent = mensagem;
     toast.classList.add('show');
     setTimeout(() => { toast.classList.remove('show'); }, 3000);
 }
 
-// Manter função saveNote para compatibilidade
 function saveNote() {
     salvarAnotacaoAtual();
 }
 
-// Manter função createNewNote para compatibilidade
 function createNewNote() {
     criarNovaAnotacao();
-}
-
-// Manter função showToast para compatibilidade
-function showToast() {
-    mostrarToast('Anotação salva com sucesso!');
 }
 
 // ===== LOGOUT =====
 function logout() {
     if (confirm('Deseja sair?')) {
-        // Salvar anotação atual antes de sair
         if (anotacaoAtualId) {
             salvarAnotacaoAtual();
         }
@@ -371,23 +329,9 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-// Inicializar
-updateLastSaved(); // função original mantida para compatibilidade
-
-
-// ===== NOTIFICAR OUTRAS ABAS SOBRE MUDANÇAS =====
+// ===== NOTIFICAR OUTRAS ABAS =====
 function notificarSincronizacao() {
     localStorage.setItem('sync_notification', Date.now().toString());
 }
 
-// Modificar a função salvarAnotacoes
-function salvarAnotacoes() {
-    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-    if (!usuario) return;
-    
-    const storageKey = `anotacoes_${usuario.email}`;
-    localStorage.setItem(storageKey, JSON.stringify(anotacoes));
-    
-    // NOTIFICAR OUTRAS ABAS
-    notificarSincronizacao();
-}
+console.log('%c📝 Anotações', 'color: #9333ea; font-size: 20px; font-weight: bold;');
