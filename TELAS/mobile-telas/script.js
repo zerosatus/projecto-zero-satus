@@ -1,15 +1,660 @@
-// Página Principal - Dashboard (CORRIGIDO - SEM LOOP)
+// ===== VARIÁVEIS GLOBAIS =====
+let usuarioLogado = null;
 let notifications = [];
 let weeklySchedule = {};
 let timeSlots = [];
 let calendarEvents = [];
 let tasks = [];
 let notes = [];
-let usuarioLogado = null;
 let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-let syncInProgress = false;
+
+// ===== INICIALIZAÇÃO =====
+async function inicializar() {
+    console.log('[Mobile] Inicializando...');
+    
+    // Inicializar CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.init();
+        console.log('[Mobile] CacheManager inicializado');
+    }
+    
+    // Carregar usuário
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (!usuarioSalvo) {
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
+    try {
+        usuarioLogado = JSON.parse(usuarioSalvo);
+        console.log('[Mobile] Usuário:', usuarioLogado.nome);
+        
+        // Atualizar nome no header
+        const headerName = document.getElementById('header-name');
+        if (headerName) {
+            headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        }
+        
+        // Carregar dados
+        await carregarTodosDados();
+        
+        // Sincronizar com nuvem
+        await sincronizarComNuvem();
+        
+        // Inicializar componentes
+        renderizarHorario();
+        renderizarProximoEvento();
+        renderizarProximasTarefas();
+        renderizarNotificacoes();
+        atualizarCards();
+        
+    } catch(e) {
+        console.error('[Mobile] Erro:', e);
+    }
+}
+
+// ===== CARREGAR DADOS =====
+async function carregarTodosDados() {
+    if (!usuarioLogado) return;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    // Tentar carregar do CacheManager primeiro
+    if (window.CacheManager) {
+        notifications = window.CacheManager.get('notifications', []);
+        weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        timeSlots = window.CacheManager.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
+        calendarEvents = window.CacheManager.get('calendarEvents', []);
+        tasks = window.CacheManager.get('tasks', []);
+        notes = window.CacheManager.get('notes', []);
+    }
+    
+    // Se não tiver dados, carregar do localStorage antigo
+    if (!notifications.length) {
+        const notifSalvas = localStorage.getItem(`${userId}_notifications`);
+        if (notifSalvas) notifications = JSON.parse(notifSalvas);
+    }
+    
+    if (Object.keys(weeklySchedule).length === 0) {
+        const scheduleSalvo = localStorage.getItem(`${userId}_weeklySchedule`);
+        if (scheduleSalvo) weeklySchedule = JSON.parse(scheduleSalvo);
+    }
+    
+    if (!timeSlots.length) {
+        const slotsSalvos = localStorage.getItem(`${userId}_timeSlots`);
+        if (slotsSalvos) timeSlots = JSON.parse(slotsSalvos);
+    }
+    
+    if (!calendarEvents.length) {
+        const eventosSalvos = localStorage.getItem(`${userId}_calendarEvents`);
+        if (eventosSalvos) calendarEvents = JSON.parse(eventosSalvos);
+    }
+    
+    if (!tasks.length) {
+        const tasksSalvas = localStorage.getItem(`${userId}_tasks`);
+        if (tasksSalvas) tasks = JSON.parse(tasksSalvas);
+    }
+    
+    if (!notes.length) {
+        const notesSalvas = localStorage.getItem(`${userId}_notes`);
+        if (notesSalvas) notes = JSON.parse(notesSalvas);
+    }
+    
+    // Garantir estrutura do horário
+    days.forEach(day => {
+        if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    });
+    
+    console.log('[Mobile] Dados carregados:', {
+        notifications: notifications.length,
+        schedule: Object.keys(weeklySchedule).length,
+        events: calendarEvents.length,
+        tasks: tasks.length,
+        notes: notes.length
+    });
+}
+
+// ===== SALVAR DADOS =====
+function salvarTodosDados() {
+    if (!usuarioLogado) return;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    // Salvar no localStorage antigo (fallback)
+    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+    
+    // Salvar no CacheManager (que sincroniza com nuvem)
+    if (window.CacheManager) {
+        window.CacheManager.set('notifications', notifications, true);
+        window.CacheManager.set('weeklySchedule', weeklySchedule, true);
+        window.CacheManager.set('timeSlots', timeSlots, true);
+        window.CacheManager.set('calendarEvents', calendarEvents, true);
+        window.CacheManager.set('tasks', tasks, true);
+        window.CacheManager.set('notes', notes, true);
+    }
+    
+    console.log('[Mobile] Dados salvos');
+}
+
+// ===== SINCRONIZAR COM NUVEM =====
+async function sincronizarComNuvem() {
+    if (!window.CacheManager || !usuarioLogado) return;
+    
+    console.log('[Mobile] Sincronizando com nuvem...');
+    
+    try {
+        window.CacheManager.currentUserId = usuarioLogado.uid || usuarioLogado.email;
+        const dadosCarregados = await window.CacheManager.loadFromCloud(true);
+        
+        if (dadosCarregados) {
+            console.log('[Mobile] ✅ Dados da nuvem carregados');
+            // Recarregar dados após sync
+            await carregarTodosDados();
+            atualizarInterface();
+        } else {
+            // Se não há dados na nuvem, enviar os locais
+            console.log('[Mobile] Enviando dados locais para nuvem...');
+            salvarTodosDados();
+        }
+    } catch (error) {
+        console.error('[Mobile] Erro na sincronização:', error);
+    }
+}
+
+// ===== ATUALIZAR INTERFACE =====
+function atualizarInterface() {
+    renderizarHorario();
+    renderizarProximoEvento();
+    renderizarProximasTarefas();
+    renderizarNotificacoes();
+    atualizarCards();
+    atualizarBadgeNotificacoes();
+}
+
+// ===== RENDERIZAR HORÁRIO SEMANAL =====
+function renderizarHorario() {
+    const grid = document.getElementById('schedule-grid');
+    if (!grid) return;
+    
+    let html = '<div class="day-header">Hora</div>';
+    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    
+    timeSlots.forEach(time => {
+        html += `<div class="time-slot">${time}</div>`;
+        days.forEach(day => {
+            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (classItem) {
+                html += `<div class="class-cell">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color}">
+                        ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="class-cell"><div class="class-block empty">+</div></div>`;
+            }
+        });
+    });
+    
+    grid.innerHTML = html;
+    
+    // Adicionar eventos de clique
+    document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
+        cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Encontrar a matéria e abrir edição
+            const cellDiv = cell.closest('.class-cell');
+            const rowIndex = Array.from(cellDiv.parentElement.children).indexOf(cellDiv);
+            const timeIndex = Math.floor((rowIndex - 1) / 6);
+            const dayIndex = (rowIndex - 1) % 6;
+            
+            if (timeIndex >= 0 && dayIndex >= 0 && dayIndex < days.length) {
+                const time = timeSlots[timeIndex];
+                const day = days[dayIndex];
+                const subject = weeklySchedule[day]?.find(c => c.horaInicio === time);
+                if (subject) openSubjectModal(subject, day, time);
+            }
+        });
+    });
+    
+    document.querySelectorAll('.class-cell .class-block.empty').forEach(cell => {
+        cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cellDiv = cell.closest('.class-cell');
+            const rowIndex = Array.from(cellDiv.parentElement.children).indexOf(cellDiv);
+            const timeIndex = Math.floor((rowIndex - 1) / 6);
+            const dayIndex = (rowIndex - 1) % 6;
+            
+            if (timeIndex >= 0 && dayIndex >= 0 && dayIndex < days.length) {
+                const time = timeSlots[timeIndex];
+                const day = days[dayIndex];
+                openSubjectModal(null, day, time);
+            }
+        });
+    });
+}
+
+// ===== RENDERIZAR PRÓXIMO EVENTO =====
+function renderizarProximoEvento() {
+    const container = document.getElementById('next-event-container');
+    if (!container) return;
+    
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const eventosFuturos = calendarEvents
+        .filter(e => e.date && e.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 3);
+    
+    if (eventosFuturos.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    eventosFuturos.forEach(event => {
+        const [year, month, day] = event.date.split('-');
+        const dateFormatted = `${day}/${month}`;
+        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='../calendario/index.html'">
+            <div class="item-icon" style="background-color: ${event.color}20; color: ${event.color}">
+                <ion-icon name="calendar-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(event.title)}</div>
+                <div class="item-subtitle">${dateFormatted} • ${event.start}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ===== RENDERIZAR PRÓXIMAS TAREFAS =====
+function renderizarProximasTarefas() {
+    const container = document.getElementById('next-tasks-container');
+    if (!container) return;
+    
+    const tarefasPendentes = tasks.filter(t => !t.completed).slice(0, 3);
+    
+    if (tarefasPendentes.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma tarefa pendente ✨</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    tarefasPendentes.forEach(task => {
+        html += `<div class="list-item" data-id="${task.id}" onclick="window.location.href='../tarefas/index.html'">
+            <div class="item-icon" style="background-color: ${task.color}20; color: ${task.color}">
+                <ion-icon name="checkbox-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(task.title)}</div>
+                <div class="item-subtitle">${escapeHtml(task.subject || 'Geral')} • ${task.date || 'Sem data'}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ===== RENDERIZAR NOTIFICAÇÕES =====
+function renderizarNotificacoes() {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    
+    const notificacoesNaoLidas = notifications.filter(n => !n.read).slice(0, 3);
+    
+    if (notificacoesNaoLidas.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    notificacoesNaoLidas.forEach(notif => {
+        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
+        html += `<div class="list-item" data-id="${notif.id}">
+            <div class="item-icon notification" style="background-color: #8b5cf6; color: white">
+                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(notif.title)}</div>
+                <div class="item-subtitle">${escapeHtml(notif.message)}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ===== RENDERIZAR NOTIFICAÇÕES MODAL =====
+function renderizarNotificacoesModal(filtro = 'all') {
+    const container = document.getElementById('notifications-list-modal');
+    if (!container) return;
+    
+    let filtradas = [...notifications];
+    if (filtro === 'unread') filtradas = notifications.filter(n => !n.read);
+    else if (filtro === 'aulas') filtradas = notifications.filter(n => n.type === 'aula');
+    else if (filtro === 'tarefas') filtradas = notifications.filter(n => n.type === 'tarefa');
+    
+    if (filtradas.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
+        return;
+    }
+    
+    let html = '';
+    filtradas.forEach(notif => {
+        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
+        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
+            <div class="notification-icon ${notif.type}">
+                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">${escapeHtml(notif.title)}</div>
+                <div class="notification-message">${escapeHtml(notif.message)}</div>
+                <div class="notification-time">${formatarTempoAtras(notif.time)}</div>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ===== FUNÇÃO PARA MARCAR TODAS COMO LIDAS =====
+function marcarTodasComoLidas() {
+    notifications.forEach(n => n.read = true);
+    salvarTodosDados();
+    atualizarBadgeNotificacoes();
+    renderizarNotificacoes();
+    renderizarNotificacoesModal();
+    showToast('Todas notificações marcadas como lidas!', 'success');
+}
+
+// ===== FUNÇÃO PARA LIMPAR TODAS NOTIFICAÇÕES =====
+function limparTodasNotificacoes() {
+    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmado) => {
+        if (confirmado) {
+            notifications = [];
+            salvarTodosDados();
+            atualizarBadgeNotificacoes();
+            renderizarNotificacoes();
+            renderizarNotificacoesModal();
+            showToast('Notificações limpas!', 'success');
+        }
+    });
+}
+
+// ===== ATUALIZAR BADGE DE NOTIFICAÇÕES =====
+function atualizarBadgeNotificacoes() {
+    const badge = document.getElementById('notification-badge');
+    const naoLidas = notifications.filter(n => !n.read).length;
+    if (badge) {
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+}
+
+// ===== ADICIONAR NOTIFICAÇÃO =====
+function adicionarNotificacao(titulo, mensagem, tipo = 'info') {
+    const novaNotificacao = {
+        id: Date.now(),
+        title: titulo,
+        message: mensagem,
+        type: tipo,
+        read: false,
+        time: new Date().toISOString()
+    };
+    
+    notifications.unshift(novaNotificacao);
+    salvarTodosDados();
+    atualizarBadgeNotificacoes();
+    renderizarNotificacoes();
+    
+    // Notificação nativa se for app Android
+    if (typeof Android !== 'undefined') {
+        try {
+            Android.showNotification(titulo, mensagem, tipo);
+        } catch(e) {}
+    }
+    
+    return novaNotificacao;
+}
+
+// ===== ATUALIZAR CARDS =====
+function atualizarCards() {
+    const materias = new Set();
+    Object.values(weeklySchedule).forEach(day => {
+        day.forEach(c => { if (c.materia) materias.add(c.materia.toLowerCase()); });
+    });
+    
+    const concluidas = tasks.filter(t => t.completed).length;
+    const pendentes = tasks.filter(t => !t.completed).length;
+    
+    const cardDisciplinas = document.getElementById('card-disciplinas');
+    const cardConcluidas = document.getElementById('card-concluidas');
+    const cardPendentes = document.getElementById('card-pendentes');
+    
+    if (cardDisciplinas) cardDisciplinas.textContent = materias.size;
+    if (cardConcluidas) cardConcluidas.textContent = concluidas;
+    if (cardPendentes) cardPendentes.textContent = pendentes;
+}
+
+// ===== ABRIR MODAL DE EDIÇÃO =====
+function openEditModal() {
+    const editModal = document.getElementById('edit-modal');
+    if (editModal) {
+        editModal.classList.add('active');
+        renderizarEditSchedule();
+    }
+}
+
+function closeEditModal() {
+    const editModal = document.getElementById('edit-modal');
+    if (editModal) {
+        editModal.classList.remove('active');
+        renderizarHorario();
+        atualizarCards();
+    }
+}
+
+function renderizarEditSchedule() {
+    const grid = document.getElementById('edit-schedule-grid');
+    if (!grid) return;
+    
+    let html = '<div class="day-header">Hora</div>';
+    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    
+    timeSlots.forEach(time => {
+        html += `<div class="time-slot">
+            ${time}
+            <button class="btn-delete-row" data-time="${time}">
+                <ion-icon name="trash-outline"></ion-icon>
+            </button>
+        </div>`;
+        days.forEach(day => {
+            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (classItem) {
+                html += `<div class="edit-cell">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color}" data-day="${day}" data-time="${time}">
+                        ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="edit-cell">
+                    <button class="btn-add" data-day="${day}" data-time="${time}">+</button>
+                </div>`;
+            }
+        });
+    });
+    
+    grid.innerHTML = html;
+    
+    // Eventos de deleção de horário
+    document.querySelectorAll('.btn-delete-row').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const time = btn.dataset.time;
+            showConfirm(`Remover horário ${time}?`, 'Excluir Horário', (confirmado) => {
+                if (confirmado) {
+                    timeSlots = timeSlots.filter(t => t !== time);
+                    days.forEach(day => {
+                        if (weeklySchedule[day]) {
+                            weeklySchedule[day] = weeklySchedule[day].filter(c => c.horaInicio !== time);
+                        }
+                    });
+                    salvarTodosDados();
+                    renderizarEditSchedule();
+                    showToast('Horário removido!', 'success');
+                }
+            });
+        });
+    });
+    
+    // Eventos de edição de matéria
+    document.querySelectorAll('.edit-cell .class-block').forEach(block => {
+        block.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const day = block.dataset.day;
+            const time = block.dataset.time;
+            const subject = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (subject) openSubjectModal(subject, day, time);
+        });
+    });
+    
+    // Eventos de adição
+    document.querySelectorAll('.btn-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const day = btn.dataset.day;
+            const time = btn.dataset.time;
+            openSubjectModal(null, day, time);
+        });
+    });
+}
+
+function openSubjectModal(subject, day, time) {
+    const modal = document.getElementById('subject-modal');
+    const title = document.getElementById('subject-modal-title');
+    const nameInput = document.getElementById('subject-name-input');
+    const teacherInput = document.getElementById('subject-teacher-input');
+    const startInput = document.getElementById('subject-start-input');
+    const endInput = document.getElementById('subject-end-input');
+    const dayInput = document.getElementById('subject-day-input');
+    
+    if (!modal) return;
+    
+    editingSubject = subject;
+    if (dayInput) dayInput.value = day;
+    
+    if (subject) {
+        title.textContent = 'Editar Matéria';
+        if (nameInput) nameInput.value = subject.materia;
+        if (teacherInput) teacherInput.value = subject.professor || '';
+        if (startInput) startInput.value = subject.horaInicio;
+        if (endInput) endInput.value = subject.horaFim || '';
+        selectedSubjectColor = subject.color;
+    } else {
+        title.textContent = 'Adicionar Matéria';
+        if (nameInput) nameInput.value = '';
+        if (teacherInput) teacherInput.value = '';
+        if (startInput) startInput.value = time;
+        if (endInput) endInput.value = '';
+        selectedSubjectColor = '#6366f1';
+    }
+    
+    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
+    });
+    
+    modal.classList.add('active');
+}
+
+function saveSubject() {
+    const name = document.getElementById('subject-name-input')?.value.trim();
+    const teacher = document.getElementById('subject-teacher-input')?.value.trim();
+    const startTime = document.getElementById('subject-start-input')?.value;
+    const endTime = document.getElementById('subject-end-input')?.value;
+    const day = document.getElementById('subject-day-input')?.value;
+    
+    if (!name) {
+        showToast('Preencha o nome da matéria!', 'error');
+        return;
+    }
+    if (!startTime || !endTime) {
+        showToast('Defina início e término!', 'error');
+        return;
+    }
+    if (endTime <= startTime) {
+        showToast('Término deve ser depois do início!', 'error');
+        return;
+    }
+    
+    if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    
+    if (editingSubject) {
+        const oldStart = editingSubject.horaInicio;
+        weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
+    }
+    
+    if (!timeSlots.includes(startTime)) {
+        timeSlots.push(startTime);
+        timeSlots.sort();
+    }
+    
+    weeklySchedule[day].push({
+        materia: name,
+        professor: teacher,
+        color: selectedSubjectColor,
+        horaInicio: startTime,
+        horaFim: endTime
+    });
+    
+    weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+    
+    salvarTodosDados();
+    
+    document.getElementById('subject-modal').classList.remove('active');
+    showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
+    
+    const editModal = document.getElementById('edit-modal');
+    if (editModal && editModal.classList.contains('active')) {
+        renderizarEditSchedule();
+    } else {
+        renderizarHorario();
+    }
+    atualizarCards();
+}
+
+function addNewTimeSlot() {
+    const newTime = document.getElementById('new-time-input')?.value;
+    if (!newTime) {
+        showToast('Selecione um horário!', 'error');
+        return;
+    }
+    if (timeSlots.includes(newTime)) {
+        showToast('Este horário já existe!', 'error');
+        return;
+    }
+    
+    timeSlots.push(newTime);
+    timeSlots.sort();
+    salvarTodosDados();
+    document.getElementById('new-time-input').value = '11:00';
+    renderizarEditSchedule();
+    showToast('Horário adicionado!', 'success');
+}
+
+// ===== FUNÇÕES AUXILIARES =====
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -29,7 +674,10 @@ function showToast(message, type = 'info', duration = 3000) {
 
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
-    if (!modal) { callback(false); return; }
+    if (!modal) {
+        callback(confirm(message));
+        return;
+    }
     
     document.getElementById('confirm-title').textContent = title || 'Confirmar';
     document.getElementById('confirm-message').textContent = message;
@@ -52,482 +700,53 @@ function showConfirm(message, title, callback) {
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
     
-    document.getElementById('confirm-ok').addEventListener('click', handleConfirm);
-    document.getElementById('confirm-cancel').addEventListener('click', handleCancel);
+    document.getElementById('confirm-ok').onclick = handleConfirm;
+    document.getElementById('confirm-cancel').onclick = handleCancel;
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function loadUserData() {
-    const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (!usuarioSalvo) return;
-    try {
-        const user = JSON.parse(usuarioSalvo);
-        if (!usuarioLogado) usuarioLogado = {};
-        usuarioLogado.nome = user.nome || user.displayName || user.email?.split('@')[0] || 'Usuário';
-        usuarioLogado.email = user.email;
-        usuarioLogado.uid = user.uid;
-        const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = usuarioLogado.nome.split(' ')[0];
-    } catch(e) { console.error('Erro ao carregar usuário:', e); }
-}
-
-function saveAllData() {
-    if (!usuarioLogado || !usuarioLogado.uid) return;
-    if (window.setCached) {
-        window.setCached('usuarioLogado', usuarioLogado);
-        window.setCached('notifications', notifications);
-        window.setCached('weeklySchedule', weeklySchedule);
-        window.setCached('timeSlots', timeSlots);
-        window.setCached('calendarEvents', calendarEvents);
-        window.setCached('tasks', tasks);
-        window.setCached('notes', notes);
-    }
-}
-
-function loadAllData() {
-    try {
-        usuarioLogado = window.getCached('usuarioLogado', null);
-        
-        // CORREÇÃO: NÃO redirecionar - usar dados padrão temporários
-        if (!usuarioLogado || !usuarioLogado.email) {
-            console.log('⚠️ Usuário não encontrado no cache, usando dados padrão');
-            // Criar dados temporários para não quebrar a UI
-            usuarioLogado = {
-                nome: 'Visitante',
-                email: 'visitante@temp.com',
-                uid: 'temp_' + Date.now()
-            };
-            // NÃO redirecionar!
-        }
-        
-        loadUserData();
-        notifications = window.getCached('notifications', []);
-        weeklySchedule = window.getCached('weeklySchedule', {});
-        timeSlots = window.getCached('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
-        calendarEvents = window.getCached('calendarEvents', []);
-        tasks = window.getCached('tasks', []);
-        notes = window.getCached('notes', []);
-        days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
-        console.log('✅ Dados carregados localmente');
-        refreshHomeData();
-    } catch (error) { 
-        console.error('❌ Erro ao carregar dados:', error);
-    }
-}
-
-function updateSummaryCards() {
-    const materias = new Set();
-    Object.values(weeklySchedule).forEach(day => {
-        day.forEach(c => { if (c.materia) materias.add(c.materia.toLowerCase()); });
-    });
-    const disciplinas = materias.size;
-    const concluidas = tasks.filter(t => t.completed).length;
-    const pendentes = tasks.filter(t => !t.completed).length;
-    const cardDisciplinas = document.getElementById('card-disciplinas');
-    const cardConcluidas = document.getElementById('card-concluidas');
-    const cardPendentes = document.getElementById('card-pendentes');
-    if (cardDisciplinas) cardDisciplinas.textContent = disciplinas;
-    if (cardConcluidas) cardConcluidas.textContent = concluidas;
-    if (cardPendentes) cardPendentes.textContent = pendentes;
-}
-
-function updateNotificationBadge() {
-    const badge = document.getElementById('notification-badge');
-    const unreadCount = notifications.filter(n => !n.read).length;
-    if (badge) {
-        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-        badge.style.display = unreadCount > 0 ? 'flex' : 'none';
-    }
-}
-
-function renderNotificationsModal(filter = 'all') {
-    const list = document.getElementById('notifications-list-modal');
-    if (!list) return;
-    let filtered = [...notifications];
-    if (filter === 'unread') filtered = notifications.filter(n => !n.read);
-    else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
-    else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-    if (filtered.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
-        return;
-    }
-    let html = '';
-    filtered.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
-            <div class="notification-icon ${notif.type}">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
-            </div>
-            <div class="notification-content">
-                <div class="notification-title">${escapeHtml(notif.title)}</div>
-                <div class="notification-message">${escapeHtml(notif.message)}</div>
-                <div class="notification-time">${formatTime(notif.time)}</div>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-function formatTime(timeString) {
+function formatarTempoAtras(timeString) {
     if (!timeString) return '';
     const now = new Date();
     const notifTime = new Date(timeString);
     const diffMins = Math.floor((now - notifTime) / 60000);
+    
     if (diffMins < 1) return 'Agora';
     if (diffMins < 60) return `Há ${diffMins} min`;
     if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
     return notifTime.toLocaleDateString('pt-BR');
 }
 
-function renderNotificationsDynamic() {
-    const list = document.getElementById('notifications-list');
-    if (!list) return;
-    const unreadNotifications = notifications.filter(n => !n.read).slice(0, 3);
-    if (unreadNotifications.length === 0) {
-        list.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
-        return;
-    }
-    let html = '';
-    unreadNotifications.forEach(item => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="list-item" data-id="${item.id}">
-            <div class="item-icon" style="background-color: var(--accent-purple); color: white">
-                <ion-icon name="${iconMap[item.type] || 'notifications'}-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(item.title)}</div>
-                <div class="item-subtitle">${escapeHtml(item.message)}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-function renderNextEvent() {
-    const container = document.getElementById('next-event-container');
-    if (!container) return;
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const sortedEvents = [...calendarEvents]
-        .filter(e => e.date && e.date >= todayStr)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(0, 3);
-    if (sortedEvents.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
-        return;
-    }
-    let html = '';
-    sortedEvents.forEach(event => {
-        const [year, month, day] = event.date.split('-');
-        const dateFormatted = `${day}/${month}`;
-        html += `<div class="list-item" data-id="${event.id}">
-            <div class="item-icon" style="background-color: ${event.color}20; color: ${event.color}">
-                <ion-icon name="calendar-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(event.title)}</div>
-                <div class="item-subtitle">${dateFormatted} • ${event.start}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function renderNextTasks() {
-    const container = document.getElementById('next-tasks-container');
-    if (!container) return;
-    const upcomingTasks = tasks.filter(t => !t.completed).slice(0, 3);
-    if (upcomingTasks.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma tarefa pendente ✨</div></div></div>';
-        return;
-    }
-    let html = '';
-    upcomingTasks.forEach(task => {
-        html += `<div class="list-item" data-id="${task.id}">
-            <div class="item-icon" style="background-color: ${task.color}20; color: ${task.color}">
-                <ion-icon name="checkbox-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(task.title)}</div>
-                <div class="item-subtitle">${escapeHtml(task.subject || 'Geral')} • ${task.date}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function renderSchedule() {
-    const grid = document.getElementById('schedule-grid');
-    if (!grid) return;
-    let html = '<div class="day-header">Hora</div>';
-    days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    timeSlots.forEach(time => {
-        html += `<div class="time-slot">${time}</div>`;
-        days.forEach(day => {
-            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
-            if (classItem) {
-                html += `<div class="class-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color}">
-                        ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
-                    </div>
-                </div>`;
-            } else {
-                html += `<div class="class-cell"><div class="class-block empty">+</div></div>`;
-            }
-        });
-    });
-    grid.innerHTML = html;
-}
-
-function openEditModal() {
-    const editModal = document.getElementById('edit-modal');
-    if (editModal) { editModal.classList.add('active'); renderEditSchedule(); }
-}
-
-function closeEditModal() {
-    const editModal = document.getElementById('edit-modal');
-    if (editModal) { editModal.classList.remove('active'); renderSchedule(); updateSummaryCards(); }
-}
-
-function renderEditSchedule() {
-    const grid = document.getElementById('edit-schedule-grid');
-    if (!grid) return;
-    let html = '<div class="day-header">Hora</div>';
-    days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    timeSlots.forEach(time => {
-        html += `<div class="time-slot">
-            ${time}
-            <button class="btn-delete-row" data-time="${time}">
-                <ion-icon name="trash-outline"></ion-icon>
-            </button>
-        </div>`;
-        days.forEach(day => {
-            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
-            if (classItem) {
-                html += `<div class="edit-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color}">
-                        ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
-                    </div>
-                </div>`;
-            } else {
-                html += `<div class="edit-cell">
-                    <button class="btn-add" data-day="${day}" data-time="${time}">+</button>
-                </div>`;
-            }
-        });
-    });
-    grid.innerHTML = html;
-    document.querySelectorAll('.btn-delete-row').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const time = btn.dataset.time;
-            showConfirm(`Remover horário ${time}?`, 'Excluir Horário', (confirmed) => {
-                if (confirmed) {
-                    timeSlots = timeSlots.filter(t => t !== time);
-                    days.forEach(day => {
-                        if (weeklySchedule[day]) weeklySchedule[day] = weeklySchedule[day].filter(c => c.horaInicio !== time);
-                    });
-                    saveAllData();
-                    renderEditSchedule();
-                    showToast('Horário removido!', 'success');
-                }
-            });
-        });
-    });
-    document.querySelectorAll('.btn-add').forEach(btn => {
-        btn.addEventListener('click', () => openSubjectModal(null, btn.dataset.day, btn.dataset.time));
-    });
-}
-
-function openSubjectModal(subject, day, time) {
-    const modal = document.getElementById('subject-modal');
-    const title = document.getElementById('subject-modal-title');
-    const nameInput = document.getElementById('subject-name-input');
-    const teacherInput = document.getElementById('subject-teacher-input');
-    const startInput = document.getElementById('subject-start-input');
-    const endInput = document.getElementById('subject-end-input');
-    const dayInput = document.getElementById('subject-day-input');
-    if (!modal) return;
-    editingSubject = subject;
-    if (dayInput) dayInput.value = day;
-    if (subject) {
-        title.textContent = 'Editar Matéria';
-        if (nameInput) nameInput.value = subject.materia;
-        if (teacherInput) teacherInput.value = subject.professor || '';
-        if (startInput) startInput.value = subject.horaInicio;
-        if (endInput) endInput.value = subject.horaFim || '';
-        selectedSubjectColor = subject.color;
-    } else {
-        title.textContent = 'Adicionar Matéria';
-        if (nameInput) nameInput.value = '';
-        if (teacherInput) teacherInput.value = '';
-        if (startInput) startInput.value = time;
-        if (endInput) endInput.value = '';
-        selectedSubjectColor = '#6366f1';
-    }
-    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
-    });
-    modal.classList.add('active');
-}
-
-function saveSubject() {
-    const name = document.getElementById('subject-name-input')?.value.trim();
-    const teacher = document.getElementById('subject-teacher-input')?.value.trim();
-    const startTime = document.getElementById('subject-start-input')?.value;
-    const endTime = document.getElementById('subject-end-input')?.value;
-    const day = document.getElementById('subject-day-input')?.value;
-    if (!name) { showToast('Preencha o nome da matéria!', 'error'); return; }
-    if (!startTime || !endTime) { showToast('Defina início e término!', 'error'); return; }
-    if (endTime <= startTime) { showToast('Término deve ser depois do início!', 'error'); return; }
-    if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    if (editingSubject) {
-        const oldStart = editingSubject.horaInicio;
-        weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
-    }
-    if (!timeSlots.includes(startTime)) {
-        timeSlots.push(startTime);
-        timeSlots.sort();
-    }
-    weeklySchedule[day].push({
-        materia: name,
-        professor: teacher,
-        color: selectedSubjectColor,
-        horaInicio: startTime,
-        horaFim: endTime
-    });
-    weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-    saveAllData();
-    updateSummaryCards();
-    document.getElementById('subject-modal').classList.remove('active');
-    showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
-    const editModal = document.getElementById('edit-modal');
-    if (editModal && editModal.classList.contains('active')) { renderEditSchedule(); } else { renderSchedule(); }
-}
-
-function addNewTimeSlot() {
-    const newTime = document.getElementById('new-time-input')?.value;
-    if (!newTime) { showToast('Selecione um horário!', 'error'); return; }
-    if (timeSlots.includes(newTime)) { showToast('Este horário já existe!', 'error'); return; }
-    timeSlots.push(newTime);
-    timeSlots.sort();
-    saveAllData();
-    document.getElementById('new-time-input').value = '11:00';
-    renderEditSchedule();
-    showToast('Horário adicionado!', 'success');
-}
-
+// ===== SWITCH VIEW =====
 function switchView(viewName) {
-    console.log('Mudando para:', viewName);
     if (viewName === 'home') {
-        notifications = window.getCached('notifications', window.getDefaultNotifications());
-        weeklySchedule = window.getCached('weeklySchedule', window.getDefaultWeeklySchedule());
-        timeSlots = window.getCached('timeSlots', window.getDefaultTimeSlots());
-        calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
-        tasks = window.getCached('tasks', window.getDefaultTasks());
-        notes = window.getCached('notes', window.getDefaultNotes());
-        days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
-        refreshHomeData();
+        // Já está na home
     } else if (viewName === 'calendar') {
-        window.location.href = 'calendario/index.html';
+        window.location.href = '../calendario/index.html';
     } else if (viewName === 'tasks') {
-        window.location.href = 'tarefas/index.html';
+        window.location.href = '../tarefas/index.html';
     } else if (viewName === 'notes') {
-        window.location.href = 'notas/index.html';
+        window.location.href = '../notas/index.html';
     } else if (viewName === 'profile') {
-        window.location.href = 'perfil/index.html';
+        window.location.href = '../perfil/index.html';
     }
 }
 
-function refreshHomeData() {
-    updateSummaryCards();
-    renderSchedule();
-    renderNextEvent();
-    renderNextTasks();
-    renderNotificationsDynamic();
-}
-
-function markAllAsRead() {
-    notifications.forEach(n => n.read = true);
-    updateNotificationBadge();
-    renderNotificationsModal();
-    window.setCached('notifications', notifications);
-    showToast('Todas notificações marcadas como lidas!', 'success');
-}
-
-function clearAllNotifications() {
-    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
-        if (confirmed) {
-            notifications = [];
-            updateNotificationBadge();
-            renderNotificationsModal();
-            window.setCached('notifications', notifications);
-            showToast('Notificações limpas!', 'success');
-        }
-    });
-}
-
-// FUNÇÃO DE LOGOUT
+// ===== LOGOUT =====
 function logout() {
     if (confirm('Deseja realmente sair da sua conta?')) {
         localStorage.removeItem('usuarioLogado');
         if (window.CacheManager) {
             window.CacheManager.clearAllCache();
         }
-        window.location.href = '/TELAS/login/index.html';
+        window.location.href = '../../login/index.html';
     }
 }
 
+// ===== EVENTOS =====
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Dashboard inicializando...');
-    if (window.CacheManager) { window.CacheManager.init(); console.log('✅ CacheManager inicializado'); }
-    else { console.error('❌ CacheManager não encontrado!'); }
+    inicializar();
     
-    loadAllData();
-    
-    if (usuarioLogado && usuarioLogado.nome !== 'Visitante') {
-        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
-        const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-    } else {
-        const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = 'Usuário';
-    }
-    
-    updateNotificationBadge();
-    refreshHomeData();
-    
-    document.getElementById('notification-bell')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.add('active');
-        renderNotificationsModal();
-    });
-    document.getElementById('notification-bell-link')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.add('active');
-        renderNotificationsModal();
-    });
-    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.remove('active');
-    });
-    document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
-    document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
-    
-    document.querySelectorAll('.notification-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            renderNotificationsModal(tab.dataset.type);
-        });
-    });
-    
+    // Botões
     document.getElementById('toggle-edit-mode')?.addEventListener('click', openEditModal);
     document.getElementById('btn-back')?.addEventListener('click', closeEditModal);
     document.getElementById('btn-save')?.addEventListener('click', closeEditModal);
@@ -535,11 +754,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cancel-time')?.addEventListener('click', () => {
         document.getElementById('new-time-input').value = '11:00';
     });
+    document.getElementById('btn-save-subject')?.addEventListener('click', saveSubject);
+    
+    // Fechar modal de matéria
     document.querySelector('[data-modal="subject-modal"]')?.addEventListener('click', () => {
         document.getElementById('subject-modal').classList.remove('active');
     });
-    document.getElementById('btn-save-subject')?.addEventListener('click', saveSubject);
     
+    // Cores no modal de matéria
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -548,332 +770,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Notificações
+    document.getElementById('notification-bell')?.addEventListener('click', () => {
+        const modal = document.getElementById('notifications-modal');
+        if (modal) {
+            modal.classList.add('active');
+            renderizarNotificacoesModal();
+        }
+    });
+    
+    document.getElementById('notification-bell-link')?.addEventListener('click', () => {
+        const modal = document.getElementById('notifications-modal');
+        if (modal) {
+            modal.classList.add('active');
+            renderizarNotificacoesModal();
+        }
+    });
+    
+    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
+        document.getElementById('notifications-modal').classList.remove('active');
+    });
+    
+    document.getElementById('btn-mark-read')?.addEventListener('click', marcarTodasComoLidas);
+    document.getElementById('btn-clear-all')?.addEventListener('click', limparTodasNotificacoes);
+    
+    // Tabs de notificações
+    document.querySelectorAll('.notification-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderizarNotificacoesModal(tab.dataset.type);
+        });
+    });
+    
+    // Navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
-    
-    document.getElementById('focus-mode-btn')?.addEventListener('click', () => {
-        window.location.href = 'modo-foco/index.html';
-    });
-    
-    // Botão de logout
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
-    }
-    
-    console.log('✅ Inicialização concluída');
 });
 
-window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
-        console.log('🔄 Página restaurada do cache, recarregando dados...');
-        loadAllData();
-    }
-});
-
-
-
-// =====================================================
-// NOTIFICAÇÕES NATIVAS PARA ANDROID
-// =====================================================
-
-// Detectar se está rodando dentro do app Android
-function isAndroidApp() {
-    return typeof Android !== 'undefined';
-}
-
-// Enviar notificação nativa para o Android
-function sendNativeNotification(title, message, type) {
-    console.log('[NativeNotif] Tentando enviar:', title);
-    
-    if (isAndroidApp()) {
-        try {
-            Android.showNotification(title, message, type);
-            console.log('[NativeNotif] ✅ Notificação enviada para Android');
-            return true;
-        } catch(e) {
-            console.error('[NativeNotif] Erro ao enviar:', e);
-        }
-    } else {
-        // Fallback: usar notificação do navegador (PC/Web)
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(title, { body: message, icon: '/favicon.png' });
-            console.log('[NativeNotif] Notificação do navegador enviada');
-        } else if ('Notification' in window && Notification.permission !== 'denied') {
-            Notification.requestPermission();
-        }
-    }
-    return false;
-}
-
-// Verificar tarefas pendentes e enviar notificações
-async function checkPendingTasks() {
-    console.log('[NativeNotif] Verificando tarefas pendentes...');
-    
-    try {
-        // Buscar tarefas do localStorage
-        let tasks = [];
-        const cachedTasks = window.getCached ? window.getCached('tasks', []) : [];
-        tasks = cachedTasks;
-        
-        if (!tasks || tasks.length === 0) {
-            console.log('[NativeNotif] Nenhuma tarefa encontrada');
-            return;
-        }
-        
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        
-        let pendingTasks = [];
-        
-        tasks.forEach(task => {
-            if (!task.completed) {
-                pendingTasks.push(task);
-                
-                // Verificar tarefas que vencem hoje
-                if (task.date === todayStr) {
-                    sendNativeNotification(
-                        '📋 Tarefa Vence Hoje!',
-                        `${task.title} - ${task.subject || 'Geral'}`,
-                        'tarefa'
-                    );
-                }
-                // Verificar tarefas que vencem amanhã
-                else if (task.date === tomorrowStr) {
-                    sendNativeNotification(
-                        '⏰ Tarefa Vence Amanhã',
-                        `${task.title} - ${task.subject || 'Geral'}`,
-                        'tarefa'
-                    );
-                }
-            }
-        });
-        
-        // Salvar tarefas pendentes no Android
-        if (isAndroidApp() && pendingTasks.length > 0) {
-            try {
-                Android.saveTasks(JSON.stringify(pendingTasks));
-                console.log('[NativeNotif] Tarefas salvas no Android:', pendingTasks.length);
-            } catch(e) {}
-        }
-        
-        console.log('[NativeNotif] Total de tarefas pendentes:', pendingTasks.length);
-        
-    } catch (error) {
-        console.error('[NativeNotif] Erro ao verificar tarefas:', error);
-    }
-}
-
-// Verificar horários de aula e enviar notificações
-async function checkUpcomingClasses() {
-    console.log('[NativeNotif] Verificando horários de aula...');
-    
-    try {
-        // Buscar horário semanal
-        let weeklySchedule = {};
-        if (window.getCached) {
-            weeklySchedule = window.getCached('weeklySchedule', {});
-        }
-        
-        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
-            console.log('[NativeNotif] Nenhum horário encontrado');
-            return;
-        }
-        
-        const now = new Date();
-        const daysMap = {
-            'Dom': 0, 'Seg': 1, 'Ter': 2, 'Qua': 3, 'Qui': 4, 'Sex': 5, 'Sáb': 6
-        };
-        const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        const todayName = dayNames[now.getDay()];
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTotalMinutes = currentHour * 60 + currentMinute;
-        
-        const todayClasses = weeklySchedule[todayName] || [];
-        console.log('[NativeNotif] Aulas de hoje:', todayClasses.length);
-        
-        let upcomingClasses = [];
-        
-        todayClasses.forEach(classItem => {
-            if (classItem.horaInicio) {
-                const [classHour, classMinute] = classItem.horaInicio.split(':').map(Number);
-                const classTotalMinutes = classHour * 60 + classMinute;
-                const minutesUntilClass = classTotalMinutes - currentTotalMinutes;
-                
-                // Notificar 15 minutos antes da aula
-                if (minutesUntilClass <= 15 && minutesUntilClass > 0) {
-                    sendNativeNotification(
-                        '📚 Aula em Breve!',
-                        `${classItem.materia} começa em ${minutesUntilClass} minutos`,
-                        'aula'
-                    );
-                    upcomingClasses.push(classItem);
-                }
-                // Notificar 1 hora antes
-                else if (minutesUntilClass <= 60 && minutesUntilClass > 15 && minutesUntilClass % 30 === 0) {
-                    const hours = Math.floor(minutesUntilClass / 60);
-                    const mins = minutesUntilClass % 60;
-                    let timeMsg = '';
-                    if (hours > 0) timeMsg = `${hours}h`;
-                    if (mins > 0) timeMsg += `${mins}min`;
-                    
-                    sendNativeNotification(
-                        '📖 Lembrete de Aula',
-                        `${classItem.materia} começa em ${timeMsg}`,
-                        'aula'
-                    );
-                }
-            }
-        });
-        
-        // Salvar aulas do dia no Android
-        if (isAndroidApp() && todayClasses.length > 0) {
-            try {
-                Android.saveClasses(JSON.stringify(todayClasses));
-                console.log('[NativeNotif] Aulas salvas no Android:', todayClasses.length);
-            } catch(e) {}
-        }
-        
-    } catch (error) {
-        console.error('[NativeNotif] Erro ao verificar aulas:', error);
-    }
-}
-
-// Verificar eventos do calendário
-async function checkCalendarEvents() {
-    console.log('[NativeNotif] Verificando eventos do calendário...');
-    
-    try {
-        let calendarEvents = [];
-        if (window.getCached) {
-            calendarEvents = window.getCached('calendarEvents', []);
-        }
-        
-        if (!calendarEvents || calendarEvents.length === 0) return;
-        
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        
-        calendarEvents.forEach(event => {
-            if (event.date === todayStr) {
-                sendNativeNotification(
-                    '📅 Evento Hoje',
-                    `${event.title} - ${event.start || 'Hoje'}`,
-                    'geral'
-                );
-            } else if (event.date === tomorrowStr) {
-                sendNativeNotification(
-                    '📅 Evento Amanhã',
-                    `${event.title} - ${event.start || 'Amanhã'}`,
-                    'geral'
-                );
-            }
-        });
-        
-    } catch (error) {
-        console.error('[NativeNotif] Erro ao verificar eventos:', error);
-    }
-}
-
-// Função principal de verificação
-function runNotificationChecks() {
-    console.log('[NativeNotif] ===== INICIANDO VERIFICAÇÃO =====');
-    checkPendingTasks();
-    checkUpcomingClasses();
-    checkCalendarEvents();
-    console.log('[NativeNotif] ===== VERIFICAÇÃO CONCLUÍDA =====');
-}
-
-// Inicializar sistema de notificações
-function initNativeNotifications() {
-    console.log('[NativeNotif] Inicializando sistema de notificações...');
-    
-    if (isAndroidApp()) {
-        console.log('[NativeNotif] ✅ Rodando dentro do app Android');
-        // Notificar Android que o app está pronto
-        try {
-            Android.log('App web carregado com sucesso');
-        } catch(e) {}
-    } else {
-        console.log('[NativeNotif] Rodando no navegador/web');
-        // Solicitar permissão para notificações do navegador
-        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-            setTimeout(() => {
-                Notification.requestPermission();
-            }, 3000);
-        }
-    }
-    
-    // Executar verificação inicial
-    setTimeout(runNotificationChecks, 2000);
-    
-    // Configurar verificações periódicas
-    // A cada 15 minutos
-    setInterval(runNotificationChecks, 15 * 60 * 1000);
-    
-    // A cada 1 minuto verificar apenas aulas próximas (mais frequente)
-    setInterval(() => {
-        checkUpcomingClasses();
-    }, 60 * 1000);
-}
-
-// Salvar dados no Android quando alterar
-function setupAutoSaveForNotifications() {
-    // Interceptar saves para sincronizar com Android
-    const originalSetCached = window.setCached;
-    if (originalSetCached) {
-        window.setCached = function(key, value, notify) {
-            const result = originalSetCached(key, value, notify);
-            
-            // Quando tarefas ou horários mudam, notificar Android
-            if (isAndroidApp() && (key === 'tasks' || key === 'weeklySchedule')) {
-                if (key === 'tasks') {
-                    const pendingTasks = (value || []).filter(t => !t.completed);
-                    try {
-                        Android.saveTasks(JSON.stringify(pendingTasks));
-                    } catch(e) {}
-                }
-                if (key === 'weeklySchedule') {
-                    const now = new Date();
-                    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                    const today = days[now.getDay()];
-                    const todayClasses = (value || {})[today] || [];
-                    try {
-                        Android.saveClasses(JSON.stringify(todayClasses));
-                    } catch(e) {}
-                }
-            }
-            
-            return result;
-        };
-    }
-}
-
-// Expor funções globalmente
-window.isAndroidApp = isAndroidApp;
-window.sendNativeNotification = sendNativeNotification;
-window.checkPendingTasks = checkPendingTasks;
-window.checkUpcomingClasses = checkUpcomingClasses;
-window.checkCalendarEvents = checkCalendarEvents;
-window.runNotificationChecks = runNotificationChecks;
-
-// Inicializar quando o documento estiver pronto
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        initNativeNotifications();
-        setupAutoSaveForNotifications();
-    });
-} else {
-    initNativeNotifications();
-    setupAutoSaveForNotifications();
-}
-
-console.log('[NativeNotif] ✅ Sistema de notificações nativas carregado!');
+console.log('%c📱 Mobile - Painel do Aluno', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
+console.log('%cSistema carregado com sucesso!', 'color: #10b981; font-size: 14px;');
