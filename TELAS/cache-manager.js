@@ -2,17 +2,19 @@
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v5';
+        this.cacheVersion = 'v6';
         this.isInitialized = false;
         this.currentUserId = null;
         this.isSyncing = false;
         this.syncCallbacks = [];
+        this.pendingCloudLoad = null;
     }
 
     init() {
         if (this.isInitialized) return;
         this.checkAndClearOldCache();
         
+        // Escutar mudanças no localStorage de outras abas
         window.addEventListener('storage', (e) => {
             if (e.key && this.listeners.has(e.key)) {
                 const callbacks = this.listeners.get(e.key);
@@ -26,8 +28,14 @@ class CacheManager {
             }
         });
         
+        // Escutar evento global de dados carregados da nuvem
+        window.addEventListener('cloudDataLoaded', (event) => {
+            console.log('[CacheManager] Dados carregados da nuvem, atualizando UI');
+            this.notifyAllListeners(event.detail);
+        });
+        
         this.isInitialized = true;
-        console.log('[CacheManager] Inicializado');
+        console.log('[CacheManager] Inicializado v6');
     }
 
     getCurrentUserId() {
@@ -95,9 +103,13 @@ class CacheManager {
                 callbacks.forEach(cb => cb(value));
             }
             
-            // Sincronizar com a nuvem (Realtime DB)
+            // Sincronizar com a nuvem (Realtime DB) - apenas se não estiver em processo de sync
             if (!this.isSyncing && window.FirebaseSync && this.currentUserId && this.currentUserId !== 'default') {
-                this.syncToCloud(key, value);
+                // Debounce para evitar muitas chamadas
+                clearTimeout(this._syncTimeout);
+                this._syncTimeout = setTimeout(() => {
+                    this.syncToCloud(key, value);
+                }, 500);
             }
             
             return true;
@@ -110,25 +122,25 @@ class CacheManager {
     async syncToCloud(key, value) {
         try {
             const userId = this.getCurrentUserId();
-            if (userId && userId !== 'default') {
+            if (userId && userId !== 'default' && window.FirebaseSync) {
                 await window.FirebaseSync.saveUserDataToCloud(userId, key, value);
-                console.log(`[CacheManager] Dado "${key}" enviado para nuvem`);
+                console.log(`[CacheManager] ✅ Dado "${key}" enviado para nuvem`);
             }
         } catch (error) {
             console.error('[CacheManager] Erro ao sincronizar com nuvem:', error);
         }
     }
     
-    async loadFromCloud() {
+    async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
         if (!userId || userId === 'default') {
             console.log('[CacheManager] Sem usuário logado, ignorando sync da nuvem');
             return false;
         }
         
-        if (this.isSyncing) {
+        if (this.isSyncing && !force) {
             console.log('[CacheManager] Sincronização já em andamento...');
-            return false;
+            return this.pendingCloudLoad;
         }
         
         this.isSyncing = true;
@@ -145,14 +157,12 @@ class CacheManager {
                 for (const key of keys) {
                     if (cloudData[key] !== undefined && cloudData[key] !== null) {
                         const localData = this.get(key, null);
-                        // Se não tem dados locais OU os dados da nuvem existem
                         if (localData === null || JSON.stringify(localData) !== JSON.stringify(cloudData[key])) {
                             const storageKey = this.getStorageKey(key);
                             localStorage.setItem(storageKey, JSON.stringify(cloudData[key]));
                             hasChanges = true;
                             console.log(`[CacheManager] ✅ Dado "${key}" carregado da nuvem`);
                             
-                            // Notificar listeners
                             if (this.listeners.has(key)) {
                                 const callbacks = this.listeners.get(key);
                                 callbacks.forEach(cb => cb(cloudData[key]));
@@ -161,10 +171,8 @@ class CacheManager {
                     }
                 }
                 
-                // Forçar recarregamento da UI
                 if (hasChanges) {
                     console.log('[CacheManager] 🎉 Dados carregados da nuvem com sucesso!');
-                    // Disparar evento global
                     window.dispatchEvent(new CustomEvent('cloudDataLoaded', { detail: cloudData }));
                 }
                 return true;
@@ -175,8 +183,18 @@ class CacheManager {
             console.error('[CacheManager] ❌ Erro ao carregar da nuvem:', error);
         } finally {
             this.isSyncing = false;
+            this.pendingCloudLoad = null;
         }
         return false;
+    }
+    
+    notifyAllListeners(cloudData) {
+        if (!cloudData) return;
+        for (const [key, callbacks] of this.listeners) {
+            if (cloudData[key] !== undefined && callbacks.length > 0) {
+                callbacks.forEach(cb => cb(cloudData[key]));
+            }
+        }
     }
 
     addListener(key, callback) {
@@ -194,10 +212,19 @@ class CacheManager {
         };
     }
     
-    // Forçar sincronização manual
     async forceSync() {
         console.log('[CacheManager] 🔄 Forçando sincronização manual...');
-        return await this.loadFromCloud();
+        return await this.loadFromCloud(true);
+    }
+    
+    // Método para ser chamado após login
+    async afterLogin() {
+        this.currentUserId = null; // Reset para pegar novo usuário
+        const userId = this.getCurrentUserId();
+        if (userId && userId !== 'default') {
+            console.log('[CacheManager] 🔄 Usuário logado, carregando dados da nuvem...');
+            await this.loadFromCloud(true);
+        }
     }
 }
 
