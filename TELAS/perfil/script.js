@@ -4,23 +4,8 @@ let tarefas = [];
 let anotacoes = [];
 let eventos = [];
 
-// ===== DETECTAR MUDANÇAS =====
-window.addEventListener('storage', (e) => {
-    if (!usuarioAtual) return;
-    
-    if (e.key === `tarefas_${usuarioAtual.email}` ||
-        e.key === `anotacoes_${usuarioAtual.email}` ||
-        e.key === `eventos_${usuarioAtual.email}` ||
-        e.key === 'sync_notification') {
-        
-        console.log('🔄 Dados atualizados em outra aba');
-        carregarDados();
-        atualizarEstatisticasMini();
-    }
-});
-
 // ===== VERIFICAÇÃO DE LOGIN =====
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
     if (!usuario) {
         window.location.href = '../login/index.html';
@@ -29,393 +14,236 @@ window.addEventListener('DOMContentLoaded', () => {
     
     try {
         usuarioAtual = JSON.parse(usuario);
-        carregarDados();
-        atualizarMiniPerfil();
-        atualizarEstatisticasMini();
+        atualizarPerfil();
         
-        // Inicializar componentes
-        new Calendar();
-        new CircularProgress();
-        new StudyChart();
-        new StudyTimer();
+        // Iniciar sincronização
+        if (window.initSync) {
+            await window.initSync();
+        }
+        
+        carregarDados();
+        
+        // Escutar mudanças do Firebase
+        window.addEventListener('cloudDataLoaded', () => {
+            console.log('[Perfil] Dados atualizados do Firebase');
+            carregarDados();
+        });
+        
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
 });
 
-// ===== CARREGAR DADOS DE OUTROS MÓDULOS =====
 function carregarDados() {
-    // Carregar tarefas
-    const tarefasKey = `tarefas_${usuarioAtual.email}`;
-    const tarefasSalvas = localStorage.getItem(tarefasKey);
-    tarefas = tarefasSalvas ? JSON.parse(tarefasSalvas) : [];
-
-    // Carregar anotações
-    const anotacoesKey = `anotacoes_${usuarioAtual.email}`;
-    const anotacoesSalvas = localStorage.getItem(anotacoesKey);
-    anotacoes = anotacoesSalvas ? JSON.parse(anotacoesSalvas) : [];
-
-    // Carregar eventos
-    const eventosKey = `eventos_${usuarioAtual.email}`;
-    const eventosSalvas = localStorage.getItem(eventosKey);
-    eventos = eventosSalvas ? JSON.parse(eventosSalvas) : [];
-}
-
-// ===== ATUALIZAR MINI PERFIL =====
-function atualizarMiniPerfil() {
     if (!usuarioAtual) return;
     
-    document.getElementById('miniName').textContent = usuarioAtual.nome || 'Usuário';
-    document.getElementById('miniEmail').textContent = usuarioAtual.email || '';
-    
-    if (usuarioAtual.avatar) {
-        document.getElementById('miniAvatar').src = usuarioAtual.avatar;
+    if (window.CacheManager) {
+        tarefas = window.CacheManager.get('tasks', []);
+        anotacoes = window.CacheManager.get('notes', []);
+        eventos = window.CacheManager.get('calendarEvents', []);
     } else {
-        const iniciais = usuarioAtual.nome
-            ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase()
-            : 'U';
-        document.getElementById('miniAvatar').src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
+        const userId = usuarioAtual.email;
+        tarefas = JSON.parse(localStorage.getItem(`tasks_${userId}`) || '[]');
+        anotacoes = JSON.parse(localStorage.getItem(`notes_${userId}`) || '[]');
+        eventos = JSON.parse(localStorage.getItem(`calendarEvents_${userId}`) || '[]');
+    }
+    
+    atualizarEstatisticasPerfil();
+}
+
+function atualizarPerfil() {
+    if (!usuarioAtual) return;
+    
+    document.getElementById('profileName').textContent = usuarioAtual.nome || 'Usuário';
+    document.getElementById('profileEmail').textContent = usuarioAtual.email || '';
+    document.getElementById('nome').value = usuarioAtual.nome || '';
+    document.getElementById('email').value = usuarioAtual.email || '';
+    
+    const iniciais = usuarioAtual.nome ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+    const avatarImg = document.getElementById('avatarImage');
+    if (avatarImg && usuarioAtual.avatar) {
+        avatarImg.src = usuarioAtual.avatar;
+    } else if (avatarImg) {
+        avatarImg.src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
     }
 }
 
-// ===== ATUALIZAR ESTATÍSTICAS =====
-function atualizarEstatisticasMini() {
+function atualizarEstatisticasPerfil() {
     const totalTarefas = tarefas.length;
-    const tarefasConcluidas = tarefas.filter(t => t.concluida).length;
-    const percentualConclusao = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
+    const tarefasConcluidas = tarefas.filter(t => t.completed).length;
+    const percentual = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
     
-    const horasEstudo = calcularHorasEstudo();
-    const progressoSemanal = calcularProgressoSemanal();
+    const horasEstudo = eventos.filter(e => e.type === 'aula').length * 2 + tarefasConcluidas * 1.5;
     
-    animateValue('statTarefas', 0, totalTarefas, 1000);
-    animateValue('statConclusao', 0, percentualConclusao, 1000, '%');
-    animateValue('statHoras', 0, horasEstudo, 1000, 'h');
-    
-    setTimeout(() => {
-        document.getElementById('progressFill').style.width = progressoSemanal + '%';
-        document.getElementById('progressValue').textContent = progressoSemanal + '%';
-    }, 500);
-    
-    setTimeout(() => {
-        const circularProgress = document.querySelector('.progress-ring-fill');
-        if (circularProgress) {
-            const radius = circularProgress.r.baseVal.value;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (progressoSemanal / 100) * circumference;
-            circularProgress.style.strokeDashoffset = offset;
-        }
-        document.querySelector('.percentage').textContent = progressoSemanal + '%';
-    }, 800);
+    document.querySelector('.profile-stat .stat-value:first-child').textContent = totalTarefas;
+    document.querySelector('.profile-stat .stat-value:nth-child(2)').textContent = percentual + '%';
+    document.querySelector('.profile-stat .stat-value:last-child').textContent = Math.floor(horasEstudo) + 'h';
 }
 
-function calcularHorasEstudo() {
-    let horas = 0;
-    horas += eventos.filter(e => e.type === 'aula').length * 2;
-    horas += tarefas.filter(t => t.concluida).length * 1.5;
-    return horas || 45;
+function previewAvatar(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const avatarImg = document.getElementById('avatarImage');
+            if (avatarImg) avatarImg.src = e.target.result;
+            usuarioAtual.avatar = e.target.result;
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
-function calcularProgressoSemanal() {
-    const hoje = new Date();
-    const inicioSemana = new Date(hoje);
-    inicioSemana.setDate(hoje.getDate() - hoje.getDay());
-    const fimSemana = new Date(inicioSemana);
-    fimSemana.setDate(inicioSemana.getDate() + 6);
-    
-    const eventosSemana = eventos.filter(e => {
-        const dataEvento = new Date(e.year, e.month, e.day);
-        return dataEvento >= inicioSemana && dataEvento <= fimSemana;
-    });
-    
-    const tarefasSemana = tarefas.filter(t => {
-        if (!t.prazo) return false;
-        const [dia, mes, ano] = t.prazo.split('/');
-        const dataPrazo = new Date(ano, mes-1, dia);
-        return dataPrazo >= inicioSemana && dataPrazo <= fimSemana;
-    });
-    
-    const totalItens = eventosSemana.length + tarefasSemana.length;
-    const itensConcluidos = tarefas.filter(t => t.concluida).length;
-    
-    if (totalItens === 0) return 75;
-    
-    const progresso = Math.min(100, Math.round((itensConcluidos / totalItens) * 100));
-    return progresso || 75;
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = input.nextElementSibling;
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
 }
 
-function animateValue(elementId, start, end, duration, suffix = '') {
-    const element = document.getElementById(elementId);
-    if (!element) return;
+function salvarAlteracoes() {
+    const nome = document.getElementById('nome').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const telefone = document.getElementById('telefone').value.trim();
+    const nascimento = document.getElementById('nascimento').value;
+    const genero = document.getElementById('genero').value;
     
-    let startTimestamp = null;
-    const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const value = Math.floor(progress * (end - start) + start);
-        element.textContent = value + suffix;
-        if (progress < 1) {
-            window.requestAnimationFrame(step);
-        }
+    if (!nome || !email) {
+        mostrarToast('Preencha nome e e-mail!', 'error');
+        return;
+    }
+    
+    usuarioAtual.nome = nome;
+    usuarioAtual.email = email;
+    usuarioAtual.telefone = telefone;
+    usuarioAtual.nascimento = nascimento;
+    usuarioAtual.genero = genero;
+    
+    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    atualizarPerfil();
+    mostrarToast('Alterações salvas com sucesso!', 'success');
+}
+
+function alterarSenha() {
+    const senhaAtual = document.getElementById('senhaAtual').value;
+    const novaSenha = document.getElementById('novaSenha').value;
+    const confirmarSenha = document.getElementById('confirmarSenha').value;
+    
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+        mostrarToast('Preencha todos os campos de senha!', 'error');
+        return;
+    }
+    
+    if (novaSenha !== confirmarSenha) {
+        mostrarToast('As senhas não coincidem!', 'error');
+        return;
+    }
+    
+    if (novaSenha.length < 6) {
+        mostrarToast('A nova senha deve ter no mínimo 6 caracteres!', 'error');
+        return;
+    }
+    
+    usuarioAtual.senha = novaSenha;
+    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    
+    document.getElementById('senhaAtual').value = '';
+    document.getElementById('novaSenha').value = '';
+    document.getElementById('confirmarSenha').value = '';
+    
+    mostrarToast('Senha alterada com sucesso!', 'success');
+}
+
+function toggleDarkMode() {
+    const isDark = document.getElementById('darkModeToggle').checked;
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+function exportarDados() {
+    const dados = {
+        usuario: usuarioAtual,
+        tarefas: tarefas,
+        anotacoes: anotacoes,
+        eventos: eventos,
+        dataExportacao: new Date().toISOString()
     };
-    window.requestAnimationFrame(step);
+    
+    const dataStr = JSON.stringify(dados, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dados_${usuarioAtual.nome}_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    mostrarToast('Dados exportados com sucesso!', 'success');
 }
 
-// ============================================
-// CALENDÁRIO (INTEGRADO)
-// ============================================
-class Calendar {
-    constructor() {
-        this.currentDate = new Date();
-        this.today = new Date();
-        this.init();
-    }
-    
-    init() {
-        this.renderCalendar();
-        document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
-        document.getElementById('nextMonth')?.addEventListener('click', () => this.changeMonth(1));
-    }
-    
-    changeMonth(delta) {
-        this.currentDate.setMonth(this.currentDate.getMonth() + delta);
-        this.renderCalendar();
-    }
-    
-    renderCalendar() {
-        const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth();
-        const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        
-        document.getElementById('currentMonth').textContent = `${monthNames[month]} ${year}`;
-        
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const calendarDates = document.getElementById('calendarDates');
-        calendarDates.innerHTML = '';
-        
-        for (let i = 0; i < firstDay; i++) {
-            const emptyCell = document.createElement('div');
-            emptyCell.className = 'date-cell empty';
-            calendarDates.appendChild(emptyCell);
-        }
-        
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateCell = document.createElement('div');
-            dateCell.className = 'date-cell';
-            dateCell.textContent = day;
-            
-            if (year === this.today.getFullYear() && month === this.today.getMonth() && day === this.today.getDate()) {
-                dateCell.classList.add('today');
-            }
-            
-            const temEvento = eventos.some(e => 
-                e.day === day && e.month === month && e.year === year
-            );
-            
-            if (temEvento) {
-                dateCell.classList.add('has-event');
-                dateCell.title = 'Tem evento(s) agendado(s)';
-            }
-            
-            calendarDates.appendChild(dateCell);
-        }
-    }
-}
-
-// ============================================
-// PROGRESSO CIRCULAR
-// ============================================
-class CircularProgress {
-    constructor() {
-        this.circle = document.querySelector('.progress-ring-fill');
-        if (!this.circle) return;
-        this.radius = this.circle.r.baseVal.value;
-        this.circumference = 2 * Math.PI * this.radius;
-        this.init();
-    }
-    
-    init() {
-        this.circle.style.strokeDasharray = `${this.circumference} ${this.circumference}`;
-        this.circle.style.strokeDashoffset = this.circumference;
-    }
-}
-
-// ============================================
-// GRÁFICO DE ESTUDO
-// ============================================
-class StudyChart {
-    constructor() {
-        this.chartContainer = document.getElementById('studyChart');
-        if (!this.chartContainer) return;
-        
-        this.data = this.gerarDadosSemana();
-        this.init();
-    }
-    
-    gerarDadosSemana() {
-        const dados = [];
-        
-        for (let i = 0; i < 7; i++) {
-            const data = new Date();
-            data.setDate(data.getDate() - data.getDay() + i);
-            
-            const eventosDia = eventos.filter(e => 
-                e.day === data.getDate() && 
-                e.month === data.getMonth() && 
-                e.year === data.getFullYear()
-            ).length;
-            
-            const tarefasDia = tarefas.filter(t => {
-                if (!t.prazo) return false;
-                const [dia, mes, ano] = t.prazo.split('/');
-                return parseInt(dia) === data.getDate() && 
-                       parseInt(mes)-1 === data.getMonth() && 
-                       parseInt(ano) === data.getFullYear();
-            }).length;
-            
-            const horas = (eventosDia * 2) + (tarefasDia * 1.5);
-            dados.push(Math.min(8, Math.round(horas)) || Math.floor(Math.random() * 4) + 2);
-        }
-        
-        return dados;
-    }
-    
-    init() {
-        this.drawChart();
-        window.addEventListener('resize', () => this.drawChart());
-    }
-    
-    drawChart() {
-        const width = this.chartContainer.offsetWidth || 200;
-        const height = this.chartContainer.offsetHeight || 80;
-        const padding = 10;
-        
-        this.chartContainer.innerHTML = '';
-        
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-        svg.setAttribute('preserveAspectRatio', 'none');
-        
-        const maxVal = Math.max(...this.data, 2);
-        const minVal = Math.min(...this.data, 0);
-        const range = maxVal - minVal || 1;
-        
-        const points = this.data.map((val, index) => {
-            const x = padding + (index / (this.data.length - 1)) * (width - 2 * padding);
-            const y = height - padding - ((val - minVal) / range) * (height - 2 * padding);
-            return `${x},${y}`;
-        });
-        
-        const areaPoints = [
-            `${padding},${height - padding}`,
-            ...points,
-            `${width - padding},${height - padding}`
-        ].join(' ');
-        
-        const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        area.setAttribute('points', areaPoints);
-        area.setAttribute('fill', 'rgba(147, 51, 234, 0.2)');
-        svg.appendChild(area);
-        
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-        line.setAttribute('points', points.join(' '));
-        line.setAttribute('fill', 'none');
-        line.setAttribute('stroke', '#9333ea');
-        line.setAttribute('stroke-width', '3');
-        line.setAttribute('stroke-linecap', 'round');
-        
-        svg.appendChild(line);
-        this.chartContainer.appendChild(svg);
-    }
-}
-
-// ============================================
-// TIMER DE ESTUDO
-// ============================================
-class StudyTimer {
-    constructor() {
-        this.isActive = false;
-        this.seconds = 0;
-        this.interval = null;
-        this.btnStart = document.getElementById('startStudy');
-        if (this.btnStart) {
-            this.btnStart.addEventListener('click', () => this.toggleTimer());
-            this.carregarTimerSalvo();
-        }
-    }
-    
-    carregarTimerSalvo() {
-        const timerKey = `timer_${usuarioAtual?.email}`;
-        const timerSalvo = localStorage.getItem(timerKey);
-        
-        if (timerSalvo) {
-            const timerData = JSON.parse(timerSalvo);
-            const hoje = new Date().toDateString();
-            
-            if (timerData.data === hoje) {
-                this.seconds = timerData.segundos;
-                this.updateDisplay();
+function deletarConta() {
+    if (confirm('TEM CERTEZA ABSOLUTA? Esta ação é irreversível e todos os seus dados serão永久mente excluídos.')) {
+        if (confirm('Digite "DELETAR" para confirmar a exclusão da sua conta:')) {
+            const confirmacao = prompt('Digite DELETAR para confirmar:');
+            if (confirmacao === 'DELETAR') {
+                const userId = usuarioAtual.email;
+                localStorage.removeItem(`tasks_${userId}`);
+                localStorage.removeItem(`notes_${userId}`);
+                localStorage.removeItem(`calendarEvents_${userId}`);
+                localStorage.removeItem(`weeklySchedule_${userId}`);
+                localStorage.removeItem(`timeSlots_${userId}`);
+                localStorage.removeItem('usuarioLogado');
+                
+                if (window.CacheManager) {
+                    window.CacheManager.clearAllCache();
+                }
+                
+                mostrarToast('Conta deletada com sucesso!', 'success');
+                setTimeout(() => {
+                    window.location.href = '../login/index.html';
+                }, 2000);
+            } else {
+                mostrarToast('Confirmação incorreta. Operação cancelada.', 'error');
             }
         }
     }
-    
-    salvarTimer() {
-        if (!usuarioAtual) return;
+}
+
+function mostrarToast(mensagem, tipo = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    if (toast && toastMessage) {
+        toastMessage.textContent = mensagem;
+        toast.className = `toast ${tipo === 'success' ? 'show' : 'show error'}`;
+        if (tipo === 'error') toast.style.background = '#d63031';
+        else toast.style.background = 'linear-gradient(135deg, #00b894, #059669)';
         
-        const timerKey = `timer_${usuarioAtual.email}`;
-        localStorage.setItem(timerKey, JSON.stringify({
-            segundos: this.seconds,
-            data: new Date().toDateString(),
-            ativo: this.isActive
-        }));
-    }
-    
-    toggleTimer() {
-        if (this.isActive) {
-            this.pauseTimer();
-        } else {
-            this.startTimer();
-        }
-    }
-    
-    startTimer() {
-        this.isActive = true;
-        this.btnStart.innerHTML = '<i class="fas fa-pause"></i> Pausar Sessão';
-        this.btnStart.style.background = '#e74c3c';
-        this.interval = setInterval(() => {
-            this.seconds++;
-            this.updateDisplay();
-            this.salvarTimer();
-        }, 1000);
-    }
-    
-    pauseTimer() {
-        this.isActive = false;
-        clearInterval(this.interval);
-        this.btnStart.innerHTML = '<i class="fas fa-play"></i> Continuar Sessão';
-        this.btnStart.style.background = '';
-        this.salvarTimer();
-    }
-    
-    updateDisplay() {
-        const h = Math.floor(this.seconds / 3600);
-        const m = Math.floor((this.seconds % 3600) / 60);
-        const s = this.seconds % 60;
-        this.btnStart.innerHTML = `<i class="fas fa-pause"></i> ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    } else {
+        alert(mensagem);
     }
 }
 
-// ===== LOGOUT =====
 function logout() {
-    if (confirm('Deseja sair?')) {
+    if (confirm('Deseja sair da sua conta?')) {
         localStorage.removeItem('usuarioLogado');
+        if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
     }
 }
 
-// ===== MENU ATIVO =====
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
         if (this.href && !this.href.endsWith('#')) {
@@ -425,5 +253,4 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-console.log('%c🏠 Painel Inicial', 'color: #9333ea; font-size: 20px; font-weight: bold;');
-console.log('%cSistema integrado carregado!', 'color: #00b894; font-size: 14px;');
+console.log('%c👤 Perfil - Painel do Aluno', 'color: #9333ea; font-size: 20px; font-weight: bold;');
