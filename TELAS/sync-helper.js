@@ -166,3 +166,138 @@
     
     console.log('[Sync] Helper carregado com suporte a tempo real');
 })();
+
+
+
+// =====================================================
+// PONTE DE SINCRONIZAÇÃO PC <-> MOBILE
+// Mantém o Desktop funcionando como está, mas sincroniza dados
+// =====================================================
+
+(function() {
+    // Função para carregar horário do Mobile para o Desktop
+    window.syncScheduleToDesktop = function() {
+        console.log('[Sync] 🔄 Sincronizando horário para Desktop...');
+        
+        const usuario = localStorage.getItem('usuarioLogado');
+        if (!usuario) return;
+        
+        let usuarioObj;
+        try {
+            usuarioObj = JSON.parse(usuario);
+        } catch(e) { return; }
+        
+        const userId = usuarioObj.uid || usuarioObj.email;
+        
+        // Tentar carregar weeklySchedule do CacheManager
+        if (window.CacheManager) {
+            const weeklySchedule = window.CacheManager.get('weeklySchedule', null);
+            const timeSlots = window.CacheManager.get('timeSlots', null);
+            
+            if (weeklySchedule) {
+                console.log('[Sync] ✅ Horário carregado do CacheManager:', weeklySchedule);
+                
+                // Salvar no formato que o Desktop entende
+                localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+                if (timeSlots) {
+                    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+                }
+                
+                // Atualizar tabela do Desktop se existir
+                atualizarTabelaHorarioDesktop(weeklySchedule, timeSlots);
+            }
+        }
+    };
+    
+    // Função para atualizar a tabela de horário do Desktop (inicio/index.html)
+    function atualizarTabelaHorarioDesktop(weeklySchedule, timeSlots) {
+        // Mapeamento de dias
+        const diasMap = {
+            'Seg': 1, 'Ter': 2, 'Qua': 3, 'Qui': 4, 'Sex': 5
+        };
+        
+        const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        
+        // Tentar encontrar a tabela de horário no Desktop
+        const scheduleTable = document.querySelector('.schedule-table tbody');
+        if (!scheduleTable) {
+            console.log('[Sync] Tabela de horário não encontrada nesta página');
+            return;
+        }
+        
+        // Se não tem dados, não faz nada
+        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) return;
+        
+        console.log('[Sync] 📅 Atualizando tabela de horário do Desktop');
+        
+        // Para cada linha da tabela (cada horário)
+        const rows = scheduleTable.querySelectorAll('tr');
+        rows.forEach(row => {
+            const timeCell = row.querySelector('td:first-child');
+            if (!timeCell) return;
+            
+            const timeSlot = timeCell.textContent.trim();
+            
+            // Para cada dia da semana (colunas 1 a 5)
+            for (let i = 0; i < diasSemana.length; i++) {
+                const dia = diasSemana[i];
+                const cell = row.children[i + 1]; // +1 porque a primeira coluna é o horário
+                
+                if (cell) {
+                    // Procurar aula neste dia e horário
+                    const aula = weeklySchedule[dia]?.find(a => a.horaInicio === timeSlot);
+                    
+                    if (aula) {
+                        // Atualizar célula com a aula
+                        cell.className = `subject ${getMateriaClass(aula.materia)}`;
+                        cell.textContent = aula.materia;
+                    } else if (cell.textContent !== '—' && cell.textContent !== '') {
+                        // Se não tem aula e não está vazio, mantém como estava
+                        // Não altera
+                    }
+                }
+            }
+        });
+    }
+    
+    // Função auxiliar para mapear matéria para classe CSS
+    function getMateriaClass(materia) {
+        const mapa = {
+            'matemática': 'matematica',
+            'matematica': 'matematica',
+            'português': 'portugues',
+            'portugues': 'portugues',
+            'física': 'fisica',
+            'fisica': 'fisica',
+            'química': 'quimica',
+            'quimica': 'quimica',
+            'história': 'historia',
+            'historia': 'historia',
+            'geografia': 'geografia',
+            'biologia': 'biologia',
+            'inglês': 'ingles',
+            'ingles': 'ingles',
+            'redação': 'redacao',
+            'redacao': 'redacao'
+        };
+        
+        const lowerMateria = materia?.toLowerCase() || '';
+        return mapa[lowerMateria] || 'outros';
+    }
+    
+    // Executar sincronização periódica
+    setInterval(() => {
+        window.syncScheduleToDesktop();
+    }, 5000);
+    
+    // Executar ao carregar a página
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(window.syncScheduleToDesktop, 1000);
+        });
+    } else {
+        setTimeout(window.syncScheduleToDesktop, 1000);
+    }
+    
+    console.log('[Sync] Ponte PC-Mobile instalada');
+})();
