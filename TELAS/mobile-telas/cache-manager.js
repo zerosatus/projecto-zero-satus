@@ -105,7 +105,7 @@ class CacheManager {
             
             this.notifyOtherTabs(key, value);
             
-            // Verificar se FirebaseSync está disponível antes de usar
+            // Sincronizar com nuvem
             if (!this.isSyncing && window.FirebaseSync && 
                 typeof window.FirebaseSync.saveUserDataToCloud === 'function' &&
                 this.currentUserId && this.currentUserId !== 'default') {
@@ -148,7 +148,6 @@ class CacheManager {
             return false;
         }
         
-        // VERIFICAR SE FirebaseSync ESTÁ DISPONÍVEL
         if (!window.FirebaseSync || typeof window.FirebaseSync.loadAllUserDataFromCloud !== 'function') {
             console.log('[CacheManager] FirebaseSync não disponível, usando apenas localStorage');
             return false;
@@ -167,7 +166,18 @@ class CacheManager {
             console.log('[CacheManager] 📦 Dados da nuvem recebidos:', cloudData ? Object.keys(cloudData) : 'nenhum');
             
             if (cloudData) {
-                const keys = ['usuarioLogado', 'notifications', 'weeklySchedule', 'timeSlots', 'calendarEvents', 'tasks', 'notes', 'notificacoesSettings', 'appearanceSettings'];
+                // TODAS AS CHAVES SUPORTADAS
+                const keys = [
+                    'usuarioLogado', 
+                    'notifications', 
+                    'weeklySchedule', 
+                    'timeSlots', 
+                    'calendarEvents', 
+                    'tasks', 
+                    'notes', 
+                    'notificacoesSettings', 
+                    'appearanceSettings'
+                ];
                 let hasChanges = false;
                 
                 for (const key of keys) {
@@ -235,7 +245,17 @@ class CacheManager {
     }
     
     mergeCloudData(cloudData) {
-        const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'notificacoesSettings', 'appearanceSettings'];
+        // TODAS AS CHAVES PARA MERGE
+        const keys = [
+            'tasks', 
+            'notes', 
+            'calendarEvents', 
+            'weeklySchedule', 
+            'timeSlots', 
+            'notifications', 
+            'notificacoesSettings', 
+            'appearanceSettings'
+        ];
         let hasChanges = false;
         
         for (const key of keys) {
@@ -256,6 +276,7 @@ class CacheManager {
         }
         
         if (hasChanges) {
+            console.log('[CacheManager] 📢 Disparando evento cloudDataLoaded');
             window.dispatchEvent(new CustomEvent('cloudDataLoaded', { detail: cloudData }));
         }
     }
@@ -304,10 +325,229 @@ class CacheManager {
         this.currentUserId = null;
         console.log('[CacheManager] Logout realizado, escuta encerrada');
     }
+    
+    // ===== MÉTODOS ESPECÍFICOS PARA CADA TIPO DE DADO =====
+    
+    // Anotações (Notes)
+    getNotes() {
+        return this.get('notes', []);
+    }
+    
+    setNotes(notes, notify = true) {
+        return this.set('notes', notes, notify);
+    }
+    
+    addNote(note, notify = true) {
+        const notes = this.getNotes();
+        notes.unshift(note);
+        return this.setNotes(notes, notify);
+    }
+    
+    updateNote(noteId, updatedNote, notify = true) {
+        const notes = this.getNotes();
+        const index = notes.findIndex(n => n.id == noteId);
+        if (index !== -1) {
+            notes[index] = { ...notes[index], ...updatedNote };
+            return this.setNotes(notes, notify);
+        }
+        return false;
+    }
+    
+    deleteNote(noteId, notify = true) {
+        const notes = this.getNotes();
+        const filtered = notes.filter(n => n.id != noteId);
+        return this.setNotes(filtered, notify);
+    }
+    
+    // Tarefas (Tasks)
+    getTasks() {
+        return this.get('tasks', []);
+    }
+    
+    setTasks(tasks, notify = true) {
+        return this.set('tasks', tasks, notify);
+    }
+    
+    addTask(task, notify = true) {
+        const tasks = this.getTasks();
+        tasks.unshift(task);
+        return this.setTasks(tasks, notify);
+    }
+    
+    updateTask(taskId, updatedTask, notify = true) {
+        const tasks = this.getTasks();
+        const index = tasks.findIndex(t => t.id == taskId);
+        if (index !== -1) {
+            tasks[index] = { ...tasks[index], ...updatedTask };
+            return this.setTasks(tasks, notify);
+        }
+        return false;
+    }
+    
+    deleteTask(taskId, notify = true) {
+        const tasks = this.getTasks();
+        const filtered = tasks.filter(t => t.id != taskId);
+        return this.setTasks(filtered, notify);
+    }
+    
+    toggleTaskComplete(taskId, notify = true) {
+        const tasks = this.getTasks();
+        const index = tasks.findIndex(t => t.id == taskId);
+        if (index !== -1) {
+            tasks[index].completed = !tasks[index].completed;
+            tasks[index].dataConclusao = tasks[index].completed ? new Date().toISOString() : null;
+            return this.setTasks(tasks, notify);
+        }
+        return false;
+    }
+    
+    // Eventos do Calendário
+    getCalendarEvents() {
+        return this.get('calendarEvents', []);
+    }
+    
+    setCalendarEvents(events, notify = true) {
+        return this.set('calendarEvents', events, notify);
+    }
+    
+    addCalendarEvent(event, notify = true) {
+        const events = this.getCalendarEvents();
+        events.push(event);
+        return this.setCalendarEvents(events, notify);
+    }
+    
+    updateCalendarEvent(eventId, updatedEvent, notify = true) {
+        const events = this.getCalendarEvents();
+        const index = events.findIndex(e => e.id == eventId);
+        if (index !== -1) {
+            events[index] = { ...events[index], ...updatedEvent };
+            return this.setCalendarEvents(events, notify);
+        }
+        return false;
+    }
+    
+    deleteCalendarEvent(eventId, notify = true) {
+        const events = this.getCalendarEvents();
+        const filtered = events.filter(e => e.id != eventId);
+        return this.setCalendarEvents(filtered, notify);
+    }
+    
+    // Horário Semanal
+    getWeeklySchedule() {
+        return this.get('weeklySchedule', {});
+    }
+    
+    setWeeklySchedule(schedule, notify = true) {
+        return this.set('weeklySchedule', schedule, notify);
+    }
+    
+    getTimeSlots() {
+        return this.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
+    }
+    
+    setTimeSlots(slots, notify = true) {
+        return this.set('timeSlots', slots, notify);
+    }
+    
+    addClassToSchedule(day, classData, notify = true) {
+        const schedule = this.getWeeklySchedule();
+        if (!schedule[day]) schedule[day] = [];
+        schedule[day].push(classData);
+        schedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+        return this.setWeeklySchedule(schedule, notify);
+    }
+    
+    removeClassFromSchedule(day, time, notify = true) {
+        const schedule = this.getWeeklySchedule();
+        if (schedule[day]) {
+            schedule[day] = schedule[day].filter(c => c.horaInicio !== time);
+            return this.setWeeklySchedule(schedule, notify);
+        }
+        return false;
+    }
+    
+    // Notificações
+    getNotifications() {
+        return this.get('notifications', []);
+    }
+    
+    setNotifications(notifications, notify = true) {
+        return this.set('notifications', notifications, notify);
+    }
+    
+    addNotification(notification, notify = true) {
+        const notifications = this.getNotifications();
+        notifications.unshift({ ...notification, id: Date.now(), read: false, time: new Date().toISOString() });
+        if (notifications.length > 50) notifications.pop();
+        return this.setNotifications(notifications, notify);
+    }
+    
+    markNotificationAsRead(notificationId, notify = true) {
+        const notifications = this.getNotifications();
+        const index = notifications.findIndex(n => n.id == notificationId);
+        if (index !== -1) {
+            notifications[index].read = true;
+            return this.setNotifications(notifications, notify);
+        }
+        return false;
+    }
+    
+    markAllNotificationsAsRead(notify = true) {
+        const notifications = this.getNotifications();
+        notifications.forEach(n => n.read = true);
+        return this.setNotifications(notifications, notify);
+    }
+    
+    clearAllNotifications(notify = true) {
+        return this.setNotifications([], notify);
+    }
 }
 
+// Instância global
 window.CacheManager = new CacheManager();
+
+// Funções auxiliares globais
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.onCacheChange = (key, callback) => window.CacheManager.addListener(key, callback);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
+
+// Métodos específicos para anotações
+window.getNotes = () => window.CacheManager.getNotes();
+window.setNotes = (notes, notify) => window.CacheManager.setNotes(notes, notify);
+window.addNote = (note, notify) => window.CacheManager.addNote(note, notify);
+window.updateNote = (noteId, updatedNote, notify) => window.CacheManager.updateNote(noteId, updatedNote, notify);
+window.deleteNote = (noteId, notify) => window.CacheManager.deleteNote(noteId, notify);
+
+// Métodos específicos para tarefas
+window.getTasks = () => window.CacheManager.getTasks();
+window.setTasks = (tasks, notify) => window.CacheManager.setTasks(tasks, notify);
+window.addTask = (task, notify) => window.CacheManager.addTask(task, notify);
+window.updateTask = (taskId, updatedTask, notify) => window.CacheManager.updateTask(taskId, updatedTask, notify);
+window.deleteTask = (taskId, notify) => window.CacheManager.deleteTask(taskId, notify);
+window.toggleTaskComplete = (taskId, notify) => window.CacheManager.toggleTaskComplete(taskId, notify);
+
+// Métodos específicos para eventos do calendário
+window.getCalendarEvents = () => window.CacheManager.getCalendarEvents();
+window.setCalendarEvents = (events, notify) => window.CacheManager.setCalendarEvents(events, notify);
+window.addCalendarEvent = (event, notify) => window.CacheManager.addCalendarEvent(event, notify);
+window.updateCalendarEvent = (eventId, updatedEvent, notify) => window.CacheManager.updateCalendarEvent(eventId, updatedEvent, notify);
+window.deleteCalendarEvent = (eventId, notify) => window.CacheManager.deleteCalendarEvent(eventId, notify);
+
+// Métodos específicos para horário semanal
+window.getWeeklySchedule = () => window.CacheManager.getWeeklySchedule();
+window.setWeeklySchedule = (schedule, notify) => window.CacheManager.setWeeklySchedule(schedule, notify);
+window.getTimeSlots = () => window.CacheManager.getTimeSlots();
+window.setTimeSlots = (slots, notify) => window.CacheManager.setTimeSlots(slots, notify);
+window.addClassToSchedule = (day, classData, notify) => window.CacheManager.addClassToSchedule(day, classData, notify);
+window.removeClassFromSchedule = (day, time, notify) => window.CacheManager.removeClassFromSchedule(day, time, notify);
+
+// Métodos específicos para notificações
+window.getNotifications = () => window.CacheManager.getNotifications();
+window.setNotifications = (notifications, notify) => window.CacheManager.setNotifications(notifications, notify);
+window.addNotification = (notification, notify) => window.CacheManager.addNotification(notification, notify);
+window.markNotificationAsRead = (notificationId, notify) => window.CacheManager.markNotificationAsRead(notificationId, notify);
+window.markAllNotificationsAsRead = (notify) => window.CacheManager.markAllNotificationsAsRead(notify);
+window.clearAllNotifications = (notify) => window.CacheManager.clearAllNotifications(notify);
+
+console.log('[CacheManager] v7 carregado com suporte completo para anotações, tarefas, calendário e horário');
