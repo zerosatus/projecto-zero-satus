@@ -18,6 +18,55 @@
     --r-sm:10px; --r-md:16px; --r-lg:20px; --r-xl:24px;
 }
 
+/* ==================== DESATIVAR SELEÇÃO DE TEXTO PARA WEBVIEW ==================== */
+
+/* Desativa seleção de texto em todos os elementos */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Permite seleção APENAS em inputs e textareas (necessário para formulários) */
+input, 
+textarea, 
+[contenteditable="true"],
+.note-editor-area textarea,
+.task-form input,
+.task-form textarea,
+.profile-form input,
+.profile-form textarea,
+.note-title-input {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+}
+
+/* Remove o highlight azul ao tocar em elementos clicáveis */
+button,
+a,
+.nav-item,
+.menu-item,
+.task-item,
+.event-item,
+.note-card-minimal,
+.class-block,
+.btn-add,
+.list-item {
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+}
+
+/* Opcional: desativa o menu de contexto ao pressionar longamente */
+body {
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Sora',-apple-system,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
 
