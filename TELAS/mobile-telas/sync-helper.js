@@ -167,8 +167,6 @@
     console.log('[Sync] Helper carregado com suporte a tempo real');
 })();
 
-
-
 // =====================================================
 // PONTE DE SINCRONIZAÇÃO PC <-> MOBILE
 // Mantém o Desktop funcionando como está, mas sincroniza dados
@@ -177,6 +175,19 @@
 (function() {
     // Função para carregar horário do Mobile para o Desktop
     window.syncScheduleToDesktop = function() {
+        // SÓ EXECUTAR NA PÁGINA INICIAL
+        const pathname = window.location.pathname;
+        const isHomePage = pathname.includes('/inicio/') || 
+                          pathname.endsWith('/index.html') || 
+                          pathname === '/' ||
+                          pathname === '/inicio' ||
+                          pathname === '/index.html';
+        
+        if (!isHomePage) {
+            // Não é página inicial, não precisa tentar sincronizar tabela
+            return;
+        }
+        
         console.log('[Sync] 🔄 Sincronizando horário para Desktop...');
         
         const usuario = localStorage.getItem('usuarioLogado');
@@ -205,59 +216,115 @@
                 
                 // Atualizar tabela do Desktop se existir
                 atualizarTabelaHorarioDesktop(weeklySchedule, timeSlots);
+            } else {
+                console.log('[Sync] Nenhum horário encontrado no CacheManager');
             }
         }
     };
     
     // Função para atualizar a tabela de horário do Desktop (inicio/index.html)
     function atualizarTabelaHorarioDesktop(weeklySchedule, timeSlots) {
-        // Mapeamento de dias
-        const diasMap = {
-            'Seg': 1, 'Ter': 2, 'Qua': 3, 'Qui': 4, 'Sex': 5
-        };
+        console.log('[Sync] Verificando se há tabela para atualizar...');
         
-        const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        // Mapeamento de dias da semana (ordem da tabela)
+        const diasTabela = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+        const diasChave = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         
-        // Tentar encontrar a tabela de horário no Desktop
-        const scheduleTable = document.querySelector('.schedule-table tbody');
+        // Tentar encontrar a tabela de horário no Desktop com diferentes seletores
+        let scheduleTable = null;
+        
+        // Tenta diferentes seletores
+        const seletores = [
+            '.schedule-table tbody',
+            'table.schedule-table tbody',
+            '.schedule-panel table tbody',
+            '.schedule-table',
+            '#schedule-table tbody',
+            'table:has(.schedule-panel) tbody'
+        ];
+        
+        for (const seletor of seletores) {
+            try {
+                scheduleTable = document.querySelector(seletor);
+                if (scheduleTable) {
+                    console.log('[Sync] Tabela encontrada com seletor:', seletor);
+                    break;
+                }
+            } catch(e) {}
+        }
+        
         if (!scheduleTable) {
-            console.log('[Sync] Tabela de horário não encontrada nesta página');
+            console.log('[Sync] Tabela de horário não encontrada nesta página (esperado em /inicio/)');
             return;
         }
         
         // Se não tem dados, não faz nada
-        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) return;
+        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
+            console.log('[Sync] Nenhum dado de horário para sincronizar');
+            return;
+        }
         
         console.log('[Sync] 📅 Atualizando tabela de horário do Desktop');
         
-        // Para cada linha da tabela (cada horário)
-        const rows = scheduleTable.querySelectorAll('tr');
-        rows.forEach(row => {
-            const timeCell = row.querySelector('td:first-child');
-            if (!timeCell) return;
+        // Verificar se scheduleTable é tbody ou table
+        let tbody = scheduleTable;
+        if (scheduleTable.tagName === 'TABLE') {
+            tbody = scheduleTable.querySelector('tbody');
+            if (!tbody) {
+                console.log('[Sync] Tabela não tem tbody, criando um...');
+                tbody = document.createElement('tbody');
+                const rows = scheduleTable.querySelectorAll('tr');
+                rows.forEach(row => tbody.appendChild(row));
+                scheduleTable.appendChild(tbody);
+            }
+        }
+        
+        const rows = tbody.querySelectorAll('tr');
+        console.log('[Sync] Encontradas', rows.length, 'linhas na tabela');
+        
+        if (rows.length === 0) {
+            console.log('[Sync] Nenhuma linha encontrada na tabela');
+            return;
+        }
+        
+        // Mapeamento de horários (usando as linhas existentes)
+        rows.forEach((row, rowIndex) => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length === 0) return;
             
-            const timeSlot = timeCell.textContent.trim();
+            const timeCell = cells[0];
+            const timeSlot = timeCell ? timeCell.textContent.trim() : null;
             
-            // Para cada dia da semana (colunas 1 a 5)
-            for (let i = 0; i < diasSemana.length; i++) {
-                const dia = diasSemana[i];
-                const cell = row.children[i + 1]; // +1 porque a primeira coluna é o horário
+            if (!timeSlot) return;
+            
+            console.log(`[Sync] Processando linha ${rowIndex + 1}: horário ${timeSlot}`);
+            
+            // Para cada dia da semana (células 1 a 5)
+            for (let i = 0; i < diasChave.length && i + 1 < cells.length; i++) {
+                const diaChave = diasChave[i];
+                const cell = cells[i + 1]; // +1 porque a primeira célula é o horário
                 
                 if (cell) {
                     // Procurar aula neste dia e horário
-                    const aula = weeklySchedule[dia]?.find(a => a.horaInicio === timeSlot);
+                    const aula = weeklySchedule[diaChave]?.find(a => a.horaInicio === timeSlot);
                     
                     if (aula) {
                         // Atualizar célula com a aula
-                        cell.className = `subject ${getMateriaClass(aula.materia)}`;
+                        const materiaClass = getMateriaClass(aula.materia);
+                        cell.className = `subject ${materiaClass}`;
                         cell.textContent = aula.materia;
-                    } else if (cell.textContent !== '—' && cell.textContent !== '') {
-                        // Se não tem aula e não está vazio, mantém como estava
-                        // Não altera
+                        console.log(`[Sync] ✅ Atualizada: ${diasTabela[i]} ${timeSlot} -> ${aula.materia}`);
+                    } else if (cell.textContent && cell.textContent !== '—' && cell.textContent !== '') {
+                        console.log(`[Sync] ℹ️ Mantendo valor existente em ${diasTabela[i]} ${timeSlot}: ${cell.textContent}`);
                     }
                 }
             }
         });
+        
+        console.log('[Sync] Tabela de horário atualizada com sucesso!');
+        
+        // Disparar evento para outras funções que precisam saber da atualização
+        window.dispatchEvent(new CustomEvent('scheduleUpdated', { detail: weeklySchedule }));
     }
     
     // Função auxiliar para mapear matéria para classe CSS
@@ -278,25 +345,67 @@
             'inglês': 'ingles',
             'ingles': 'ingles',
             'redação': 'redacao',
-            'redacao': 'redacao'
+            'redacao': 'redacao',
+            'educação física': 'educacao-fisica',
+            'artes': 'artes',
+            'filosofia': 'filosofia',
+            'sociologia': 'sociologia',
+            'quimica': 'quimica',
+            'fisica': 'fisica'
         };
         
-        const lowerMateria = materia?.toLowerCase() || '';
-        return mapa[lowerMateria] || 'outros';
+        const lowerMateria = materia?.toLowerCase()?.trim() || '';
+        
+        // Verificar correspondência exata ou parcial
+        for (const [key, value] of Object.entries(mapa)) {
+            if (lowerMateria === key || lowerMateria.includes(key)) {
+                return value;
+            }
+        }
+        
+        return 'outros';
     }
     
-    // Executar sincronização periódica
-    setInterval(() => {
-        window.syncScheduleToDesktop();
-    }, 5000);
+    // Executar sincronização periódica (apenas na página inicial, com intervalo maior)
+    let ultimaSincronizacao = 0;
+    const INTERVALO_SINCRONIZACAO = 10000; // 10 segundos
     
-    // Executar ao carregar a página
+    function sincronizarSeNecessario() {
+        const agora = Date.now();
+        if (agora - ultimaSincronizacao >= INTERVALO_SINCRONIZACAO) {
+            ultimaSincronizacao = agora;
+            window.syncScheduleToDesktop();
+        }
+    }
+    
+    // Executar ao carregar a página (com delay)
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(window.syncScheduleToDesktop, 1000);
+            setTimeout(() => {
+                window.syncScheduleToDesktop();
+                // Iniciar intervalo apenas se for página inicial
+                const pathname = window.location.pathname;
+                const isHomePage = pathname.includes('/inicio/') || 
+                                  pathname.endsWith('/index.html') || 
+                                  pathname === '/' ||
+                                  pathname === '/inicio';
+                if (isHomePage) {
+                    setInterval(sincronizarSeNecessario, INTERVALO_SINCRONIZACAO);
+                }
+            }, 1500);
         });
     } else {
-        setTimeout(window.syncScheduleToDesktop, 1000);
+        setTimeout(() => {
+            window.syncScheduleToDesktop();
+            const pathname = window.location.pathname;
+            const isHomePage = pathname.includes('/inicio/') || 
+                              pathname.endsWith('/index.html') || 
+                              pathname === '/' ||
+                              pathname === '/inicio';
+            if (isHomePage) {
+                setInterval(sincronizarSeNecessario, INTERVALO_SINCRONIZACAO);
+            }
+        }, 1500);
     }
     
     console.log('[Sync] Ponte PC-Mobile instalada');
