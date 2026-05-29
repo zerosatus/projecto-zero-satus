@@ -1,6 +1,41 @@
-// Popup de Atualizações
+// Popup de Atualizações - Versão Completa
 
 const updates = [
+    {
+        version: "v2.0.0",
+        date: "29/05/2026",
+        title: "🚀 Atualização Massiva - Sistema Completo",
+        features: [
+            "📱 Interface Mobile totalmente responsiva para WebView/APK",
+            "🔐 Sistema de Autenticação com Firebase (Email/Senha)",
+            "☁️ Sincronização em tempo real com Firebase Realtime Database",
+            "💾 CacheManager com fallback offline",
+            "📝 Editor de anotações com formatação rich text",
+            "📅 Calendário acadêmico com visualização mensal/semanal/diária",
+            "✅ Gerenciador de tarefas com prioridades e subtarefas",
+            "📊 Dashboard com estatísticas e gráficos de desempenho",
+            "👤 Perfil completo com avatar e configurações",
+            "⏰ Timer de estudo integrado",
+            "📈 Gráfico de horas de estudo semanais",
+            "🗓️ Horário semanal personalizável",
+            "🔔 Sistema de notificações em tempo real",
+            "📱 Otimização para WebView Android",
+            "🎨 Tema escuro e personalização de cores"
+        ]
+    },
+    {
+        version: "v1.1.0",
+        date: "25/05/2026",
+        title: "✨ Melhorias de Performance",
+        features: [
+            "⚡ Otimização do CacheManager para carregamento mais rápido",
+            "🔄 Sincronização bidirecional entre abas",
+            "🐛 Correção de bugs no calendário",
+            "📱 Melhor responsividade para tablets",
+            "🎨 Interface mais fluida e animações suaves",
+            "🔒 Segurança aprimorada nas rotas"
+        ]
+    },
     {
         version: "v1.0.1",
         date: "18/05/2026",
@@ -24,14 +59,18 @@ function showUpdatesPopup() {
     
     // Se já viu a última versão, não mostra
     if (lastSeenVersion === latestVersion) {
+        console.log('[Updates] Usuário já viu a versão', latestVersion);
         return;
     }
     
     // Verificar se é a primeira vez que o usuário vê essa versão
     const hasSeen = localStorage.getItem(`update_seen_${latestVersion}`);
     if (hasSeen) {
+        console.log('[Updates] Versão', latestVersion, 'já foi vista');
         return;
     }
+    
+    console.log('[Updates] Mostrando popup de novidades da versão', latestVersion);
     
     const popup = document.createElement('div');
     popup.className = 'updates-popup';
@@ -40,31 +79,52 @@ function showUpdatesPopup() {
         <div class="updates-popup-content">
             <div class="updates-popup-header">
                 <div class="updates-popup-icon">
-                    <i class="fas fa-database"></i>
+                    <i class="fas fa-rocket"></i>
                 </div>
-                <h2>Atualização!</h2>
+                <h2>Novidades! 🎉</h2>
                 <button class="updates-popup-close">&times;</button>
             </div>
             <div class="updates-popup-body">
                 <div class="update-badge">
                     <i class="fas fa-cloud-upload-alt"></i> Sincronização em Nuvem Ativada!
                 </div>
-                ${updates.map(update => `
-                    <div class="update-version latest">
-                        <div class="update-version-header">
-                            <span class="update-version-tag">${update.version}</span>
-                            <span class="update-version-date">${update.date}</span>
-                            <span class="new-badge">ATUAL</span>
-                        </div>
-                        <h3>${update.title}</h3>
-                        <ul>
-                            ${update.features.map(feature => `<li><i class="fas fa-check-circle"></i> ${feature}</li>`).join('')}
-                        </ul>
+                
+                <!-- Versão mais recente (destacada) -->
+                <div class="update-version latest">
+                    <div class="update-version-header">
+                        <span class="update-version-tag">${updates[0].version}</span>
+                        <span class="update-version-date">${updates[0].date}</span>
+                        <span class="new-badge">ATUAL</span>
                     </div>
-                `).join('')}
+                    <h3>${updates[0].title}</h3>
+                    <ul>
+                        ${updates[0].features.map(feature => `<li><i class="fas fa-check-circle"></i> ${feature}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <!-- Versões anteriores (colapsadas) -->
+                <div class="updates-older">
+                    <button class="older-toggle" id="toggle-older">
+                        <i class="fas fa-chevron-down"></i> Versões anteriores (${updates.length - 1})
+                    </button>
+                    <div class="older-content" style="display: none;">
+                        ${updates.slice(1).map(update => `
+                            <div class="update-version">
+                                <div class="update-version-header">
+                                    <span class="update-version-tag">${update.version}</span>
+                                    <span class="update-version-date">${update.date}</span>
+                                </div>
+                                <h3>${update.title}</h3>
+                                <ul>
+                                    ${update.features.map(feature => `<li><i class="fas fa-check-circle"></i> ${feature}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
             </div>
             <div class="updates-popup-footer">
-                <button class="updates-popup-btn" id="updates-gotit">Continuar</button>
+                <button class="updates-popup-btn" id="updates-gotit">Continuar para o App</button>
             </div>
         </div>
     `;
@@ -98,9 +158,9 @@ function showUpdatesPopup() {
         
         .updates-popup-content {
             position: relative;
-            max-width: 500px;
+            max-width: 550px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 28px;
             overflow: hidden;
@@ -111,7 +171,7 @@ function showUpdatesPopup() {
         
         .updates-popup-header {
             padding: 20px 24px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             display: flex;
             align-items: center;
             gap: 12px;
@@ -178,18 +238,18 @@ function showUpdatesPopup() {
         }
         
         .updates-popup-body::-webkit-scrollbar-thumb {
-            background: #10b981;
+            background: #8b5cf6;
             border-radius: 3px;
         }
         
         .update-badge {
-            background: rgba(16, 185, 129, 0.2);
-            border: 1px solid rgba(16, 185, 129, 0.5);
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.5);
             border-radius: 30px;
             padding: 8px 16px;
             text-align: center;
             margin-bottom: 20px;
-            color: #10b981;
+            color: #a78bfa;
             font-size: 14px;
             font-weight: 600;
             display: flex;
@@ -203,14 +263,15 @@ function showUpdatesPopup() {
         }
         
         .update-version {
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
         
         .update-version.latest {
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(139, 92, 246, 0.1);
             border-radius: 16px;
             padding: 16px;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            margin-bottom: 16px;
         }
         
         .update-version-header {
@@ -223,13 +284,13 @@ function showUpdatesPopup() {
         }
         
         .update-version-tag {
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.3);
         }
         
         .update-version-date {
@@ -249,7 +310,7 @@ function showUpdatesPopup() {
         
         .update-version h3 {
             color: white;
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 12px;
             font-weight: 600;
         }
@@ -281,6 +342,53 @@ function showUpdatesPopup() {
             flex-shrink: 0;
         }
         
+        /* Versões anteriores */
+        .updates-older {
+            margin-top: 8px;
+        }
+        
+        .older-toggle {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 10px 16px;
+            color: #a78bfa;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .older-toggle:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+        
+        .older-content {
+            margin-top: 12px;
+        }
+        
+        .older-content .update-version {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .older-content .update-version h3 {
+            font-size: 14px;
+        }
+        
+        .older-content .update-version li {
+            font-size: 12px;
+            padding: 6px 0;
+        }
+        
         .updates-popup-footer {
             padding: 16px 24px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -290,7 +398,7 @@ function showUpdatesPopup() {
         
         .updates-popup-btn {
             width: 100%;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             border: none;
             padding: 14px 20px;
             border-radius: 40px;
@@ -303,7 +411,7 @@ function showUpdatesPopup() {
         
         .updates-popup-btn:hover {
             transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
         }
         
         @keyframes fadeIn {
@@ -336,6 +444,18 @@ function showUpdatesPopup() {
             .updates-popup-header h2 {
                 font-size: 22px;
             }
+            
+            .update-version.latest {
+                padding: 12px;
+            }
+            
+            .update-version h3 {
+                font-size: 14px;
+            }
+            
+            .update-version li {
+                font-size: 11px;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -343,6 +463,19 @@ function showUpdatesPopup() {
     const closeBtn = popup.querySelector('.updates-popup-close');
     const gotitBtn = popup.querySelector('#updates-gotit');
     const overlay = popup.querySelector('.updates-popup-overlay');
+    const toggleBtn = popup.querySelector('#toggle-older');
+    const olderContent = popup.querySelector('.older-content');
+    
+    // Toggle para versões anteriores
+    if (toggleBtn && olderContent) {
+        toggleBtn.addEventListener('click', () => {
+            const isVisible = olderContent.style.display === 'block';
+            olderContent.style.display = isVisible ? 'none' : 'block';
+            toggleBtn.innerHTML = isVisible 
+                ? `<i class="fas fa-chevron-down"></i> Versões anteriores (${updates.length - 1})`
+                : `<i class="fas fa-chevron-up"></i> Mostrar menos`;
+        });
+    }
     
     const closePopup = () => {
         popup.style.animation = 'fadeOut 0.3s ease';
@@ -350,16 +483,28 @@ function showUpdatesPopup() {
         
         localStorage.setItem(`update_seen_${latestVersion}`, 'seen');
         localStorage.setItem('last_seen_update_version', latestVersion);
+        console.log('[Updates] Popup fechado, versão', latestVersion, 'marcada como vista');
     };
     
     closeBtn.addEventListener('click', closePopup);
     gotitBtn.addEventListener('click', closePopup);
     overlay.addEventListener('click', closePopup);
+    
+    // Fechar com ESC
+    document.addEventListener('keydown', function onEsc(e) {
+        if (e.key === 'Escape') {
+            closePopup();
+            document.removeEventListener('keydown', onEsc);
+        }
+    });
 }
 
-// Verificar se é a primeira vez que o usuário vê o popup
+// Verificar quando mostrar o popup
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', showUpdatesPopup);
+    document.addEventListener('DOMContentLoaded', () => {
+        // Pequeno delay para garantir que o login já processou
+        setTimeout(showUpdatesPopup, 500);
+    });
 } else {
-    showUpdatesPopup();
+    setTimeout(showUpdatesPopup, 500);
 }
