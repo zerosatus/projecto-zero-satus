@@ -49,6 +49,24 @@ async function inicializar() {
         renderizarProximasTarefas();
         renderizarNotificacoes();
         atualizarCards();
+        atualizarBadgeNotificacoes();
+        
+        // 🔥 INICIAR SINCRONIZAÇÃO EM TEMPO REAL
+        if (window.initSync) {
+            await window.initSync();
+            console.log('[Mobile] ✅ Sincronização em tempo real ativada');
+        }
+        
+        // Escutar eventos de refresh
+        window.addEventListener('dataRefreshed', () => {
+            console.log('[Mobile] DataRefreshed detectado, atualizando UI');
+            atualizarInterface();
+        });
+        
+        window.addEventListener('cloudDataLoaded', () => {
+            console.log('[Mobile] CloudDataLoaded detectado, atualizando UI');
+            atualizarInterface();
+        });
         
     } catch(e) {
         console.error('[Mobile] Erro:', e);
@@ -155,11 +173,9 @@ async function sincronizarComNuvem() {
         
         if (dadosCarregados) {
             console.log('[Mobile] ✅ Dados da nuvem carregados');
-            // Recarregar dados após sync
             await carregarTodosDados();
             atualizarInterface();
         } else {
-            // Se não há dados na nuvem, enviar os locais
             console.log('[Mobile] Enviando dados locais para nuvem...');
             salvarTodosDados();
         }
@@ -170,6 +186,7 @@ async function sincronizarComNuvem() {
 
 // ===== ATUALIZAR INTERFACE =====
 function atualizarInterface() {
+    console.log('[Mobile] Atualizando interface...');
     renderizarHorario();
     renderizarProximoEvento();
     renderizarProximasTarefas();
@@ -204,11 +221,9 @@ function renderizarHorario() {
     
     grid.innerHTML = html;
     
-    // Adicionar eventos de clique
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Encontrar a matéria e abrir edição
             const cellDiv = cell.closest('.class-cell');
             const rowIndex = Array.from(cellDiv.parentElement.children).indexOf(cellDiv);
             const timeIndex = Math.floor((rowIndex - 1) / 6);
@@ -399,32 +414,6 @@ function atualizarBadgeNotificacoes() {
     }
 }
 
-// ===== ADICIONAR NOTIFICAÇÃO =====
-function adicionarNotificacao(titulo, mensagem, tipo = 'info') {
-    const novaNotificacao = {
-        id: Date.now(),
-        title: titulo,
-        message: mensagem,
-        type: tipo,
-        read: false,
-        time: new Date().toISOString()
-    };
-    
-    notifications.unshift(novaNotificacao);
-    salvarTodosDados();
-    atualizarBadgeNotificacoes();
-    renderizarNotificacoes();
-    
-    // Notificação nativa se for app Android
-    if (typeof Android !== 'undefined') {
-        try {
-            Android.showNotification(titulo, mensagem, tipo);
-        } catch(e) {}
-    }
-    
-    return novaNotificacao;
-}
-
 // ===== ATUALIZAR CARDS =====
 function atualizarCards() {
     const materias = new Set();
@@ -494,7 +483,6 @@ function renderizarEditSchedule() {
     
     grid.innerHTML = html;
     
-    // Eventos de deleção de horário
     document.querySelectorAll('.btn-delete-row').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -515,7 +503,6 @@ function renderizarEditSchedule() {
         });
     });
     
-    // Eventos de edição de matéria
     document.querySelectorAll('.edit-cell .class-block').forEach(block => {
         block.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -526,7 +513,6 @@ function renderizarEditSchedule() {
         });
     });
     
-    // Eventos de adição
     document.querySelectorAll('.btn-add').forEach(btn => {
         btn.addEventListener('click', () => {
             const day = btn.dataset.day;
@@ -721,13 +707,13 @@ function switchView(viewName) {
     if (viewName === 'home') {
         // Já está na home
     } else if (viewName === 'calendar') {
-        window.location.href = '../calendario/index.html';
+        window.location.href = './calendario/index.html';
     } else if (viewName === 'tasks') {
-        window.location.href = '../tarefas/index.html';
+        window.location.href = './tarefas/index.html';
     } else if (viewName === 'notes') {
-        window.location.href = '../notas/index.html';
+        window.location.href = './notas/index.html';
     } else if (viewName === 'profile') {
-        window.location.href = '../perfil/index.html';
+        window.location.href = './perfil/index.html';
     }
 }
 
@@ -808,6 +794,61 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
 });
+
+// =====================================================
+// NOTIFICAÇÕES NATIVAS PARA ANDROID
+// =====================================================
+
+function isAndroidApp() {
+    return typeof Android !== 'undefined';
+}
+
+function sendNativeNotification(title, message, type) {
+    if (isAndroidApp()) {
+        try {
+            Android.showNotification(title, message, type);
+        } catch(e) {}
+    }
+}
+
+function checkPendingTasks() {
+    const tasksLocal = window.getCached ? window.getCached('tasks', []) : [];
+    const today = new Date().toISOString().split('T')[0];
+    tasksLocal.forEach(task => {
+        if (!task.completed && task.date === today) {
+            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
+        }
+    });
+}
+
+function checkUpcomingClasses() {
+    const schedule = window.getCached ? window.getCached('weeklySchedule', {}) : {};
+    const now = new Date();
+    const daysWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const today = daysWeek[now.getDay()];
+    const currentTotal = now.getHours() * 60 + now.getMinutes();
+    
+    (schedule[today] || []).forEach(cls => {
+        if (cls.horaInicio) {
+            const [h, m] = cls.horaInicio.split(':').map(Number);
+            const minutesUntil = (h * 60 + m) - currentTotal;
+            if (minutesUntil <= 15 && minutesUntil > 0) {
+                sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+            }
+        }
+    });
+}
+
+// Executar verificações
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
+        setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
+    });
+} else {
+    setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
+    setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
+}
 
 console.log('%c📱 Mobile - Painel do Aluno', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
 console.log('%cSistema carregado com sucesso!', 'color: #10b981; font-size: 14px;');
