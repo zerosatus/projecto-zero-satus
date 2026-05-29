@@ -86,9 +86,15 @@
             }
         },
         
+        // ========== MÉTODO DE ESCUTA EM TEMPO REAL ==========
         listenToUserData(userId, callback) {
-            if (!userId) return null;
-            console.log('[Cloud] 📡 Iniciando escuta em tempo real...');
+            if (!userId || !database) {
+                console.log('[Cloud] ❌ Não foi possível iniciar escuta: userId ou database não disponível');
+                return null;
+            }
+            
+            console.log('[Cloud] 📡 Iniciando escuta em tempo real para:', userId);
+            
             const userRef = database.ref(`users/${userId}`);
             const listener = userRef.on('value', (snapshot) => {
                 const data = snapshot.val();
@@ -96,9 +102,13 @@
                     console.log('[Cloud] 🔔 Mudança detectada na nuvem!');
                     callback(data);
                 }
+            }, (error) => {
+                console.error('[Cloud] ❌ Erro na escuta em tempo real:', error);
             });
+            
+            // Retornar função para parar a escuta
             return () => {
-                console.log('[Cloud] 🔌 Parando escuta em tempo real');
+                console.log('[Cloud] 🔌 Parando escuta em tempo real para:', userId);
                 userRef.off('value', listener);
             };
         },
