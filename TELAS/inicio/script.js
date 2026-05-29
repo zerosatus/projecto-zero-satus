@@ -3,6 +3,8 @@ let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
+let weeklySchedule = {};
+let timeSlots = [];
 let dadosCarregados = false;
 
 // ===== VERIFICAÇÃO DE LOGIN =====
@@ -21,25 +23,16 @@ window.addEventListener('DOMContentLoaded', async () => {
             window.CacheManager.init();
             window.CacheManager.currentUserId = usuarioAtual.uid || usuarioAtual.email;
             
-            // PRIMEIRO: Tentar carregar da nuvem
             console.log('[Inicio] Carregando dados da nuvem...');
-            const dadosNuvem = await window.CacheManager.loadFromCloud(true);
-            
-            if (dadosNuvem) {
-                console.log('[Inicio] Dados carregados da nuvem');
-                carregarDadosDoCache();
-            } else {
-                console.log('[Inicio] Nenhum dado na nuvem, verificando localStorage...');
-                carregarDadosDoLocalStorage();
-                
-                // Se ainda não tem dados, criar dados padrão e sincronizar
-                if (tarefas.length === 0 && anotacoes.length === 0 && eventos.length === 0) {
-                    console.log('[Inicio] Criando dados padrão...');
-                    await criarDadosPadrao();
-                }
-            }
+            await window.CacheManager.loadFromCloud(true);
+            carregarDadosDoCache();
         } else {
             carregarDadosDoLocalStorage();
+        }
+        
+        // Se não tem dados, criar padrão
+        if (tarefas.length === 0 && anotacoes.length === 0 && eventos.length === 0 && Object.keys(weeklySchedule).length === 0) {
+            await criarDadosPadrao();
         }
         
         atualizarMiniPerfil();
@@ -50,6 +43,23 @@ window.addEventListener('DOMContentLoaded', async () => {
         new CircularProgress();
         new StudyChart();
         new StudyTimer();
+        
+        // Escutar mudanças em tempo real
+        window.addEventListener('cloudDataLoaded', (event) => {
+            console.log('[Inicio] Cloud data loaded, atualizando UI');
+            carregarDadosDoCache();
+            atualizarEstatisticasMini();
+            if (window.calendarInstance) window.calendarInstance.renderCalendar();
+        });
+        
+        // Escutar mudanças no localStorage
+        window.addEventListener('storage', (e) => {
+            if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
+                console.log('[Inicio] Horário atualizado em outra aba');
+                carregarDadosDoLocalStorage();
+                atualizarEstatisticasMini();
+            }
+        });
         
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
@@ -62,11 +72,20 @@ function carregarDadosDoCache() {
         tarefas = window.CacheManager.get('tasks', []);
         anotacoes = window.CacheManager.get('notes', []);
         eventos = window.CacheManager.get('calendarEvents', []);
+        weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        timeSlots = window.CacheManager.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
+        
+        // Garantir estrutura do horário
+        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        dias.forEach(dia => {
+            if (!weeklySchedule[dia]) weeklySchedule[dia] = [];
+        });
         
         console.log('[Inicio] Dados do cache:', {
             tarefas: tarefas.length,
             anotacoes: anotacoes.length,
-            eventos: eventos.length
+            eventos: eventos.length,
+            horario: Object.keys(weeklySchedule).length
         });
     }
 }
@@ -76,76 +95,72 @@ function carregarDadosDoLocalStorage() {
     const userId = usuarioAtual?.uid || usuarioAtual?.email;
     
     if (userId) {
-        const tarefasKey = `tarefas_${userId}`;
-        const anotacoesKey = `anotacoes_${userId}`;
-        const eventosKey = `eventos_${userId}`;
-        
-        const tarefasSalvas = localStorage.getItem(tarefasKey);
-        const anotacoesSalvas = localStorage.getItem(anotacoesKey);
-        const eventosSalvas = localStorage.getItem(eventosKey);
+        const tarefasSalvas = localStorage.getItem(`${userId}_tasks`);
+        const anotacoesSalvas = localStorage.getItem(`${userId}_notes`);
+        const eventosSalvas = localStorage.getItem(`${userId}_calendarEvents`);
+        const scheduleSalvo = localStorage.getItem(`${userId}_weeklySchedule`);
+        const slotsSalvos = localStorage.getItem(`${userId}_timeSlots`);
         
         tarefas = tarefasSalvas ? JSON.parse(tarefasSalvas) : [];
         anotacoes = anotacoesSalvas ? JSON.parse(anotacoesSalvas) : [];
         eventos = eventosSalvas ? JSON.parse(eventosSalvas) : [];
+        weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : {};
+        timeSlots = slotsSalvos ? JSON.parse(slotsSalvos) : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+        
+        // Garantir estrutura do horário
+        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        dias.forEach(dia => {
+            if (!weeklySchedule[dia]) weeklySchedule[dia] = [];
+        });
         
         console.log('[Inicio] Dados do localStorage:', {
             tarefas: tarefas.length,
-            anotacoes: anotacoes.length,
-            eventos: eventos.length
+            horario: Object.keys(weeklySchedule).length
         });
     }
 }
 
-// ===== CRIAR DADOS PADRÃO E SINCRONIZAR =====
+// ===== CRIAR DADOS PADRÃO =====
 async function criarDadosPadrao() {
     const userId = usuarioAtual?.uid || usuarioAtual?.email;
     
-    // Dados padrão - VAZIOS para não poluir
+    const weeklySchedulePadrao = {
+        'Seg': [],
+        'Ter': [],
+        'Qua': [],
+        'Qui': [],
+        'Sex': []
+    };
+    
+    const timeSlotsPadrao = ['08:00', '09:30', '11:00', '14:00', '15:30'];
     const tarefasPadrao = [];
     const anotacoesPadrao = [];
     const eventosPadrao = [];
-    const weeklySchedulePadrao = {
-        'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': []
-    };
     
-    // Salvar no localStorage
     if (userId) {
-        localStorage.setItem(`tarefas_${userId}`, JSON.stringify(tarefasPadrao));
-        localStorage.setItem(`anotacoes_${userId}`, JSON.stringify(anotacoesPadrao));
-        localStorage.setItem(`eventos_${userId}`, JSON.stringify(eventosPadrao));
-        localStorage.setItem(`weeklySchedule_${userId}`, JSON.stringify(weeklySchedulePadrao));
+        localStorage.setItem(`${userId}_tasks`, JSON.stringify(tarefasPadrao));
+        localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoesPadrao));
+        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(eventosPadrao));
+        localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedulePadrao));
+        localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlotsPadrao));
     }
     
-    // Salvar no CacheManager
     if (window.CacheManager) {
         window.CacheManager.set('tasks', tarefasPadrao, true);
         window.CacheManager.set('notes', anotacoesPadrao, true);
         window.CacheManager.set('calendarEvents', eventosPadrao, true);
         window.CacheManager.set('weeklySchedule', weeklySchedulePadrao, true);
+        window.CacheManager.set('timeSlots', timeSlotsPadrao, true);
     }
     
     tarefas = tarefasPadrao;
     anotacoes = anotacoesPadrao;
     eventos = eventosPadrao;
+    weeklySchedule = weeklySchedulePadrao;
+    timeSlots = timeSlotsPadrao;
     
-    console.log('[Inicio] Dados padrão (vazios) criados');
+    console.log('[Inicio] Dados padrão criados');
 }
-
-// ===== DETECTAR MUDANÇAS =====
-window.addEventListener('storage', (e) => {
-    if (!usuarioAtual) return;
-    
-    if (e.key === `tarefas_${usuarioAtual.email}` ||
-        e.key === `anotacoes_${usuarioAtual.email}` ||
-        e.key === `eventos_${usuarioAtual.email}` ||
-        e.key === 'sync_notification') {
-        
-        console.log('🔄 Dados atualizados em outra aba');
-        carregarDadosDoLocalStorage();
-        atualizarEstatisticasMini();
-        if (typeof refreshHomeData === 'function') refreshHomeData();
-    }
-});
 
 // ===== ATUALIZAR MINI PERFIL =====
 function atualizarMiniPerfil() {
@@ -166,7 +181,7 @@ function atualizarMiniPerfil() {
 // ===== ATUALIZAR ESTATÍSTICAS =====
 function atualizarEstatisticasMini() {
     const totalTarefas = tarefas.length;
-    const tarefasConcluidas = tarefas.filter(t => t.concluida).length;
+    const tarefasConcluidas = tarefas.filter(t => t.completed).length;
     const percentualConclusao = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
     
     const horasEstudo = calcularHorasEstudo();
@@ -199,7 +214,7 @@ function atualizarEstatisticasMini() {
 function calcularHorasEstudo() {
     let horas = 0;
     horas += eventos.filter(e => e.type === 'aula').length * 2;
-    horas += tarefas.filter(t => t.concluida).length * 1.5;
+    horas += tarefas.filter(t => t.completed).length * 1.5;
     return horas || 0;
 }
 
@@ -211,22 +226,21 @@ function calcularProgressoSemanal() {
     fimSemana.setDate(inicioSemana.getDate() + 6);
     
     const eventosSemana = eventos.filter(e => {
-        const dataEvento = new Date(e.year, e.month, e.day);
+        if (!e.date) return false;
+        const dataEvento = new Date(e.date);
         return dataEvento >= inicioSemana && dataEvento <= fimSemana;
     });
     
     const tarefasSemana = tarefas.filter(t => {
-        if (!t.prazo) return false;
-        const [dia, mes, ano] = t.prazo.split('/');
-        const dataPrazo = new Date(ano, mes-1, dia);
+        if (!t.date || t.completed) return false;
+        const dataPrazo = new Date(t.date);
         return dataPrazo >= inicioSemana && dataPrazo <= fimSemana;
     });
     
     const totalItens = eventosSemana.length + tarefasSemana.length;
-    const itensConcluidos = tarefas.filter(t => t.concluida).length;
-    
     if (totalItens === 0) return 0;
     
+    const itensConcluidos = tarefas.filter(t => t.completed && t.date && new Date(t.date) >= inicioSemana && new Date(t.date) <= fimSemana).length;
     const progresso = Math.min(100, Math.round((itensConcluidos / totalItens) * 100));
     return progresso || 0;
 }
@@ -249,12 +263,13 @@ function animateValue(elementId, start, end, duration, suffix = '') {
 }
 
 // ============================================
-// CALENDÁRIO (INTEGRADO)
+// CALENDÁRIO
 // ============================================
 class Calendar {
     constructor() {
         this.currentDate = new Date();
         this.today = new Date();
+        window.calendarInstance = this;
         this.init();
     }
     
@@ -299,9 +314,8 @@ class Calendar {
                 dateCell.classList.add('today');
             }
             
-            const temEvento = eventos.some(e => 
-                e.day === day && e.month === month && e.year === year
-            );
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const temEvento = eventos.some(e => e.date === dateStr);
             
             if (temEvento) {
                 dateCell.classList.add('has-event');
@@ -338,7 +352,6 @@ class StudyChart {
     constructor() {
         this.chartContainer = document.getElementById('studyChart');
         if (!this.chartContainer) return;
-        
         this.data = this.gerarDadosSemana();
         this.init();
     }
@@ -424,7 +437,6 @@ class StudyTimer {
         if (timerSalvo) {
             const timerData = JSON.parse(timerSalvo);
             const hoje = new Date().toDateString();
-            
             if (timerData.data === hoje) {
                 this.seconds = timerData.segundos;
                 this.updateDisplay();
@@ -434,7 +446,6 @@ class StudyTimer {
     
     salvarTimer() {
         if (!usuarioAtual) return;
-        
         const timerKey = `timer_${usuarioAtual.email}`;
         localStorage.setItem(timerKey, JSON.stringify({
             segundos: this.seconds,
@@ -482,6 +493,7 @@ class StudyTimer {
 function logout() {
     if (confirm('Deseja sair?')) {
         localStorage.removeItem('usuarioLogado');
+        if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
     }
 }
@@ -497,4 +509,3 @@ document.querySelectorAll('.menu-item').forEach(item => {
 });
 
 console.log('%c🏠 Painel Inicial', 'color: #9333ea; font-size: 20px; font-weight: bold;');
-console.log('%cSistema integrado carregado!', 'color: #00b894; font-size: 14px;');
