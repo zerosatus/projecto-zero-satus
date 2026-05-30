@@ -166,7 +166,6 @@ class CacheManager {
             console.log('[CacheManager] 📦 Dados da nuvem recebidos:', cloudData ? Object.keys(cloudData) : 'nenhum');
             
             if (cloudData) {
-                // TODAS AS CHAVES SUPORTADAS
                 const keys = [
                     'usuarioLogado', 
                     'notifications', 
@@ -204,14 +203,15 @@ class CacheManager {
                 return true;
             } else {
                 console.log('[CacheManager] ⚠️ Nenhum dado encontrado na nuvem para este usuário');
+                return false;
             }
         } catch (error) {
             console.error('[CacheManager] ❌ Erro ao carregar da nuvem:', error);
+            return false;
         } finally {
             this.isSyncing = false;
             this.pendingCloudLoad = null;
         }
-        return false;
     }
     
     async startRealtimeSync() {
@@ -245,7 +245,6 @@ class CacheManager {
     }
     
     mergeCloudData(cloudData) {
-        // TODAS AS CHAVES PARA MERGE
         const keys = [
             'tasks', 
             'notes', 
@@ -315,191 +314,22 @@ class CacheManager {
         const userId = this.getCurrentUserId();
         if (userId && userId !== 'default') {
             console.log('[CacheManager] 🔄 Usuário logado, carregando dados da nuvem...');
-            await this.loadFromCloud(true);
+            const loaded = await this.loadFromCloud(true);
+            if (loaded) {
+                console.log('[CacheManager] ✅ Dados da nuvem carregados com sucesso!');
+            } else {
+                console.log('[CacheManager] ℹ️ Nenhum dado na nuvem, mantendo dados locais');
+            }
             this.startRealtimeSync();
+            return loaded;
         }
+        return false;
     }
     
     async logout() {
         this.stopRealtimeSync();
         this.currentUserId = null;
         console.log('[CacheManager] Logout realizado, escuta encerrada');
-    }
-    
-    // ===== MÉTODOS ESPECÍFICOS PARA CADA TIPO DE DADO =====
-    
-    // Anotações (Notes)
-    getNotes() {
-        return this.get('notes', []);
-    }
-    
-    setNotes(notes, notify = true) {
-        return this.set('notes', notes, notify);
-    }
-    
-    addNote(note, notify = true) {
-        const notes = this.getNotes();
-        notes.unshift(note);
-        return this.setNotes(notes, notify);
-    }
-    
-    updateNote(noteId, updatedNote, notify = true) {
-        const notes = this.getNotes();
-        const index = notes.findIndex(n => n.id == noteId);
-        if (index !== -1) {
-            notes[index] = { ...notes[index], ...updatedNote };
-            return this.setNotes(notes, notify);
-        }
-        return false;
-    }
-    
-    deleteNote(noteId, notify = true) {
-        const notes = this.getNotes();
-        const filtered = notes.filter(n => n.id != noteId);
-        return this.setNotes(filtered, notify);
-    }
-    
-    // Tarefas (Tasks)
-    getTasks() {
-        return this.get('tasks', []);
-    }
-    
-    setTasks(tasks, notify = true) {
-        return this.set('tasks', tasks, notify);
-    }
-    
-    addTask(task, notify = true) {
-        const tasks = this.getTasks();
-        tasks.unshift(task);
-        return this.setTasks(tasks, notify);
-    }
-    
-    updateTask(taskId, updatedTask, notify = true) {
-        const tasks = this.getTasks();
-        const index = tasks.findIndex(t => t.id == taskId);
-        if (index !== -1) {
-            tasks[index] = { ...tasks[index], ...updatedTask };
-            return this.setTasks(tasks, notify);
-        }
-        return false;
-    }
-    
-    deleteTask(taskId, notify = true) {
-        const tasks = this.getTasks();
-        const filtered = tasks.filter(t => t.id != taskId);
-        return this.setTasks(filtered, notify);
-    }
-    
-    toggleTaskComplete(taskId, notify = true) {
-        const tasks = this.getTasks();
-        const index = tasks.findIndex(t => t.id == taskId);
-        if (index !== -1) {
-            tasks[index].completed = !tasks[index].completed;
-            tasks[index].dataConclusao = tasks[index].completed ? new Date().toISOString() : null;
-            return this.setTasks(tasks, notify);
-        }
-        return false;
-    }
-    
-    // Eventos do Calendário
-    getCalendarEvents() {
-        return this.get('calendarEvents', []);
-    }
-    
-    setCalendarEvents(events, notify = true) {
-        return this.set('calendarEvents', events, notify);
-    }
-    
-    addCalendarEvent(event, notify = true) {
-        const events = this.getCalendarEvents();
-        events.push(event);
-        return this.setCalendarEvents(events, notify);
-    }
-    
-    updateCalendarEvent(eventId, updatedEvent, notify = true) {
-        const events = this.getCalendarEvents();
-        const index = events.findIndex(e => e.id == eventId);
-        if (index !== -1) {
-            events[index] = { ...events[index], ...updatedEvent };
-            return this.setCalendarEvents(events, notify);
-        }
-        return false;
-    }
-    
-    deleteCalendarEvent(eventId, notify = true) {
-        const events = this.getCalendarEvents();
-        const filtered = events.filter(e => e.id != eventId);
-        return this.setCalendarEvents(filtered, notify);
-    }
-    
-    // Horário Semanal
-    getWeeklySchedule() {
-        return this.get('weeklySchedule', {});
-    }
-    
-    setWeeklySchedule(schedule, notify = true) {
-        return this.set('weeklySchedule', schedule, notify);
-    }
-    
-    getTimeSlots() {
-        return this.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
-    }
-    
-    setTimeSlots(slots, notify = true) {
-        return this.set('timeSlots', slots, notify);
-    }
-    
-    addClassToSchedule(day, classData, notify = true) {
-        const schedule = this.getWeeklySchedule();
-        if (!schedule[day]) schedule[day] = [];
-        schedule[day].push(classData);
-        schedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-        return this.setWeeklySchedule(schedule, notify);
-    }
-    
-    removeClassFromSchedule(day, time, notify = true) {
-        const schedule = this.getWeeklySchedule();
-        if (schedule[day]) {
-            schedule[day] = schedule[day].filter(c => c.horaInicio !== time);
-            return this.setWeeklySchedule(schedule, notify);
-        }
-        return false;
-    }
-    
-    // Notificações
-    getNotifications() {
-        return this.get('notifications', []);
-    }
-    
-    setNotifications(notifications, notify = true) {
-        return this.set('notifications', notifications, notify);
-    }
-    
-    addNotification(notification, notify = true) {
-        const notifications = this.getNotifications();
-        notifications.unshift({ ...notification, id: Date.now(), read: false, time: new Date().toISOString() });
-        if (notifications.length > 50) notifications.pop();
-        return this.setNotifications(notifications, notify);
-    }
-    
-    markNotificationAsRead(notificationId, notify = true) {
-        const notifications = this.getNotifications();
-        const index = notifications.findIndex(n => n.id == notificationId);
-        if (index !== -1) {
-            notifications[index].read = true;
-            return this.setNotifications(notifications, notify);
-        }
-        return false;
-    }
-    
-    markAllNotificationsAsRead(notify = true) {
-        const notifications = this.getNotifications();
-        notifications.forEach(n => n.read = true);
-        return this.setNotifications(notifications, notify);
-    }
-    
-    clearAllNotifications(notify = true) {
-        return this.setNotifications([], notify);
     }
 }
 
