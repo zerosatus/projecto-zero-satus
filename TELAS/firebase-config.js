@@ -71,14 +71,15 @@
         async loadAllUserDataFromCloud(userId) {
             if (!userId) return null;
             try {
-                console.log('[Cloud] 🔍 Buscando dados do usuário na nuvem...');
+                console.log('[Cloud] 🔍 Buscando dados do usuário na nuvem para:', userId);
                 const snapshot = await database.ref(`users/${userId}`).once('value');
                 const data = snapshot.val();
                 if (data && Object.keys(data).length > 0) {
                     console.log('[Cloud] ✅ Dados carregados da nuvem com sucesso!');
+                    console.log('[Cloud] 📦 Dados encontrados:', Object.keys(data));
                     return data;
                 }
-                console.log('[Cloud] ⚠️ Nenhum dado encontrado na nuvem');
+                console.log('[Cloud] ⚠️ Nenhum dado encontrado na nuvem para este usuário');
                 return null;
             } catch (error) {
                 console.error('[Cloud] ❌ Erro ao carregar todos dados:', error);
@@ -86,10 +87,10 @@
             }
         },
         
-        // ========== MÉTODO DE ESCUTA EM TEMPO REAL ==========
+        // MÉTODO DE ESCUTA EM TEMPO REAL
         listenToUserData(userId, callback) {
             if (!userId || !database) {
-                console.log('[Cloud] ❌ Não foi possível iniciar escuta: userId ou database não disponível');
+                console.log('[Cloud] ❌ Não foi possível iniciar escuta');
                 return null;
             }
             
@@ -106,7 +107,6 @@
                 console.error('[Cloud] ❌ Erro na escuta em tempo real:', error);
             });
             
-            // Retornar função para parar a escuta
             return () => {
                 console.log('[Cloud] 🔌 Parando escuta em tempo real para:', userId);
                 userRef.off('value', listener);
