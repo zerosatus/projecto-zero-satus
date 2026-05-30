@@ -446,13 +446,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (view === 'home') {
                 // já está na home
             } else if (view === 'calendar') {
-                window.location.href = '../calendario/index.html';
+                window.location.href = './calendario/index.html';
             } else if (view === 'tasks') {
-                window.location.href = '../tarefas/index.html';
+                window.location.href = './tarefas/index.html';
             } else if (view === 'notes') {
-                window.location.href = '../notas/index.html';
+                window.location.href = './notas/index.html';
             } else if (view === 'profile') {
-                window.location.href = '../perfil/index.html';
+                window.location.href = './perfil/index.html';
             }
         });
     });
