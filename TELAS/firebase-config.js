@@ -10,76 +10,105 @@
         databaseURL: "https://zero-5e74d-default-rtdb.firebaseio.com/"
     };
     
-    // Inicializar Firebase apenas se ainda não foi inicializado
-    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        console.log('[Firebase] Firebase inicializado!');
+    let database = null;
+    let auth = null;
+    let firebaseInitialized = false;
+    
+    function initFirebase() {
+        if (firebaseInitialized) return true;
+        
+        if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                auth = firebase.auth();
+                firebaseInitialized = true;
+                console.log('[Firebase] ✅ Firebase inicializado com sucesso!');
+                
+                // Disparar evento para outras partes do sistema
+                window.dispatchEvent(new CustomEvent('firebaseLoaded'));
+                return true;
+            } catch (error) {
+                console.error('[Firebase] ❌ Erro ao inicializar:', error);
+                return false;
+            }
+        } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
+            database = firebase.database();
+            auth = firebase.auth();
+            firebaseInitialized = true;
+            return true;
+        }
+        return false;
     }
     
-    const database = firebase?.database();
-    const auth = firebase?.auth();
+    // Tentar inicializar imediatamente
+    initFirebase();
+    
+    // Se falhar, tentar novamente em 1 segundo
+    if (!firebaseInitialized) {
+        setTimeout(initFirebase, 1000);
+    }
     
     window.FirebaseSync = {
         async saveUserDataToCloud(userId, dataType, data) {
-            if (!userId) return false;
+            if (!userId) {
+                console.error('[Cloud] ❌ userId não fornecido');
+                return false;
+            }
+            
+            // Garantir que Firebase está inicializado
+            if (!database && !initFirebase()) {
+                console.error('[Cloud] ❌ Database não disponível');
+                return false;
+            }
+            
             try {
                 const userRef = database.ref(`users/${userId}/${dataType}`);
                 await userRef.set(data);
                 await database.ref(`users/${userId}/lastUpdated`).set(firebase.database.ServerValue.TIMESTAMP);
-                console.log(`[Cloud] ✅ ${dataType} salvo na nuvem!`);
+                console.log(`[Cloud] ✅ ${dataType} salvo na nuvem para ${userId}`);
                 return true;
             } catch (error) {
-                console.error('[Cloud] ❌ Erro ao salvar:', error);
+                console.error('[Cloud] ❌ Erro ao salvar ${dataType}:', error);
                 return false;
             }
         },
         
         async loadUserDataFromCloud(userId, dataType) {
             if (!userId) return null;
+            if (!database && !initFirebase()) return null;
+            
             try {
                 const snapshot = await database.ref(`users/${userId}/${dataType}`).once('value');
                 return snapshot.val();
             } catch (error) {
-                console.error('[Cloud] ❌ Erro ao carregar:', error);
+                console.error('[Cloud] ❌ Erro ao carregar ${dataType}:', error);
                 return null;
             }
         },
         
-        async syncAllDataToCloud(userId, data) {
-            if (!userId) return false;
-            try {
-                const cleanData = { ...data };
-                delete cleanData.saveAllData;
-                delete cleanData.loadAllData;
-                delete cleanData.syncAllDataToCloud;
-                
-                const userData = {
-                    ...cleanData,
-                    lastUpdated: firebase.database.ServerValue.TIMESTAMP,
-                    userId: userId
-                };
-                
-                await database.ref(`users/${userId}`).update(userData);
-                console.log('[Cloud] ✅ Todos dados sincronizados com a nuvem!');
-                return true;
-            } catch (error) {
-                console.error('[Cloud] ❌ Erro na sincronização total:', error);
-                return false;
-            }
-        },
-        
         async loadAllUserDataFromCloud(userId) {
-            if (!userId) return null;
+            if (!userId) {
+                console.log('[Cloud] ❌ userId não fornecido');
+                return null;
+            }
+            
+            if (!database && !initFirebase()) {
+                console.log('[Cloud] ❌ Database indisponível');
+                return null;
+            }
+            
             try {
-                console.log('[Cloud] 🔍 Buscando dados do usuário na nuvem para:', userId);
+                console.log('[Cloud] 🔍 Buscando dados do usuário:', userId);
                 const snapshot = await database.ref(`users/${userId}`).once('value');
                 const data = snapshot.val();
+                
                 if (data && Object.keys(data).length > 0) {
-                    console.log('[Cloud] ✅ Dados carregados da nuvem com sucesso!');
-                    console.log('[Cloud] 📦 Dados encontrados:', Object.keys(data));
+                    console.log('[Cloud] ✅ Dados carregados:', Object.keys(data));
                     return data;
                 }
-                console.log('[Cloud] ⚠️ Nenhum dado encontrado na nuvem para este usuário');
+                
+                console.log('[Cloud] ⚠️ Nenhum dado encontrado para:', userId);
                 return null;
             } catch (error) {
                 console.error('[Cloud] ❌ Erro ao carregar todos dados:', error);
@@ -87,10 +116,14 @@
             }
         },
         
-        // MÉTODO DE ESCUTA EM TEMPO REAL
         listenToUserData(userId, callback) {
-            if (!userId || !database) {
-                console.log('[Cloud] ❌ Não foi possível iniciar escuta');
+            if (!userId) {
+                console.log('[Cloud] ❌ userId não fornecido');
+                return null;
+            }
+            
+            if (!database && !initFirebase()) {
+                console.log('[Cloud] ❌ Database indisponível para escuta');
                 return null;
             }
             
@@ -104,29 +137,32 @@
                     callback(data);
                 }
             }, (error) => {
-                console.error('[Cloud] ❌ Erro na escuta em tempo real:', error);
+                console.error('[Cloud] ❌ Erro na escuta:', error);
             });
             
             return () => {
-                console.log('[Cloud] 🔌 Parando escuta em tempo real para:', userId);
+                console.log('[Cloud] 🔌 Parando escuta para:', userId);
                 userRef.off('value', listener);
             };
         },
         
-        enableAutoSync(userId) {
-            if (!userId) return;
-            console.log('[Cloud] 🔄 Auto-sync ativado para o usuário');
+        async deleteUserData(userId) {
+            if (!userId) return false;
+            if (!database && !initFirebase()) return false;
+            
+            try {
+                await database.ref(`users/${userId}`).remove();
+                console.log('[Cloud] ✅ Dados do usuário removidos da nuvem');
+                return true;
+            } catch (error) {
+                console.error('[Cloud] ❌ Erro ao remover dados:', error);
+                return false;
+            }
         }
     };
     
-    if (auth) {
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                console.log('[Firebase] Usuário autenticado:', user.uid);
-                window.FirebaseSync.enableAutoSync(user.uid);
-            }
-        });
-    }
+    // Expoe a instância do auth para outras partes
+    window.firebaseAuth = auth;
     
     console.log('[Firebase] Configuração do Realtime Database carregada!');
 })();
