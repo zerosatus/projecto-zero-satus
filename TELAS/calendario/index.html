@@ -11,7 +11,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
                 <i class="fas fa-graduation-cap"></i>
@@ -52,7 +51,6 @@
                 </a>
             </div>
             
-            <!-- Botão de Logout -->
             <div class="logout-section">
                 <button class="logout-btn" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
@@ -61,28 +59,25 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Header -->
             <header class="header">
-                <h1>Bem-vindo, Aluno!</h1>
+                <h1>Bem-vindo, <span id="userNameDisplay">Aluno</span>!</h1>
                 <div class="header-actions">
                     <button class="icon-btn">
                         <i class="fas fa-bell"></i>
-                        <span class="badge">3</span>
+                        <span class="badge">0</span>
                     </button>
                     <div class="user-profile">
-                        <img src="https://i.pravatar.cc/150?img=12" alt="Usuário">
+                        <img src="https://i.pravatar.cc/150?img=12" alt="Usuário" id="userAvatar">
                         <span id="userName">Aluno</span>
                     </div>
                 </div>
             </header>
 
-            <!-- Calendar Section -->
             <div class="calendar-container">
                 <div class="calendar-header">
                     <div class="month-nav">
-                        <h2 id="currentMonth">Setembro 2025</h2>
+                        <h2 id="currentMonth">Carregando...</h2>
                         <div class="nav-buttons">
                             <button id="prevBtn" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
                             <button id="nextBtn" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
@@ -109,15 +104,15 @@
                 </div>
             </div>
 
-            <!-- Events Section -->
             <div class="events-section">
-                <h3>Eventos do Dia <span id="selectedDay">27</span></h3>
-                <div class="events-list" id="eventsList"></div>
+                <h3>Eventos do Dia <span id="selectedDay">--</span></h3>
+                <div class="events-list" id="eventsList">
+                    <p style="color: #6b7280; padding: 1rem; text-align: center;">Selecione um dia para ver os eventos</p>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- Modal de Novo Evento -->
     <div id="eventModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -187,7 +182,12 @@
         </div>
     </div>
 
-    <!-- SCRIPTS NA ORDEM CORRETA -->
+    <div class="toast" id="toast"><i class="fas fa-check-circle"></i><span>Evento salvo!</span></div>
+    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>

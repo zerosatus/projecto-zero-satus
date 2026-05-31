@@ -1,4 +1,3 @@
-// ===== VARIÁVEIS GLOBAIS =====
 let events = [];
 let currentDate = new Date();
 let selectedDate = new Date();
@@ -37,7 +36,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         usuarioAtual = JSON.parse(usuario);
         atualizarNomeUsuario();
         
-        // Iniciar sincronização
         if (window.initSync) {
             await window.initSync();
         }
@@ -45,7 +43,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         carregarEventos();
         initCalendar();
         
-        // Escutar mudanças do Firebase
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Calendario] Dados atualizados do Firebase');
             carregarEventos();
@@ -62,25 +59,23 @@ function atualizarNomeUsuario() {
     if (!usuarioAtual) return;
     const titulo = document.querySelector('.header h1');
     const userName = document.getElementById('userName');
-    if (titulo) titulo.textContent = `Bem-vindo, ${usuarioAtual.nome}!`;
+    const userNameDisplay = document.getElementById('userNameDisplay');
+    if (titulo && userNameDisplay) titulo.innerHTML = `Bem-vindo, <span id="userNameDisplay">${usuarioAtual.nome}</span>!`;
     if (userName) userName.textContent = usuarioAtual.nome;
     
-    const userAvatar = document.querySelector('.user-profile img');
+    const userAvatar = document.getElementById('userAvatar');
     if (userAvatar) {
         const iniciais = usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-        if (!userAvatar.src.includes('pravatar')) {
-            userAvatar.src = `https://ui-avatars.com/api/?name=${iniciais}&background=7c3aed&color=fff&size=32`;
-        }
+        userAvatar.src = `https://ui-avatars.com/api/?name=${iniciais}&background=7c3aed&color=fff&size=32`;
     }
 }
 
 function carregarEventos() {
     if (!usuarioAtual) return;
     
-    // Tentar do CacheManager primeiro
     if (window.CacheManager) {
         const cached = window.CacheManager.get('calendarEvents', null);
-        if (cached) {
+        if (cached !== null) {
             events = cached;
             console.log('[Calendario] Carregado do CacheManager:', events.length);
             return;
@@ -93,13 +88,7 @@ function carregarEventos() {
     if (eventosSalvos) {
         events = JSON.parse(eventosSalvos);
     } else {
-        // Dados de EXEMPLO para primeiro acesso
-        const today = new Date();
-        events = [
-            { id: gerarId(), day: today.getDate(), month: today.getMonth(), year: today.getFullYear(), title: 'Aula de Matemática', type: 'aula', time: '08:00', endTime: '09:40', description: 'Equações do segundo grau', repeat: 'semanal' },
-            { id: gerarId(), day: today.getDate() + 2, month: today.getMonth(), year: today.getFullYear(), title: 'Prova de Física', type: 'prova', time: '10:00', endTime: '11:30', description: 'Cinemática e Dinâmica', repeat: 'nao' },
-            { id: gerarId(), day: today.getDate() + 5, month: today.getMonth(), year: today.getFullYear(), title: 'Entrega de Trabalho', type: 'trabalho', time: '23:59', endTime: '23:59', description: 'Trabalho de História', repeat: 'nao' }
-        ];
+        events = [];
         salvarEventos();
     }
 }
@@ -117,6 +106,7 @@ function logout() {
     if (confirm('Deseja sair?')) {
         salvarEventos();
         localStorage.removeItem('usuarioLogado');
+        if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
     }
 }
@@ -139,10 +129,12 @@ function initCalendar() {
 }
 
 function clearCalendar() {
-    calendarDays.innerHTML = '';
-    calendarDays.className = 'days';
-    calendarDays.style.display = '';
-    calendarDays.style.gridTemplateColumns = '';
+    if (calendarDays) {
+        calendarDays.innerHTML = '';
+        calendarDays.className = 'days';
+        calendarDays.style.display = '';
+        calendarDays.style.gridTemplateColumns = '';
+    }
 }
 
 function renderCalendar() {
@@ -155,8 +147,8 @@ function renderCalendar() {
 function renderMonthView() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    currentMonthEl.textContent = `${monthNames[month]} ${year}`;
-    weekdaysHeader.style.display = 'grid';
+    if (currentMonthEl) currentMonthEl.textContent = `${monthNames[month]} ${year}`;
+    if (weekdaysHeader) weekdaysHeader.style.display = 'grid';
     
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -182,7 +174,7 @@ function renderMonthView() {
         dayEl.addEventListener('click', (e) => {
             e.stopPropagation();
             selectedDate = new Date(year, month, day);
-            selectedDayEl.textContent = day;
+            if (selectedDayEl) selectedDayEl.textContent = day;
             renderEventsForSelectedDay();
             document.querySelectorAll('.day').forEach(d => d.classList.remove('selected'));
             dayEl.classList.add('selected');
@@ -202,8 +194,8 @@ function renderWeekView() {
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-    currentMonthEl.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} de ${monthNames[startOfWeek.getMonth()]} ${startOfWeek.getFullYear()}`;
-    weekdaysHeader.style.display = 'none';
+    if (currentMonthEl) currentMonthEl.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} de ${monthNames[startOfWeek.getMonth()]} ${startOfWeek.getFullYear()}`;
+    if (weekdaysHeader) weekdaysHeader.style.display = 'none';
     calendarDays.classList.add('week-view');
     calendarDays.style.display = 'grid';
     calendarDays.style.gridTemplateColumns = '70px repeat(7, 1fr)';
@@ -273,7 +265,7 @@ function renderWeekView() {
                 if (e.target === cell || e.target.classList.contains('week-hour-cell')) {
                     e.stopPropagation();
                     selectedDate = dayDate;
-                    selectedDayEl.textContent = dayDate.getDate();
+                    if (selectedDayEl) selectedDayEl.textContent = dayDate.getDate();
                     renderEventsForSelectedDay();
                     const hourStr = `${hour.toString().padStart(2, '0')}:00`;
                     abrirModalComData(dayDate, hourStr);
@@ -288,8 +280,8 @@ function renderDayView() {
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
     const day = selectedDate.getDate();
-    currentMonthEl.textContent = `${weekDaysFull[selectedDate.getDay()]}, ${day} de ${monthNames[month]} de ${year}`;
-    weekdaysHeader.style.display = 'none';
+    if (currentMonthEl) currentMonthEl.textContent = `${weekDaysFull[selectedDate.getDay()]}, ${day} de ${monthNames[month]} de ${year}`;
+    if (weekdaysHeader) weekdaysHeader.style.display = 'none';
     calendarDays.classList.add('day-view');
     calendarDays.style.display = 'flex';
     calendarDays.style.flexDirection = 'column';
@@ -351,6 +343,7 @@ function createDayElement(day, isOtherMonth, isToday = false) {
 }
 
 function renderEventsForSelectedDay() {
+    if (!eventsListEl) return;
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
     const day = selectedDate.getDate();
@@ -392,23 +385,31 @@ function renderEventsForSelectedDay() {
 }
 
 function abrirModalComData(data, horaInicio = '09:00') {
+    if (!eventModal) return;
     const dateStr = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
-    document.getElementById('eventDate').value = dateStr;
-    document.getElementById('eventStart').value = horaInicio;
+    const eventDateInput = document.getElementById('eventDate');
+    const eventStartInput = document.getElementById('eventStart');
+    const eventEndInput = document.getElementById('eventEnd');
+    if (eventDateInput) eventDateInput.value = dateStr;
+    if (eventStartInput) eventStartInput.value = horaInicio;
     const [hour, minute] = horaInicio.split(':').map(Number);
     const endHour = (hour + 1) % 24;
-    document.getElementById('eventEnd').value = `${String(endHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    eventForm.reset();
-    document.getElementById('eventTitle').value = '';
-    document.getElementById('eventDescription').value = '';
-    document.getElementById('eventDate').value = dateStr;
-    document.getElementById('eventStart').value = horaInicio;
-    document.getElementById('eventEnd').value = `${String(endHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    document.getElementById('eventType').value = 'aula';
-    document.getElementById('eventRepeat').value = 'nao';
-    document.getElementById('eventReminder').checked = false;
+    if (eventEndInput) eventEndInput.value = `${String(endHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    eventForm?.reset();
+    const eventTitleInput = document.getElementById('eventTitle');
+    const eventDescriptionInput = document.getElementById('eventDescription');
+    if (eventTitleInput) eventTitleInput.value = '';
+    if (eventDescriptionInput) eventDescriptionInput.value = '';
+    if (eventDateInput) eventDateInput.value = dateStr;
+    if (eventStartInput) eventStartInput.value = horaInicio;
+    if (eventEndInput) eventEndInput.value = `${String(endHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    if (eventTypeInput) eventTypeInput.value = 'aula';
+    const eventRepeatSelect = document.getElementById('eventRepeat');
+    if (eventRepeatSelect) eventRepeatSelect.value = 'nao';
+    const eventReminderCheck = document.getElementById('eventReminder');
+    if (eventReminderCheck) eventReminderCheck.checked = false;
     typeBtns.forEach(btn => btn.classList.remove('active'));
-    typeBtns[0].classList.add('active');
+    if (typeBtns[0]) typeBtns[0].classList.add('active');
     eventModal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
@@ -423,73 +424,87 @@ function setupEventListeners() {
         });
     });
     
-    prevBtn.addEventListener('click', () => {
-        if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() - 1);
-        else if (currentView === 'week') currentDate.setDate(currentDate.getDate() - 7);
-        else { selectedDate.setDate(selectedDate.getDate() - 1); currentDate = new Date(selectedDate); }
-        renderCalendar();
-        renderEventsForSelectedDay();
-    });
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() - 1);
+            else if (currentView === 'week') currentDate.setDate(currentDate.getDate() - 7);
+            else { selectedDate.setDate(selectedDate.getDate() - 1); currentDate = new Date(selectedDate); }
+            renderCalendar();
+            renderEventsForSelectedDay();
+        });
+    }
     
-    nextBtn.addEventListener('click', () => {
-        if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + 1);
-        else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + 7);
-        else { selectedDate.setDate(selectedDate.getDate() + 1); currentDate = new Date(selectedDate); }
-        renderCalendar();
-        renderEventsForSelectedDay();
-    });
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + 1);
+            else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + 7);
+            else { selectedDate.setDate(selectedDate.getDate() + 1); currentDate = new Date(selectedDate); }
+            renderCalendar();
+            renderEventsForSelectedDay();
+        });
+    }
     
-    newEventBtn.addEventListener('click', () => abrirModalComData(selectedDate));
+    if (newEventBtn) newEventBtn.addEventListener('click', () => abrirModalComData(selectedDate));
     
-    function closeModal() { eventModal.classList.remove('active'); document.body.style.overflow = ''; }
-    modalClose.addEventListener('click', closeModal);
-    btnCancel.addEventListener('click', closeModal);
-    eventModal.addEventListener('click', (e) => { if (e.target === eventModal) closeModal(); });
+    function closeModal() { if (eventModal) eventModal.classList.remove('active'); document.body.style.overflow = ''; }
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeModal);
+    if (eventModal) eventModal.addEventListener('click', (e) => { if (e.target === eventModal) closeModal(); });
     
     typeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             typeBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            eventTypeInput.value = btn.dataset.type;
+            if (eventTypeInput) eventTypeInput.value = btn.dataset.type;
         });
     });
     
-    eventForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const title = document.getElementById('eventTitle').value.trim();
-        const description = document.getElementById('eventDescription').value.trim();
-        const date = document.getElementById('eventDate').value;
-        const start = document.getElementById('eventStart').value;
-        const end = document.getElementById('eventEnd').value;
-        const type = document.getElementById('eventType').value;
-        const repeat = document.getElementById('eventRepeat').value;
-        const reminder = document.getElementById('eventReminder').checked;
-        
-        if (!title) { alert('Por favor, preencha o título do evento.'); return; }
-        
-        const eventDate = new Date(date + 'T12:00:00');
-        const novoEvento = { id: gerarId(), day: eventDate.getDate(), month: eventDate.getMonth(), year: eventDate.getFullYear(), title, type, time: start, endTime: end, description, repeat, reminder, dataCriacao: new Date().toISOString() };
-        events.push(novoEvento);
-        
-        if (repeat !== 'nao') {
-            const repeatCount = repeat === 'diario' ? 6 : repeat === 'semanal' ? 3 : 11;
-            for (let i = 1; i <= repeatCount; i++) {
-                const repeatDate = new Date(eventDate);
-                if (repeat === 'diario') repeatDate.setDate(repeatDate.getDate() + i);
-                else if (repeat === 'semanal') repeatDate.setDate(repeatDate.getDate() + (i * 7));
-                else if (repeat === 'mensal') repeatDate.setMonth(repeatDate.getMonth() + i);
-                events.push({ ...novoEvento, id: gerarId(), day: repeatDate.getDate(), month: repeatDate.getMonth(), year: repeatDate.getFullYear() });
+    if (eventForm) {
+        eventForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const titleInput = document.getElementById('eventTitle');
+            const descriptionInput = document.getElementById('eventDescription');
+            const dateInput = document.getElementById('eventDate');
+            const startInput = document.getElementById('eventStart');
+            const endInput = document.getElementById('eventEnd');
+            const repeatSelect = document.getElementById('eventRepeat');
+            const reminderCheck = document.getElementById('eventReminder');
+            
+            const title = titleInput?.value.trim() || '';
+            const description = descriptionInput?.value.trim() || '';
+            const date = dateInput?.value || '';
+            const start = startInput?.value || '';
+            const end = endInput?.value || '';
+            const type = eventTypeInput?.value || 'aula';
+            const repeat = repeatSelect?.value || 'nao';
+            const reminder = reminderCheck?.checked || false;
+            
+            if (!title) { alert('Por favor, preencha o título do evento.'); return; }
+            
+            const eventDate = new Date(date + 'T12:00:00');
+            const novoEvento = { id: gerarId(), day: eventDate.getDate(), month: eventDate.getMonth(), year: eventDate.getFullYear(), title, type, time: start, endTime: end, description, repeat, reminder, dataCriacao: new Date().toISOString() };
+            events.push(novoEvento);
+            
+            if (repeat !== 'nao') {
+                const repeatCount = repeat === 'diario' ? 6 : repeat === 'semanal' ? 3 : 11;
+                for (let i = 1; i <= repeatCount; i++) {
+                    const repeatDate = new Date(eventDate);
+                    if (repeat === 'diario') repeatDate.setDate(repeatDate.getDate() + i);
+                    else if (repeat === 'semanal') repeatDate.setDate(repeatDate.getDate() + (i * 7));
+                    else if (repeat === 'mensal') repeatDate.setMonth(repeatDate.getMonth() + i);
+                    events.push({ ...novoEvento, id: gerarId(), day: repeatDate.getDate(), month: repeatDate.getMonth(), year: repeatDate.getFullYear() });
+                }
             }
-        }
-        
-        salvarEventos();
-        closeModal();
-        renderCalendar();
-        renderEventsForSelectedDay();
-        mostrarNotificacao('Evento criado com sucesso!');
-    });
+            
+            salvarEventos();
+            closeModal();
+            renderCalendar();
+            renderEventsForSelectedDay();
+            mostrarNotificacao('Evento criado com sucesso!');
+        });
+    }
     
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && eventModal.classList.contains('active')) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && eventModal?.classList.contains('active')) closeModal(); });
 }
 
 function mostrarNotificacao(mensagem, tipo = 'success') {
