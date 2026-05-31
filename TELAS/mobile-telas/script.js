@@ -1,3 +1,5 @@
+// mobile-telas/script.js - VERSÃO COMPLETA FUNCIONAL
+
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
 let notifications = [];
@@ -12,27 +14,26 @@ const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 
 // ===== INICIALIZAÇÃO =====
 async function inicializar() {
-    console.log('[Mobile] 🚀 Inicializando aplicação...');
+    console.log('[Mobile] 🚀 Inicializando aplicação mobile...');
     
     // Inicializar CacheManager
     if (window.CacheManager) {
         window.CacheManager.init();
-        console.log('[Mobile] CacheManager inicializado');
+        console.log('[Mobile] ✅ CacheManager inicializado');
     }
     
     // Carregar usuário
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
-        window.location.href = '../../login/index.html';
+        window.location.href = './login/index.html';
         return;
     }
     
     try {
         usuarioLogado = JSON.parse(usuarioSalvo);
         console.log('[Mobile] 👤 Usuário:', usuarioLogado.nome);
-        console.log('[Mobile] 📧 Email:', usuarioLogado.email);
         
-        // ✅ DEFINIR USER ID NO CACHEMANAGER (CRÍTICO!)
+        // Definir USER ID no CacheManager
         const userId = usuarioLogado.uid || usuarioLogado.email;
         if (window.CacheManager) {
             window.CacheManager.setCurrentUser(userId);
@@ -45,22 +46,19 @@ async function inicializar() {
             headerName.textContent = usuarioLogado.nome.split(' ')[0];
         }
         
-        // ✅ PRIMEIRO: Tentar carregar dados da nuvem
-        const dadosDaNuvem = await carregarDadosDaNuvem();
-        
-        if (!dadosDaNuvem) {
-            // Se não tem dados na nuvem, usar dados locais (se existirem)
-            console.log('[Mobile] ℹ️ Nenhum dado na nuvem, usando dados locais');
-            await carregarTodosDados();
-            
-            // Se houver dados locais, enviar para nuvem
-            if (tasks.length > 0 || notes.length > 0 || calendarEvents.length > 0) {
-                console.log('[Mobile] 📤 Enviando dados locais para nuvem...');
-                await salvarTodosDados();
+        // Carregar dados da nuvem
+        try {
+            if (window.CacheManager) {
+                await window.CacheManager.loadFromCloud(true);
             }
+        } catch (error) {
+            console.error('[Mobile] Erro ao carregar nuvem:', error);
         }
         
-        // ✅ SEGUNDO: Renderizar interface
+        // Carregar dados do cache
+        await carregarTodosDados();
+        
+        // Renderizar interface
         renderizarHorario();
         renderizarProximoEvento();
         renderizarProximasTarefas();
@@ -68,71 +66,29 @@ async function inicializar() {
         atualizarCards();
         atualizarBadgeNotificacoes();
         
-        // ✅ TERCEIRO: Iniciar escuta em tempo real
-        if (window.initSync) {
-            await window.initSync();
-            console.log('[Mobile] ✅ Sincronização em tempo real ativada');
+        // Iniciar escuta em tempo real
+        if (window.CacheManager && window.CacheManager.startRealtimeSync) {
+            await window.CacheManager.startRealtimeSync();
         }
         
-        // Escutar eventos de refresh
-        window.addEventListener('dataRefreshed', () => {
-            console.log('[Mobile] DataRefreshed detectado, atualizando UI');
-            atualizarInterface();
-        });
-        
+        // Escutar eventos
         window.addEventListener('cloudDataLoaded', (event) => {
-            console.log('[Mobile] CloudDataLoaded detectado, atualizando UI');
+            console.log('[Mobile] Dados da nuvem atualizados');
+            carregarTodosDados();
             atualizarInterface();
         });
         
-        console.log('[Mobile] ✅ Aplicação inicializada com sucesso!');
+        console.log('[Mobile] ✅ Aplicação mobile inicializada!');
         
     } catch(e) {
-        console.error('[Mobile] ❌ Erro na inicialização:', e);
+        console.error('[Mobile] Erro:', e);
     }
 }
 
-// ===== CARREGAR DADOS DA NUVEM PRIMEIRO =====
-async function carregarDadosDaNuvem() {
-    if (!window.CacheManager || !usuarioLogado) {
-        console.log('[Mobile] CacheManager ou usuário não disponível');
-        return false;
-    }
-    
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    console.log('[Mobile] 🔍 Buscando dados na nuvem para:', userId);
-    
-    try {
-        // Tentar carregar da nuvem com timeout
-        const dadosCarregados = await Promise.race([
-            window.CacheManager.loadFromCloud(true),
-            new Promise(resolve => setTimeout(() => resolve(null), 5000))
-        ]);
-        
-        if (dadosCarregados === true) {
-            console.log('[Mobile] ✅ Dados carregados da nuvem com sucesso!');
-            await carregarTodosDados();
-            return true;
-        } else if (dadosCarregados === false) {
-            console.log('[Mobile] ℹ️ Nenhum dado encontrado na nuvem');
-            return false;
-        } else {
-            console.log('[Mobile] ⏰ Timeout carregando da nuvem, usando dados locais');
-            return false;
-        }
-    } catch (error) {
-        console.error('[Mobile] ❌ Erro ao carregar da nuvem:', error);
-        return false;
-    }
-}
-
-// ===== CARREGAR TODOS OS DADOS =====
+// ===== CARREGAR DADOS =====
 async function carregarTodosDados() {
     if (!usuarioLogado) return;
     
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    // Tentar carregar do CacheManager primeiro
     if (window.CacheManager) {
         const cachedNotes = window.CacheManager.get('notes', null);
         const cachedTasks = window.CacheManager.get('tasks', null);
@@ -149,63 +105,21 @@ async function carregarTodosDados() {
         if (cachedNotif !== null) notifications = cachedNotif;
     }
     
-    // Fallback para localStorage antigo (apenas se CacheManager não tiver dados)
-    if (!notes.length && !tasks.length && !calendarEvents.length) {
-        const notifSalvas = localStorage.getItem(`${userId}_notifications`);
-        if (notifSalvas) notifications = JSON.parse(notifSalvas);
-        
-        const scheduleSalvo = localStorage.getItem(`${userId}_weeklySchedule`);
-        if (scheduleSalvo) weeklySchedule = JSON.parse(scheduleSalvo);
-        
-        const slotsSalvos = localStorage.getItem(`${userId}_timeSlots`);
-        if (slotsSalvos) timeSlots = JSON.parse(slotsSalvos);
-        
-        const eventosSalvos = localStorage.getItem(`${userId}_calendarEvents`);
-        if (eventosSalvos) calendarEvents = JSON.parse(eventosSalvos);
-        
-        const tasksSalvas = localStorage.getItem(`${userId}_tasks`);
-        if (tasksSalvas) tasks = JSON.parse(tasksSalvas);
-        
-        const notesSalvas = localStorage.getItem(`${userId}_notes`);
-        if (notesSalvas) notes = JSON.parse(notesSalvas);
-    }
-    
     // Garantir valores padrão
     if (!timeSlots.length) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
     if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
         weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
     }
     
-    // Garantir estrutura do horário
     days.forEach(day => {
         if (!weeklySchedule[day]) weeklySchedule[day] = [];
     });
-    
-    console.log('[Mobile] 📦 Dados carregados:', {
-        notifications: notifications.length,
-        schedule: Object.keys(weeklySchedule).length,
-        timeSlots: timeSlots.length,
-        events: calendarEvents.length,
-        tasks: tasks.length,
-        notes: notes.length
-    });
 }
 
-// ===== SALVAR TODOS OS DADOS =====
+// ===== SALVAR DADOS =====
 async function salvarTodosDados() {
     if (!usuarioLogado) return;
     
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    // Salvar no localStorage (fallback)
-    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
-    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
-    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
-    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
-    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-    
-    // Salvar no CacheManager (que sincroniza com nuvem)
     if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
         window.CacheManager.set('notifications', notifications, true);
         window.CacheManager.set('weeklySchedule', weeklySchedule, true);
@@ -213,21 +127,12 @@ async function salvarTodosDados() {
         window.CacheManager.set('calendarEvents', calendarEvents, true);
         window.CacheManager.set('tasks', tasks, true);
         window.CacheManager.set('notes', notes, true);
-        console.log('[Mobile] ✅ Dados salvos e enviados para nuvem');
-    } else {
-        console.log('[Mobile] ⚠️ CacheManager não disponível, salvando apenas local');
-        // Tentar novamente em 2 segundos
-        setTimeout(() => {
-            if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
-                salvarTodosDados();
-            }
-        }, 2000);
+        console.log('[Mobile] ✅ Dados salvos');
     }
 }
 
 // ===== ATUALIZAR INTERFACE =====
 function atualizarInterface() {
-    console.log('[Mobile] 🔄 Atualizando interface...');
     renderizarHorario();
     renderizarProximoEvento();
     renderizarProximasTarefas();
@@ -250,7 +155,7 @@ function renderizarHorario() {
             const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
             if (classItem) {
                 html += `<div class="class-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color}">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">
                         ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
                     </div>
                 </div>`;
@@ -262,7 +167,7 @@ function renderizarHorario() {
     
     grid.innerHTML = html;
     
-    // Adicionar event listeners
+    // Event listeners para células
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -319,13 +224,13 @@ function renderizarProximoEvento() {
     eventosFuturos.forEach(event => {
         const [year, month, day] = event.date.split('-');
         const dateFormatted = `${day}/${month}`;
-        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='../calendario/index.html'">
-            <div class="item-icon" style="background-color: ${event.color}20; color: ${event.color}">
+        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='./calendario/index.html'">
+            <div class="item-icon" style="background-color: ${event.color || '#8b5cf6'}20; color: ${event.color || '#8b5cf6'}">
                 <ion-icon name="calendar-outline"></ion-icon>
             </div>
             <div class="item-info">
                 <div class="item-title">${escapeHtml(event.title)}</div>
-                <div class="item-subtitle">${dateFormatted} • ${event.start}</div>
+                <div class="item-subtitle">${dateFormatted} • ${event.start || '--:--'}</div>
             </div>
             <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
         </div>`;
@@ -347,8 +252,8 @@ function renderizarProximasTarefas() {
     
     let html = '';
     tarefasPendentes.forEach(task => {
-        html += `<div class="list-item" data-id="${task.id}" onclick="window.location.href='../tarefas/index.html'">
-            <div class="item-icon" style="background-color: ${task.color}20; color: ${task.color}">
+        html += `<div class="list-item" data-id="${task.id}" onclick="window.location.href='./tarefas/index.html'">
+            <div class="item-icon" style="background-color: ${task.color || '#8b5cf6'}20; color: ${task.color || '#8b5cf6'}">
                 <ion-icon name="checkbox-outline"></ion-icon>
             </div>
             <div class="item-info">
@@ -441,7 +346,7 @@ function atualizarCards() {
     if (cardPendentes) cardPendentes.textContent = pendentes;
 }
 
-// ===== RENDERIZAR NOTIFICAÇÕES MODAL =====
+// ===== NOTIFICAÇÕES MODAL =====
 function renderizarNotificacoesModal(filter = 'all') {
     const container = document.getElementById('notifications-list-modal');
     if (!container) return;
@@ -518,7 +423,7 @@ function renderizarEditSchedule() {
             const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
             if (classItem) {
                 html += `<div class="edit-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color}">${escapeHtml(classItem.materia)}</div>
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">${escapeHtml(classItem.materia)}</div>
                 </div>`;
             } else {
                 html += `<div class="edit-cell"><button class="btn-add">+</button></div>`;
@@ -529,28 +434,58 @@ function renderizarEditSchedule() {
 }
 
 function openSubjectModal(subject, day, time) {
-    console.log('Abrir modal para:', subject, day, time);
+    editingSubject = subject;
+    const modal = document.getElementById('subject-modal');
+    if (!modal) return;
+    
+    if (subject) {
+        document.getElementById('subject-modal-title').textContent = 'Editar Matéria';
+        document.getElementById('subject-name-input').value = subject.materia || '';
+        document.getElementById('subject-teacher-input').value = subject.professor || '';
+        document.getElementById('subject-start-input').value = subject.horaInicio || '';
+        document.getElementById('subject-end-input').value = subject.horaFim || '';
+        document.getElementById('subject-day-input').value = day;
+        selectedSubjectColor = subject.color || '#6366f1';
+    } else {
+        document.getElementById('subject-modal-title').textContent = 'Adicionar Matéria';
+        document.getElementById('subject-name-input').value = '';
+        document.getElementById('subject-teacher-input').value = '';
+        document.getElementById('subject-start-input').value = time;
+        document.getElementById('subject-end-input').value = '';
+        document.getElementById('subject-day-input').value = day;
+        selectedSubjectColor = '#6366f1';
+    }
+    
+    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
+    });
+    
+    modal.classList.add('active');
 }
 
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded', () => {
     inicializar();
     
-    // Eventos dos botões
+    // Botão editar horário
     document.getElementById('toggle-edit-mode')?.addEventListener('click', () => {
         document.getElementById('edit-modal').classList.add('active');
         renderizarEditSchedule();
     });
     
+    // Botão voltar do modal de edição
     document.getElementById('btn-back')?.addEventListener('click', () => {
         document.getElementById('edit-modal').classList.remove('active');
     });
     
+    // Botão salvar do modal de edição
     document.getElementById('btn-save')?.addEventListener('click', () => {
         document.getElementById('edit-modal').classList.remove('active');
         renderizarHorario();
+        salvarTodosDados();
     });
     
+    // Adicionar horário
     document.getElementById('btn-add-time')?.addEventListener('click', () => {
         const newTime = document.getElementById('new-time-input')?.value;
         if (newTime && !timeSlots.includes(newTime)) {
@@ -566,10 +501,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Cancelar adicionar horário
     document.getElementById('btn-cancel-time')?.addEventListener('click', () => {
         document.getElementById('new-time-input').value = '11:00';
     });
     
+    // Salvar matéria
     document.getElementById('btn-save-subject')?.addEventListener('click', () => {
         const name = document.getElementById('subject-name-input')?.value.trim();
         const startTime = document.getElementById('subject-start-input')?.value;
@@ -619,11 +556,13 @@ document.addEventListener('DOMContentLoaded', () => {
         editingSubject = null;
     });
     
+    // Fechar modal matéria
     document.querySelector('[data-modal="subject-modal"]')?.addEventListener('click', () => {
         document.getElementById('subject-modal').classList.remove('active');
         editingSubject = null;
     });
     
+    // Cores das matérias
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -632,6 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         const modal = document.getElementById('notifications-modal');
         if (modal) {
@@ -663,6 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
@@ -682,4 +623,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 console.log('%c📱 Mobile - Versão Sincronizada', 'color: #10b981; font-size: 16px; font-weight: bold;');
-console.log('%c✅ Sincronização entre dispositivos ATIVADA!', 'color: #8b5cf6; font-size: 14px;');
