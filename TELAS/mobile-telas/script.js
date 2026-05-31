@@ -11,6 +11,7 @@ let notes = [];
 let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+let dadosInicializados = false;
 
 // ===== INICIALIZAÇÃO =====
 async function inicializar() {
@@ -25,7 +26,7 @@ async function inicializar() {
     // Carregar usuário
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
-        window.location.href = './login/index.html';
+        window.location.href = '../../login/index.html';
         return;
     }
     
@@ -33,7 +34,7 @@ async function inicializar() {
         usuarioLogado = JSON.parse(usuarioSalvo);
         console.log('[Mobile] 👤 Usuário:', usuarioLogado.nome);
         
-        // Definir USER ID no CacheManager
+        // Definir USER ID no CacheManager (CRÍTICO!)
         const userId = usuarioLogado.uid || usuarioLogado.email;
         if (window.CacheManager) {
             window.CacheManager.setCurrentUser(userId);
@@ -47,47 +48,137 @@ async function inicializar() {
         }
         
         // Carregar dados da nuvem
-        try {
-            if (window.CacheManager) {
-                await window.CacheManager.loadFromCloud(true);
-            }
-        } catch (error) {
-            console.error('[Mobile] Erro ao carregar nuvem:', error);
-        }
-        
-        // Carregar dados do cache
-        await carregarTodosDados();
+        await carregarTodosDadosDaNuvem();
         
         // Renderizar interface
-        renderizarHorario();
-        renderizarProximoEvento();
-        renderizarProximasTarefas();
-        renderizarNotificacoes();
-        atualizarCards();
-        atualizarBadgeNotificacoes();
+        await renderizarTudo();
         
         // Iniciar escuta em tempo real
         if (window.CacheManager && window.CacheManager.startRealtimeSync) {
             await window.CacheManager.startRealtimeSync();
         }
         
-        // Escutar eventos
-        window.addEventListener('cloudDataLoaded', (event) => {
+        // Escutar eventos de sincronização
+        window.addEventListener('cloudDataLoaded', async () => {
             console.log('[Mobile] Dados da nuvem atualizados');
-            carregarTodosDados();
-            atualizarInterface();
+            await recarregarDadosERenderizar();
+        });
+        
+        window.addEventListener('dataRefreshed', async () => {
+            console.log('[Mobile] Refresh manual detectado');
+            await recarregarDadosERenderizar();
         });
         
         console.log('[Mobile] ✅ Aplicação mobile inicializada!');
         
     } catch(e) {
         console.error('[Mobile] Erro:', e);
+        carregarDadosLocalStorage();
+        renderizarTudo();
     }
 }
 
-// ===== CARREGAR DADOS =====
-async function carregarTodosDados() {
+// ===== CARREGAR TODOS DADOS DA NUVEM =====
+async function carregarTodosDadosDaNuvem() {
+    if (!usuarioLogado) return false;
+    
+    try {
+        console.log('[Mobile] 🔍 Carregando dados da nuvem...');
+        
+        if (window.CacheManager) {
+            await window.CacheManager.loadFromCloud(true);
+        }
+        
+        // Pegar do CacheManager
+        const cachedNotes = window.CacheManager?.get('notes', null);
+        const cachedTasks = window.CacheManager?.get('tasks', null);
+        const cachedEvents = window.CacheManager?.get('calendarEvents', null);
+        const cachedSchedule = window.CacheManager?.get('weeklySchedule', null);
+        const cachedSlots = window.CacheManager?.get('timeSlots', null);
+        const cachedNotif = window.CacheManager?.get('notifications', null);
+        
+        if (cachedNotes !== null) notes = cachedNotes;
+        if (cachedTasks !== null) tasks = cachedTasks;
+        if (cachedEvents !== null) calendarEvents = cachedEvents;
+        if (cachedSchedule !== null) weeklySchedule = cachedSchedule;
+        if (cachedSlots !== null) timeSlots = cachedSlots;
+        if (cachedNotif !== null) notifications = cachedNotif;
+        
+        console.log('[Mobile] 📦 Dados carregados:', {
+            notes: notes?.length || 0,
+            tasks: tasks?.length || 0,
+            events: calendarEvents?.length || 0,
+            schedule: weeklySchedule ? Object.keys(weeklySchedule).length : 0,
+            slots: timeSlots?.length || 0,
+            notif: notifications?.length || 0
+        });
+        
+        // Fallback para localStorage
+        if (notes.length === 0 && tasks.length === 0 && Object.keys(weeklySchedule).length === 0) {
+            carregarDadosLocalStorage();
+        }
+        
+        // Garantir valores padrão
+        if (!timeSlots || timeSlots.length === 0) {
+            timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
+        }
+        
+        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
+            weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
+        }
+        
+        days.forEach(day => {
+            if (!weeklySchedule[day]) weeklySchedule[day] = [];
+        });
+        
+        return true;
+        
+    } catch (error) {
+        console.error('[Mobile] Erro ao carregar nuvem:', error);
+        carregarDadosLocalStorage();
+        return false;
+    }
+}
+
+// ===== FALLBACK: LOCALSTORAGE =====
+function carregarDadosLocalStorage() {
     if (!usuarioLogado) return;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    const storedNotes = localStorage.getItem(`${userId}_notes`);
+    const storedTasks = localStorage.getItem(`${userId}_tasks`);
+    const storedEvents = localStorage.getItem(`${userId}_calendarEvents`);
+    const storedSchedule = localStorage.getItem(`${userId}_weeklySchedule`);
+    const storedSlots = localStorage.getItem(`${userId}_timeSlots`);
+    const storedNotif = localStorage.getItem(`${userId}_notifications`);
+    
+    if (storedNotes) notes = JSON.parse(storedNotes);
+    if (storedTasks) tasks = JSON.parse(storedTasks);
+    if (storedEvents) calendarEvents = JSON.parse(storedEvents);
+    if (storedSchedule) weeklySchedule = JSON.parse(storedSchedule);
+    if (storedSlots) timeSlots = JSON.parse(storedSlots);
+    if (storedNotif) notifications = JSON.parse(storedNotif);
+    
+    // Garantir valores padrão
+    if (!timeSlots || timeSlots.length === 0) {
+        timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    }
+    
+    if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
+        weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
+    }
+    
+    days.forEach(day => {
+        if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    });
+    
+    console.log('[Mobile] 📦 Dados do localStorage carregados');
+}
+
+// ===== RECARREGAR E RENDERIZAR =====
+async function recarregarDadosERenderizar() {
+    console.log('[Mobile] 🔄 Recarregando dados...');
     
     if (window.CacheManager) {
         const cachedNotes = window.CacheManager.get('notes', null);
@@ -105,55 +196,46 @@ async function carregarTodosDados() {
         if (cachedNotif !== null) notifications = cachedNotif;
     }
     
-    // Garantir valores padrão
-    if (!timeSlots.length) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
-        weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
-    }
-    
-    days.forEach(day => {
-        if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    });
+    await renderizarTudo();
 }
 
-// ===== SALVAR DADOS =====
-async function salvarTodosDados() {
-    if (!usuarioLogado) return;
+// ===== RENDERIZAR TUDO =====
+async function renderizarTudo() {
+    console.log('[Mobile] 🎨 Renderizando interface...');
     
-    if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
-        window.CacheManager.set('notifications', notifications, true);
-        window.CacheManager.set('weeklySchedule', weeklySchedule, true);
-        window.CacheManager.set('timeSlots', timeSlots, true);
-        window.CacheManager.set('calendarEvents', calendarEvents, true);
-        window.CacheManager.set('tasks', tasks, true);
-        window.CacheManager.set('notes', notes, true);
-        console.log('[Mobile] ✅ Dados salvos');
-    }
-}
-
-// ===== ATUALIZAR INTERFACE =====
-function atualizarInterface() {
     renderizarHorario();
     renderizarProximoEvento();
     renderizarProximasTarefas();
     renderizarNotificacoes();
     atualizarCards();
     atualizarBadgeNotificacoes();
+    
+    console.log('[Mobile] ✅ Interface renderizada');
 }
 
 // ===== RENDERIZAR HORÁRIO =====
 function renderizarHorario() {
     const grid = document.getElementById('schedule-grid');
-    if (!grid) return;
+    if (!grid) {
+        console.warn('[Mobile] schedule-grid não encontrado');
+        return;
+    }
+    
+    if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
+        grid.innerHTML = '<div style="grid-column:span 6;text-align:center;padding:40px;">Carregando horário...</div>';
+        return;
+    }
     
     let html = '<div class="day-header">Hora</div>';
     days.forEach(day => html += `<div class="day-header">${day}</div>`);
     
-    timeSlots.forEach(time => {
+    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    
+    slots.forEach(time => {
         html += `<div class="time-slot">${time}</div>`;
         days.forEach(day => {
             const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
-            if (classItem) {
+            if (classItem && classItem.materia) {
                 html += `<div class="class-cell">
                     <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">
                         ${escapeHtml(classItem.materia)}<br><small>${classItem.horaInicio}</small>
@@ -167,20 +249,21 @@ function renderizarHorario() {
     
     grid.innerHTML = html;
     
-    // Event listeners para células
+    // Event listeners
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
             const cellDiv = cell.closest('.class-cell');
             const rowIndex = Array.from(cellDiv.parentElement.children).indexOf(cellDiv);
+            const slotsList = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
             const timeIndex = Math.floor((rowIndex - 1) / 6);
             const dayIndex = (rowIndex - 1) % 6;
             
             if (timeIndex >= 0 && dayIndex >= 0 && dayIndex < days.length) {
-                const time = timeSlots[timeIndex];
+                const timeSlot = slotsList[timeIndex];
                 const day = days[dayIndex];
-                const subject = weeklySchedule[day]?.find(c => c.horaInicio === time);
-                if (subject) openSubjectModal(subject, day, time);
+                const subject = weeklySchedule[day]?.find(c => c.horaInicio === timeSlot);
+                if (subject) openSubjectModal(subject, day, timeSlot);
             }
         });
     });
@@ -190,13 +273,14 @@ function renderizarHorario() {
             e.stopPropagation();
             const cellDiv = cell.closest('.class-cell');
             const rowIndex = Array.from(cellDiv.parentElement.children).indexOf(cellDiv);
+            const slotsList = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
             const timeIndex = Math.floor((rowIndex - 1) / 6);
             const dayIndex = (rowIndex - 1) % 6;
             
             if (timeIndex >= 0 && dayIndex >= 0 && dayIndex < days.length) {
-                const time = timeSlots[timeIndex];
+                const timeSlot = slotsList[timeIndex];
                 const day = days[dayIndex];
-                openSubjectModal(null, day, time);
+                openSubjectModal(null, day, timeSlot);
             }
         });
     });
@@ -207,6 +291,11 @@ function renderizarProximoEvento() {
     const container = document.getElementById('next-event-container');
     if (!container) return;
     
+    if (!calendarEvents || calendarEvents.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
+        return;
+    }
+    
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     
@@ -216,7 +305,7 @@ function renderizarProximoEvento() {
         .slice(0, 3);
     
     if (eventosFuturos.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos futuros</div><div class="item-subtitle">Todos os eventos estão no passado</div></div></div>';
         return;
     }
     
@@ -243,7 +332,7 @@ function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
     
-    const tarefasPendentes = tasks.filter(t => !t.completed).slice(0, 3);
+    const tarefasPendentes = (tasks || []).filter(t => !t.completed).slice(0, 3);
     
     if (tarefasPendentes.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma tarefa pendente ✨</div></div></div>';
@@ -271,7 +360,7 @@ function renderizarNotificacoes() {
     const container = document.getElementById('notifications-list');
     if (!container) return;
     
-    const notificacoesNaoLidas = notifications.filter(n => !n.read).slice(0, 3);
+    const notificacoesNaoLidas = (notifications || []).filter(n => !n.read).slice(0, 3);
     
     if (notificacoesNaoLidas.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
@@ -293,6 +382,54 @@ function renderizarNotificacoes() {
         </div>`;
     });
     container.innerHTML = html;
+}
+
+// ===== ATUALIZAR CARDS =====
+function atualizarCards() {
+    const materias = new Set();
+    if (weeklySchedule) {
+        Object.values(weeklySchedule).forEach(day => {
+            if (Array.isArray(day)) {
+                day.forEach(c => { if (c && c.materia) materias.add(c.materia.toLowerCase()); });
+            }
+        });
+    }
+    
+    const concluidas = (tasks || []).filter(t => t.completed).length;
+    const pendentes = (tasks || []).filter(t => !t.completed).length;
+    
+    const cardDisciplinas = document.getElementById('card-disciplinas');
+    const cardConcluidas = document.getElementById('card-concluidas');
+    const cardPendentes = document.getElementById('card-pendentes');
+    
+    if (cardDisciplinas) cardDisciplinas.textContent = materias.size || 0;
+    if (cardConcluidas) cardConcluidas.textContent = concluidas;
+    if (cardPendentes) cardPendentes.textContent = pendentes;
+}
+
+// ===== ATUALIZAR BADGE =====
+function atualizarBadgeNotificacoes() {
+    const badge = document.getElementById('notification-badge');
+    const naoLidas = (notifications || []).filter(n => !n.read).length;
+    if (badge) {
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+}
+
+// ===== SALVAR DADOS =====
+async function salvarTodosDados() {
+    if (!usuarioLogado) return;
+    
+    if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
+        window.CacheManager.set('notifications', notifications || [], true);
+        window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
+        window.CacheManager.set('timeSlots', timeSlots || [], true);
+        window.CacheManager.set('calendarEvents', calendarEvents || [], true);
+        window.CacheManager.set('tasks', tasks || [], true);
+        window.CacheManager.set('notes', notes || [], true);
+        console.log('[Mobile] ✅ Dados salvos');
+    }
 }
 
 // ===== FUNÇÕES AUXILIARES =====
@@ -319,34 +456,64 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-function atualizarBadgeNotificacoes() {
-    const badge = document.getElementById('notification-badge');
-    const naoLidas = notifications.filter(n => !n.read).length;
-    if (badge) {
-        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-    }
+// ===== RENDERIZAR EDIT SCHEDULE =====
+function renderizarEditSchedule() {
+    const grid = document.getElementById('edit-schedule-grid');
+    if (!grid) return;
+    
+    let html = '<div class="day-header">Hora</div>';
+    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    
+    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    
+    slots.forEach(time => {
+        html += `<div class="time-slot">${time}</div>`;
+        days.forEach(day => {
+            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (classItem) {
+                html += `<div class="edit-cell">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">${escapeHtml(classItem.materia)}</div>
+                </div>`;
+            } else {
+                html += `<div class="edit-cell"><button class="btn-add">+</button></div>`;
+            }
+        });
+    });
+    grid.innerHTML = html;
 }
 
-function atualizarCards() {
-    const materias = new Set();
-    Object.values(weeklySchedule).forEach(day => {
-        day.forEach(c => { if (c.materia) materias.add(c.materia.toLowerCase()); });
+// ===== OPEN SUBJECT MODAL =====
+function openSubjectModal(subject, day, time) {
+    editingSubject = subject;
+    const modal = document.getElementById('subject-modal');
+    if (!modal) return;
+    
+    if (subject) {
+        document.getElementById('subject-modal-title').textContent = 'Editar Matéria';
+        document.getElementById('subject-name-input').value = subject.materia || '';
+        document.getElementById('subject-teacher-input').value = subject.professor || '';
+        document.getElementById('subject-start-input').value = subject.horaInicio || '';
+        document.getElementById('subject-end-input').value = subject.horaFim || '';
+        document.getElementById('subject-day-input').value = day;
+        selectedSubjectColor = subject.color || '#6366f1';
+    } else {
+        document.getElementById('subject-modal-title').textContent = 'Adicionar Matéria';
+        document.getElementById('subject-name-input').value = '';
+        document.getElementById('subject-teacher-input').value = '';
+        document.getElementById('subject-start-input').value = time;
+        document.getElementById('subject-end-input').value = '';
+        document.getElementById('subject-day-input').value = day;
+        selectedSubjectColor = '#6366f1';
+    }
+    
+    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
+        option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
     });
     
-    const concluidas = tasks.filter(t => t.completed).length;
-    const pendentes = tasks.filter(t => !t.completed).length;
-    
-    const cardDisciplinas = document.getElementById('card-disciplinas');
-    const cardConcluidas = document.getElementById('card-concluidas');
-    const cardPendentes = document.getElementById('card-pendentes');
-    
-    if (cardDisciplinas) cardDisciplinas.textContent = materias.size || 0;
-    if (cardConcluidas) cardConcluidas.textContent = concluidas;
-    if (cardPendentes) cardPendentes.textContent = pendentes;
+    modal.classList.add('active');
 }
 
-// ===== NOTIFICAÇÕES MODAL =====
+// ===== RENDERIZAR NOTIFICAÇÕES MODAL =====
 function renderizarNotificacoesModal(filter = 'all') {
     const container = document.getElementById('notifications-list-modal');
     if (!container) return;
@@ -410,157 +577,125 @@ function limparTodasNotificacoes() {
     }
 }
 
-function renderizarEditSchedule() {
-    const grid = document.getElementById('edit-schedule-grid');
-    if (!grid) return;
-    
-    let html = '<div class="day-header">Hora</div>';
-    days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    
-    timeSlots.forEach(time => {
-        html += `<div class="time-slot">${time}</div>`;
-        days.forEach(day => {
-            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
-            if (classItem) {
-                html += `<div class="edit-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">${escapeHtml(classItem.materia)}</div>
-                </div>`;
-            } else {
-                html += `<div class="edit-cell"><button class="btn-add">+</button></div>`;
-            }
-        });
-    });
-    grid.innerHTML = html;
-}
-
-function openSubjectModal(subject, day, time) {
-    editingSubject = subject;
-    const modal = document.getElementById('subject-modal');
-    if (!modal) return;
-    
-    if (subject) {
-        document.getElementById('subject-modal-title').textContent = 'Editar Matéria';
-        document.getElementById('subject-name-input').value = subject.materia || '';
-        document.getElementById('subject-teacher-input').value = subject.professor || '';
-        document.getElementById('subject-start-input').value = subject.horaInicio || '';
-        document.getElementById('subject-end-input').value = subject.horaFim || '';
-        document.getElementById('subject-day-input').value = day;
-        selectedSubjectColor = subject.color || '#6366f1';
-    } else {
-        document.getElementById('subject-modal-title').textContent = 'Adicionar Matéria';
-        document.getElementById('subject-name-input').value = '';
-        document.getElementById('subject-teacher-input').value = '';
-        document.getElementById('subject-start-input').value = time;
-        document.getElementById('subject-end-input').value = '';
-        document.getElementById('subject-day-input').value = day;
-        selectedSubjectColor = '#6366f1';
-    }
-    
-    document.querySelectorAll('#subject-modal .color-option').forEach(option => {
-        option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
-    });
-    
-    modal.classList.add('active');
-}
-
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded', () => {
     inicializar();
     
     // Botão editar horário
-    document.getElementById('toggle-edit-mode')?.addEventListener('click', () => {
-        document.getElementById('edit-modal').classList.add('active');
-        renderizarEditSchedule();
-    });
+    const toggleEdit = document.getElementById('toggle-edit-mode');
+    if (toggleEdit) {
+        toggleEdit.addEventListener('click', () => {
+            document.getElementById('edit-modal').classList.add('active');
+            renderizarEditSchedule();
+        });
+    }
     
     // Botão voltar do modal de edição
-    document.getElementById('btn-back')?.addEventListener('click', () => {
-        document.getElementById('edit-modal').classList.remove('active');
-    });
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) {
+        btnBack.addEventListener('click', () => {
+            document.getElementById('edit-modal').classList.remove('active');
+        });
+    }
     
     // Botão salvar do modal de edição
-    document.getElementById('btn-save')?.addEventListener('click', () => {
-        document.getElementById('edit-modal').classList.remove('active');
-        renderizarHorario();
-        salvarTodosDados();
-    });
+    const btnSave = document.getElementById('btn-save');
+    if (btnSave) {
+        btnSave.addEventListener('click', () => {
+            document.getElementById('edit-modal').classList.remove('active');
+            renderizarHorario();
+            salvarTodosDados();
+        });
+    }
     
     // Adicionar horário
-    document.getElementById('btn-add-time')?.addEventListener('click', () => {
-        const newTime = document.getElementById('new-time-input')?.value;
-        if (newTime && !timeSlots.includes(newTime)) {
-            timeSlots.push(newTime);
-            timeSlots.sort();
-            salvarTodosDados();
-            renderizarEditSchedule();
-            showToast('Horário adicionado!', 'success');
-        } else if (timeSlots.includes(newTime)) {
-            showToast('Este horário já existe!', 'error');
-        } else {
-            showToast('Selecione um horário!', 'error');
-        }
-    });
+    const btnAddTime = document.getElementById('btn-add-time');
+    if (btnAddTime) {
+        btnAddTime.addEventListener('click', () => {
+            const newTime = document.getElementById('new-time-input')?.value;
+            if (newTime && !timeSlots.includes(newTime)) {
+                timeSlots.push(newTime);
+                timeSlots.sort();
+                salvarTodosDados();
+                renderizarEditSchedule();
+                showToast('Horário adicionado!', 'success');
+            } else if (timeSlots.includes(newTime)) {
+                showToast('Este horário já existe!', 'error');
+            } else {
+                showToast('Selecione um horário!', 'error');
+            }
+        });
+    }
     
     // Cancelar adicionar horário
-    document.getElementById('btn-cancel-time')?.addEventListener('click', () => {
-        document.getElementById('new-time-input').value = '11:00';
-    });
+    const btnCancelTime = document.getElementById('btn-cancel-time');
+    if (btnCancelTime) {
+        btnCancelTime.addEventListener('click', () => {
+            document.getElementById('new-time-input').value = '11:00';
+        });
+    }
     
     // Salvar matéria
-    document.getElementById('btn-save-subject')?.addEventListener('click', () => {
-        const name = document.getElementById('subject-name-input')?.value.trim();
-        const startTime = document.getElementById('subject-start-input')?.value;
-        const endTime = document.getElementById('subject-end-input')?.value;
-        const day = document.getElementById('subject-day-input')?.value;
-        
-        if (!name) {
-            showToast('Preencha o nome da matéria!', 'error');
-            return;
-        }
-        if (!startTime || !endTime) {
-            showToast('Defina início e término!', 'error');
-            return;
-        }
-        
-        if (!weeklySchedule[day]) weeklySchedule[day] = [];
-        
-        if (editingSubject) {
-            const oldStart = editingSubject.horaInicio;
-            weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
-        }
-        
-        if (!timeSlots.includes(startTime)) {
-            timeSlots.push(startTime);
-            timeSlots.sort();
-        }
-        
-        weeklySchedule[day].push({
-            materia: name,
-            professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
-            color: selectedSubjectColor,
-            horaInicio: startTime,
-            horaFim: endTime
+    const btnSaveSubject = document.getElementById('btn-save-subject');
+    if (btnSaveSubject) {
+        btnSaveSubject.addEventListener('click', () => {
+            const name = document.getElementById('subject-name-input')?.value.trim();
+            const startTime = document.getElementById('subject-start-input')?.value;
+            const endTime = document.getElementById('subject-end-input')?.value;
+            const day = document.getElementById('subject-day-input')?.value;
+            
+            if (!name) {
+                showToast('Preencha o nome da matéria!', 'error');
+                return;
+            }
+            if (!startTime || !endTime) {
+                showToast('Defina início e término!', 'error');
+                return;
+            }
+            
+            if (!weeklySchedule[day]) weeklySchedule[day] = [];
+            
+            if (editingSubject) {
+                const oldStart = editingSubject.horaInicio;
+                weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
+            }
+            
+            if (!timeSlots.includes(startTime)) {
+                timeSlots.push(startTime);
+                timeSlots.sort();
+            }
+            
+            weeklySchedule[day].push({
+                materia: name,
+                professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
+                color: selectedSubjectColor,
+                horaInicio: startTime,
+                horaFim: endTime
+            });
+            
+            weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+            salvarTodosDados();
+            document.getElementById('subject-modal').classList.remove('active');
+            showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
+            
+            if (document.getElementById('edit-modal').classList.contains('active')) {
+                renderizarEditSchedule();
+            } else {
+                renderizarHorario();
+            }
+            atualizarCards();
+            editingSubject = null;
         });
-        
-        weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-        salvarTodosDados();
-        document.getElementById('subject-modal').classList.remove('active');
-        showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
-        
-        if (document.getElementById('edit-modal').classList.contains('active')) {
-            renderizarEditSchedule();
-        } else {
-            renderizarHorario();
-        }
-        atualizarCards();
-        editingSubject = null;
-    });
+    }
     
     // Fechar modal matéria
-    document.querySelector('[data-modal="subject-modal"]')?.addEventListener('click', () => {
-        document.getElementById('subject-modal').classList.remove('active');
-        editingSubject = null;
-    });
+    const closeSubjectModal = document.querySelector('[data-modal="subject-modal"]');
+    if (closeSubjectModal) {
+        closeSubjectModal.addEventListener('click', () => {
+            document.getElementById('subject-modal').classList.remove('active');
+            editingSubject = null;
+        });
+    }
     
     // Cores das matérias
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
@@ -572,28 +707,44 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Notificações
-    document.getElementById('notification-bell')?.addEventListener('click', () => {
-        const modal = document.getElementById('notifications-modal');
-        if (modal) {
-            modal.classList.add('active');
-            renderizarNotificacoesModal();
-        }
-    });
+    const notificationBell = document.getElementById('notification-bell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', () => {
+            const modal = document.getElementById('notifications-modal');
+            if (modal) {
+                modal.classList.add('active');
+                renderizarNotificacoesModal();
+            }
+        });
+    }
     
-    document.getElementById('notification-bell-link')?.addEventListener('click', () => {
-        const modal = document.getElementById('notifications-modal');
-        if (modal) {
-            modal.classList.add('active');
-            renderizarNotificacoesModal();
-        }
-    });
+    const notificationLink = document.getElementById('notification-bell-link');
+    if (notificationLink) {
+        notificationLink.addEventListener('click', () => {
+            const modal = document.getElementById('notifications-modal');
+            if (modal) {
+                modal.classList.add('active');
+                renderizarNotificacoesModal();
+            }
+        });
+    }
     
-    document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
-        document.getElementById('notifications-modal').classList.remove('active');
-    });
+    const closeNotifBtn = document.getElementById('btn-close-notifications');
+    if (closeNotifBtn) {
+        closeNotifBtn.addEventListener('click', () => {
+            document.getElementById('notifications-modal').classList.remove('active');
+        });
+    }
     
-    document.getElementById('btn-mark-read')?.addEventListener('click', marcarTodasComoLidas);
-    document.getElementById('btn-clear-all')?.addEventListener('click', limparTodasNotificacoes);
+    const markReadBtn = document.getElementById('btn-mark-read');
+    if (markReadBtn) {
+        markReadBtn.addEventListener('click', marcarTodasComoLidas);
+    }
+    
+    const clearAllBtn = document.getElementById('btn-clear-all');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', limparTodasNotificacoes);
+    }
     
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -622,4 +773,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('%c📱 Mobile - Versão Sincronizada', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile - Versão Completa', 'color: #10b981; font-size: 16px; font-weight: bold;');
