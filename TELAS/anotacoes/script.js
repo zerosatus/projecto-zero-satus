@@ -1,4 +1,3 @@
-// ===== VERIFICAÇÃO DE LOGIN =====
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
     if (!usuario) { 
@@ -6,7 +5,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         return; 
     }
     
-    // Iniciar sincronização
     if (window.initSync) {
         await window.initSync();
     }
@@ -14,7 +12,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     inicializarAnotacoes();
 });
 
-// ===== SISTEMA DE ANOTAÇÕES =====
 let anotacoes = [];
 let anotacaoAtualId = null;
 
@@ -28,15 +25,8 @@ function configurarEventos() {
     const editor = document.getElementById('editor');
     const noteTitle = document.querySelector('.note-title');
     
-    editor.addEventListener('input', () => programarAutoSave());
-    noteTitle.addEventListener('input', () => programarAutoSave());
-    
-    document.querySelectorAll('.note-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const noteId = this.dataset.id;
-            carregarAnotacao(noteId);
-        });
-    });
+    if (editor) editor.addEventListener('input', () => programarAutoSave());
+    if (noteTitle) noteTitle.addEventListener('input', () => programarAutoSave());
     
     const btnNew = document.querySelector('.btn-new');
     if (btnNew) btnNew.addEventListener('click', criarNovaAnotacao);
@@ -46,21 +36,8 @@ function configurarEventos() {
             e.preventDefault(); 
             salvarAnotacaoAtual(); 
         }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'b') { 
-            e.preventDefault(); 
-            formatText('bold'); 
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'i') { 
-            e.preventDefault(); 
-            formatText('italic'); 
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'u') { 
-            e.preventDefault(); 
-            formatText('underline'); 
-        }
     });
     
-    // Escutar mudanças do Firebase
     window.addEventListener('cloudDataLoaded', () => {
         carregarAnotacoes();
         renderizarListaAnotacoes();
@@ -78,10 +55,9 @@ function carregarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
     
-    // Tentar do CacheManager primeiro
     if (window.CacheManager) {
         const cached = window.CacheManager.get('notes', null);
-        if (cached) {
+        if (cached !== null) {
             anotacoes = cached;
             console.log('[Anotacoes] Carregado do CacheManager:', anotacoes.length);
             renderizarListaAnotacoes();
@@ -95,23 +71,7 @@ function carregarAnotacoes() {
     if (anotacoesSalvas) {
         anotacoes = JSON.parse(anotacoesSalvas);
     } else {
-        // Dados de EXEMPLO apenas para primeiro acesso
-        anotacoes = [
-            {
-                id: gerarId(),
-                titulo: '📝 Bem-vindo às Anotações!',
-                conteudo: '<h2>Primeira Anotação</h2><p>Esta é uma anotação de exemplo. Você pode editar, formatar e criar quantas quiser!</p><ul><li>Use a barra de ferramentas para formatar</li><li>Suporta listas, negrito, itálico e muito mais</li><li>Salvamento automático a cada 2 segundos</li></ul>',
-                dataModificacao: new Date().toISOString(),
-                dataCriacao: new Date().toISOString()
-            },
-            {
-                id: gerarId(),
-                titulo: 'Dicas de Estudo',
-                conteudo: '<h3>Método Pomodoro</h3><p>25 minutos de foco, 5 minutos de pausa.</p><h3>Revisão Ativa</h3><p>Faça resumos e exercícios regularmente.</p>',
-                dataModificacao: new Date(Date.now() - 86400000).toISOString(),
-                dataCriacao: new Date(Date.now() - 86400000).toISOString()
-            }
-        ];
+        anotacoes = [];
         salvarAnotacoes();
     }
     
@@ -123,6 +83,12 @@ function renderizarListaAnotacoes() {
     if (!notesList) return;
     
     notesList.innerHTML = '';
+    
+    if (!anotacoes || anotacoes.length === 0) {
+        notesList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)"><i class="fas fa-sticky-note" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>Nenhuma anotação<br>Clique em + para criar</div>';
+        return;
+    }
+    
     anotacoes.sort((a, b) => new Date(b.dataModificacao) - new Date(a.dataModificacao));
     
     anotacoes.forEach(anotacao => {
@@ -142,10 +108,6 @@ function renderizarListaAnotacoes() {
         noteItem.addEventListener('click', () => carregarAnotacao(anotacao.id));
         notesList.appendChild(noteItem);
     });
-    
-    if (anotacoes.length === 0) {
-        notesList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma anotação<br>Clique em + para criar</div>';
-    }
 }
 
 function formatarData(data) {
@@ -163,7 +125,7 @@ function formatarData(data) {
 }
 
 function carregarPrimeiraAnotacao() {
-    if (anotacoes.length > 0) carregarAnotacao(anotacoes[0].id);
+    if (anotacoes && anotacoes.length > 0) carregarAnotacao(anotacoes[0].id);
 }
 
 function carregarAnotacao(id) {
@@ -171,8 +133,10 @@ function carregarAnotacao(id) {
     if (!anotacao) return;
     
     anotacaoAtualId = id;
-    document.querySelector('.note-title').value = anotacao.titulo || '';
-    document.getElementById('editor').innerHTML = anotacao.conteudo || '';
+    const titleInput = document.querySelector('.note-title');
+    const editor = document.getElementById('editor');
+    if (titleInput) titleInput.value = anotacao.titulo || '';
+    if (editor) editor.innerHTML = anotacao.conteudo || '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Anotação vazia</p>';
     
     document.querySelectorAll('.note-item').forEach(item => {
         item.classList.toggle('active', item.dataset.id === id);
@@ -185,7 +149,7 @@ function criarNovaAnotacao() {
     const novaAnotacao = {
         id: gerarId(),
         titulo: 'Nova Anotação',
-        conteudo: '',
+        conteudo: '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Comece a escrever sua anotação aqui...</p>',
         dataModificacao: new Date().toISOString(),
         dataCriacao: new Date().toISOString()
     };
@@ -194,10 +158,12 @@ function criarNovaAnotacao() {
     salvarAnotacoes();
     anotacaoAtualId = novaAnotacao.id;
     
-    document.querySelector('.note-title').value = novaAnotacao.titulo;
-    document.getElementById('editor').innerHTML = '';
+    const titleInput = document.querySelector('.note-title');
+    const editor = document.getElementById('editor');
+    if (titleInput) titleInput.value = novaAnotacao.titulo;
+    if (editor) editor.innerHTML = novaAnotacao.conteudo;
     renderizarListaAnotacoes();
-    document.querySelector('.note-title').focus();
+    if (titleInput) titleInput.focus();
     mostrarToast('Nova anotação criada!');
 }
 
@@ -211,8 +177,8 @@ function salvarAnotacaoAtual() {
     
     anotacoes[anotacaoIndex] = {
         ...anotacoes[anotacaoIndex],
-        titulo: noteTitle.value || 'Sem título',
-        conteudo: editor.innerHTML,
+        titulo: noteTitle?.value || 'Sem título',
+        conteudo: editor?.innerHTML || '',
         dataModificacao: new Date().toISOString()
     };
     
@@ -261,7 +227,7 @@ function escapeHtml(text) { if (!text) return ''; const div = document.createEle
 
 function formatText(command, value = null) {
     document.execCommand(command, false, value);
-    document.getElementById('editor').focus();
+    document.getElementById('editor')?.focus();
     programarAutoSave();
 }
 
@@ -281,6 +247,7 @@ function logout() {
     if (confirm('Deseja sair?')) {
         if (anotacaoAtualId) salvarAnotacaoAtual();
         localStorage.removeItem('usuarioLogado');
+        if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
     }
 }
