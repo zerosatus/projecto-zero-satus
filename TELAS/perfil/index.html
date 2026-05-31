@@ -81,14 +81,14 @@
                         <div class="profile-cover"></div>
                         <div class="profile-avatar-section">
                             <div class="profile-avatar" id="profileAvatar">
-                                <img src="https://i.pravatar.cc/150?img=12" alt="Foto de Perfil" id="avatarImage">
+                                <img src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=150" alt="Foto de Perfil" id="avatarImage">
                                 <label for="avatarUpload" class="avatar-upload-btn">
                                     <i class="fas fa-camera"></i>
                                 </label>
                                 <input type="file" id="avatarUpload" accept="image/*" onchange="previewAvatar(event)" hidden>
                             </div>
-                            <h2 class="profile-name" id="profileName">João Silva</h2>
-                            <p class="profile-email" id="profileEmail">joao.silva@email.com</p>
+                            <h2 class="profile-name" id="profileName">Carregando...</h2>
+                            <p class="profile-email" id="profileEmail">carregando@email.com</p>
                             <div class="profile-badge">
                                 <i class="fas fa-graduation-cap"></i>
                                 <span>Aluno Premium</span>
@@ -96,15 +96,15 @@
                         </div>
                         <div class="profile-stats">
                             <div class="profile-stat">
-                                <span class="stat-value">156</span>
+                                <span class="stat-value" id="statTarefas">0</span>
                                 <span class="stat-label">Tarefas</span>
                             </div>
                             <div class="profile-stat">
-                                <span class="stat-value">89%</span>
+                                <span class="stat-value" id="statConclusao">0%</span>
                                 <span class="stat-label">Conclusão</span>
                             </div>
                             <div class="profile-stat">
-                                <span class="stat-value">45h</span>
+                                <span class="stat-value" id="statHoras">0h</span>
                                 <span class="stat-label">Estudo</span>
                             </div>
                         </div>
@@ -114,42 +114,7 @@
                     <div class="activity-card">
                         <h3><i class="fas fa-history"></i> Atividade Recente</h3>
                         <div class="activity-list" id="activityList">
-                            <div class="activity-item">
-                                <div class="activity-icon blue">
-                                    <i class="fas fa-check-circle"></i>
-                                </div>
-                                <div class="activity-info">
-                                    <p>Tarefa concluída: Matemática</p>
-                                    <span class="activity-time">Há 2 horas</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-icon purple">
-                                    <i class="fas fa-edit"></i>
-                                </div>
-                                <div class="activity-info">
-                                    <p>Anotação criada: Física Quântica</p>
-                                    <span class="activity-time">Há 5 horas</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-icon green">
-                                    <i class="fas fa-calendar-check"></i>
-                                </div>
-                                <div class="activity-info">
-                                    <p>Evento agendado: Prova de História</p>
-                                    <span class="activity-time">Ontem</span>
-                                </div>
-                            </div>
-                            <div class="activity-item">
-                                <div class="activity-icon orange">
-                                    <i class="fas fa-sign-in-alt"></i>
-                                </div>
-                                <div class="activity-info">
-                                    <p>Login realizado</p>
-                                    <span class="activity-time">Ontem</span>
-                                </div>
-                            </div>
+                            <p style="color: #888; text-align: center; padding: 20px;">Nenhuma atividade recente</p>
                         </div>
                     </div>
                 </div>
@@ -163,23 +128,23 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Nome Completo</label>
-                                    <input type="text" id="nome" value="João Silva" required>
+                                    <input type="text" id="nome" value="" required>
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>E-mail</label>
-                                    <input type="email" id="email" value="joao.silva@email.com" required>
+                                    <input type="email" id="email" value="" required>
                                 </div>
                                 <div class="form-group">
                                     <label>Telefone</label>
-                                    <input type="tel" id="telefone" value="+258 870000000" placeholder="+258 870000000">
+                                    <input type="tel" id="telefone" value="" placeholder="+258 870000000">
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Data de Nascimento</label>
-                                    <input type="date" id="nascimento" value="2005-05-15">
+                                    <input type="date" id="nascimento">
                                 </div>
                                 <div class="form-group">
                                     <label>Gênero</label>
@@ -236,7 +201,7 @@
                                 <p>Receber notificações de tarefas e eventos</p>
                             </div>
                             <label class="toggle-switch">
-                                <input type="checkbox" checked>
+                                <input type="checkbox" id="notifEmail" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -246,7 +211,7 @@
                                 <p>Receber notificações no navegador</p>
                             </div>
                             <label class="toggle-switch">
-                                <input type="checkbox" checked>
+                                <input type="checkbox" id="notifPush" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -265,7 +230,7 @@
                                 <h4>Idioma</h4>
                                 <p>Selecione o idioma da interface</p>
                             </div>
-                            <select class="preference-select">
+                            <select class="preference-select" id="languageSelect">
                                 <option value="pt-BR">Português (Brasil)</option>
                                 <option value="en-US">English (US)</option>
                                 <option value="es">Español</option>
@@ -296,8 +261,11 @@
         <i class="fas fa-check-circle"></i>
         <span id="toastMessage">Alterações salvas com sucesso!</span>
     </div>
-
-     <!-- SCRIPTS NA ORDEM CORRETA -->
+    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>

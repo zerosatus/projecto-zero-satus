@@ -33,7 +33,6 @@ body {
     min-height: 100vh;
 }
 
-/* ========== SIDEBAR PADRÃO ========== */
 .sidebar {
     width: 260px;
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
@@ -136,7 +135,6 @@ body {
     border-color: #ef4444;
 }
 
-/* ========== MAIN CONTENT ========== */
 .main-content {
     flex: 1;
     margin-left: 260px;
@@ -182,21 +180,18 @@ body {
     box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
 }
 
-/* ========== PROFILE CONTAINER ========== */
 .profile-container {
     display: grid;
     grid-template-columns: 350px 1fr;
     gap: 24px;
 }
 
-/* Profile Left Column */
 .profile-left {
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
 
-/* Profile Card */
 .profile-card {
     background: var(--bg-secondary);
     border-radius: 16px;
@@ -223,6 +218,7 @@ body {
     border-radius: 50%;
     border: 4px solid var(--bg-secondary);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
 }
 
 .profile-avatar img {
@@ -302,7 +298,6 @@ body {
     color: var(--text-secondary);
 }
 
-/* Activity Card */
 .activity-card {
     background: var(--bg-secondary);
     border-radius: 16px;
@@ -369,14 +364,12 @@ body {
     color: var(--text-secondary);
 }
 
-/* Profile Right Column */
 .profile-right {
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
 
-/* Settings Card */
 .settings-card {
     background: var(--bg-secondary);
     border-radius: 16px;
@@ -398,7 +391,6 @@ body {
     color: var(--primary-color);
 }
 
-/* Form Styles */
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -430,6 +422,7 @@ body {
     font-family: inherit;
     transition: all 0.3s;
     background-color: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .form-group input:focus,
@@ -482,7 +475,6 @@ body {
     background: var(--border-color);
 }
 
-/* Preference Items */
 .preference-item {
     display: flex;
     justify-content: space-between;
@@ -514,9 +506,9 @@ body {
     font-size: 13px;
     background-color: var(--bg-primary);
     cursor: pointer;
+    color: var(--text-primary);
 }
 
-/* Toggle Switch */
 .toggle-switch {
     position: relative;
     width: 52px;
@@ -561,7 +553,6 @@ body {
     transform: translateX(24px);
 }
 
-/* Danger Zone */
 .danger-zone {
     border: 1px solid rgba(214, 48, 49, 0.3);
 }
@@ -628,7 +619,6 @@ body {
     transform: translateY(-2px);
 }
 
-/* Toast Notification */
 .toast {
     position: fixed;
     bottom: 24px;
@@ -652,7 +642,6 @@ body {
     opacity: 1;
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
     .sidebar {
         width: 80px;
@@ -694,4 +683,16 @@ body {
         width: 100%;
         justify-content: center;
     }
+}
+
+body.dark-mode {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #1e293b;
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --border-color: #334155;
+}
+
+body.dark-mode .stat-value {
+    color: #a855f7;
 }
