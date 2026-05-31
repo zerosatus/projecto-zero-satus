@@ -1,8 +1,9 @@
-// Sistema centralizado de gerenciamento de cache com suporte a nuvem e sincronização bidirecional
+// cache-manager.js - Sistema centralizado de gerenciamento de cache com suporte a nuvem e sincronização bidirecional
+
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v8';
+        this.cacheVersion = 'v9';
         this.isInitialized = false;
         this.currentUserId = null;
         this.isSyncing = false;
@@ -10,8 +11,12 @@ class CacheManager {
         this.pendingCloudLoad = null;
         this.cloudListener = null;
         this._syncTimeout = null;
+        this._retryQueue = [];
+        this._isOnline = navigator.onLine;
     }
 
+    // ========== INICIALIZAÇÃO ==========
+    
     init() {
         if (this.isInitialized) return;
         this.checkAndClearOldCache();
@@ -36,8 +41,20 @@ class CacheManager {
             this.notifyAllListeners(event.detail);
         });
         
+        // Monitorar conectividade
+        window.addEventListener('online', () => {
+            console.log('[CacheManager] 🌐 Conexão restaurada, processando fila de sincronização');
+            this._isOnline = true;
+            this.processRetryQueue();
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('[CacheManager] 📴 Conexão perdida, dados serão salvos localmente');
+            this._isOnline = false;
+        });
+        
         this.isInitialized = true;
-        console.log('[CacheManager] Inicializado v8');
+        console.log('[CacheManager] Inicializado v9');
     }
 
     // ========== MÉTODOS DE USUÁRIO ==========
@@ -55,7 +72,6 @@ class CacheManager {
         return this.currentUserId || 'default';
     }
     
-    // ✅ NOVO: Definir usuário manualmente (CRÍTICO para sincronização)
     setCurrentUser(userId) {
         if (!userId) return;
         this.currentUserId = userId;
@@ -67,7 +83,6 @@ class CacheManager {
         }, 500);
     }
     
-    // ✅ NOVO: Verificar se usuário está logado
     isUserLoggedIn() {
         return this.currentUserId && this.currentUserId !== 'default';
     }
@@ -80,7 +95,6 @@ class CacheManager {
     checkAndClearOldCache() {
         const currentVersion = localStorage.getItem('cache_version');
         if (currentVersion !== this.cacheVersion) {
-            // Limpar cache antigo apenas se for uma versão major diferente
             if (currentVersion && currentVersion !== this.cacheVersion) {
                 console.log('[CacheManager] Versão do cache mudou de', currentVersion, 'para', this.cacheVersion);
             }
@@ -132,14 +146,17 @@ class CacheManager {
             
             this.notifyOtherTabs(key, value);
             
-            // ✅ CORRIGIDO: Sincronizar com nuvem APENAS se usuário estiver logado
-            if (!this.isSyncing && window.FirebaseSync && 
+            // Sincronizar com nuvem se estiver online e usuário logado
+            if (this._isOnline && !this.isSyncing && window.FirebaseSync && 
                 typeof window.FirebaseSync.saveUserDataToCloud === 'function' &&
                 this.isUserLoggedIn()) {
                 clearTimeout(this._syncTimeout);
                 this._syncTimeout = setTimeout(() => {
-                    this.syncToCloud(key, value);
+                    this.syncToCloudWithRetry(key, value);
                 }, 500);
+            } else if (!this._isOnline) {
+                console.log(`[CacheManager] 📴 Offline: dado "${key}" salvo localmente, será sincronizado quando online`);
+                this.addToRetryQueue(key, value);
             } else if (!this.isUserLoggedIn()) {
                 console.log(`[CacheManager] ⚠️ Dado "${key}" não enviado para nuvem (usuário não definido)`);
             }
@@ -157,22 +174,98 @@ class CacheManager {
         setTimeout(() => localStorage.removeItem(notificationKey), 100);
     }
     
-    // ========== MÉTODOS DE SINCronização COM NUVEM ==========
+    // ========== FILA DE RETRY PARA OFFLINE ==========
+    
+    addToRetryQueue(key, value) {
+        this._retryQueue.push({ key, value, timestamp: Date.now() });
+        // Salvar fila no localStorage para persistir entre sessões
+        localStorage.setItem('_sync_retry_queue', JSON.stringify(this._retryQueue));
+        console.log(`[CacheManager] 📋 Adicionado à fila: ${key}, total: ${this._retryQueue.length}`);
+    }
+    
+    async processRetryQueue() {
+        if (!this._isOnline) {
+            console.log('[CacheManager] 📴 Offline, aguardando conexão para processar fila');
+            return;
+        }
+        
+        if (this._retryQueue.length === 0) {
+            // Tentar carregar fila do localStorage
+            const savedQueue = localStorage.getItem('_sync_retry_queue');
+            if (savedQueue) {
+                try {
+                    this._retryQueue = JSON.parse(savedQueue);
+                } catch(e) {}
+            }
+        }
+        
+        if (this._retryQueue.length === 0) return;
+        
+        console.log(`[CacheManager] 🔄 Processando fila de sincronização (${this._retryQueue.length} itens)`);
+        
+        const queue = [...this._retryQueue];
+        this._retryQueue = [];
+        localStorage.removeItem('_sync_retry_queue');
+        
+        for (const item of queue) {
+            console.log(`[CacheManager] ⏳ Tentando sincronizar ${item.key} da fila...`);
+            const success = await this.syncToCloud(item.key, item.value);
+            if (!success) {
+                // Se falhar, adicionar de volta à fila
+                this.addToRetryQueue(item.key, item.value);
+            } else {
+                console.log(`[CacheManager] ✅ ${item.key} sincronizado da fila com sucesso`);
+            }
+        }
+    }
+    
+    // ========== MÉTODOS DE SINCRONIZAÇÃO COM NUVEM ==========
+    
+    async syncToCloudWithRetry(key, value, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            const success = await this.syncToCloud(key, value);
+            if (success) {
+                console.log(`[CacheManager] ✅ Dado "${key}" sincronizado com sucesso (tentativa ${attempt})`);
+                return true;
+            }
+            console.log(`[CacheManager] ⚠️ Tentativa ${attempt} falhou para "${key}", ${attempt < maxRetries ? 'tentando novamente...' : 'adicionando à fila'}`);
+            if (attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, 1000 * attempt)); // Backoff exponencial
+            }
+        }
+        // Se todas as tentativas falharem, adicionar à fila
+        this.addToRetryQueue(key, value);
+        return false;
+    }
     
     async syncToCloud(key, value) {
         try {
             const userId = this.getCurrentUserId();
-            if (userId && userId !== 'default' && window.FirebaseSync && 
-                typeof window.FirebaseSync.saveUserDataToCloud === 'function') {
-                const result = await window.FirebaseSync.saveUserDataToCloud(userId, key, value);
-                if (result) {
-                    console.log(`[CacheManager] ✅ Dado "${key}" enviado para nuvem`);
-                } else {
-                    console.log(`[CacheManager] ⚠️ Falha ao enviar "${key}" para nuvem`);
-                }
+            
+            if (!userId || userId === 'default') {
+                console.warn(`[CacheManager] ⚠️ Usuário não definido, não sincronizando ${key}`);
+                return false;
             }
+            
+            if (!window.FirebaseSync || typeof window.FirebaseSync.saveUserDataToCloud !== 'function') {
+                console.warn('[CacheManager] ⚠️ FirebaseSync não disponível');
+                return false;
+            }
+            
+            console.log(`[CacheManager] ☁️ Enviando "${key}" para nuvem (usuário: ${userId})`);
+            const result = await window.FirebaseSync.saveUserDataToCloud(userId, key, value);
+            
+            if (result) {
+                console.log(`[CacheManager] ✅ Dado "${key}" enviado para nuvem com sucesso`);
+                // Disparar evento para outras abas
+                window.dispatchEvent(new CustomEvent('cloudDataSaved', { detail: { key, value } }));
+            } else {
+                console.log(`[CacheManager] ⚠️ Falha ao enviar "${key}" para nuvem`);
+            }
+            return result;
         } catch (error) {
             console.error('[CacheManager] Erro ao sincronizar com nuvem:', error);
+            return false;
         }
     }
     
@@ -217,7 +310,6 @@ class CacheManager {
                 for (const key of keys) {
                     if (cloudData[key] !== undefined && cloudData[key] !== null) {
                         const localData = this.get(key, null);
-                        // Comparar dados para evitar sobrescrita desnecessária
                         const localStr = localData ? JSON.stringify(localData) : 'null';
                         const cloudStr = JSON.stringify(cloudData[key]);
                         
@@ -362,7 +454,7 @@ class CacheManager {
         const result = await this.loadFromCloud(true);
         
         // Também enviar dados locais para nuvem
-        if (result && this.isUserLoggedIn()) {
+        if (result && this.isUserLoggedIn() && this._isOnline) {
             const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications'];
             for (const key of keys) {
                 const data = this.get(key, null);
@@ -371,6 +463,9 @@ class CacheManager {
                 }
             }
         }
+        
+        // Processar fila de retry
+        await this.processRetryQueue();
         
         return result;
     }
@@ -563,7 +658,7 @@ window.setNotificacoesSettings = (settings, notify) => window.CacheManager.set('
 window.getAppearanceSettings = () => window.CacheManager.get('appearanceSettings', { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
 window.setAppearanceSettings = (settings, notify) => window.CacheManager.set('appearanceSettings', settings, notify);
 
-console.log('[CacheManager] v8 carregado com suporte completo para:');
+console.log('[CacheManager] v9 carregado com suporte completo para:');
 console.log('  ✅ Anotações (notes)');
 console.log('  ✅ Tarefas (tasks)');
 console.log('  ✅ Calendário (calendarEvents)');
@@ -572,3 +667,5 @@ console.log('  ✅ Notificações (notifications)');
 console.log('  ✅ Configurações (appearanceSettings, notificacoesSettings)');
 console.log('  ✅ Sincronização em tempo real com Firebase');
 console.log('  ✅ Fallback offline com localStorage');
+console.log('  ✅ Fila de retry para sincronização offline');
+console.log('  ✅ Monitoramento de conectividade');

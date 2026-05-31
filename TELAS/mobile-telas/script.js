@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA FUNCIONAL
+// mobile-telas/script.js - VERSÃO CORRIGIDA PARA SALVAR NA NUVEM
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -11,19 +11,16 @@ let notes = [];
 let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-let dadosInicializados = false;
 
 // ===== INICIALIZAÇÃO =====
 async function inicializar() {
     console.log('[Mobile] 🚀 Inicializando aplicação mobile...');
     
-    // Inicializar CacheManager
     if (window.CacheManager) {
         window.CacheManager.init();
         console.log('[Mobile] ✅ CacheManager inicializado');
     }
     
-    // Carregar usuário
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
         window.location.href = '../../login/index.html';
@@ -34,42 +31,29 @@ async function inicializar() {
         usuarioLogado = JSON.parse(usuarioSalvo);
         console.log('[Mobile] 👤 Usuário:', usuarioLogado.nome);
         
-        // Definir USER ID no CacheManager (CRÍTICO!)
         const userId = usuarioLogado.uid || usuarioLogado.email;
         if (window.CacheManager) {
+            // CRÍTICO: Definir usuário para sincronização
             window.CacheManager.setCurrentUser(userId);
             console.log('[Mobile] ✅ CacheManager configurado para:', userId);
         }
         
-        // Atualizar nome no header
         const headerName = document.getElementById('header-name');
         if (headerName) {
             headerName.textContent = usuarioLogado.nome.split(' ')[0];
         }
         
-        // Carregar dados da nuvem
         await carregarTodosDadosDaNuvem();
-        
-        // Renderizar interface
         await renderizarTudo();
         
-        // Iniciar escuta em tempo real
         if (window.CacheManager && window.CacheManager.startRealtimeSync) {
             await window.CacheManager.startRealtimeSync();
         }
         
-        // Escutar eventos de sincronização
         window.addEventListener('cloudDataLoaded', async () => {
             console.log('[Mobile] Dados da nuvem atualizados');
             await recarregarDadosERenderizar();
         });
-        
-        window.addEventListener('dataRefreshed', async () => {
-            console.log('[Mobile] Refresh manual detectado');
-            await recarregarDadosERenderizar();
-        });
-        
-        console.log('[Mobile] ✅ Aplicação mobile inicializada!');
         
     } catch(e) {
         console.error('[Mobile] Erro:', e);
@@ -78,7 +62,7 @@ async function inicializar() {
     }
 }
 
-// ===== CARREGAR TODOS DADOS DA NUVEM =====
+// ===== CARREGAR DADOS =====
 async function carregarTodosDadosDaNuvem() {
     if (!usuarioLogado) return false;
     
@@ -89,7 +73,6 @@ async function carregarTodosDadosDaNuvem() {
             await window.CacheManager.loadFromCloud(true);
         }
         
-        // Pegar do CacheManager
         const cachedNotes = window.CacheManager?.get('notes', null);
         const cachedTasks = window.CacheManager?.get('tasks', null);
         const cachedEvents = window.CacheManager?.get('calendarEvents', null);
@@ -109,16 +92,13 @@ async function carregarTodosDadosDaNuvem() {
             tasks: tasks?.length || 0,
             events: calendarEvents?.length || 0,
             schedule: weeklySchedule ? Object.keys(weeklySchedule).length : 0,
-            slots: timeSlots?.length || 0,
-            notif: notifications?.length || 0
+            slots: timeSlots?.length || 0
         });
         
-        // Fallback para localStorage
         if (notes.length === 0 && tasks.length === 0 && Object.keys(weeklySchedule).length === 0) {
             carregarDadosLocalStorage();
         }
         
-        // Garantir valores padrão
         if (!timeSlots || timeSlots.length === 0) {
             timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
         }
@@ -140,10 +120,9 @@ async function carregarTodosDadosDaNuvem() {
     }
 }
 
-// ===== FALLBACK: LOCALSTORAGE =====
+// ===== FALLBACK LOCALSTORAGE =====
 function carregarDadosLocalStorage() {
     if (!usuarioLogado) return;
-    
     const userId = usuarioLogado.uid || usuarioLogado.email;
     
     const storedNotes = localStorage.getItem(`${userId}_notes`);
@@ -160,57 +139,107 @@ function carregarDadosLocalStorage() {
     if (storedSlots) timeSlots = JSON.parse(storedSlots);
     if (storedNotif) notifications = JSON.parse(storedNotif);
     
-    // Garantir valores padrão
-    if (!timeSlots || timeSlots.length === 0) {
-        timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    }
+    if (!timeSlots || timeSlots.length === 0) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
     
-    if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
-        weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
-    }
-    
-    days.forEach(day => {
-        if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    });
-    
+    days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
     console.log('[Mobile] 📦 Dados do localStorage carregados');
 }
 
-// ===== RECARREGAR E RENDERIZAR =====
-async function recarregarDadosERenderizar() {
-    console.log('[Mobile] 🔄 Recarregando dados...');
+// ===== SALVAR DADOS NA NUVEM (FORÇADO) =====
+async function salvarTodosDados() {
+    if (!usuarioLogado) return;
     
-    if (window.CacheManager) {
-        const cachedNotes = window.CacheManager.get('notes', null);
-        const cachedTasks = window.CacheManager.get('tasks', null);
-        const cachedEvents = window.CacheManager.get('calendarEvents', null);
-        const cachedSchedule = window.CacheManager.get('weeklySchedule', null);
-        const cachedSlots = window.CacheManager.get('timeSlots', null);
-        const cachedNotif = window.CacheManager.get('notifications', null);
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    console.log('[Mobile] 💾 Salvando dados para:', userId);
+    
+    // Salvar no localStorage primeiro
+    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+    
+    // Salvar no CacheManager (que envia para nuvem)
+    if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
+        window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
+        window.CacheManager.set('timeSlots', timeSlots || [], true);
+        window.CacheManager.set('tasks', tasks || [], true);
+        window.CacheManager.set('notes', notes || [], true);
+        window.CacheManager.set('calendarEvents', calendarEvents || [], true);
+        window.CacheManager.set('notifications', notifications || [], true);
         
-        if (cachedNotes !== null) notes = cachedNotes;
-        if (cachedTasks !== null) tasks = cachedTasks;
-        if (cachedEvents !== null) calendarEvents = cachedEvents;
-        if (cachedSchedule !== null) weeklySchedule = cachedSchedule;
-        if (cachedSlots !== null) timeSlots = cachedSlots;
-        if (cachedNotif !== null) notifications = cachedNotif;
+        // FORÇAR SINCRONIZAÇÃO IMEDIATA
+        setTimeout(() => {
+            if (window.CacheManager && window.CacheManager.syncToCloud) {
+                window.CacheManager.syncToCloud('weeklySchedule', weeklySchedule);
+                window.CacheManager.syncToCloud('timeSlots', timeSlots);
+                window.CacheManager.syncToCloud('tasks', tasks);
+                window.CacheManager.syncToCloud('notes', notes);
+                window.CacheManager.syncToCloud('calendarEvents', calendarEvents);
+            }
+        }, 100);
+        
+        console.log('[Mobile] ✅ Dados salvos e enviados para nuvem');
+        showToast('Dados salvos na nuvem!', 'success', 1500);
+    } else {
+        console.warn('[Mobile] ⚠️ CacheManager não disponível ou usuário não logado');
     }
-    
-    await renderizarTudo();
 }
 
-// ===== RENDERIZAR TUDO =====
-async function renderizarTudo() {
-    console.log('[Mobile] 🎨 Renderizando interface...');
+// ===== SALVAR MATÉRIA (CORRIGIDO) =====
+async function salvarMateria() {
+    const name = document.getElementById('subject-name-input')?.value.trim();
+    const startTime = document.getElementById('subject-start-input')?.value;
+    const endTime = document.getElementById('subject-end-input')?.value;
+    const day = document.getElementById('subject-day-input')?.value;
     
-    renderizarHorario();
-    renderizarProximoEvento();
-    renderizarProximasTarefas();
-    renderizarNotificacoes();
+    if (!name) {
+        showToast('Preencha o nome da matéria!', 'error');
+        return;
+    }
+    if (!startTime || !endTime) {
+        showToast('Defina início e término!', 'error');
+        return;
+    }
+    
+    if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    
+    if (editingSubject) {
+        const oldStart = editingSubject.horaInicio;
+        weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
+    }
+    
+    if (!timeSlots.includes(startTime)) {
+        timeSlots.push(startTime);
+        timeSlots.sort();
+    }
+    
+    weeklySchedule[day].push({
+        materia: name,
+        professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
+        color: selectedSubjectColor,
+        horaInicio: startTime,
+        horaFim: endTime
+    });
+    
+    weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+    
+    // SALVAR IMEDIATAMENTE
+    await salvarTodosDados();
+    
+    document.getElementById('subject-modal').classList.remove('active');
+    showToast(editingSubject ? 'Matéria atualizada e sincronizada!' : 'Matéria adicionada e sincronizada!', 'success');
+    
+    if (document.getElementById('edit-modal').classList.contains('active')) {
+        renderizarEditSchedule();
+    } else {
+        renderizarHorario();
+    }
     atualizarCards();
-    atualizarBadgeNotificacoes();
-    
-    console.log('[Mobile] ✅ Interface renderizada');
+    editingSubject = null;
 }
 
 // ===== RENDERIZAR HORÁRIO =====
@@ -286,48 +315,7 @@ function renderizarHorario() {
     });
 }
 
-// ===== RENDERIZAR PRÓXIMO EVENTO =====
-function renderizarProximoEvento() {
-    const container = document.getElementById('next-event-container');
-    if (!container) return;
-    
-    if (!calendarEvents || calendarEvents.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
-        return;
-    }
-    
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    
-    const eventosFuturos = calendarEvents
-        .filter(e => e.date && e.date >= todayStr)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(0, 3);
-    
-    if (eventosFuturos.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos futuros</div><div class="item-subtitle">Todos os eventos estão no passado</div></div></div>';
-        return;
-    }
-    
-    let html = '';
-    eventosFuturos.forEach(event => {
-        const [year, month, day] = event.date.split('-');
-        const dateFormatted = `${day}/${month}`;
-        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='./calendario/index.html'">
-            <div class="item-icon" style="background-color: ${event.color || '#8b5cf6'}20; color: ${event.color || '#8b5cf6'}">
-                <ion-icon name="calendar-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(event.title)}</div>
-                <div class="item-subtitle">${dateFormatted} • ${event.start || '--:--'}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-// ===== RENDERIZAR PRÓXIMAS TAREFAS =====
+// ===== RENDERIZAR PRÓXIMAS TAREFAS (COM sincronização) =====
 function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
@@ -348,35 +336,6 @@ function renderizarProximasTarefas() {
             <div class="item-info">
                 <div class="item-title">${escapeHtml(task.title)}</div>
                 <div class="item-subtitle">${escapeHtml(task.subject || 'Geral')} • ${task.date || 'Sem data'}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-// ===== RENDERIZAR NOTIFICAÇÕES =====
-function renderizarNotificacoes() {
-    const container = document.getElementById('notifications-list');
-    if (!container) return;
-    
-    const notificacoesNaoLidas = (notifications || []).filter(n => !n.read).slice(0, 3);
-    
-    if (notificacoesNaoLidas.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
-        return;
-    }
-    
-    let html = '';
-    notificacoesNaoLidas.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="list-item" data-id="${notif.id}">
-            <div class="item-icon notification" style="background-color: #8b5cf6; color: white">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(notif.title)}</div>
-                <div class="item-subtitle">${escapeHtml(notif.message)}</div>
             </div>
             <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
         </div>`;
@@ -405,31 +364,6 @@ function atualizarCards() {
     if (cardDisciplinas) cardDisciplinas.textContent = materias.size || 0;
     if (cardConcluidas) cardConcluidas.textContent = concluidas;
     if (cardPendentes) cardPendentes.textContent = pendentes;
-}
-
-// ===== ATUALIZAR BADGE =====
-function atualizarBadgeNotificacoes() {
-    const badge = document.getElementById('notification-badge');
-    const naoLidas = (notifications || []).filter(n => !n.read).length;
-    if (badge) {
-        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-    }
-}
-
-// ===== SALVAR DADOS =====
-async function salvarTodosDados() {
-    if (!usuarioLogado) return;
-    
-    if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
-        window.CacheManager.set('notifications', notifications || [], true);
-        window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
-        window.CacheManager.set('timeSlots', timeSlots || [], true);
-        window.CacheManager.set('calendarEvents', calendarEvents || [], true);
-        window.CacheManager.set('tasks', tasks || [], true);
-        window.CacheManager.set('notes', notes || [], true);
-        console.log('[Mobile] ✅ Dados salvos');
-    }
 }
 
 // ===== FUNÇÕES AUXILIARES =====
@@ -577,6 +511,113 @@ function limparTodasNotificacoes() {
     }
 }
 
+function atualizarBadgeNotificacoes() {
+    const badge = document.getElementById('notification-badge');
+    const naoLidas = (notifications || []).filter(n => !n.read).length;
+    if (badge) {
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+}
+
+function renderizarNotificacoes() {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    
+    const notificacoesNaoLidas = (notifications || []).filter(n => !n.read).slice(0, 3);
+    
+    if (notificacoesNaoLidas.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    notificacoesNaoLidas.forEach(notif => {
+        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
+        html += `<div class="list-item" data-id="${notif.id}">
+            <div class="item-icon notification" style="background-color: #8b5cf6; color: white">
+                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(notif.title)}</div>
+                <div class="item-subtitle">${escapeHtml(notif.message)}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function renderizarProximoEvento() {
+    const container = document.getElementById('next-event-container');
+    if (!container) return;
+    
+    if (!calendarEvents || calendarEvents.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
+        return;
+    }
+    
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const eventosFuturos = calendarEvents
+        .filter(e => e.date && e.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 3);
+    
+    if (eventosFuturos.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos futuros</div><div class="item-subtitle">Todos os eventos estão no passado</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    eventosFuturos.forEach(event => {
+        const [year, month, day] = event.date.split('-');
+        const dateFormatted = `${day}/${month}`;
+        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='./calendario/index.html'">
+            <div class="item-icon" style="background-color: ${event.color || '#8b5cf6'}20; color: ${event.color || '#8b5cf6'}">
+                <ion-icon name="calendar-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(event.title)}</div>
+                <div class="item-subtitle">${dateFormatted} • ${event.start || '--:--'}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+async function recarregarDadosERenderizar() {
+    console.log('[Mobile] 🔄 Recarregando dados...');
+    
+    if (window.CacheManager) {
+        const cachedSchedule = window.CacheManager.get('weeklySchedule', null);
+        const cachedSlots = window.CacheManager.get('timeSlots', null);
+        const cachedTasks = window.CacheManager.get('tasks', null);
+        const cachedNotes = window.CacheManager.get('notes', null);
+        const cachedEvents = window.CacheManager.get('calendarEvents', null);
+        
+        if (cachedSchedule !== null) weeklySchedule = cachedSchedule;
+        if (cachedSlots !== null) timeSlots = cachedSlots;
+        if (cachedTasks !== null) tasks = cachedTasks;
+        if (cachedNotes !== null) notes = cachedNotes;
+        if (cachedEvents !== null) calendarEvents = cachedEvents;
+    }
+    
+    await renderizarTudo();
+}
+
+async function renderizarTudo() {
+    console.log('[Mobile] 🎨 Renderizando interface...');
+    renderizarHorario();
+    renderizarProximoEvento();
+    renderizarProximasTarefas();
+    renderizarNotificacoes();
+    atualizarCards();
+    atualizarBadgeNotificacoes();
+}
+
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded', () => {
     inicializar();
@@ -590,7 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Botão voltar do modal de edição
     const btnBack = document.getElementById('btn-back');
     if (btnBack) {
         btnBack.addEventListener('click', () => {
@@ -598,7 +638,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Botão salvar do modal de edição
     const btnSave = document.getElementById('btn-save');
     if (btnSave) {
         btnSave.addEventListener('click', () => {
@@ -627,7 +666,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Cancelar adicionar horário
     const btnCancelTime = document.getElementById('btn-cancel-time');
     if (btnCancelTime) {
         btnCancelTime.addEventListener('click', () => {
@@ -635,60 +673,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Salvar matéria
+    // Salvar matéria (CORRIGIDO)
     const btnSaveSubject = document.getElementById('btn-save-subject');
     if (btnSaveSubject) {
-        btnSaveSubject.addEventListener('click', () => {
-            const name = document.getElementById('subject-name-input')?.value.trim();
-            const startTime = document.getElementById('subject-start-input')?.value;
-            const endTime = document.getElementById('subject-end-input')?.value;
-            const day = document.getElementById('subject-day-input')?.value;
-            
-            if (!name) {
-                showToast('Preencha o nome da matéria!', 'error');
-                return;
-            }
-            if (!startTime || !endTime) {
-                showToast('Defina início e término!', 'error');
-                return;
-            }
-            
-            if (!weeklySchedule[day]) weeklySchedule[day] = [];
-            
-            if (editingSubject) {
-                const oldStart = editingSubject.horaInicio;
-                weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
-            }
-            
-            if (!timeSlots.includes(startTime)) {
-                timeSlots.push(startTime);
-                timeSlots.sort();
-            }
-            
-            weeklySchedule[day].push({
-                materia: name,
-                professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
-                color: selectedSubjectColor,
-                horaInicio: startTime,
-                horaFim: endTime
-            });
-            
-            weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-            salvarTodosDados();
-            document.getElementById('subject-modal').classList.remove('active');
-            showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
-            
-            if (document.getElementById('edit-modal').classList.contains('active')) {
-                renderizarEditSchedule();
-            } else {
-                renderizarHorario();
-            }
-            atualizarCards();
-            editingSubject = null;
-        });
+        btnSaveSubject.addEventListener('click', salvarMateria);
     }
     
-    // Fechar modal matéria
     const closeSubjectModal = document.querySelector('[data-modal="subject-modal"]');
     if (closeSubjectModal) {
         closeSubjectModal.addEventListener('click', () => {
@@ -697,7 +687,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Cores das matérias
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -773,4 +762,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('%c📱 Mobile - Versão Completa', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile - Versão Corrigida com Sincronização', 'color: #10b981; font-size: 16px; font-weight: bold;');
