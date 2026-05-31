@@ -9,8 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  
-<!-- Sidebar -->
+
 <aside class="sidebar" id="sidebar">
     <div class="logo">
         <i class="fa-solid fa-graduation-cap"></i>
@@ -22,9 +21,9 @@
             <i class="fas fa-home"></i>
             <span>Início</span>
         </a>
-         <a href="../dashboard/index.html" class="menu-item">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
+        <a href="../dashboard/index.html" class="menu-item">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
         </a>
         <a href="../calendario/index.html" class="menu-item">
             <i class="fas fa-calendar-alt"></i>
@@ -51,7 +50,6 @@
         </a>
     </div>
     
-    <!-- Botão de Logout -->
     <div class="logout-section">
         <button class="logout-btn" onclick="logout()">
             <i class="fas fa-sign-out-alt"></i>
@@ -60,21 +58,18 @@
     </div>
 </aside>
 
-<!-- Main Content -->
 <main class="main-content">
-    <!-- Header -->
     <header class="header">
-        <!-- Profile Quick View Card -->
         <div class="profile-quick-view">
             <div class="profile-card-mini">
                 <div class="profile-header-mini">
                     <div class="profile-avatar-mini">
-                        <img src="https://i.pravatar.cc/150?img=12" alt="Perfil" id="miniAvatar">
+                        <img src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=70" alt="Perfil" id="miniAvatar">
                         <div class="status-indicator online"></div>
                     </div>
                     <div class="profile-info-mini">
-                        <h3 id="miniName">João Silva</h3>
-                        <p class="profile-email-mini" id="miniEmail">joao.silva@email.com</p>
+                        <h3 id="miniName">Carregando...</h3>
+                        <p class="profile-email-mini" id="miniEmail">carregando@email.com</p>
                         <div class="profile-badge-mini">
                             <i class="fas fa-graduation-cap"></i>
                             <span>Aluno Premium</span>
@@ -85,17 +80,17 @@
                 <div class="profile-stats-mini">
                     <div class="stat-mini">
                         <i class="fas fa-tasks"></i>
-                        <span class="stat-value-mini" id="statTarefas">156</span>
+                        <span class="stat-value-mini" id="statTarefas">0</span>
                         <span class="stat-label-mini">Tarefas</span>
                     </div>
                     <div class="stat-mini">
                         <i class="fas fa-check-circle"></i>
-                        <span class="stat-value-mini" id="statConclusao">89%</span>
+                        <span class="stat-value-mini" id="statConclusao">0%</span>
                         <span class="stat-label-mini">Conclusão</span>
                     </div>
                     <div class="stat-mini">
                         <i class="fas fa-clock"></i>
-                        <span class="stat-value-mini" id="statHoras">45h</span>
+                        <span class="stat-value-mini" id="statHoras">0h</span>
                         <span class="stat-label-mini">Estudo</span>
                     </div>
                 </div>
@@ -103,10 +98,10 @@
                 <div class="profile-progress-mini">
                     <div class="progress-header">
                         <span>Progresso Semanal</span>
-                        <span class="progress-value" id="progressValue">75%</span>
+                        <span class="progress-value" id="progressValue">0%</span>
                     </div>
                     <div class="progress-bar-mini">
-                        <div class="progress-fill-mini" id="progressFill" style="width: 75%"></div>
+                        <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
                     </div>
                 </div>
                 
@@ -117,11 +112,10 @@
             </div>
         </div>
         
-        <!-- Calendar Widget -->
         <div class="calendar-widget">
             <div class="calendar-header">
                 <button class="calendar-nav" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
-                <span id="currentMonth">Setembro 2025</span>
+                <span id="currentMonth">Carregando...</span>
                 <button class="calendar-nav" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
             </div>
             <div class="calendar-days">
@@ -133,22 +127,19 @@
                 <div class="day-label">Sex</div>
                 <div class="day-label">Sáb</div>
             </div>
-            <div class="calendar-dates" id="calendarDates">
-                <!-- Dates will be generated by JavaScript -->
-            </div>
+            <div class="calendar-dates" id="calendarDates"></div>
         </div>
     </header>
 
     <div class="content-grid">
-        <!-- Task Cards -->
         <div class="task-cards">
             <div class="task-card purple">
                 <div class="task-icon">
                     <i class="fas fa-calculator"></i>
                 </div>
                 <div class="task-info">
-                    <h3>Aula de Matemática</h3>
-                    <p>Hoje - 14h</p>
+                    <h3>Próxima Aula</h3>
+                    <p id="nextClassInfo">Nenhuma aula hoje</p>
                 </div>
             </div>
             
@@ -157,28 +148,22 @@
                     <i class="fas fa-file-alt"></i>
                 </div>
                 <div class="task-info">
-                    <h3>Entregar Redação</h3>
-                    <p>Amanhã</p>
+                    <h3>Próxima Tarefa</h3>
+                    <p id="nextTaskInfo">Nenhuma tarefa pendente</p>
                 </div>
             </div>
         </div>
 
-        <!-- Notifications -->
         <div class="notifications-panel">
             <h3><i class="fas fa-bell"></i> Notificações recentes</h3>
-            <div class="notification-list">
+            <div class="notification-list" id="notificationsList">
                 <div class="notification-item purple">
-                    <i class="fas fa-book"></i>
-                    <span>Lembrete de leitura</span>
-                </div>
-                <div class="notification-item blue">
-                    <i class="fas fa-clock"></i>
-                    <span>Guilherme entrou em...</span>
+                    <i class="fas fa-check-circle"></i>
+                    <span>Bem-vindo ao Painel do Aluno!</span>
                 </div>
             </div>
         </div>
 
-        <!-- Weekly Schedule -->
         <div class="schedule-panel">
             <h3>Horário Semanal</h3>
             <table class="schedule-table">
@@ -192,44 +177,14 @@
                         <th>Sexta</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="scheduleTableBody">
                     <tr>
-                        <td>08:00</td>
-                        <td class="subject matemática">Matemática</td>
-                        <td class="subject portugues">Português</td>
-                        <td class="subject fisica">Física</td>
-                        <td></td>
-                        <td class="subject historia">História</td>
-                    </tr>
-                    <tr>
-                        <td>09:00</td>
-                        <td class="subject quimica">Química</td>
-                        <td class="subject biologia">Biologia</td>
-                        <td class="subject ingles">Inglês</td>
-                        <td></td>
-                        <td class="subject geografia">Geografia</td>
-                    </tr>
-                    <tr>
-                        <td>10:00</td>
-                        <td></td>
-                        <td class="subject redacao">Redação</td>
-                        <td></td>
-                        <td class="subject fisica">Física</td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>14:00</td>
-                        <td class="subject matematica">Matemática</td>
-                        <td></td>
-                        <td class="subject quimica">Química</td>
-                        <td></td>
-                        <td></td>
+                        <td colspan="6" style="text-align: center; padding: 40px;">Carregando horário...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Study Hours -->
         <div class="study-hours-panel">
             <h3>Total de Horas de Estudo</h3>
             <div class="study-content">
@@ -239,50 +194,27 @@
                         <circle class="progress-ring-fill" cx="75" cy="75" r="65"></circle>
                     </svg>
                     <div class="progress-text">
-                        <span class="percentage">75%</span>
+                        <span class="percentage">0%</span>
                         <span class="label">Meta</span>
                     </div>
                 </div>
                 <div class="study-stats">
                     <div class="stat">
-                        <span class="stat-value">45h</span>
+                        <span class="stat-value" id="totalHours">0h</span>
                         <span class="stat-label">Total este mês</span>
                     </div>
-                    <div class="chart-placeholder" id="studyChart">
-                        <!-- Chart will be drawn by JavaScript -->
-                    </div>
+                    <div class="chart-placeholder" id="studyChart"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Subjects -->
         <div class="subjects-panel">
             <h3>Disciplinas</h3>
-            <div class="subjects-grid">
-                <div class="subject-card purple">
-                    <i class="fas fa-calculator"></i>
-                    <span>Matemática</span>
-                    <small>Aula 2/3</small>
-                </div>
-                <div class="subject-card purple">
-                    <i class="fas fa-book"></i>
-                    <span>Português</span>
-                    <small>Aula 1/3</small>
-                </div>
-                <div class="subject-card yellow">
-                    <i class="fas fa-landmark"></i>
-                    <span>História</span>
-                    <small>Aula 3/3</small>
-                </div>
-                <div class="subject-card yellow">
-                    <i class="fas fa-globe"></i>
-                    <span>Geografia</span>
-                    <small>Aula 1/3</small>
-                </div>
+            <div class="subjects-grid" id="subjectsGrid">
+                <p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina cadastrada</p>
             </div>
         </div>
 
-        <!-- Focus of the Day -->
         <div class="focus-panel">
             <h3>Frase do Dia</h3>
             <div class="focus-content">
@@ -298,8 +230,11 @@
         </div>
     </div>
 </main>
-
-       <!-- SCRIPTS NA ORDEM CORRETA -->
+    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>

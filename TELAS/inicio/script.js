@@ -1,13 +1,10 @@
-// ===== VARIÁVEIS GLOBAIS =====
 let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
 let weeklySchedule = {};
 let timeSlots = [];
-let dadosCarregados = false;
 
-// ===== VERIFICAÇÃO DE LOGIN =====
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
     if (!usuario) {
@@ -18,11 +15,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         usuarioAtual = JSON.parse(usuario);
         
-        // Inicializar CacheManager
         if (window.CacheManager) {
             window.CacheManager.init();
             window.CacheManager.currentUserId = usuarioAtual.uid || usuarioAtual.email;
-            
             console.log('[Inicio] Carregando dados da nuvem...');
             await window.CacheManager.loadFromCloud(true);
             carregarDadosDoCache();
@@ -30,35 +25,24 @@ window.addEventListener('DOMContentLoaded', async () => {
             carregarDadosDoLocalStorage();
         }
         
-        // Se não tem dados, criar padrão
         if (tarefas.length === 0 && anotacoes.length === 0 && eventos.length === 0 && Object.keys(weeklySchedule).length === 0) {
-            await criarDadosPadrao();
+            await criarDadosVazios();
         }
         
         atualizarMiniPerfil();
         atualizarEstatisticasMini();
         
-        // Inicializar componentes
         new Calendar();
         new CircularProgress();
         new StudyChart();
         new StudyTimer();
         
-        // Escutar mudanças em tempo real
         window.addEventListener('cloudDataLoaded', (event) => {
             console.log('[Inicio] Cloud data loaded, atualizando UI');
             carregarDadosDoCache();
             atualizarEstatisticasMini();
+            atualizarHorarioDesktop();
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
-        });
-        
-        // Escutar mudanças no localStorage
-        window.addEventListener('storage', (e) => {
-            if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
-                console.log('[Inicio] Horário atualizado em outra aba');
-                carregarDadosDoLocalStorage();
-                atualizarEstatisticasMini();
-            }
         });
         
     } catch(e) {
@@ -66,7 +50,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ===== CARREGAR DADOS DO CACHE MANAGER =====
 function carregarDadosDoCache() {
     if (window.CacheManager) {
         tarefas = window.CacheManager.get('tasks', []);
@@ -75,7 +58,6 @@ function carregarDadosDoCache() {
         weeklySchedule = window.CacheManager.get('weeklySchedule', {});
         timeSlots = window.CacheManager.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
         
-        // Garantir estrutura do horário
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(dia => {
             if (!weeklySchedule[dia]) weeklySchedule[dia] = [];
@@ -87,10 +69,13 @@ function carregarDadosDoCache() {
             eventos: eventos.length,
             horario: Object.keys(weeklySchedule).length
         });
+        
+        atualizarHorarioDesktop();
+        atualizarProximasAulas();
+        atualizarProximasTarefas();
     }
 }
 
-// ===== CARREGAR DADOS DO LOCALSTORAGE (FALLBACK) =====
 function carregarDadosDoLocalStorage() {
     const userId = usuarioAtual?.uid || usuarioAtual?.email;
     
@@ -107,115 +92,97 @@ function carregarDadosDoLocalStorage() {
         weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : {};
         timeSlots = slotsSalvos ? JSON.parse(slotsSalvos) : ['08:00', '09:30', '11:00', '14:00', '15:30'];
         
-        // Garantir estrutura do horário
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(dia => {
             if (!weeklySchedule[dia]) weeklySchedule[dia] = [];
         });
-        
-        console.log('[Inicio] Dados do localStorage:', {
-            tarefas: tarefas.length,
-            horario: Object.keys(weeklySchedule).length
-        });
     }
 }
 
-// ===== CRIAR DADOS PADRÃO =====
-async function criarDadosPadrao() {
+async function criarDadosVazios() {
     const userId = usuarioAtual?.uid || usuarioAtual?.email;
     
-    const weeklySchedulePadrao = {
-        'Seg': [],
-        'Ter': [],
-        'Qua': [],
-        'Qui': [],
-        'Sex': []
-    };
-    
+    const weeklyScheduleVazio = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
     const timeSlotsPadrao = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    const tarefasPadrao = [];
-    const anotacoesPadrao = [];
-    const eventosPadrao = [];
+    const tarefasVazias = [];
+    const anotacoesVazias = [];
+    const eventosVazios = [];
     
     if (userId) {
-        localStorage.setItem(`${userId}_tasks`, JSON.stringify(tarefasPadrao));
-        localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoesPadrao));
-        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(eventosPadrao));
-        localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedulePadrao));
+        localStorage.setItem(`${userId}_tasks`, JSON.stringify(tarefasVazias));
+        localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoesVazias));
+        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(eventosVazios));
+        localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklyScheduleVazio));
         localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlotsPadrao));
     }
     
     if (window.CacheManager) {
-        window.CacheManager.set('tasks', tarefasPadrao, true);
-        window.CacheManager.set('notes', anotacoesPadrao, true);
-        window.CacheManager.set('calendarEvents', eventosPadrao, true);
-        window.CacheManager.set('weeklySchedule', weeklySchedulePadrao, true);
+        window.CacheManager.set('tasks', tarefasVazias, true);
+        window.CacheManager.set('notes', anotacoesVazias, true);
+        window.CacheManager.set('calendarEvents', eventosVazios, true);
+        window.CacheManager.set('weeklySchedule', weeklyScheduleVazio, true);
         window.CacheManager.set('timeSlots', timeSlotsPadrao, true);
     }
     
-    tarefas = tarefasPadrao;
-    anotacoes = anotacoesPadrao;
-    eventos = eventosPadrao;
-    weeklySchedule = weeklySchedulePadrao;
+    tarefas = tarefasVazias;
+    anotacoes = anotacoesVazias;
+    eventos = eventosVazios;
+    weeklySchedule = weeklyScheduleVazio;
     timeSlots = timeSlotsPadrao;
     
-    console.log('[Inicio] Dados padrão criados');
+    console.log('[Inicio] Estrutura vazia criada');
 }
 
-// ===== ATUALIZAR MINI PERFIL =====
 function atualizarMiniPerfil() {
     if (!usuarioAtual) return;
     
-    document.getElementById('miniName').textContent = usuarioAtual.nome || 'Usuário';
-    document.getElementById('miniEmail').textContent = usuarioAtual.email || '';
+    const miniName = document.getElementById('miniName');
+    const miniEmail = document.getElementById('miniEmail');
+    if (miniName) miniName.textContent = usuarioAtual.nome || 'Usuário';
+    if (miniEmail) miniEmail.textContent = usuarioAtual.email || '';
     
-    const iniciais = usuarioAtual.nome
-        ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase()
-        : 'U';
+    const iniciais = usuarioAtual.nome ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
     const miniAvatar = document.getElementById('miniAvatar');
     if (miniAvatar) {
         miniAvatar.src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
     }
 }
 
-// ===== ATUALIZAR ESTATÍSTICAS =====
 function atualizarEstatisticasMini() {
     const totalTarefas = tarefas.length;
     const tarefasConcluidas = tarefas.filter(t => t.completed).length;
     const percentualConclusao = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
     
-    const horasEstudo = calcularHorasEstudo();
+    let horasEstudo = 0;
+    horasEstudo += eventos.filter(e => e.type === 'aula').length * 2;
+    horasEstudo += tarefas.filter(t => t.completed).length * 1.5;
+    
     const progressoSemanal = calcularProgressoSemanal();
     
-    animateValue('statTarefas', 0, totalTarefas, 1000);
-    animateValue('statConclusao', 0, percentualConclusao, 1000, '%');
-    animateValue('statHoras', 0, horasEstudo, 1000, 'h');
+    const statTarefas = document.getElementById('statTarefas');
+    const statConclusao = document.getElementById('statConclusao');
+    const statHoras = document.getElementById('statHoras');
+    const progressFill = document.getElementById('progressFill');
+    const progressValue = document.getElementById('progressValue');
+    const percentageEl = document.querySelector('.percentage');
     
-    setTimeout(() => {
-        const progressFill = document.getElementById('progressFill');
-        const progressValue = document.getElementById('progressValue');
-        if (progressFill) progressFill.style.width = progressoSemanal + '%';
-        if (progressValue) progressValue.textContent = progressoSemanal + '%';
-    }, 500);
+    if (statTarefas) statTarefas.textContent = totalTarefas;
+    if (statConclusao) statConclusao.textContent = percentualConclusao + '%';
+    if (statHoras) statHoras.textContent = horasEstudo + 'h';
+    if (progressFill) progressFill.style.width = progressoSemanal + '%';
+    if (progressValue) progressValue.textContent = progressoSemanal + '%';
+    if (percentageEl) percentageEl.textContent = progressoSemanal + '%';
     
-    setTimeout(() => {
-        const circularProgress = document.querySelector('.progress-ring-fill');
-        if (circularProgress) {
-            const radius = circularProgress.r.baseVal.value;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (progressoSemanal / 100) * circumference;
-            circularProgress.style.strokeDashoffset = offset;
-        }
-        const percentageEl = document.querySelector('.percentage');
-        if (percentageEl) percentageEl.textContent = progressoSemanal + '%';
-    }, 800);
-}
-
-function calcularHorasEstudo() {
-    let horas = 0;
-    horas += eventos.filter(e => e.type === 'aula').length * 2;
-    horas += tarefas.filter(t => t.completed).length * 1.5;
-    return horas || 0;
+    const totalHoursEl = document.getElementById('totalHours');
+    if (totalHoursEl) totalHoursEl.textContent = horasEstudo + 'h';
+    
+    const circularProgress = document.querySelector('.progress-ring-fill');
+    if (circularProgress) {
+        const radius = circularProgress.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (progressoSemanal / 100) * circumference;
+        circularProgress.style.strokeDashoffset = offset;
+    }
 }
 
 function calcularProgressoSemanal() {
@@ -231,40 +198,105 @@ function calcularProgressoSemanal() {
         return dataEvento >= inicioSemana && dataEvento <= fimSemana;
     });
     
-    const tarefasSemana = tarefas.filter(t => {
-        if (!t.date || t.completed) return false;
-        const dataPrazo = new Date(t.date);
-        return dataPrazo >= inicioSemana && dataPrazo <= fimSemana;
-    });
-    
-    const totalItens = eventosSemana.length + tarefasSemana.length;
+    const totalItens = eventosSemana.length;
     if (totalItens === 0) return 0;
     
-    const itensConcluidos = tarefas.filter(t => t.completed && t.date && new Date(t.date) >= inicioSemana && new Date(t.date) <= fimSemana).length;
-    const progresso = Math.min(100, Math.round((itensConcluidos / totalItens) * 100));
-    return progresso || 0;
+    return 0;
 }
 
-function animateValue(elementId, start, end, duration, suffix = '') {
-    const element = document.getElementById(elementId);
-    if (!element) return;
+function atualizarHorarioDesktop() {
+    const scheduleTableBody = document.getElementById('scheduleTableBody');
+    if (!scheduleTableBody) return;
     
-    let startTimestamp = null;
-    const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const value = Math.floor(progress * (end - start) + start);
-        element.textContent = value + suffix;
-        if (progress < 1) {
-            window.requestAnimationFrame(step);
-        }
-    };
-    window.requestAnimationFrame(step);
+    const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    
+    if (slots.length === 0 || diasSemana.every(day => !weeklySchedule[day] || weeklySchedule[day].length === 0)) {
+        scheduleTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">Nenhum horário cadastrado</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    slots.forEach(time => {
+        html += '<tr>';
+        html += `<td>${time}</td>`;
+        diasSemana.forEach(day => {
+            const aula = weeklySchedule[day]?.find(a => a.horaInicio === time);
+            if (aula && aula.materia) {
+                html += `<td class="subject ${getMateriaClass(aula.materia)}">${aula.materia}</td>`;
+            } else {
+                html += '<td></td>';
+            }
+        });
+        html += '</tr>';
+    });
+    
+    scheduleTableBody.innerHTML = html;
 }
 
-// ============================================
-// CALENDÁRIO
-// ============================================
+function getMateriaClass(materia) {
+    const mapa = {
+        'matemática': 'matematica', 'matematica': 'matematica',
+        'português': 'portugues', 'portugues': 'portugues',
+        'física': 'fisica', 'fisica': 'fisica',
+        'química': 'quimica', 'quimica': 'quimica',
+        'história': 'historia', 'historia': 'historia',
+        'geografia': 'geografia', 'biologia': 'biologia',
+        'inglês': 'ingles', 'ingles': 'ingles',
+        'redação': 'redacao', 'redacao': 'redacao'
+    };
+    const lowerMateria = materia?.toLowerCase()?.trim() || '';
+    return mapa[lowerMateria] || 'outros';
+}
+
+function atualizarProximasAulas() {
+    const nextClassInfo = document.getElementById('nextClassInfo');
+    if (!nextClassInfo) return;
+    
+    const agora = new Date();
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const hoje = diasSemana[agora.getDay()];
+    const horaAtual = agora.getHours() + ':' + String(agora.getMinutes()).padStart(2, '0');
+    
+    let proximaAula = null;
+    
+    if (weeklySchedule[hoje]) {
+        proximaAula = weeklySchedule[hoje].find(a => a.horaInicio > horaAtual);
+    }
+    
+    if (!proximaAula) {
+        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        const hojeIndex = dias.indexOf(hoje);
+        for (let i = 1; i <= 5; i++) {
+            const nextDay = dias[(hojeIndex + i) % 5];
+            if (weeklySchedule[nextDay] && weeklySchedule[nextDay].length > 0) {
+                proximaAula = weeklySchedule[nextDay][0];
+                proximaAula.dia = nextDay;
+                break;
+            }
+        }
+    }
+    
+    if (proximaAula) {
+        const diaTexto = proximaAula.dia ? proximaAula.dia : 'hoje';
+        nextClassInfo.textContent = `${proximaAula.materia} - ${diaTexto} às ${proximaAula.horaInicio}`;
+    } else {
+        nextClassInfo.textContent = 'Nenhuma aula cadastrada';
+    }
+}
+
+function atualizarProximasTarefas() {
+    const nextTaskInfo = document.getElementById('nextTaskInfo');
+    if (!nextTaskInfo) return;
+    
+    const tarefasPendentes = tarefas.filter(t => !t.completed);
+    if (tarefasPendentes.length > 0) {
+        nextTaskInfo.textContent = `${tarefasPendentes[0].title || tarefasPendentes[0].nome} - Pendente`;
+    } else {
+        nextTaskInfo.textContent = 'Nenhuma tarefa pendente';
+    }
+}
+
 class Calendar {
     constructor() {
         this.currentDate = new Date();
@@ -314,22 +346,11 @@ class Calendar {
                 dateCell.classList.add('today');
             }
             
-            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-            const temEvento = eventos.some(e => e.date === dateStr);
-            
-            if (temEvento) {
-                dateCell.classList.add('has-event');
-                dateCell.title = 'Tem evento(s) agendado(s)';
-            }
-            
             calendarDates.appendChild(dateCell);
         }
     }
 }
 
-// ============================================
-// PROGRESSO CIRCULAR
-// ============================================
 class CircularProgress {
     constructor() {
         this.circle = document.querySelector('.progress-ring-fill');
@@ -345,79 +366,45 @@ class CircularProgress {
     }
 }
 
-// ============================================
-// GRÁFICO DE ESTUDO
-// ============================================
 class StudyChart {
     constructor() {
         this.chartContainer = document.getElementById('studyChart');
         if (!this.chartContainer) return;
-        this.data = this.gerarDadosSemana();
         this.init();
     }
     
-    gerarDadosSemana() {
-        const dados = [];
-        for (let i = 0; i < 7; i++) {
-            dados.push(Math.floor(Math.random() * 4) + 1);
-        }
-        return dados;
-    }
-    
     init() {
+        this.chartContainer.innerHTML = '<canvas id="studyCanvas" width="200" height="80" style="width:100%;height:100%"></canvas>';
         this.drawChart();
         window.addEventListener('resize', () => this.drawChart());
     }
     
     drawChart() {
-        const width = this.chartContainer.offsetWidth || 200;
-        const height = this.chartContainer.offsetHeight || 80;
-        const padding = 10;
+        const canvas = document.getElementById('studyCanvas');
+        if (!canvas) return;
         
-        this.chartContainer.innerHTML = '';
+        canvas.width = canvas.offsetWidth || 200;
+        canvas.height = canvas.offsetHeight || 80;
+        const ctx = canvas.getContext('2d');
         
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-        svg.setAttribute('preserveAspectRatio', 'none');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        const maxVal = Math.max(...this.data, 2);
-        const minVal = Math.min(...this.data, 0);
-        const range = maxVal - minVal || 1;
+        const dados = [2, 4, 3, 5, 4, 6, 3];
+        const maxVal = Math.max(...dados, 5);
         
-        const points = this.data.map((val, index) => {
-            const x = padding + (index / (this.data.length - 1)) * (width - 2 * padding);
-            const y = height - padding - ((val - minVal) / range) * (height - 2 * padding);
-            return `${x},${y}`;
-        });
+        const larguraBarra = (canvas.width - 40) / dados.length - 4;
         
-        const areaPoints = [
-            `${padding},${height - padding}`,
-            ...points,
-            `${width - padding},${height - padding}`
-        ].join(' ');
-        
-        const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        area.setAttribute('points', areaPoints);
-        area.setAttribute('fill', 'rgba(147, 51, 234, 0.2)');
-        svg.appendChild(area);
-        
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-        line.setAttribute('points', points.join(' '));
-        line.setAttribute('fill', 'none');
-        line.setAttribute('stroke', '#9333ea');
-        line.setAttribute('stroke-width', '3');
-        line.setAttribute('stroke-linecap', 'round');
-        
-        svg.appendChild(line);
-        this.chartContainer.appendChild(svg);
+        for (let i = 0; i < dados.length; i++) {
+            const altura = (dados[i] / maxVal) * (canvas.height - 40);
+            const x = 20 + i * (larguraBarra + 4);
+            const y = canvas.height - 20 - altura;
+            
+            ctx.fillStyle = '#9333ea';
+            ctx.fillRect(x, y, larguraBarra, altura);
+        }
     }
 }
 
-// ============================================
-// TIMER DE ESTUDO
-// ============================================
 class StudyTimer {
     constructor() {
         this.isActive = false;
@@ -489,7 +476,6 @@ class StudyTimer {
     }
 }
 
-// ===== LOGOUT =====
 function logout() {
     if (confirm('Deseja sair?')) {
         localStorage.removeItem('usuarioLogado');
@@ -498,7 +484,6 @@ function logout() {
     }
 }
 
-// ===== MENU ATIVO =====
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
         if (this.href && !this.href.endsWith('#')) {
