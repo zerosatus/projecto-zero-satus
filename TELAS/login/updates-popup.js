@@ -1,5 +1,3 @@
-// Popup de Atualizações - Versão Completa
-
 const updates = [
     {
         version: "v2.0.0",
@@ -57,13 +55,11 @@ function showUpdatesPopup() {
     const lastSeenVersion = localStorage.getItem('last_seen_update_version');
     const latestVersion = updates[0].version;
     
-    // Se já viu a última versão, não mostra
     if (lastSeenVersion === latestVersion) {
         console.log('[Updates] Usuário já viu a versão', latestVersion);
         return;
     }
     
-    // Verificar se é a primeira vez que o usuário vê essa versão
     const hasSeen = localStorage.getItem(`update_seen_${latestVersion}`);
     if (hasSeen) {
         console.log('[Updates] Versão', latestVersion, 'já foi vista');
@@ -89,7 +85,6 @@ function showUpdatesPopup() {
                     <i class="fas fa-cloud-upload-alt"></i> Sincronização em Nuvem Ativada!
                 </div>
                 
-                <!-- Versão mais recente (destacada) -->
                 <div class="update-version latest">
                     <div class="update-version-header">
                         <span class="update-version-tag">${updates[0].version}</span>
@@ -102,7 +97,6 @@ function showUpdatesPopup() {
                     </ul>
                 </div>
                 
-                <!-- Versões anteriores (colapsadas) -->
                 <div class="updates-older">
                     <button class="older-toggle" id="toggle-older">
                         <i class="fas fa-chevron-down"></i> Versões anteriores (${updates.length - 1})
@@ -258,10 +252,6 @@ function showUpdatesPopup() {
             gap: 8px;
         }
         
-        .update-badge i {
-            font-size: 14px;
-        }
-        
         .update-version {
             margin-bottom: 20px;
         }
@@ -342,7 +332,6 @@ function showUpdatesPopup() {
             flex-shrink: 0;
         }
         
-        /* Versões anteriores */
         .updates-older {
             margin-top: 8px;
         }
@@ -420,14 +409,8 @@ function showUpdatesPopup() {
         }
         
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         @keyframes fadeOut {
@@ -466,7 +449,6 @@ function showUpdatesPopup() {
     const toggleBtn = popup.querySelector('#toggle-older');
     const olderContent = popup.querySelector('.older-content');
     
-    // Toggle para versões anteriores
     if (toggleBtn && olderContent) {
         toggleBtn.addEventListener('click', () => {
             const isVisible = olderContent.style.display === 'block';
@@ -490,7 +472,6 @@ function showUpdatesPopup() {
     gotitBtn.addEventListener('click', closePopup);
     overlay.addEventListener('click', closePopup);
     
-    // Fechar com ESC
     document.addEventListener('keydown', function onEsc(e) {
         if (e.key === 'Escape') {
             closePopup();
@@ -499,10 +480,8 @@ function showUpdatesPopup() {
     });
 }
 
-// Verificar quando mostrar o popup
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        // Pequeno delay para garantir que o login já processou
         setTimeout(showUpdatesPopup, 500);
     });
 } else {
