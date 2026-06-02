@@ -634,3 +634,38 @@ body {
     .stat-value-mini { font-size: 24px; margin-bottom: 0; }
     .profile-header-mini { flex-direction: column; text-align: center; }
 }
+
+/* Estilos para disciplinas coloridas na página inicial */
+.subjects-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.subject-card {
+    padding: 12px;
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.subject-card:hover {
+    transform: translateX(4px);
+}
+
+/* Cores das matérias no horário */
+.subject.matematica { background-color: #9b59b620; color: #9b59b6; border-left: 3px solid #9b59b6; }
+.subject.portugues { background-color: #3498db20; color: #3498db; border-left: 3px solid #3498db; }
+.subject.historia { background-color: #e74c3c20; color: #e74c3c; border-left: 3px solid #e74c3c; }
+.subject.fisica { background-color: #e67e2220; color: #e67e22; border-left: 3px solid #e67e22; }
+.subject.quimica { background-color: #2ecc7120; color: #2ecc71; border-left: 3px solid #2ecc71; }
+.subject.biologia { background-color: #f1c40f20; color: #f1c40f; border-left: 3px solid #f1c40f; }
+.subject.geografia { background-color: #1abc9c20; color: #1abc9c; border-left: 3px solid #1abc9c; }
+.subject.ingles { background-color: #34495e20; color: #34495e; border-left: 3px solid #34495e; }
+.subject.redacao { background-color: #00bcd420; color: #00bcd4; border-left: 3px solid #00bcd4; }
+.subject.outros { background-color: #95a5a620; color: #95a5a6; border-left: 3px solid #95a5a6; }
+
+.empty-cell {
+    text-align: center;
+    padding: 10px;
+    color: #888;
+}

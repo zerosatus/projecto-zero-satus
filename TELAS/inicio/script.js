@@ -37,11 +37,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         new StudyChart();
         new StudyTimer();
         
+        // Registrar função global para ser chamada pelo sync-helper
+        window.renderizarDisciplinas = function() {
+            atualizarListaDisciplinas();
+        };
+        
         window.addEventListener('cloudDataLoaded', (event) => {
             console.log('[Inicio] Cloud data loaded, atualizando UI');
             carregarDadosDoCache();
             atualizarEstatisticasMini();
             atualizarHorarioDesktop();
+            atualizarListaDisciplinas();
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
         });
         
@@ -73,6 +79,7 @@ function carregarDadosDoCache() {
         atualizarHorarioDesktop();
         atualizarProximasAulas();
         atualizarProximasTarefas();
+        atualizarListaDisciplinas();
     }
 }
 
@@ -155,7 +162,7 @@ function atualizarEstatisticasMini() {
     
     let horasEstudo = 0;
     horasEstudo += eventos.filter(e => e.type === 'aula').length * 2;
-    horasEstudo += tarefas.filter(t => t.completed).length * 1.5;
+    horasEstudo += tarefasConcluidas * 1.5;
     
     const progressoSemanal = calcularProgressoSemanal();
     
@@ -204,6 +211,69 @@ function calcularProgressoSemanal() {
     return 0;
 }
 
+// NOVA FUNÇÃO: Atualizar lista de disciplinas
+function atualizarListaDisciplinas() {
+    const subjectsGrid = document.getElementById('subjectsGrid');
+    if (!subjectsGrid) return;
+    
+    // Coletar disciplinas únicas das tarefas e do horário
+    const disciplinasSet = new Set();
+    
+    // Das tarefas
+    tarefas.forEach(t => {
+        const disc = t.disciplina || t.subject;
+        if (disc && disc !== 'outros') {
+            disciplinasSet.add(disc.toLowerCase());
+        }
+    });
+    
+    // Do horário semanal
+    if (weeklySchedule) {
+        Object.values(weeklySchedule).forEach(day => {
+            if (Array.isArray(day)) {
+                day.forEach(c => {
+                    if (c && c.materia) {
+                        disciplinasSet.add(c.materia.toLowerCase());
+                    }
+                });
+            }
+        });
+    }
+    
+    const disciplinas = Array.from(disciplinasSet);
+    
+    if (disciplinas.length === 0) {
+        subjectsGrid.innerHTML = '<p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina cadastrada</p>';
+        return;
+    }
+    
+    const cores = {
+        'matemática': '#9b59b6', 'matematica': '#9b59b6',
+        'português': '#3498db', 'portugues': '#3498db',
+        'história': '#e74c3c', 'historia': '#e74c3c',
+        'física': '#e67e22', 'fisica': '#e67e22',
+        'química': '#2ecc71', 'quimica': '#2ecc71',
+        'biologia': '#f1c40f', 'geografia': '#1abc9c',
+        'inglês': '#34495e', 'ingles': '#34495e'
+    };
+    
+    let html = '';
+    disciplinas.forEach(disciplina => {
+        const cor = cores[disciplina] || '#95a5a6';
+        const nomeExibicao = disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
+        html += `<div class="subject-card" style="background: ${cor}20; border-left: 3px solid ${cor}; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+            <span style="color: ${cor}; font-weight: 600;">${nomeExibicao}</span>
+        </div>`;
+    });
+    
+    subjectsGrid.innerHTML = html;
+    subjectsGrid.style.display = 'grid';
+    subjectsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    subjectsGrid.style.gap = '10px';
+    
+    console.log('[Inicio] Lista de disciplinas atualizada:', disciplinas.length);
+}
+
 function atualizarHorarioDesktop() {
     const scheduleTableBody = document.getElementById('scheduleTableBody');
     if (!scheduleTableBody) return;
@@ -219,13 +289,17 @@ function atualizarHorarioDesktop() {
     let html = '';
     slots.forEach(time => {
         html += '<tr>';
-        html += `<td>${time}</td>`;
+        html += `<td class="time-slot">${time}</td>`;
         diasSemana.forEach(day => {
             const aula = weeklySchedule[day]?.find(a => a.horaInicio === time);
             if (aula && aula.materia) {
-                html += `<td class="subject ${getMateriaClass(aula.materia)}">${aula.materia}</td>`;
+                const materiaClass = getMateriaClass(aula.materia);
+                const cor = aula.color || getCorByMateria(aula.materia);
+                html += `<td class="subject ${materiaClass}" style="background-color: ${cor}20; color: ${cor}; border-left: 3px solid ${cor};">
+                    ${aula.materia}
+                </td>`;
             } else {
-                html += '<td></td>';
+                html += '<td class="empty-cell"></td>';
             }
         });
         html += '</tr>';
@@ -247,6 +321,20 @@ function getMateriaClass(materia) {
     };
     const lowerMateria = materia?.toLowerCase()?.trim() || '';
     return mapa[lowerMateria] || 'outros';
+}
+
+function getCorByMateria(materia) {
+    const cores = {
+        'matemática': '#9b59b6', 'matematica': '#9b59b6',
+        'português': '#3498db', 'portugues': '#3498db',
+        'história': '#e74c3c', 'historia': '#e74c3c',
+        'física': '#e67e22', 'fisica': '#e67e22',
+        'química': '#2ecc71', 'quimica': '#2ecc71',
+        'biologia': '#f1c40f', 'geografia': '#1abc9c',
+        'inglês': '#34495e', 'ingles': '#34495e'
+    };
+    const lowerMateria = materia?.toLowerCase()?.trim() || '';
+    return cores[lowerMateria] || '#95a5a6';
 }
 
 function atualizarProximasAulas() {
