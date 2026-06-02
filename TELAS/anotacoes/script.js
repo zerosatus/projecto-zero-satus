@@ -261,4 +261,23 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
+// Registrar função global para sincronização de anotações
+window.carregarAnotacoes = function() {
+    carregarAnotacoes();
+};
+
+// Garantir que as anotações sejam recarregadas quando dados da nuvem chegarem
+window.addEventListener('cloudDataLoaded', () => {
+    console.log('[Anotacoes] Cloud data loaded, recarregando...');
+    carregarAnotacoes();
+    renderizarListaAnotacoes();
+    if (anotacaoAtualId) {
+        const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
+        if (anotacaoAtualizada) {
+            document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
+            document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
+        }
+    }
+});
+
 console.log('%c📝 Anotações', 'color: #9333ea; font-size: 20px; font-weight: bold;');

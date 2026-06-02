@@ -94,3 +94,17 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
     .main-content { margin-left: 80px; }
     .toolbar { overflow-x: auto; }
 }
+
+/* Garantir que anotações sejam exibidas corretamente */
+.note-card-minimal {
+    transition: all 0.2s;
+}
+
+.note-card-minimal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.note-preview-minimal {
+    word-break: break-word;
+}
