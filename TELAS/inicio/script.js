@@ -37,10 +37,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         new StudyChart();
         new StudyTimer();
         
-        // Registrar função global para ser chamada pelo sync-helper
-        window.renderizarDisciplinas = function() {
-            atualizarListaDisciplinas();
-        };
+        // Registrar função global para ser chamada pelo sync-helper (APENAS UMA VEZ)
+        if (typeof window.renderizarDisciplinas === 'undefined') {
+            window.renderizarDisciplinas = function() {
+                atualizarListaDisciplinas();
+            };
+        }
         
         window.addEventListener('cloudDataLoaded', (event) => {
             console.log('[Inicio] Cloud data loaded, atualizando UI');
@@ -211,15 +213,12 @@ function calcularProgressoSemanal() {
     return 0;
 }
 
-// NOVA FUNÇÃO: Atualizar lista de disciplinas
 function atualizarListaDisciplinas() {
     const subjectsGrid = document.getElementById('subjectsGrid');
     if (!subjectsGrid) return;
     
-    // Coletar disciplinas únicas das tarefas e do horário
     const disciplinasSet = new Set();
     
-    // Das tarefas
     tarefas.forEach(t => {
         const disc = t.disciplina || t.subject;
         if (disc && disc !== 'outros') {
@@ -227,7 +226,6 @@ function atualizarListaDisciplinas() {
         }
     });
     
-    // Do horário semanal
     if (weeklySchedule) {
         Object.values(weeklySchedule).forEach(day => {
             if (Array.isArray(day)) {
