@@ -1,4 +1,4 @@
-// Perfil - Configurações do usuário
+// Perfil Mobile - Configurações do usuário
 
 let notifications = [];
 let usuarioLogado = null;
@@ -7,6 +7,7 @@ let appearanceSettings = {};
 let selectedTheme = 'dark';
 let selectedAccent = '#8b5cf6';
 let userPhotoURL = null;
+let profilePhotoUnsubscribe = null;
 
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -196,33 +197,202 @@ function loadProfileData() {
     }
 }
 
-function saveProfilePhoto(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const photoURL = e.target.result;
-            userPhotoURL = photoURL;
-            localStorage.setItem('userPhotoURL', photoURL);
+// ========== FUNÇÕES DE FOTO DE PERFIL COM STORAGE ==========
+
+async function carregarFotoPerfil() {
+    if (!usuarioLogado) return;
+    
+    const profileAvatar = document.querySelector('.profile-avatar');
+    const profileInitial = document.getElementById('profile-initial');
+    const avatarPreview = document.getElementById('avatar-preview');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl) {
+            userPhotoURL = photoUrl;
+            usuarioLogado.profilePhotoUrl = photoUrl;
+            localStorage.setItem('userPhotoURL', photoUrl);
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
             
-            // Atualizar visualização
-            const avatarPreview = document.getElementById('avatar-preview');
-            const profileAvatar = document.getElementById('profile-avatar');
-            
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
             if (avatarPreview) {
-                avatarPreview.innerHTML = `<img src="${photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                avatarPreview.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
                 avatarPreview.style.display = 'flex';
                 avatarPreview.style.alignItems = 'center';
                 avatarPreview.style.justifyContent = 'center';
             }
+        } else if (userPhotoURL && userPhotoURL.startsWith('data:')) {
+            // Avatar antigo em base64
             if (profileAvatar) {
-                profileAvatar.innerHTML = `<img src="${photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
+            if (avatarPreview) {
+                avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                avatarPreview.style.display = 'flex';
+            }
+        } else {
+            // Avatar padrão com iniciais
+            const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
+            }
+            if (avatarPreview) {
+                avatarPreview.textContent = initial;
+            }
+        }
+    } else {
+        // Fallback localStorage
+        if (userPhotoURL) {
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
+            if (avatarPreview) {
+                avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                avatarPreview.style.display = 'flex';
+            }
+        } else {
+            const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
+            }
+            if (avatarPreview) {
+                avatarPreview.textContent = initial;
+            }
+        }
+    }
+}
+
+async function uploadProfilePhoto(file) {
+    if (!usuarioLogado) return null;
+    
+    // Validar arquivo
+    if (!file.type.startsWith('image/')) {
+        showToast('Selecione uma imagem válida!', 'error');
+        return null;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('Imagem deve ter no máximo 5MB!', 'error');
+        return null;
+    }
+    
+    // Mostrar preview local imediatamente
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const profileAvatar = document.querySelector('.profile-avatar');
+        const avatarPreview = document.getElementById('avatar-preview');
+        if (profileAvatar) {
+            profileAvatar.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        }
+        if (avatarPreview) {
+            avatarPreview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            avatarPreview.style.display = 'flex';
+        }
+    };
+    reader.readAsDataURL(file);
+    
+    showToast('Enviando foto...', 'info');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
+        
+        if (photoUrl) {
+            userPhotoURL = photoUrl;
+            usuarioLogado.profilePhotoUrl = photoUrl;
+            localStorage.setItem('userPhotoURL', photoUrl);
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+            
+            showToast('Foto atualizada e sincronizada!', 'success');
+            
+            // Disparar evento para outras telas
+            window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
+            
+            return photoUrl;
+        } else {
+            showToast('Erro ao enviar foto!', 'error');
+            await carregarFotoPerfil();
+            return null;
+        }
+    } else {
+        // Fallback: salvar apenas localmente
+        const profileAvatar = document.querySelector('.profile-avatar img');
+        if (profileAvatar && profileAvatar.src) {
+            userPhotoURL = profileAvatar.src;
+            localStorage.setItem('userPhotoURL', userPhotoURL);
+            showToast('Foto salva localmente (sem nuvem)', 'success');
+        }
+        return null;
+    }
+}
+
+async function deleteProfilePhoto() {
+    if (!usuarioLogado) return false;
+    
+    if (window.CacheManager) {
+        const deleted = await window.CacheManager.deleteProfilePhoto();
+        
+        if (deleted) {
+            userPhotoURL = null;
+            delete usuarioLogado.profilePhotoUrl;
+            localStorage.removeItem('userPhotoURL');
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+            
+            const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+            const profileAvatar = document.querySelector('.profile-avatar');
+            const avatarPreview = document.getElementById('avatar-preview');
+            
+            if (profileAvatar) {
+                profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
+            }
+            if (avatarPreview) {
+                avatarPreview.textContent = initial;
             }
             
-            resolve(photoURL);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+            showToast('Foto removida!', 'success');
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+function iniciarEscutaFotoMobile() {
+    if (!usuarioLogado) return;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
+        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+            if (photoUrl) {
+                console.log('[Mobile Perfil] Foto atualizada em tempo real!');
+                userPhotoURL = photoUrl;
+                usuarioLogado.profilePhotoUrl = photoUrl;
+                localStorage.setItem('userPhotoURL', photoUrl);
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+                
+                const profileAvatar = document.querySelector('.profile-avatar');
+                const avatarPreview = document.getElementById('avatar-preview');
+                
+                if (profileAvatar) {
+                    profileAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                }
+                if (avatarPreview) {
+                    avatarPreview.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                    avatarPreview.style.display = 'flex';
+                }
+            }
+        });
+    }
+}
+
+function pararEscutaFotoMobile() {
+    if (profilePhotoUnsubscribe) {
+        profilePhotoUnsubscribe();
+        profilePhotoUnsubscribe = null;
+    }
 }
 
 function loadNotificacoes() {
@@ -258,15 +428,16 @@ window.toggleFaq = function(element) {
 
 function switchView(viewName) {
     if (viewName === 'home') {
-        window.location.href = '../index.html';
+        window.location.href = './index.html';
     } else if (viewName === 'calendar') {
-        window.location.href = '../calendario/index.html';
+        window.location.href = './calendario/index.html';
     } else if (viewName === 'tasks') {
-        window.location.href = '../tarefas/index.html';
+        window.location.href = './tarefas/index.html';
     } else if (viewName === 'notes') {
-        window.location.href = '../notas/index.html';
+        window.location.href = './notas/index.html';
     } else if (viewName === 'profile') {
         loadProfileData();
+        carregarFotoPerfil();
     }
 }
 
@@ -309,7 +480,7 @@ async function syncToCloud() {
 }
 
 // Inicialização quando a página carregar
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
     
@@ -322,22 +493,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
         if (profileName) profileName.textContent = usuarioLogado.nome || nomeExibicao;
         if (profileEmail) profileEmail.textContent = usuarioLogado.email;
-        
-        // Atualizar avatar
-        if (userPhotoURL) {
-            const profileAvatar = document.getElementById('profile-avatar');
-            if (profileAvatar) {
-                profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-            }
-        } else {
-            const profileInitial = document.getElementById('profile-initial');
-            if (profileInitial) {
-                profileInitial.textContent = (usuarioLogado.nome || nomeExibicao).charAt(0).toUpperCase();
-            }
-        }
     }
     
     updateNotificationBadge();
+    await carregarFotoPerfil();
+    iniciarEscutaFotoMobile();
     
     // Botão de notificações
     const notificationBell = document.getElementById('notification-bell');
@@ -386,13 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
             input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    try {
-                        await saveProfilePhoto(file);
-                        showToast('Foto atualizada!', 'success');
-                        saveAllData();
-                    } catch (error) {
-                        showToast('Erro ao carregar imagem', 'error');
-                    }
+                    await uploadProfilePhoto(file);
                 }
             };
             input.click();
@@ -432,9 +586,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (modal) modal.classList.add('active');
             } else if (action === 'sincronizar') {
                 syncToCloud();
+            } else if (action === 'deletar-foto') {
+                showConfirm('Remover sua foto de perfil?', 'Remover Foto', async (confirmed) => {
+                    if (confirmed) await deleteProfilePhoto();
+                });
             } else if (item.classList.contains('logout')) {
                 showConfirm('Deseja realmente sair da conta?', 'Sair', (confirmed) => {
                     if (confirmed) {
+                        pararEscutaFotoMobile();
                         localStorage.removeItem('usuarioLogado');
                         localStorage.removeItem('userPhotoURL');
                         window.location.href = '../../login/index.html';
@@ -452,7 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modalId) {
                 closeModal(modalId);
             } else {
-                // Fechar o modal pai
                 const modal = btn.closest('.profile-modal');
                 if (modal) modal.classList.remove('active');
             }
@@ -619,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ajuda
     const contatoBtn = document.getElementById('btn-contato');
     if (contatoBtn) contatoBtn.addEventListener('click', () => {
-        window.open('https://wa.me/5500000000000', '_blank');
+        window.open('https://wa.me/nao disponivel', '_blank');
     });
     
     const termosBtn = document.getElementById('btn-termos');
@@ -645,8 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
-  
-
 
 // =====================================================
 // NOTIFICAÇÕES NATIVAS PARA ANDROID (COMPARTILHADAS)
