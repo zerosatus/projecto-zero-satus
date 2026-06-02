@@ -64,6 +64,7 @@
             if (typeof atualizarEstatisticasMini === 'function') atualizarEstatisticasMini();
             if (typeof atualizarCards === 'function') atualizarCards();
             if (typeof carregarDados === 'function') carregarDados();
+            if (typeof atualizarHorarioDesktop === 'function') atualizarHorarioDesktop();
         }
         
         // Página Mobile
@@ -81,6 +82,7 @@
             if (typeof renderTasks === 'function') renderTasks();
             if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
             if (typeof atualizarContadores === 'function') atualizarContadores();
+            if (typeof renderizarDisciplinas === 'function') renderizarDisciplinas();
         }
         
         // Página Calendário
@@ -169,12 +171,72 @@
         }
     };
     
+    // Função para carregar disciplinas e anotações para o Desktop
+    window.syncAllDataToDesktop = function() {
+        const pathname = window.location.pathname;
+        const isDesktop = pathname.includes('/inicio/') || 
+                         pathname.includes('/dashboard/') ||
+                         pathname.includes('/tarefas/') ||
+                         pathname.includes('/anotacoes/') ||
+                         pathname.includes('/calendario/') ||
+                         pathname === '/' ||
+                         pathname === '/inicio';
+        
+        if (!isDesktop) return;
+        
+        console.log('[Sync] 🔄 Sincronizando todos os dados para Desktop...');
+        
+        if (!window.CacheManager) return;
+        
+        const tasks = window.CacheManager.get('tasks', []);
+        const notes = window.CacheManager.get('notes', []);
+        const calendarEvents = window.CacheManager.get('calendarEvents', []);
+        const weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        
+        console.log('[Sync] Dados sincronizados:', {
+            tasks: tasks.length,
+            notes: notes.length,
+            events: calendarEvents.length,
+            schedule: Object.keys(weeklySchedule).length
+        });
+        
+        // Sincronizar tarefas
+        if (typeof window.carregarTarefas === 'function') {
+            window.carregarTarefas();
+        }
+        
+        // Sincronizar anotações
+        if (typeof window.carregarAnotacoes === 'function') {
+            window.carregarAnotacoes();
+        }
+        
+        // Atualizar UI de disciplinas
+        if (typeof window.renderizarDisciplinas === 'function') {
+            setTimeout(() => window.renderizarDisciplinas(), 100);
+        }
+        
+        // Atualizar horário
+        if (weeklySchedule && Object.keys(weeklySchedule).length > 0) {
+            atualizarTabelaHorarioDesktop(weeklySchedule);
+        }
+    };
+    
     function atualizarTabelaHorarioDesktop(weeklySchedule) {
         const scheduleTable = document.querySelector('.schedule-table tbody');
-        if (!scheduleTable) return;
+        if (!scheduleTable) {
+            console.log('[Sync] Tabela de horário não encontrada');
+            return;
+        }
         
         const diasChave = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         const rows = scheduleTable.querySelectorAll('tr');
+        
+        // Obter timeSlots do CacheManager
+        let timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
+        if (window.CacheManager) {
+            const cachedSlots = window.CacheManager.get('timeSlots', null);
+            if (cachedSlots && cachedSlots.length) timeSlots = cachedSlots;
+        }
         
         rows.forEach(row => {
             const timeCell = row.querySelector('td:first-child');
@@ -186,13 +248,26 @@
                 const cell = row.children[i + 1];
                 if (cell) {
                     const aula = weeklySchedule[diaChave]?.find(a => a.horaInicio === timeSlot);
-                    if (aula) {
-                        cell.className = `subject ${getMateriaClass(aula.materia)}`;
+                    if (aula && aula.materia) {
+                        // Aplicar classe com cor
+                        const materiaClass = getMateriaClass(aula.materia);
+                        cell.className = `subject ${materiaClass}`;
                         cell.textContent = aula.materia;
+                        // Adicionar estilo de cor personalizado se disponível
+                        if (aula.color) {
+                            cell.style.backgroundColor = `${aula.color}20`;
+                            cell.style.color = aula.color;
+                            cell.style.borderLeft = `3px solid ${aula.color}`;
+                        }
+                    } else {
+                        cell.className = '';
+                        cell.textContent = '';
                     }
                 }
             }
         });
+        
+        console.log('[Sync] ✅ Horário atualizado com cores');
     }
     
     function getMateriaClass(materia) {
@@ -213,15 +288,22 @@
     // Executar sincronização periódica
     setInterval(() => {
         window.syncScheduleToDesktop();
-    }, 10000);
+        window.syncAllDataToDesktop();
+    }, 5000);
     
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(window.syncScheduleToDesktop, 2000);
+            setTimeout(() => {
+                window.syncScheduleToDesktop();
+                window.syncAllDataToDesktop();
+            }, 2000);
         });
     } else {
-        setTimeout(window.syncScheduleToDesktop, 2000);
+        setTimeout(() => {
+            window.syncScheduleToDesktop();
+            window.syncAllDataToDesktop();
+        }, 2000);
     }
     
-    console.log('[Sync] Ponte PC-Mobile instalada');
+    console.log('[Sync] Ponte PC-Mobile instalada com sincronização completa');
 })();
