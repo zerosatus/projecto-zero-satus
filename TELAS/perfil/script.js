@@ -2,6 +2,7 @@ let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
+let currentPhotoUnsubscribe = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -19,12 +20,20 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         carregarDados();
         atualizarPerfil();
+        await carregarFotoAtual();
+        iniciarEscutaFoto();
         
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Perfil] Dados atualizados do Firebase');
             carregarDados();
             atualizarEstatisticasPerfil();
             atualizarAtividadesRecentes();
+        });
+        
+        window.addEventListener('profilePhotoUpdated', (event) => {
+            if (event.detail && event.detail.photoUrl) {
+                atualizarFotoEmTodasTelas(event.detail.photoUrl);
+            }
         });
         
     } catch(e) {
@@ -60,7 +69,6 @@ function atualizarPerfil() {
     const telefoneInput = document.getElementById('telefone');
     const nascimentoInput = document.getElementById('nascimento');
     const generoSelect = document.getElementById('genero');
-    const avatarImg = document.getElementById('avatarImage');
     
     if (profileName) profileName.textContent = usuarioAtual.nome || 'Usuário';
     if (profileEmail) profileEmail.textContent = usuarioAtual.email || '';
@@ -69,13 +77,6 @@ function atualizarPerfil() {
     if (telefoneInput) telefoneInput.value = usuarioAtual.telefone || '';
     if (nascimentoInput) nascimentoInput.value = usuarioAtual.nascimento || '';
     if (generoSelect) generoSelect.value = usuarioAtual.genero || 'nao-informar';
-    
-    const iniciais = usuarioAtual.nome ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-    if (avatarImg && usuarioAtual.avatar) {
-        avatarImg.src = usuarioAtual.avatar;
-    } else if (avatarImg) {
-        avatarImg.src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
-    }
 }
 
 function atualizarEstatisticasPerfil() {
@@ -197,21 +198,128 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function previewAvatar(event) {
+// ========== FUNÇÕES DE FOTO DE PERFIL ==========
+
+async function carregarFotoAtual() {
+    if (!usuarioAtual) return;
+    
+    const avatarImg = document.getElementById('avatarImage');
+    const profileAvatar = document.querySelector('.profile-avatar img');
+    const userAvatar = document.querySelector('.user-avatar img');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl) {
+            if (avatarImg) avatarImg.src = photoUrl;
+            if (profileAvatar) profileAvatar.src = photoUrl;
+            if (userAvatar) userAvatar.src = photoUrl;
+            usuarioAtual.profilePhotoUrl = photoUrl;
+        } else if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
+            if (avatarImg) avatarImg.src = usuarioAtual.avatar;
+            if (profileAvatar) profileAvatar.src = usuarioAtual.avatar;
+        } else {
+            const iniciais = usuarioAtual.nome ? 
+                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
+            if (avatarImg) avatarImg.src = defaultAvatar;
+            if (profileAvatar) profileAvatar.src = defaultAvatar;
+        }
+    } else {
+        if (usuarioAtual.avatar) {
+            if (avatarImg) avatarImg.src = usuarioAtual.avatar;
+            if (profileAvatar) profileAvatar.src = usuarioAtual.avatar;
+        }
+    }
+}
+
+function atualizarFotoEmTodasTelas(photoUrl) {
+    if (usuarioAtual) {
+        usuarioAtual.profilePhotoUrl = photoUrl;
+        usuarioAtual.avatar = photoUrl;
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    }
+    
+    const avatarImg = document.getElementById('avatarImage');
+    const profileAvatar = document.querySelector('.profile-avatar img');
+    const userAvatar = document.querySelector('.user-avatar img');
+    
+    if (avatarImg && photoUrl) avatarImg.src = photoUrl;
+    if (profileAvatar && photoUrl) profileAvatar.src = photoUrl;
+    if (userAvatar && photoUrl) userAvatar.src = photoUrl;
+    
+    if (!photoUrl) {
+        const iniciais = usuarioAtual?.nome ? 
+            usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+        const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
+        if (avatarImg) avatarImg.src = defaultAvatar;
+        if (profileAvatar) profileAvatar.src = defaultAvatar;
+    }
+}
+
+function iniciarEscutaFoto() {
+    if (!usuarioAtual) return;
+    
+    if (window.CacheManager) {
+        const userId = usuarioAtual.uid || usuarioAtual.email;
+        
+        if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
+            currentPhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+                if (photoUrl) {
+                    console.log('[Perfil] Foto atualizada em tempo real!');
+                    atualizarFotoEmTodasTelas(photoUrl);
+                }
+            });
+        }
+    }
+}
+
+function pararEscutaFoto() {
+    if (currentPhotoUnsubscribe) {
+        currentPhotoUnsubscribe();
+        currentPhotoUnsubscribe = null;
+    }
+}
+
+async function previewAvatar(event) {
     const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const avatarImg = document.getElementById('avatarImage');
-            if (avatarImg) avatarImg.src = e.target.result;
-            usuarioAtual.avatar = e.target.result;
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        mostrarToast('Por favor, selecione uma imagem válida!', 'error');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        mostrarToast('A imagem deve ter no máximo 5MB!', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const avatarImg = document.getElementById('avatarImage');
+        if (avatarImg) avatarImg.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    
+    mostrarToast('Enviando foto...', 'info');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
+        
+        if (photoUrl) {
+            mostrarToast('Foto atualizada com sucesso e sincronizada!', 'success');
+            atualizarFotoEmTodasTelas(photoUrl);
+        } else {
+            mostrarToast('Erro ao enviar foto!', 'error');
+            await carregarFotoAtual();
+        }
+    } else {
+        if (avatarImg && avatarImg.src) {
+            usuarioAtual.avatar = avatarImg.src;
             localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-            if (window.CacheManager) {
-                window.CacheManager.set('usuarioLogado', usuarioAtual, true);
-            }
-            mostrarToast('Foto atualizada!', 'success');
-        };
-        reader.readAsDataURL(file);
+            mostrarToast('Foto salva localmente (sem nuvem)', 'success');
+        }
     }
 }
 
@@ -341,6 +449,7 @@ function deletarConta() {
             localStorage.removeItem('usuarioLogado');
             
             if (window.CacheManager) {
+                window.CacheManager.deleteProfilePhoto();
                 window.CacheManager.clearAllCache();
                 if (window.FirebaseSync && usuarioAtual.uid) {
                     window.FirebaseSync.deleteUserData(usuarioAtual.uid);
@@ -379,6 +488,7 @@ function mostrarToast(mensagem, tipo = 'success') {
 
 function logout() {
     if (confirm('Deseja sair da sua conta?')) {
+        pararEscutaFoto();
         localStorage.removeItem('usuarioLogado');
         if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
