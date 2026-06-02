@@ -428,13 +428,13 @@ window.toggleFaq = function(element) {
 
 function switchView(viewName) {
     if (viewName === 'home') {
-        window.location.href = './index.html';
+        window.location.href = '../index.html';
     } else if (viewName === 'calendar') {
-        window.location.href = './calendario/index.html';
+        window.location.href = '../calendario/index.html';
     } else if (viewName === 'tasks') {
-        window.location.href = './tarefas/index.html';
+        window.location.href = '../tarefas/index.html';
     } else if (viewName === 'notes') {
-        window.location.href = './notas/index.html';
+        window.location.href = '../notas/index.html';
     } else if (viewName === 'profile') {
         loadProfileData();
         carregarFotoPerfil();
