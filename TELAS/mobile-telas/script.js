@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO CORRIGIDA PARA SALVAR NA NUVEM
+// mobile-telas/script.js - VERSÃO COMPLETA COM FOTO DE PERFIL
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -33,7 +33,6 @@ async function inicializar() {
         
         const userId = usuarioLogado.uid || usuarioLogado.email;
         if (window.CacheManager) {
-            // CRÍTICO: Definir usuário para sincronização
             window.CacheManager.setCurrentUser(userId);
             console.log('[Mobile] ✅ CacheManager configurado para:', userId);
         }
@@ -55,10 +54,44 @@ async function inicializar() {
             await recarregarDadosERenderizar();
         });
         
+        window.addEventListener('profilePhotoUpdated', async (event) => {
+            if (event.detail && event.detail.photoUrl) {
+                console.log('[Mobile] Foto de perfil atualizada em tempo real!');
+                await atualizarAvatarMobile(event.detail.photoUrl);
+            }
+        });
+        
     } catch(e) {
         console.error('[Mobile] Erro:', e);
         carregarDadosLocalStorage();
         renderizarTudo();
+    }
+}
+
+// ===== FUNÇÃO PARA ATUALIZAR AVATAR MOBILE =====
+async function atualizarAvatarMobile(photoUrl = null) {
+    const profileIcon = document.getElementById('notification-bell');
+    if (!profileIcon) return;
+    
+    // Se recebeu uma URL específica, usa ela
+    if (photoUrl) {
+        profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        return;
+    }
+    
+    // Caso contrário, busca do CacheManager
+    if (window.CacheManager && usuarioLogado) {
+        const cachedPhotoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (cachedPhotoUrl) {
+            profileIcon.innerHTML = `<img src="${cachedPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        } else if (usuarioLogado.nome) {
+            const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
+            profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
+        }
+    } else if (usuarioLogado && usuarioLogado.nome) {
+        const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
+        profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
     }
 }
 
@@ -146,7 +179,7 @@ function carregarDadosLocalStorage() {
     console.log('[Mobile] 📦 Dados do localStorage carregados');
 }
 
-// ===== SALVAR DADOS NA NUVEM (FORÇADO) =====
+// ===== SALVAR DADOS NA NUVEM =====
 async function salvarTodosDados() {
     if (!usuarioLogado) return;
     
@@ -154,7 +187,6 @@ async function salvarTodosDados() {
     
     console.log('[Mobile] 💾 Salvando dados para:', userId);
     
-    // Salvar no localStorage primeiro
     localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
     localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
     localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
@@ -162,7 +194,6 @@ async function salvarTodosDados() {
     localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
     localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
     
-    // Salvar no CacheManager (que envia para nuvem)
     if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
         window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
         window.CacheManager.set('timeSlots', timeSlots || [], true);
@@ -171,7 +202,6 @@ async function salvarTodosDados() {
         window.CacheManager.set('calendarEvents', calendarEvents || [], true);
         window.CacheManager.set('notifications', notifications || [], true);
         
-        // FORÇAR SINCRONIZAÇÃO IMEDIATA
         setTimeout(() => {
             if (window.CacheManager && window.CacheManager.syncToCloud) {
                 window.CacheManager.syncToCloud('weeklySchedule', weeklySchedule);
@@ -189,7 +219,7 @@ async function salvarTodosDados() {
     }
 }
 
-// ===== SALVAR MATÉRIA (CORRIGIDO) =====
+// ===== SALVAR MATÉRIA =====
 async function salvarMateria() {
     const name = document.getElementById('subject-name-input')?.value.trim();
     const startTime = document.getElementById('subject-start-input')?.value;
@@ -227,7 +257,6 @@ async function salvarMateria() {
     
     weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
     
-    // SALVAR IMEDIATAMENTE
     await salvarTodosDados();
     
     document.getElementById('subject-modal').classList.remove('active');
@@ -278,7 +307,6 @@ function renderizarHorario() {
     
     grid.innerHTML = html;
     
-    // Event listeners
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -315,7 +343,7 @@ function renderizarHorario() {
     });
 }
 
-// ===== RENDERIZAR PRÓXIMAS TAREFAS (COM sincronização) =====
+// ===== RENDERIZAR PRÓXIMAS TAREFAS =====
 function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
@@ -616,6 +644,7 @@ async function renderizarTudo() {
     renderizarNotificacoes();
     atualizarCards();
     atualizarBadgeNotificacoes();
+    await atualizarAvatarMobile(); // ← ADICIONADO: Atualiza o avatar no header
 }
 
 // ===== INICIAR =====
@@ -673,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Salvar matéria (CORRIGIDO)
+    // Salvar matéria
     const btnSaveSubject = document.getElementById('btn-save-subject');
     if (btnSaveSubject) {
         btnSaveSubject.addEventListener('click', salvarMateria);
@@ -762,4 +791,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('%c📱 Mobile - Versão Corrigida com Sincronização', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile - Versão Completa com Foto de Perfil', 'color: #10b981; font-size: 16px; font-weight: bold;');
