@@ -582,8 +582,10 @@ function logout() {
     }
 }
 
-// Registrar função global para sincronização de disciplinas
-window.renderizarDisciplinas = renderizarDisciplinas;
+// Registrar função global para sincronização de disciplinas (apenas uma vez)
+if (typeof window.renderizarDisciplinas === 'undefined') {
+    window.renderizarDisciplinas = renderizarDisciplinas;
+}
 
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
