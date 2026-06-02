@@ -408,12 +408,11 @@
     </div>
 
     <div id="toast-container"></div>
-    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
-     <!-- No index.html do login ou no cabeçalho principal -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+   <!-- FIREBASE CDNs (OBRIGATÓRIO) - Colocar NESTA ORDEM -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script> <!-- ✅ ADICIONAR ESTA LINHA -->
     
     <!-- SCRIPTS NA ORDEM CORRETA -->
     <script src="../../cache-manager.js"></script>
