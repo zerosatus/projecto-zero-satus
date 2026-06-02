@@ -5,6 +5,7 @@ let usuarioAtual = null;
 let prioridadeSelecionada = 'media';
 let subtasks = [];
 let tarefaEditando = null;
+let weeklySchedule = {};
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -31,19 +32,39 @@ window.addEventListener('DOMContentLoaded', async () => {
             await window.initSync();
         }
         
+        carregarHorario();
         inicializarTarefas();
         
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Tarefas] Dados atualizados do Firebase');
+            carregarHorario();
             carregarTarefas();
             renderizarTarefas();
             atualizarEstatisticas();
+            renderizarDisciplinas();
         });
         
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
 });
+
+function carregarHorario() {
+    if (!usuarioAtual) return;
+    
+    if (window.CacheManager) {
+        const cached = window.CacheManager.get('weeklySchedule', null);
+        if (cached !== null) {
+            weeklySchedule = cached;
+            console.log('[Tarefas] Horário carregado do CacheManager');
+            return;
+        }
+    }
+    
+    const storageKey = `weeklySchedule_${usuarioAtual.email}`;
+    const scheduleSalvo = localStorage.getItem(storageKey);
+    weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
+}
 
 function inicializarTarefas() {
     carregarTarefas();
@@ -142,6 +163,7 @@ function renderizarDisciplinas() {
     if (!subjectsList) return;
     
     const disciplinasMap = new Map();
+    
     tarefas.forEach(t => {
         const disc = t.disciplina || t.subject;
         if (disc) {
@@ -153,6 +175,21 @@ function renderizarDisciplinas() {
             }
         }
     });
+    
+    if (weeklySchedule) {
+        Object.values(weeklySchedule).forEach(day => {
+            if (Array.isArray(day)) {
+                day.forEach(c => {
+                    if (c && c.materia) {
+                        const disc = c.materia.toLowerCase();
+                        if (!disciplinasMap.has(disc)) {
+                            disciplinasMap.set(disc, 0);
+                        }
+                    }
+                });
+            }
+        });
+    }
     
     if (disciplinasMap.size === 0) {
         subjectsList.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Nenhuma disciplina</p>';
@@ -544,6 +581,9 @@ function logout() {
         window.location.href = '../login/index.html';
     }
 }
+
+// Registrar função global para sincronização de disciplinas
+window.renderizarDisciplinas = renderizarDisciplinas;
 
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
