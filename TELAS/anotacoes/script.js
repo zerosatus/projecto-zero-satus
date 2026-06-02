@@ -267,17 +267,21 @@ window.carregarAnotacoes = function() {
 };
 
 // Garantir que as anotações sejam recarregadas quando dados da nuvem chegarem
-window.addEventListener('cloudDataLoaded', () => {
-    console.log('[Anotacoes] Cloud data loaded, recarregando...');
-    carregarAnotacoes();
-    renderizarListaAnotacoes();
-    if (anotacaoAtualId) {
-        const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
-        if (anotacaoAtualizada) {
-            document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
-            document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
+// Usar uma única referência para evitar múltiplos listeners
+if (!window._anotacoesListenerAdicionado) {
+    window._anotacoesListenerAdicionado = true;
+    window.addEventListener('cloudDataLoaded', () => {
+        console.log('[Anotacoes] Cloud data loaded, recarregando...');
+        carregarAnotacoes();
+        renderizarListaAnotacoes();
+        if (anotacaoAtualId) {
+            const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
+            if (anotacaoAtualizada) {
+                document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
+                document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
+            }
         }
-    }
-});
+    });
+}
 
 console.log('%c📝 Anotações', 'color: #9333ea; font-size: 20px; font-weight: bold;');
