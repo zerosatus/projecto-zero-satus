@@ -1,4 +1,4 @@
-// Configuração do Firebase para sincronização em nuvem (Realtime Database)
+// Configuração do Firebase para sincronização em nuvem (Realtime Database + Storage)
 (function() {
     const firebaseConfig = {
         apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -12,6 +12,7 @@
     
     let database = null;
     let auth = null;
+    let storage = null;
     let firebaseInitialized = false;
     
     function initFirebase() {
@@ -22,10 +23,10 @@
                 firebase.initializeApp(firebaseConfig);
                 database = firebase.database();
                 auth = firebase.auth();
+                storage = firebase.storage();
                 firebaseInitialized = true;
                 console.log('[Firebase] ✅ Firebase inicializado com sucesso!');
                 
-                // Disparar evento para outras partes do sistema
                 window.dispatchEvent(new CustomEvent('firebaseLoaded'));
                 return true;
             } catch (error) {
@@ -35,20 +36,104 @@
         } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
             database = firebase.database();
             auth = firebase.auth();
+            storage = firebase.storage();
             firebaseInitialized = true;
             return true;
         }
         return false;
     }
     
-    // Tentar inicializar imediatamente
     initFirebase();
     
-    // Se falhar, tentar novamente em 1 segundo
     if (!firebaseInitialized) {
         setTimeout(initFirebase, 1000);
     }
     
+    // ========== FUNÇÕES DE STORAGE PARA FOTOS DE PERFIL ==========
+    window.FirebaseStorage = {
+        async uploadProfilePhoto(userId, file) {
+            if (!userId || !file) {
+                console.error('[Storage] userId ou arquivo não fornecido');
+                return null;
+            }
+            
+            if (!storage && !initFirebase()) {
+                console.error('[Storage] Storage não disponível');
+                return null;
+            }
+            
+            try {
+                const fileExtension = file.name.split('.').pop();
+                const fileName = `profile_${userId}_${Date.now()}.${fileExtension}`;
+                const storageRef = storage.ref(`profile_photos/${fileName}`);
+                
+                console.log('[Storage] 📤 Enviando foto para:', fileName);
+                const snapshot = await storageRef.put(file);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                console.log('[Storage] ✅ Foto enviada com sucesso!');
+                
+                const userRef = database.ref(`users/${userId}/profilePhotoUrl`);
+                await userRef.set(downloadURL);
+                await database.ref(`users/${userId}/profilePhotoUpdated`).set(Date.now());
+                
+                return downloadURL;
+            } catch (error) {
+                console.error('[Storage] ❌ Erro no upload:', error);
+                return null;
+            }
+        },
+        
+        async getProfilePhotoUrl(userId) {
+            if (!userId) return null;
+            if (!database && !initFirebase()) return null;
+            
+            try {
+                const snapshot = await database.ref(`users/${userId}/profilePhotoUrl`).once('value');
+                return snapshot.val();
+            } catch (error) {
+                console.error('[Storage] ❌ Erro ao buscar foto:', error);
+                return null;
+            }
+        },
+        
+        async deleteProfilePhoto(userId, photoUrl) {
+            if (!userId || !photoUrl) return false;
+            if (!storage && !initFirebase()) return false;
+            
+            try {
+                const decodedUrl = decodeURIComponent(photoUrl);
+                const pathMatch = decodedUrl.match(/\/profile_photos\/([^?]+)/);
+                
+                if (pathMatch && pathMatch[1]) {
+                    const fileRef = storage.ref(`profile_photos/${pathMatch[1]}`);
+                    await fileRef.delete();
+                    console.log('[Storage] ✅ Foto deletada do Storage');
+                }
+                
+                await database.ref(`users/${userId}/profilePhotoUrl`).remove();
+                await database.ref(`users/${userId}/profilePhotoUpdated`).remove();
+                
+                return true;
+            } catch (error) {
+                console.error('[Storage] ❌ Erro ao deletar foto:', error);
+                return false;
+            }
+        },
+        
+        listenProfilePhoto(userId, callback) {
+            if (!userId || !database) return null;
+            
+            const photoRef = database.ref(`users/${userId}/profilePhotoUrl`);
+            const listener = photoRef.on('value', (snapshot) => {
+                const photoUrl = snapshot.val();
+                if (callback) callback(photoUrl);
+            });
+            
+            return () => photoRef.off('value', listener);
+        }
+    };
+    
+    // ========== FUNÇÕES DE SINCRONIZAÇÃO ==========
     window.FirebaseSync = {
         async saveUserDataToCloud(userId, dataType, data) {
             if (!userId) {
@@ -56,7 +141,6 @@
                 return false;
             }
             
-            // Garantir que Firebase está inicializado
             if (!database && !initFirebase()) {
                 console.error('[Cloud] ❌ Database não disponível');
                 return false;
@@ -69,7 +153,7 @@
                 console.log(`[Cloud] ✅ ${dataType} salvo na nuvem para ${userId}`);
                 return true;
             } catch (error) {
-                console.error('[Cloud] ❌ Erro ao salvar ${dataType}:', error);
+                console.error(`[Cloud] ❌ Erro ao salvar ${dataType}:`, error);
                 return false;
             }
         },
@@ -82,7 +166,7 @@
                 const snapshot = await database.ref(`users/${userId}/${dataType}`).once('value');
                 return snapshot.val();
             } catch (error) {
-                console.error('[Cloud] ❌ Erro ao carregar ${dataType}:', error);
+                console.error(`[Cloud] ❌ Erro ao carregar ${dataType}:`, error);
                 return null;
             }
         },
@@ -161,8 +245,8 @@
         }
     };
     
-    // Expoe a instância do auth para outras partes
     window.firebaseAuth = auth;
+    window.firebaseStorage = storage;
     
-    console.log('[Firebase] Configuração do Realtime Database carregada!');
+    console.log('[Firebase] Configuração do Realtime Database e Storage carregada!');
 })();
