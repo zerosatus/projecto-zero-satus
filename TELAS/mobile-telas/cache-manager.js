@@ -1,9 +1,8 @@
-// cache-manager.js - Sistema centralizado de gerenciamento de cache com suporte a nuvem e sincronização bidirecional
-
+// Sistema centralizado de gerenciamento de cache com suporte a nuvem e sincronização bidirecional
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v9';
+        this.cacheVersion = 'v10';
         this.isInitialized = false;
         this.currentUserId = null;
         this.isSyncing = false;
@@ -13,6 +12,7 @@ class CacheManager {
         this._syncTimeout = null;
         this._retryQueue = [];
         this._isOnline = navigator.onLine;
+        this._photoUnsubscribe = null;
     }
 
     // ========== INICIALIZAÇÃO ==========
@@ -21,7 +21,6 @@ class CacheManager {
         if (this.isInitialized) return;
         this.checkAndClearOldCache();
         
-        // Escutar mudanças no localStorage (outras abas)
         window.addEventListener('storage', (e) => {
             if (e.key && this.listeners.has(e.key)) {
                 const callbacks = this.listeners.get(e.key);
@@ -35,13 +34,11 @@ class CacheManager {
             }
         });
         
-        // Escutar dados carregados da nuvem
         window.addEventListener('cloudDataLoaded', (event) => {
             console.log('[CacheManager] Dados carregados da nuvem, atualizando UI');
             this.notifyAllListeners(event.detail);
         });
         
-        // Monitorar conectividade
         window.addEventListener('online', () => {
             console.log('[CacheManager] 🌐 Conexão restaurada, processando fila de sincronização');
             this._isOnline = true;
@@ -54,7 +51,7 @@ class CacheManager {
         });
         
         this.isInitialized = true;
-        console.log('[CacheManager] Inicializado v9');
+        console.log('[CacheManager] Inicializado v10');
     }
 
     // ========== MÉTODOS DE USUÁRIO ==========
@@ -77,9 +74,9 @@ class CacheManager {
         this.currentUserId = userId;
         console.log('[CacheManager] ✅ Usuário definido manualmente:', userId);
         
-        // Tentar iniciar escuta em tempo real imediatamente
         setTimeout(() => {
             this.startRealtimeSync();
+            this.startPhotoRealtimeSync();
         }, 500);
     }
     
@@ -146,7 +143,6 @@ class CacheManager {
             
             this.notifyOtherTabs(key, value);
             
-            // Sincronizar com nuvem se estiver online e usuário logado
             if (this._isOnline && !this.isSyncing && window.FirebaseSync && 
                 typeof window.FirebaseSync.saveUserDataToCloud === 'function' &&
                 this.isUserLoggedIn()) {
@@ -155,10 +151,8 @@ class CacheManager {
                     this.syncToCloudWithRetry(key, value);
                 }, 500);
             } else if (!this._isOnline) {
-                console.log(`[CacheManager] 📴 Offline: dado "${key}" salvo localmente, será sincronizado quando online`);
+                console.log(`[CacheManager] 📴 Offline: dado "${key}" salvo localmente`);
                 this.addToRetryQueue(key, value);
-            } else if (!this.isUserLoggedIn()) {
-                console.log(`[CacheManager] ⚠️ Dado "${key}" não enviado para nuvem (usuário não definido)`);
             }
             
             return true;
@@ -178,19 +172,14 @@ class CacheManager {
     
     addToRetryQueue(key, value) {
         this._retryQueue.push({ key, value, timestamp: Date.now() });
-        // Salvar fila no localStorage para persistir entre sessões
         localStorage.setItem('_sync_retry_queue', JSON.stringify(this._retryQueue));
         console.log(`[CacheManager] 📋 Adicionado à fila: ${key}, total: ${this._retryQueue.length}`);
     }
     
     async processRetryQueue() {
-        if (!this._isOnline) {
-            console.log('[CacheManager] 📴 Offline, aguardando conexão para processar fila');
-            return;
-        }
+        if (!this._isOnline) return;
         
         if (this._retryQueue.length === 0) {
-            // Tentar carregar fila do localStorage
             const savedQueue = localStorage.getItem('_sync_retry_queue');
             if (savedQueue) {
                 try {
@@ -208,13 +197,9 @@ class CacheManager {
         localStorage.removeItem('_sync_retry_queue');
         
         for (const item of queue) {
-            console.log(`[CacheManager] ⏳ Tentando sincronizar ${item.key} da fila...`);
             const success = await this.syncToCloud(item.key, item.value);
             if (!success) {
-                // Se falhar, adicionar de volta à fila
                 this.addToRetryQueue(item.key, item.value);
-            } else {
-                console.log(`[CacheManager] ✅ ${item.key} sincronizado da fila com sucesso`);
             }
         }
     }
@@ -224,16 +209,11 @@ class CacheManager {
     async syncToCloudWithRetry(key, value, maxRetries = 3) {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             const success = await this.syncToCloud(key, value);
-            if (success) {
-                console.log(`[CacheManager] ✅ Dado "${key}" sincronizado com sucesso (tentativa ${attempt})`);
-                return true;
-            }
-            console.log(`[CacheManager] ⚠️ Tentativa ${attempt} falhou para "${key}", ${attempt < maxRetries ? 'tentando novamente...' : 'adicionando à fila'}`);
+            if (success) return true;
             if (attempt < maxRetries) {
-                await new Promise(r => setTimeout(r, 1000 * attempt)); // Backoff exponencial
+                await new Promise(r => setTimeout(r, 1000 * attempt));
             }
         }
-        // Se todas as tentativas falharem, adicionar à fila
         this.addToRetryQueue(key, value);
         return false;
     }
@@ -243,25 +223,14 @@ class CacheManager {
             const userId = this.getCurrentUserId();
             
             if (!userId || userId === 'default') {
-                console.warn(`[CacheManager] ⚠️ Usuário não definido, não sincronizando ${key}`);
                 return false;
             }
             
             if (!window.FirebaseSync || typeof window.FirebaseSync.saveUserDataToCloud !== 'function') {
-                console.warn('[CacheManager] ⚠️ FirebaseSync não disponível');
                 return false;
             }
             
-            console.log(`[CacheManager] ☁️ Enviando "${key}" para nuvem (usuário: ${userId})`);
             const result = await window.FirebaseSync.saveUserDataToCloud(userId, key, value);
-            
-            if (result) {
-                console.log(`[CacheManager] ✅ Dado "${key}" enviado para nuvem com sucesso`);
-                // Disparar evento para outras abas
-                window.dispatchEvent(new CustomEvent('cloudDataSaved', { detail: { key, value } }));
-            } else {
-                console.log(`[CacheManager] ⚠️ Falha ao enviar "${key}" para nuvem`);
-            }
             return result;
         } catch (error) {
             console.error('[CacheManager] Erro ao sincronizar com nuvem:', error);
@@ -277,7 +246,7 @@ class CacheManager {
         }
         
         if (!window.FirebaseSync || typeof window.FirebaseSync.loadAllUserDataFromCloud !== 'function') {
-            console.log('[CacheManager] FirebaseSync não disponível, usando apenas localStorage');
+            console.log('[CacheManager] FirebaseSync não disponível');
             return false;
         }
         
@@ -291,19 +260,12 @@ class CacheManager {
         try {
             console.log('[CacheManager] 🔍 Carregando dados da nuvem para:', userId);
             const cloudData = await window.FirebaseSync.loadAllUserDataFromCloud(userId);
-            console.log('[CacheManager] 📦 Dados da nuvem recebidos:', cloudData ? Object.keys(cloudData) : 'nenhum');
             
             if (cloudData) {
                 const keys = [
-                    'usuarioLogado', 
-                    'notifications', 
-                    'weeklySchedule', 
-                    'timeSlots', 
-                    'calendarEvents', 
-                    'tasks', 
-                    'notes', 
-                    'notificacoesSettings', 
-                    'appearanceSettings'
+                    'usuarioLogado', 'notifications', 'weeklySchedule', 'timeSlots', 
+                    'calendarEvents', 'tasks', 'notes', 'notificacoesSettings', 
+                    'appearanceSettings', 'profilePhotoUrl'
                 ];
                 let hasChanges = false;
                 
@@ -323,19 +285,15 @@ class CacheManager {
                                 const callbacks = this.listeners.get(key);
                                 callbacks.forEach(cb => cb(cloudData[key]));
                             }
-                        } else {
-                            console.log(`[CacheManager] ℹ️ Dado "${key}" já está atualizado`);
                         }
                     }
                 }
                 
                 if (hasChanges) {
-                    console.log('[CacheManager] 🎉 Dados carregados da nuvem com sucesso!');
                     window.dispatchEvent(new CustomEvent('cloudDataLoaded', { detail: cloudData }));
                 }
                 return true;
             } else {
-                console.log('[CacheManager] ⚠️ Nenhum dado encontrado na nuvem para este usuário');
                 return false;
             }
         } catch (error) {
@@ -351,26 +309,35 @@ class CacheManager {
     
     async startRealtimeSync() {
         const userId = this.getCurrentUserId();
-        if (!userId || userId === 'default') {
-            console.log('[CacheManager] Usuário não definido, não iniciando escuta');
-            return;
-        }
+        if (!userId || userId === 'default') return;
         
-        if (this.cloudListener) {
-            console.log('[CacheManager] Escuta em tempo real já ativa');
-            return;
-        }
+        if (this.cloudListener) return;
         
         if (window.FirebaseSync && typeof window.FirebaseSync.listenToUserData === 'function') {
             console.log('[CacheManager] 🔌 Iniciando escuta em tempo real do Firebase para:', userId);
             this.cloudListener = window.FirebaseSync.listenToUserData(userId, (cloudData) => {
-                console.log('[CacheManager] 🔔 Mudança detectada no Firebase!');
-                if (cloudData) {
-                    this.mergeCloudData(cloudData);
+                if (cloudData) this.mergeCloudData(cloudData);
+            });
+        }
+    }
+    
+    startPhotoRealtimeSync() {
+        const userId = this.getCurrentUserId();
+        if (!userId || userId === 'default') return;
+        
+        if (this._photoUnsubscribe) return;
+        
+        if (window.FirebaseStorage && typeof window.FirebaseStorage.listenProfilePhoto === 'function') {
+            console.log('[CacheManager] 📸 Iniciando escuta de foto em tempo real para:', userId);
+            this._photoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+                if (photoUrl) {
+                    console.log('[CacheManager] 📸 Foto atualizada em tempo real!');
+                    const usuario = this.get('usuarioLogado', {});
+                    usuario.profilePhotoUrl = photoUrl;
+                    this.set('usuarioLogado', usuario, true);
+                    window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
                 }
             });
-        } else {
-            console.log('[CacheManager] ⚠️ FirebaseSync.listenToUserData não disponível');
         }
     }
     
@@ -378,21 +345,16 @@ class CacheManager {
         if (this.cloudListener) {
             this.cloudListener();
             this.cloudListener = null;
-            console.log('[CacheManager] 🔌 Escuta em tempo real interrompida');
         }
+        if (this._photoUnsubscribe) {
+            this._photoUnsubscribe();
+            this._photoUnsubscribe = null;
+        }
+        console.log('[CacheManager] 🔌 Escuta em tempo real interrompida');
     }
     
     mergeCloudData(cloudData) {
-        const keys = [
-            'tasks', 
-            'notes', 
-            'calendarEvents', 
-            'weeklySchedule', 
-            'timeSlots', 
-            'notifications', 
-            'notificacoesSettings', 
-            'appearanceSettings'
-        ];
+        const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'notificacoesSettings', 'appearanceSettings'];
         let hasChanges = false;
         
         for (const key of keys) {
@@ -405,7 +367,6 @@ class CacheManager {
                     const storageKey = this.getStorageKey(key);
                     localStorage.setItem(storageKey, JSON.stringify(cloudData[key]));
                     hasChanges = true;
-                    console.log(`[CacheManager] 🔄 Dado "${key}" atualizado pelo Firebase`);
                     
                     if (this.listeners.has(key)) {
                         const callbacks = this.listeners.get(key);
@@ -416,7 +377,6 @@ class CacheManager {
         }
         
         if (hasChanges) {
-            console.log('[CacheManager] 📢 Disparando evento cloudDataLoaded');
             window.dispatchEvent(new CustomEvent('cloudDataLoaded', { detail: cloudData }));
         }
     }
@@ -447,13 +407,83 @@ class CacheManager {
         };
     }
     
+    // ========== MÉTODOS PARA FOTO DE PERFIL ==========
+    
+    async uploadProfilePhoto(file) {
+        const userId = this.getCurrentUserId();
+        if (!userId || userId === 'default') {
+            console.error('[CacheManager] Usuário não logado para upload');
+            return null;
+        }
+        
+        if (!window.FirebaseStorage || typeof window.FirebaseStorage.uploadProfilePhoto !== 'function') {
+            console.error('[CacheManager] FirebaseStorage não disponível');
+            return null;
+        }
+        
+        try {
+            const photoUrl = await window.FirebaseStorage.uploadProfilePhoto(userId, file);
+            
+            if (photoUrl) {
+                const usuario = this.get('usuarioLogado', {});
+                usuario.profilePhotoUrl = photoUrl;
+                usuario.avatar = photoUrl;
+                this.set('usuarioLogado', usuario, true);
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+                
+                window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
+            }
+            
+            return photoUrl;
+        } catch (error) {
+            console.error('[CacheManager] Erro no upload da foto:', error);
+            return null;
+        }
+    }
+    
+    async getProfilePhotoUrl() {
+        const userId = this.getCurrentUserId();
+        if (!userId || userId === 'default') return null;
+        
+        const usuario = this.get('usuarioLogado', {});
+        if (usuario.profilePhotoUrl) return usuario.profilePhotoUrl;
+        
+        if (window.FirebaseStorage) {
+            return await window.FirebaseStorage.getProfilePhotoUrl(userId);
+        }
+        
+        return null;
+    }
+    
+    async deleteProfilePhoto() {
+        const userId = this.getCurrentUserId();
+        if (!userId || userId === 'default') return false;
+        
+        const usuario = this.get('usuarioLogado', {});
+        const currentPhotoUrl = usuario.profilePhotoUrl;
+        
+        if (window.FirebaseStorage && currentPhotoUrl) {
+            const deleted = await window.FirebaseStorage.deleteProfilePhoto(userId, currentPhotoUrl);
+            if (deleted) {
+                delete usuario.profilePhotoUrl;
+                delete usuario.avatar;
+                this.set('usuarioLogado', usuario, true);
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+                
+                window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl: null } }));
+            }
+            return deleted;
+        }
+        
+        return false;
+    }
+    
     // ========== MÉTODOS DE FORÇA ==========
     
     async forceSync() {
         console.log('[CacheManager] 🔄 Forçando sincronização manual...');
         const result = await this.loadFromCloud(true);
         
-        // Também enviar dados locais para nuvem
         if (result && this.isUserLoggedIn() && this._isOnline) {
             const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications'];
             for (const key of keys) {
@@ -464,9 +494,7 @@ class CacheManager {
             }
         }
         
-        // Processar fila de retry
         await this.processRetryQueue();
-        
         return result;
     }
     
@@ -479,8 +507,6 @@ class CacheManager {
             if (loaded) {
                 console.log('[CacheManager] ✅ Dados da nuvem carregados com sucesso!');
             } else {
-                console.log('[CacheManager] ℹ️ Nenhum dado na nuvem, mantendo dados locais');
-                // Enviar dados locais para nuvem
                 const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications'];
                 for (const key of keys) {
                     const data = this.get(key, null);
@@ -490,6 +516,7 @@ class CacheManager {
                 }
             }
             this.startRealtimeSync();
+            this.startPhotoRealtimeSync();
             return loaded;
         }
         return false;
@@ -658,14 +685,18 @@ window.setNotificacoesSettings = (settings, notify) => window.CacheManager.set('
 window.getAppearanceSettings = () => window.CacheManager.get('appearanceSettings', { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
 window.setAppearanceSettings = (settings, notify) => window.CacheManager.set('appearanceSettings', settings, notify);
 
-console.log('[CacheManager] v9 carregado com suporte completo para:');
+// ========== MÉTODOS ESPECÍFICOS PARA FOTO DE PERFIL ==========
+window.uploadProfilePhoto = (file) => window.CacheManager.uploadProfilePhoto(file);
+window.getProfilePhotoUrl = () => window.CacheManager.getProfilePhotoUrl();
+window.deleteProfilePhoto = () => window.CacheManager.deleteProfilePhoto();
+
+console.log('[CacheManager] v10 carregado com suporte completo para:');
 console.log('  ✅ Anotações (notes)');
 console.log('  ✅ Tarefas (tasks)');
 console.log('  ✅ Calendário (calendarEvents)');
 console.log('  ✅ Horário semanal (weeklySchedule)');
 console.log('  ✅ Notificações (notifications)');
 console.log('  ✅ Configurações (appearanceSettings, notificacoesSettings)');
+console.log('  ✅ Foto de perfil (profilePhotoUrl)');
 console.log('  ✅ Sincronização em tempo real com Firebase');
 console.log('  ✅ Fallback offline com localStorage');
-console.log('  ✅ Fila de retry para sincronização offline');
-console.log('  ✅ Monitoramento de conectividade');
