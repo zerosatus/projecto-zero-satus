@@ -198,7 +198,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL ==========
+// ========== FUNÇÕES DE FOTO DE PERFIL COM BASE64 ==========
 
 async function carregarFotoAtual() {
     if (!usuarioAtual) return;
@@ -210,7 +210,7 @@ async function carregarFotoAtual() {
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.getProfilePhotoUrl();
         
-        if (photoUrl) {
+        if (photoUrl && photoUrl.startsWith('data:')) {
             if (avatarImg) avatarImg.src = photoUrl;
             if (profileAvatar) profileAvatar.src = photoUrl;
             if (userAvatar) userAvatar.src = photoUrl;
@@ -226,7 +226,7 @@ async function carregarFotoAtual() {
             if (profileAvatar) profileAvatar.src = defaultAvatar;
         }
     } else {
-        if (usuarioAtual.avatar) {
+        if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
             if (avatarImg) avatarImg.src = usuarioAtual.avatar;
             if (profileAvatar) profileAvatar.src = usuarioAtual.avatar;
         }
@@ -244,9 +244,9 @@ function atualizarFotoEmTodasTelas(photoUrl) {
     const profileAvatar = document.querySelector('.profile-avatar img');
     const userAvatar = document.querySelector('.user-avatar img');
     
-    if (avatarImg && photoUrl) avatarImg.src = photoUrl;
-    if (profileAvatar && photoUrl) profileAvatar.src = photoUrl;
-    if (userAvatar && photoUrl) userAvatar.src = photoUrl;
+    if (avatarImg && photoUrl && photoUrl.startsWith('data:')) avatarImg.src = photoUrl;
+    if (profileAvatar && photoUrl && photoUrl.startsWith('data:')) profileAvatar.src = photoUrl;
+    if (userAvatar && photoUrl && photoUrl.startsWith('data:')) userAvatar.src = photoUrl;
     
     if (!photoUrl) {
         const iniciais = usuarioAtual?.nome ? 
@@ -265,7 +265,7 @@ function iniciarEscutaFoto() {
         
         if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
             currentPhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
-                if (photoUrl) {
+                if (photoUrl && photoUrl.startsWith('data:')) {
                     console.log('[Perfil] Foto atualizada em tempo real!');
                     atualizarFotoEmTodasTelas(photoUrl);
                 }
@@ -290,8 +290,8 @@ async function previewAvatar(event) {
         return;
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-        mostrarToast('A imagem deve ter no máximo 5MB!', 'error');
+    if (file.size > 2 * 1024 * 1024) {
+        mostrarToast('A imagem deve ter no máximo 2MB!', 'error');
         return;
     }
     
@@ -307,7 +307,7 @@ async function previewAvatar(event) {
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
         
-        if (photoUrl) {
+        if (photoUrl && photoUrl.startsWith('data:')) {
             mostrarToast('Foto atualizada com sucesso e sincronizada!', 'success');
             atualizarFotoEmTodasTelas(photoUrl);
         } else {
