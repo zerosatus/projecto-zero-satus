@@ -4,6 +4,7 @@ let anotacoes = [];
 let eventos = [];
 let weeklySchedule = {};
 let timeSlots = [];
+let profilePhotoUnsubscribe = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -29,6 +30,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             await criarDadosVazios();
         }
         
+        await carregarFotoPerfilDesktop();
+        iniciarEscutaFotoDesktop();
+        
         atualizarMiniPerfil();
         atualizarEstatisticasMini();
         
@@ -37,7 +41,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         new StudyChart();
         new StudyTimer();
         
-        // Registrar função global para ser chamada pelo sync-helper (APENAS UMA VEZ)
         if (typeof window.renderizarDisciplinas === 'undefined') {
             window.renderizarDisciplinas = function() {
                 atualizarListaDisciplinas();
@@ -51,12 +54,87 @@ window.addEventListener('DOMContentLoaded', async () => {
             atualizarHorarioDesktop();
             atualizarListaDisciplinas();
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
+            carregarFotoPerfilDesktop();
+        });
+        
+        window.addEventListener('profilePhotoUpdated', (event) => {
+            if (event.detail && event.detail.photoUrl) {
+                console.log('[Inicio] Foto atualizada em tempo real!');
+                atualizarAvatarDesktop(event.detail.photoUrl);
+            }
         });
         
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
 });
+
+// ========== FUNÇÕES DE FOTO DE PERFIL PARA DESKTOP ==========
+
+async function carregarFotoPerfilDesktop() {
+    if (!usuarioAtual) return;
+    
+    const miniAvatar = document.getElementById('miniAvatar');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            if (miniAvatar) miniAvatar.src = photoUrl;
+            usuarioAtual.profilePhotoUrl = photoUrl;
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+        } else {
+            const iniciais = usuarioAtual.nome ? 
+                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
+            if (miniAvatar) miniAvatar.src = defaultAvatar;
+        }
+    } else {
+        if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
+            if (miniAvatar) miniAvatar.src = usuarioAtual.avatar;
+        } else {
+            const iniciais = usuarioAtual.nome ? 
+                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
+            if (miniAvatar) miniAvatar.src = defaultAvatar;
+        }
+    }
+}
+
+function atualizarAvatarDesktop(photoUrl) {
+    const miniAvatar = document.getElementById('miniAvatar');
+    
+    if (miniAvatar && photoUrl && photoUrl.startsWith('data:')) {
+        miniAvatar.src = photoUrl;
+    }
+    
+    if (usuarioAtual) {
+        usuarioAtual.profilePhotoUrl = photoUrl;
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    }
+}
+
+function iniciarEscutaFotoDesktop() {
+    if (!usuarioAtual) return;
+    
+    const userId = usuarioAtual.uid || usuarioAtual.email;
+    
+    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
+        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+            if (photoUrl && photoUrl.startsWith('data:')) {
+                console.log('[Inicio Desktop] Foto atualizada em tempo real!');
+                atualizarAvatarDesktop(photoUrl);
+            }
+        });
+    }
+}
+
+function pararEscutaFotoDesktop() {
+    if (profilePhotoUnsubscribe) {
+        profilePhotoUnsubscribe();
+        profilePhotoUnsubscribe = null;
+    }
+}
 
 function carregarDadosDoCache() {
     if (window.CacheManager) {
@@ -149,12 +227,6 @@ function atualizarMiniPerfil() {
     const miniEmail = document.getElementById('miniEmail');
     if (miniName) miniName.textContent = usuarioAtual.nome || 'Usuário';
     if (miniEmail) miniEmail.textContent = usuarioAtual.email || '';
-    
-    const iniciais = usuarioAtual.nome ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-    const miniAvatar = document.getElementById('miniAvatar');
-    if (miniAvatar) {
-        miniAvatar.src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
-    }
 }
 
 function atualizarEstatisticasMini() {
@@ -564,6 +636,7 @@ class StudyTimer {
 
 function logout() {
     if (confirm('Deseja sair?')) {
+        pararEscutaFotoDesktop();
         localStorage.removeItem('usuarioLogado');
         if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
