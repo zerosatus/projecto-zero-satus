@@ -1,3 +1,5 @@
+// login/script.js - VERSÃO OTIMIZADA COM PRÉ-CARREGAMENTO
+
 // ==================== DETECÇÃO DE DISPOSITIVO ====================
 function ehCelular() {
     const ehMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -17,24 +19,6 @@ if (usuarioSalvo && !isLoginPage) {
         window.location.href = '../inicio/index.html';
     }
 }
-
-// ==================== CONFIGURAÇÃO DO FIREBASE ====================
-const firebaseConfig = {
-    apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
-    authDomain: "zero-5e74d.firebaseapp.com",
-    projectId: "zero-5e74d",
-    storageBucket: "zero-5e74d.firebasestorage.app",
-    messagingSenderId: "431244473899",
-    appId: "1:431244473899:web:da9424fd226f7386dddc6e",
-    measurementId: "G-HTX5HLKYHJ",
-    databaseURL: "https://zero-5e74d-default-rtdb.firebaseio.com/"
-};
-
-if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-    console.log('[Firebase] Firebase inicializado!');
-}
-const auth = firebase.auth();
 
 // ==================== ELEMENTOS DOM ====================
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -66,7 +50,7 @@ tabBtns.forEach(btn => {
     });
 });
 
-function togglePassword(inputId) {
+window.togglePassword = function(inputId) {
     const input = document.getElementById(inputId);
     const event = window.event;
     const icon = event.currentTarget.querySelector('i');
@@ -79,7 +63,7 @@ function togglePassword(inputId) {
         icon.classList.remove('fa-eye-slash');
         icon.classList.add('fa-eye');
     }
-}
+};
 
 function showMessage(message, isError = false) {
     const toast = document.getElementById('toast');
@@ -115,6 +99,7 @@ async function criarDadosPadraoParaNovoUsuario(usuario) {
     const notificacoesSettingsPadrao = { push: true, email: false, aulas: true, tarefas: true };
     const appearanceSettingsPadrao = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
     
+    // Salvar em localStorage
     localStorage.setItem(`${userId}_tasks`, JSON.stringify(tarefasPadrao));
     localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoesPadrao));
     localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(eventosPadrao));
@@ -124,6 +109,7 @@ async function criarDadosPadraoParaNovoUsuario(usuario) {
     localStorage.setItem(`${userId}_notificacoesSettings`, JSON.stringify(notificacoesSettingsPadrao));
     localStorage.setItem(`${userId}_appearanceSettings`, JSON.stringify(appearanceSettingsPadrao));
     
+    // Salvar via CacheManager
     if (window.CacheManager) {
         window.CacheManager.set('tasks', tarefasPadrao, true);
         window.CacheManager.set('notes', anotacoesPadrao, true);
@@ -135,40 +121,43 @@ async function criarDadosPadraoParaNovoUsuario(usuario) {
         window.CacheManager.set('appearanceSettings', appearanceSettingsPadrao, true);
     }
     
+    // Armazenar no sessionStorage para acesso rápido
+    sessionStorage.setItem(`preload_tasks`, JSON.stringify(tarefasPadrao));
+    sessionStorage.setItem(`preload_notes`, JSON.stringify(anotacoesPadrao));
+    sessionStorage.setItem(`preload_calendarEvents`, JSON.stringify(eventosPadrao));
+    sessionStorage.setItem(`preload_weeklySchedule`, JSON.stringify(weeklySchedulePadrao));
+    sessionStorage.setItem(`preload_timeSlots`, JSON.stringify(timeSlotsPadrao));
+    
     console.log('[Login] ✅ Dados padrão criados com sucesso!');
 }
 
-// ==================== FUNÇÃO PARA CARREGAR DADOS DA NUVEM ====================
-async function carregarDadosDaNuvemAposLogin(usuario) {
-    console.log('[Login] 🔍 Carregando dados da nuvem para:', usuario.email);
+// ==================== FUNÇÃO PARA PRÉ-CARREGAR DADOS ====================
+async function preloadDataAfterLogin(usuario) {
+    console.log('[Login] 🔄 Pré-carregando dados em background...');
     
+    const userId = usuario.uid || usuario.email;
+    
+    // Buscar dados da nuvem
     if (window.CacheManager) {
-        window.CacheManager.init();
-        const userId = usuario.uid || usuario.email;
-        window.CacheManager.currentUserId = userId;
-        console.log('[Login] CacheManager configurado para usuário:', userId);
+        const cloudData = await window.CacheManager.loadFromCloud(true);
         
-        try {
-            // Tenta carregar da nuvem
-            const dadosCarregados = await window.CacheManager.loadFromCloud(true);
-            if (dadosCarregados) {
-                console.log('[Login] ✅ Dados da nuvem carregados com sucesso!');
-            } else {
-                console.log('[Login] ℹ️ Nenhum dado existente na nuvem, criando dados padrão');
-                await criarDadosPadraoParaNovoUsuario(usuario);
-                // Após criar dados padrão, enviar para nuvem
-                await window.CacheManager.loadFromCloud(true);
+        // Armazenar no sessionStorage para acesso instantâneo
+        const dataTypes = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications'];
+        for (const type of dataTypes) {
+            const data = window.CacheManager.get(type, null);
+            if (data !== null) {
+                sessionStorage.setItem(`preload_${type}`, JSON.stringify(data));
             }
-            // Iniciar escuta em tempo real
-            await window.CacheManager.startRealtimeSync();
-        } catch (error) {
-            console.error('[Login] ❌ Erro ao carregar da nuvem:', error);
-            await criarDadosPadraoParaNovoUsuario(usuario);
         }
-    } else {
-        console.warn('[Login] ⚠️ CacheManager não disponível!');
-        await criarDadosPadraoParaNovoUsuario(usuario);
+        
+        // Pré-carregar foto de perfil
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        if (photoUrl) {
+            sessionStorage.setItem('preload_profilePhoto', photoUrl);
+        }
     }
+    
+    console.log('[Login] ✅ Pré-carregamento concluído!');
 }
 
 // ==================== FUNÇÃO DE REDIRECIONAMENTO ====================
@@ -176,18 +165,21 @@ function redirecionarAposLogin() {
     const isMobile = ehCelular();
     console.log('[Login] Redirecionando para:', isMobile ? 'mobile' : 'desktop');
     
-    if (isMobile) {
-        window.location.href = '../mobile-telas/index.html';
-    } else {
-        window.location.href = '../inicio/index.html';
-    }
+    // Pequeno delay para garantir que o preload foi salvo
+    setTimeout(() => {
+        if (isMobile) {
+            window.location.href = '../mobile-telas/index.html';
+        } else {
+            window.location.href = '../inicio/index.html';
+        }
+    }, 100);
 }
 
-// ==================== LOGIN ====================
+// ==================== LOGIN (OTIMIZADO) ====================
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = loginEmail.value;
+        const email = loginEmail.value.trim();
         const password = loginPassword.value;
         
         if (!email || !password) {
@@ -198,7 +190,8 @@ if (loginForm) {
         try {
             setLoading(loginBtn, true);
             console.log('[Login] Tentando login com:', email);
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            
+            const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
             const user = userCredential.user;
             
             console.log('[Login] Usuário autenticado:', user.uid);
@@ -212,9 +205,31 @@ if (loginForm) {
             };
             
             localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
-            showMessage('Login realizado com sucesso! Carregando seus dados...');
-            await carregarDadosDaNuvemAposLogin(usuario);
-            setTimeout(redirecionarAposLogin, 1500);
+            
+            // Inicializar CacheManager e pré-carregar dados
+            if (window.CacheManager) {
+                window.CacheManager.init();
+                window.CacheManager.currentUserId = usuario.uid || usuario.email;
+                
+                // Carregar dados da nuvem
+                const dadosCarregados = await window.CacheManager.loadFromCloud(true);
+                
+                if (!dadosCarregados) {
+                    console.log('[Login] Nenhum dado existente, criando padrão...');
+                    await criarDadosPadraoParaNovoUsuario(usuario);
+                    await window.CacheManager.loadFromCloud(true);
+                }
+                
+                // Pré-carregar todos os dados em background
+                await preloadDataAfterLogin(usuario);
+                
+                // Iniciar escuta em tempo real
+                await window.CacheManager.startRealtimeSync();
+                await window.CacheManager.startPhotoRealtimeSync();
+            }
+            
+            showMessage('Login realizado com sucesso! Redirecionando...');
+            redirecionarAposLogin();
             
         } catch (error) {
             console.error('[Login] Erro no login:', error);
@@ -233,12 +248,12 @@ if (loginForm) {
     });
 }
 
-// ==================== REGISTRO ====================
+// ==================== REGISTRO (OTIMIZADO) ====================
 if (registroForm) {
     registroForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const nome = registroNome.value;
-        const email = registroEmail.value;
+        const nome = registroNome.value.trim();
+        const email = registroEmail.value.trim();
         const password = registroPassword.value;
         
         if (!nome || !email || !password) {
@@ -253,11 +268,13 @@ if (registroForm) {
         try {
             setLoading(registroBtn, true);
             console.log('[Registro] Criando conta para:', email);
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            
+            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
             await user.updateProfile({ displayName: nome });
             
             console.log('[Registro] Conta criada com sucesso:', user.uid);
+            
             const usuario = {
                 uid: user.uid,
                 email: user.email,
@@ -267,9 +284,20 @@ if (registroForm) {
             };
             
             localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+            
+            // Criar dados padrão
             await criarDadosPadraoParaNovoUsuario(usuario);
+            
+            // Inicializar CacheManager
+            if (window.CacheManager) {
+                window.CacheManager.init();
+                window.CacheManager.currentUserId = usuario.uid || usuario.email;
+                await window.CacheManager.loadFromCloud(true);
+                await preloadDataAfterLogin(usuario);
+            }
+            
             showMessage('Conta criada com sucesso! Redirecionando...');
-            setTimeout(redirecionarAposLogin, 1500);
+            redirecionarAposLogin();
             
         } catch (error) {
             console.error('[Registro] Erro:', error);
@@ -297,7 +325,7 @@ if (forgotPasswordLink) {
             return;
         }
         try {
-            await auth.sendPasswordResetEmail(email);
+            await firebase.auth().sendPasswordResetEmail(email);
             showMessage(`Link de recuperação enviado para: ${email}. Verifique sua caixa de entrada.`);
         } catch (error) {
             console.error('[Recuperação] Erro:', error);
@@ -310,7 +338,7 @@ if (forgotPasswordLink) {
 }
 
 // ==================== MONITORAR ESTADO DE AUTENTICAÇÃO ====================
-auth.onAuthStateChanged((user) => {
+firebase.auth().onAuthStateChanged((user) => {
     if (user && !localStorage.getItem('usuarioLogado')) {
         const usuario = {
             uid: user.uid,
@@ -329,6 +357,18 @@ if (window.CacheManager) {
     console.log('[Login] CacheManager inicializado');
 }
 
+// ==================== PRÉ-CARREGAMENTO EM BACKGROUND ====================
+// Se já estiver logado, pré-carregar dados em background
+if (usuarioSalvo && isLoginPage) {
+    console.log('[Login] Usuário já logado, pré-carregando dados...');
+    setTimeout(async () => {
+        if (window.PreloadSystem) {
+            await window.PreloadSystem.preloadAllData();
+        }
+    }, 100);
+}
+
+// ==================== AUTO-PREENCHER EMAIL DO REGISTRO NO LOGIN ====================
 const loginTab = document.querySelector('.tab-btn[data-tab="login"]');
 if (loginTab) {
     loginTab.addEventListener('click', () => {
@@ -338,5 +378,6 @@ if (loginTab) {
     });
 }
 
-console.log('%c🔐 Painel Zero - Login', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c🔐 Painel Zero - Login Otimizado', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c⚡ Pré-carregamento ativo - Redirecionamento instantâneo', 'color: #10b981; font-size: 14px;');
 console.log('%cDispositivo:', ehCelular() ? '📱 Mobile' : '💻 Desktop/Tablet', 'color: #f59e0b;');
