@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM FOTO DE PERFIL
+// mobile-telas/script.js - VERSÃO COMPLETA COM FOTO DE PERFIL BASE64
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -68,13 +68,13 @@ async function inicializar() {
     }
 }
 
-// ===== FUNÇÃO PARA ATUALIZAR AVATAR MOBILE =====
+// ===== FUNÇÃO PARA ATUALIZAR AVATAR MOBILE (VERSÃO BASE64) =====
 async function atualizarAvatarMobile(photoUrl = null) {
     const profileIcon = document.getElementById('notification-bell');
     if (!profileIcon) return;
     
-    // Se recebeu uma URL específica, usa ela
-    if (photoUrl) {
+    // Se recebeu uma URL específica (Base64), usa ela
+    if (photoUrl && photoUrl.startsWith('data:')) {
         profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         return;
     }
@@ -83,7 +83,7 @@ async function atualizarAvatarMobile(photoUrl = null) {
     if (window.CacheManager && usuarioLogado) {
         const cachedPhotoUrl = await window.CacheManager.getProfilePhotoUrl();
         
-        if (cachedPhotoUrl) {
+        if (cachedPhotoUrl && cachedPhotoUrl.startsWith('data:')) {
             profileIcon.innerHTML = `<img src="${cachedPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         } else if (usuarioLogado.nome) {
             const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
@@ -644,14 +644,13 @@ async function renderizarTudo() {
     renderizarNotificacoes();
     atualizarCards();
     atualizarBadgeNotificacoes();
-    await atualizarAvatarMobile(); // ← ADICIONADO: Atualiza o avatar no header
+    await atualizarAvatarMobile();
 }
 
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded', () => {
     inicializar();
     
-    // Botão editar horário
     const toggleEdit = document.getElementById('toggle-edit-mode');
     if (toggleEdit) {
         toggleEdit.addEventListener('click', () => {
@@ -676,7 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Adicionar horário
     const btnAddTime = document.getElementById('btn-add-time');
     if (btnAddTime) {
         btnAddTime.addEventListener('click', () => {
@@ -702,7 +700,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Salvar matéria
     const btnSaveSubject = document.getElementById('btn-save-subject');
     if (btnSaveSubject) {
         btnSaveSubject.addEventListener('click', salvarMateria);
@@ -724,7 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Notificações
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
         notificationBell.addEventListener('click', () => {
@@ -772,7 +768,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
@@ -791,4 +786,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('%c📱 Mobile - Versão Completa com Foto de Perfil', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile - Versão Completa com Foto de Perfil Base64', 'color: #10b981; font-size: 16px; font-weight: bold;');
