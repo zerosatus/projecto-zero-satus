@@ -66,6 +66,28 @@ const updates = [
     }
 ];
 
+// Função para obter a frase do dia (fallback caso daily-phrases.js não esteja carregado)
+function getFraseDoDiaParaPopup() {
+    if (window.FrasesDoDia && typeof window.FrasesDoDia.getFraseDoDia === 'function') {
+        return window.FrasesDoDia.getFraseDoDia();
+    }
+    
+    // Frases de fallback caso o módulo não esteja disponível
+    const frasesFallback = [
+        "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
+        "Acredite em si mesmo e todo o resto se encaixará.",
+        "Não espere o momento perfeito. Aproveite o que tem e faça acontecer.",
+        "Seu futuro é criado pelo que você faz hoje, não amanhã.",
+        "A persistência é o caminho do êxito."
+    ];
+    
+    const hoje = new Date();
+    const diaDoAno = Math.floor((hoje - new Date(hoje.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+    const indice = diaDoAno % frasesFallback.length;
+    
+    return frasesFallback[indice];
+}
+
 function showUpdatesPopup() {
     const lastSeenVersion = localStorage.getItem('last_seen_update_version');
     const latestVersion = updates[0].version;
@@ -83,6 +105,9 @@ function showUpdatesPopup() {
     
     console.log('[Updates] Mostrando popup de novidades da versão', latestVersion);
     
+    // Obter a frase motivacional do dia
+    const fraseDoDia = getFraseDoDiaParaPopup();
+    
     const popup = document.createElement('div');
     popup.className = 'updates-popup';
     popup.innerHTML = `
@@ -96,6 +121,17 @@ function showUpdatesPopup() {
                 <button class="updates-popup-close">&times;</button>
             </div>
             <div class="updates-popup-body">
+                <!-- FRASE DO DIA - DESTAQUE -->
+                <div class="frase-dia-highlight">
+                    <div class="frase-dia-icon">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <div class="frase-dia-content">
+                        <div class="frase-dia-label">✨ FRASE DO DIA ✨</div>
+                        <div class="frase-dia-text">"${fraseDoDia}"</div>
+                    </div>
+                </div>
+                
                 <div class="update-badge">
                     <i class="fas fa-cloud-upload-alt"></i> Sincronização em Nuvem Ativada!
                 </div>
@@ -249,6 +285,55 @@ function showUpdatesPopup() {
         .updates-popup-body::-webkit-scrollbar-thumb {
             background: #8b5cf6;
             border-radius: 3px;
+        }
+        
+        /* ESTILOS DA FRASE DO DIA NO POPUP */
+        .frase-dia-highlight {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1));
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+        }
+        
+        .frase-dia-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .frase-dia-icon i {
+            font-size: 24px;
+            color: #a78bfa;
+        }
+        
+        .frase-dia-content {
+            flex: 1;
+        }
+        
+        .frase-dia-label {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #a78bfa;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .frase-dia-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e2e8f0;
+            font-style: italic;
+            font-weight: 500;
         }
         
         .update-badge {
@@ -453,6 +538,23 @@ function showUpdatesPopup() {
             
             .update-version li {
                 font-size: 11px;
+            }
+            
+            .frase-dia-highlight {
+                padding: 12px 16px;
+            }
+            
+            .frase-dia-icon {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .frase-dia-icon i {
+                font-size: 18px;
+            }
+            
+            .frase-dia-text {
+                font-size: 12px;
             }
         }
     `;
