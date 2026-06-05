@@ -61,7 +61,7 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// PERSISTÊNCIA
+// PERSISTÊNCIA (Integrada com CacheManager/Firebase)
 // ============================================
 function saveAllData() {
     if (window.setCached) {
@@ -281,7 +281,7 @@ function closeNoteModal() {
 }
 
 // ============================================
-// AJUSTE DE ALTURA
+// AJUSTE DE ALTURA (Teclado)
 // ============================================
 function ajustarAlturaEditor() {
     const editorWrapper = document.querySelector('.samsung-editor-wrapper');
@@ -292,7 +292,6 @@ function ajustarAlturaEditor() {
     if (!editorWrapper) return;
 
     let viewportHeight = window.innerHeight;
-
     if (window.visualViewport) {
         viewportHeight = window.visualViewport.height;
     }
@@ -427,12 +426,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(editingNoteId ? 'Anotação atualizada!' : 'Anotação criada!', 'success');
     });
 
-    // TOOLBAR DE FORMATAÇÃO - TODOS OS BOTÕES
+    // TOOLBAR DE FORMATAÇÃO
     document.querySelectorAll('.samsung-toolbar-btn[data-command]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const command = btn.dataset.command;
-            console.log(`Formatando: ${command}`);
             formatText(command);
         });
     });
