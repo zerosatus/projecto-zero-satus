@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM SINCRONIZAÇÃO CORRIGIDA
+// mobile-telas/script.js - VERSÃO COMPLETA COM SINCRONIZAÇÃO E FRASE DO DIA
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -11,6 +11,18 @@ let notes = [];
 let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+
+// ===== FUNÇÃO DA FRASE DO DIA =====
+function atualizarFraseDoDiaMobile() {
+    const fraseElement = document.getElementById('fraseDoDiaTextMobile');
+    if (fraseElement && window.FrasesDoDia) {
+        const frase = window.FrasesDoDia.getFraseDoDia();
+        fraseElement.textContent = frase;
+        console.log('[Mobile] Frase do dia atualizada:', frase.substring(0, 40) + '...');
+    } else if (fraseElement) {
+        fraseElement.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
+    }
+}
 
 // ===== INICIALIZAÇÃO RÁPIDA COM FASTINIT =====
 window.fastInit('Mobile', {
@@ -82,6 +94,7 @@ window.fastInit('Mobile', {
         atualizarCards();
         atualizarBadgeNotificacoes();
         atualizarAvatarMobile();
+        atualizarFraseDoDiaMobile(); // 🔥 FRASE DO DIA ATUALIZADA
     }
 });
 
@@ -127,7 +140,6 @@ async function executarRemocaoHorario(timeSlot) {
     
     timeSlots.sort();
     
-    // 🔥 SALVAR E SINCRONIZAR - ESSA É A PARTE CRÍTICA!
     await salvarTodosDados();
     
     if (document.getElementById('edit-modal').classList.contains('active')) {
@@ -540,7 +552,6 @@ async function salvarTodosDados() {
     
     console.log('[Mobile] 💾 Salvando dados no localStorage e CacheManager...');
     
-    // 1. Salvar no localStorage
     localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
     localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
     localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
@@ -548,10 +559,7 @@ async function salvarTodosDados() {
     localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
     localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
     
-    // 2. Salvar no CacheManager (que irá sincronizar com Firebase)
     if (window.CacheManager) {
-        // IMPORTANTE: O CacheManager cuida da sincronização com Firebase automaticamente
-        // quando chamamos o método set() com notify=true
         window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
         window.CacheManager.set('timeSlots', timeSlots || [], true);
         window.CacheManager.set('tasks', tasks || [], true);
@@ -559,7 +567,6 @@ async function salvarTodosDados() {
         window.CacheManager.set('calendarEvents', calendarEvents || [], true);
         window.CacheManager.set('notifications', notifications || [], true);
         
-        // 3. Forçar sincronização imediata com Firebase
         if (window.FirebaseSync && usuarioLogado.uid) {
             console.log('[Mobile] 🔥 Forçando sincronização com Firebase...');
             await window.FirebaseSync.saveUserDataToCloud(usuarioLogado.uid, 'weeklySchedule', weeklySchedule);
@@ -567,7 +574,6 @@ async function salvarTodosDados() {
             console.log('[Mobile] ✅ Dados enviados para o Firebase!');
         }
         
-        // 4. Disparar evento para outras abas/PC saberem que houve atualização
         window.dispatchEvent(new CustomEvent('forceRefresh'));
         window.dispatchEvent(new CustomEvent('cloudDataLoaded', { 
             detail: { 
@@ -881,4 +887,4 @@ function checkUpcomingClasses() {
 setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
 setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
 
-console.log('%c📱 Mobile Otimizado - Sincronização corrigida!', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile Otimizado - Frase do Dia Integrada!', 'color: #10b981; font-size: 16px; font-weight: bold;');
