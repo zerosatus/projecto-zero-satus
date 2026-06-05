@@ -653,3 +653,107 @@ document.querySelectorAll('.menu-item').forEach(item => {
 });
 
 console.log('%c🏠 Painel Inicial', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+
+// ===== ESCUTAR MUDANÇAS EM TEMPO REAL DO CACHE =====
+function iniciarEscutaCacheDesktop() {
+    if (!window.CacheManager) {
+        console.log('[Desktop] Aguardando CacheManager...');
+        setTimeout(iniciarEscutaCacheDesktop, 1000);
+        return;
+    }
+    
+    console.log('[Desktop] Iniciando escuta de cache...');
+    
+    window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
+        if (newSchedule && Object.keys(newSchedule).length > 0) {
+            console.log('[Desktop] Horário atualizado em tempo real!');
+            weeklySchedule = newSchedule;
+            if (typeof atualizarHorarioDesktop === 'function') {
+                atualizarHorarioDesktop();
+            }
+            if (typeof atualizarListaDisciplinas === 'function') {
+                atualizarListaDisciplinas();
+            }
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
+        }
+    });
+    
+    window.CacheManager.addListener('timeSlots', (newSlots) => {
+        if (newSlots && newSlots.length) {
+            console.log('[Desktop] Horários atualizados em tempo real!');
+            timeSlots = newSlots;
+            if (typeof atualizarHorarioDesktop === 'function') {
+                atualizarHorarioDesktop();
+            }
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
+        }
+    });
+    
+    window.CacheManager.addListener('tasks', (newTasks) => {
+        if (newTasks) {
+            console.log('[Desktop] Tarefas atualizadas em tempo real!');
+            tarefas = newTasks;
+            if (typeof atualizarEstatisticasMini === 'function') {
+                atualizarEstatisticasMini();
+            }
+            if (typeof atualizarProximasTarefas === 'function') {
+                atualizarProximasTarefas();
+            }
+        }
+    });
+    
+    window.CacheManager.addListener('notes', (newNotes) => {
+        if (newNotes) {
+            console.log('[Desktop] Anotações atualizadas em tempo real!');
+            anotacoes = newNotes;
+        }
+    });
+    
+    window.CacheManager.addListener('calendarEvents', (newEvents) => {
+        if (newEvents) {
+            console.log('[Desktop] Eventos atualizados em tempo real!');
+            eventos = newEvents;
+            if (window.calendarInstance && typeof window.calendarInstance.renderCalendar === 'function') {
+                window.calendarInstance.renderCalendar();
+            }
+        }
+    });
+    
+    console.log('[Desktop] Escuta de cache iniciada com sucesso');
+}
+
+// Escutar evento de força de refresh
+window.addEventListener('forceRefresh', () => {
+    console.log('[Desktop] ForceRefresh recebido, recarregando dados...');
+    setTimeout(() => {
+        if (window.CacheManager) {
+            const newSchedule = window.CacheManager.get('weeklySchedule', {});
+            const newSlots = window.CacheManager.get('timeSlots', []);
+            if (newSchedule && Object.keys(newSchedule).length > 0) {
+                weeklySchedule = newSchedule;
+                timeSlots = newSlots;
+                if (typeof atualizarHorarioDesktop === 'function') {
+                    atualizarHorarioDesktop();
+                }
+                if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                    window.forcarRecargaHorarioDesktop();
+                }
+            }
+            if (typeof atualizarEstatisticasMini === 'function') {
+                atualizarEstatisticasMini();
+            }
+            if (typeof atualizarListaDisciplinas === 'function') {
+                atualizarListaDisciplinas();
+            }
+        }
+    }, 100);
+});
+
+// Iniciar escuta após o carregamento da página
+setTimeout(iniciarEscutaCacheDesktop, 2000);
+
+console.log('%c🖥️ Desktop com sincronização em tempo real', 'color: #9333ea; font-size: 16px; font-weight: bold;');
