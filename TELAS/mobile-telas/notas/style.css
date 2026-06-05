@@ -62,6 +62,75 @@ header {
 .notes-search-minimal input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 0.9rem; outline: none; }
 .notes-search-minimal input::placeholder { color: var(--text-secondary); }
 
+/* BARRA FLUTUANTE SOBRE O TECLADO */
+.floating-toolbar {
+    display: none; /* Escondida por padrão */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #1e293b; /* Cor escura para combinar */
+    border-top: 1px solid #334155;
+    padding: 10px 16px;
+    z-index: 9999; /* Fica acima de tudo */
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+    animation: slideUp 0.3s ease-out;
+}
+
+/* Mostra a barra quando a classe 'keyboard-open' está ativa */
+.mobile-view.keyboard-open .floating-toolbar {
+    display: flex;
+}
+
+.floating-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ft-btn {
+    background: transparent;
+    border: 1px solid #475569;
+    color: #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 40px;
+}
+
+.ft-btn:active { background-color: #9333ea; border-color: #9333ea; }
+
+.ft-select {
+    background: #0f172a;
+    border: 1px solid #475569;
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.ft-divider {
+    width: 1px;
+    height: 24px;
+    background-color: #334155;
+}
+
+.ft-done {
+    background-color: #10b981;
+    border: none;
+    color: white;
+    font-weight: bold;
+    padding: 8px 16px;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
 /* ==================== GRADE DE NOTAS ==================== */
 .notes-grid-minimal { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 20px; }
 

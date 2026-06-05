@@ -466,6 +466,42 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Inicialização concluída!');
 });
 
+// Detectar abertura do teclado para mostrar a barra flutuante
+function setupKeyboardDetection() {
+    const mobileView = document.querySelector('.mobile-view');
+    if (!mobileView || !window.visualViewport) return;
+
+    // Altura inicial da tela sem teclado
+    let initialHeight = window.visualViewport.height;
+
+    window.visualViewport.addEventListener('resize', () => {
+        const currentHeight = window.visualViewport.height;
+        
+        // Se a altura diminuiu mais de 150px, provavelmente é o teclado
+        if (initialHeight - currentHeight > 150) {
+            mobileView.classList.add('keyboard-open');
+            
+            // Ajusta o scroll para o editor não ficar escondido
+            const editor = document.getElementById('mobileEditor');
+            if(editor) {
+                setTimeout(() => {
+                    editor.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }, 300);
+            }
+        } else {
+            mobileView.classList.remove('keyboard-open');
+            // Atualiza a altura base caso o usuário tenha girado a tela
+            initialHeight = currentHeight; 
+        }
+    });
+}
+
+// Chame essa função no DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    // ... suas outras inicializações ...
+    setupKeyboardDetection();
+});
+
 // ============================================
 // NOTIFICAÇÕES NATIVAS ANDROID
 // ============================================

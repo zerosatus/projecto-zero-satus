@@ -50,6 +50,24 @@
 
             <div class="notes-grid-minimal" id="notes-grid"></div>
         </section>
+        <!-- TOOLBAR FLUTUANTE (Aparece só quando o teclado abre) -->
+<div class="floating-toolbar" id="floating-toolbar">
+    <div class="floating-group">
+        <button class="ft-btn" onclick="formatText('bold')" title="Negrito"><b>B</b></button>
+        <button class="ft-btn" onclick="formatText('italic')" title="Itálico"><i>I</i></button>
+        <button class="ft-btn" onclick="formatText('underline')" title="Sublinhado"><u>U</u></button>
+    </div>
+    <div class="ft-divider"></div>
+    <div class="floating-group">
+        <select class="ft-select" onchange="formatText('formatBlock', this.value); this.value='';">
+            <option value="" disabled selected>Estilo</option>
+            <option value="h2">Título 2</option>
+            <option value="p">Parágrafo</option>
+        </select>
+    </div>
+    <div class="ft-divider"></div>
+    <button class="ft-btn ft-done" onclick="concluirAnotacao()">Concluir</button>
+</div>
 
         <!-- ============================================
              MODAL DE EDIÇÃO - ESTILO SAMSUNG NOTES
