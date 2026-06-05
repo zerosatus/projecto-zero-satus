@@ -1,5 +1,20 @@
 const updates = [
     {
+        version: "v2.1.0",
+        date: "05/06/2026",
+        title: "📸 Atualização - Foto de Perfil e Sincronização",
+        features: [
+            "🖼️ Adicione sua foto de perfil! Agora você pode personalizar sua conta com uma imagem",
+            "☁️ Sincronização em tempo real da foto entre dispositivos (PC e Mobile)",
+            "🔄 Remoção de horários no Mobile agora sincroniza instantaneamente com o PC",
+            "📱 Melhorias na sincronização bidirecional entre Desktop e Mobile",
+            "🐛 Correção de bugs na remoção de horários do calendário semanal",
+            "⚡ Otimização do CacheManager para sincronização mais rápida",
+            "🔔 Melhorias nas notificações em tempo real",
+            "🎨 Interface aprimorada para upload de fotos"
+        ]
+    },
+    {
         version: "v2.0.0",
         date: "29/05/2026",
         title: "🚀 Atualização Massiva - Sistema Completo",
