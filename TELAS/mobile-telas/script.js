@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM REMOÇÃO DE HORÁRIOS E SINCRONIZAÇÃO
+// mobile-telas/script.js - VERSÃO COMPLETA COM SINCRONIZAÇÃO CORRIGIDA
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -48,16 +48,27 @@ window.fastInit('Mobile', {
             headerName.textContent = usuarioLogado.nome.split(' ')[0];
         }
         
-        setTimeout(() => {
-            if (window.CacheManager && window.CacheManager.startRealtimeSync) {
-                window.CacheManager.startRealtimeSync();
-            }
-        }, 500);
+        // Iniciar CacheManager e escuta em tempo real
+        if (window.CacheManager) {
+            window.CacheManager.init();
+            window.CacheManager.currentUserId = usuarioLogado.uid || usuarioLogado.email;
+            
+            setTimeout(() => {
+                if (window.CacheManager.startRealtimeSync) {
+                    window.CacheManager.startRealtimeSync();
+                }
+                if (window.CacheManager.startPhotoRealtimeSync) {
+                    window.CacheManager.startPhotoRealtimeSync();
+                }
+            }, 500);
+        }
         
         console.log('[Mobile] ✅ Dados carregados:', {
             notes: notes.length,
             tasks: tasks.length,
-            events: calendarEvents.length
+            events: calendarEvents.length,
+            schedule: Object.keys(weeklySchedule).length,
+            timeSlots: timeSlots.length
         });
         
         return true;
@@ -74,7 +85,7 @@ window.fastInit('Mobile', {
     }
 });
 
-// ===== FUNÇÃO PARA REMOVER HORÁRIO COMPLETO =====
+// ===== FUNÇÃO PARA REMOVER HORÁRIO COMPLETO (COM SINCRONIZAÇÃO) =====
 function removerHorario(timeSlot) {
     let hasClasses = false;
     
@@ -100,7 +111,9 @@ function removerHorario(timeSlot) {
     }
 }
 
-function executarRemocaoHorario(timeSlot) {
+async function executarRemocaoHorario(timeSlot) {
+    console.log('[Mobile] Removendo horário:', timeSlot);
+    
     const index = timeSlots.indexOf(timeSlot);
     if (index !== -1) {
         timeSlots.splice(index, 1);
@@ -113,7 +126,9 @@ function executarRemocaoHorario(timeSlot) {
     }
     
     timeSlots.sort();
-    salvarTodosDados();
+    
+    // 🔥 SALVAR E SINCRONIZAR - ESSA É A PARTE CRÍTICA!
+    await salvarTodosDados();
     
     if (document.getElementById('edit-modal').classList.contains('active')) {
         renderizarEditSchedule();
@@ -122,14 +137,15 @@ function executarRemocaoHorario(timeSlot) {
     }
     
     showToast(`Horário ${timeSlot} removido!`, 'success');
+    console.log('[Mobile] ✅ Horário removido e sincronizado!');
 }
 
 function removerAula(day, timeSlot) {
-    showConfirm(`Remover aula de ${day} às ${timeSlot}?`, 'Remover Aula', (confirmed) => {
+    showConfirm(`Remover aula de ${day} às ${timeSlot}?`, 'Remover Aula', async (confirmed) => {
         if (confirmed) {
             if (weeklySchedule[day]) {
                 weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
-                salvarTodosDados();
+                await salvarTodosDados();
                 
                 if (document.getElementById('edit-modal').classList.contains('active')) {
                     renderizarEditSchedule();
@@ -137,6 +153,7 @@ function removerAula(day, timeSlot) {
                     renderizarHorario();
                 }
                 showToast('Aula removida!', 'success');
+                console.log('[Mobile] ✅ Aula removida e sincronizada!');
             }
         }
     });
@@ -512,11 +529,18 @@ async function salvarMateria() {
     editingSubject = null;
 }
 
+// ===== FUNÇÃO DE SALVAR TODOS OS DADOS (CORRIGIDA - GARANTE SINCRONIZAÇÃO) =====
 async function salvarTodosDados() {
-    if (!usuarioLogado) return;
+    if (!usuarioLogado) {
+        console.error('[Mobile] Usuário não logado');
+        return false;
+    }
     
     const userId = usuarioLogado.uid || usuarioLogado.email;
     
+    console.log('[Mobile] 💾 Salvando dados no localStorage e CacheManager...');
+    
+    // 1. Salvar no localStorage
     localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
     localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
     localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
@@ -524,7 +548,10 @@ async function salvarTodosDados() {
     localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
     localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
     
-    if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
+    // 2. Salvar no CacheManager (que irá sincronizar com Firebase)
+    if (window.CacheManager) {
+        // IMPORTANTE: O CacheManager cuida da sincronização com Firebase automaticamente
+        // quando chamamos o método set() com notify=true
         window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
         window.CacheManager.set('timeSlots', timeSlots || [], true);
         window.CacheManager.set('tasks', tasks || [], true);
@@ -532,9 +559,36 @@ async function salvarTodosDados() {
         window.CacheManager.set('calendarEvents', calendarEvents || [], true);
         window.CacheManager.set('notifications', notifications || [], true);
         
-        window.dispatchEvent(new CustomEvent('forceRefresh'));
+        // 3. Forçar sincronização imediata com Firebase
+        if (window.FirebaseSync && usuarioLogado.uid) {
+            console.log('[Mobile] 🔥 Forçando sincronização com Firebase...');
+            await window.FirebaseSync.saveUserDataToCloud(usuarioLogado.uid, 'weeklySchedule', weeklySchedule);
+            await window.FirebaseSync.saveUserDataToCloud(usuarioLogado.uid, 'timeSlots', timeSlots);
+            console.log('[Mobile] ✅ Dados enviados para o Firebase!');
+        }
         
-        console.log('[Mobile] ✅ Dados salvos e sincronizados');
+        // 4. Disparar evento para outras abas/PC saberem que houve atualização
+        window.dispatchEvent(new CustomEvent('forceRefresh'));
+        window.dispatchEvent(new CustomEvent('cloudDataLoaded', { 
+            detail: { 
+                weeklySchedule: weeklySchedule, 
+                timeSlots: timeSlots 
+            } 
+        }));
+        
+        console.log('[Mobile] ✅ Dados salvos e sincronizados com sucesso!');
+        console.log('[Mobile] 📊 Status:', {
+            weeklySchedule: Object.keys(weeklySchedule).length,
+            timeSlots: timeSlots.length,
+            tasks: tasks.length,
+            notes: notes.length,
+            events: calendarEvents.length
+        });
+        
+        return true;
+    } else {
+        console.warn('[Mobile] ⚠️ CacheManager não disponível!');
+        return false;
     }
 }
 
@@ -676,12 +730,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const btnAddTime = document.getElementById('btn-add-time');
     if (btnAddTime) {
-        btnAddTime.addEventListener('click', () => {
+        btnAddTime.addEventListener('click', async () => {
             const newTime = document.getElementById('new-time-input')?.value;
             if (newTime && !timeSlots.includes(newTime)) {
                 timeSlots.push(newTime);
                 timeSlots.sort();
-                salvarTodosDados();
+                await salvarTodosDados();
                 renderizarEditSchedule();
                 showToast('Horário adicionado!', 'success');
             } else if (timeSlots.includes(newTime)) {
@@ -827,4 +881,4 @@ function checkUpcomingClasses() {
 setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
 setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
 
-console.log('%c📱 Mobile Otimizado - Com remoção de horários e sincronização completa', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile Otimizado - Sincronização corrigida!', 'color: #10b981; font-size: 16px; font-weight: bold;');

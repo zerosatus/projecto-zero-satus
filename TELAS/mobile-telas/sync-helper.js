@@ -1,6 +1,8 @@
 // sync-helper.js - Helper de sincronização para todas as páginas
 (function() {
-    // Função principal de sincronização
+    // =====================================================
+    // FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
+    // =====================================================
     window.initSync = async function() {
         console.log('[Sync] Inicializando sistema de sincronização...');
         
@@ -34,6 +36,7 @@
             setTimeout(() => {
                 if (window.CacheManager && window.CacheManager.startRealtimeSync) {
                     window.CacheManager.startRealtimeSync();
+                    window.CacheManager.startPhotoRealtimeSync();
                 }
             }, 1000);
             
@@ -43,7 +46,9 @@
         return false;
     };
     
-    // Escutar mudanças de dados em tempo real
+    // =====================================================
+    // ESCUTAR EVENTOS DE NUVEM
+    // =====================================================
     window.addEventListener('cloudDataLoaded', (event) => {
         console.log('[Sync] 📡 cloudDataLoaded recebido, atualizando UI...');
         setTimeout(() => {
@@ -52,7 +57,16 @@
         }, 100);
     });
     
-    // Função para forçar recarga do horário no Desktop
+    window.addEventListener('profilePhotoUpdated', (event) => {
+        console.log('[Sync] 📸 Foto de perfil atualizada:', event.detail);
+        if (typeof window.atualizarAvatarMobile === 'function') {
+            window.atualizarAvatarMobile(event.detail?.photoUrl);
+        }
+    });
+    
+    // =====================================================
+    // FORÇAR RECARGA DO HORÁRIO NO DESKTOP
+    // =====================================================
     window.forcarRecargaHorarioDesktop = function() {
         console.log('[Sync] 🔄 Forçando recarga do horário no Desktop...');
         
@@ -126,7 +140,49 @@
     
     window.atualizarTabelaHorarioDesktop = atualizarTabelaHorarioDesktopForce;
     
-    // Função para forçar recarregamento de todos os dados
+    // =====================================================
+    // FORÇAR SINCRONIZAÇÃO DO HORÁRIO (PC <-> MOBILE)
+    // =====================================================
+    window.forceSyncSchedule = async function() {
+        console.log('[Sync] 🔄 Forçando sincronização do horário...');
+        
+        if (!window.CacheManager) {
+            console.error('[Sync] CacheManager não disponível');
+            return false;
+        }
+        
+        const weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        const timeSlots = window.CacheManager.get('timeSlots', []);
+        const usuario = localStorage.getItem('usuarioLogado');
+        
+        if (!usuario) return false;
+        
+        try {
+            const usuarioObj = JSON.parse(usuario);
+            const userId = usuarioObj.uid || usuarioObj.email;
+            
+            if (window.FirebaseSync) {
+                await window.FirebaseSync.saveUserDataToCloud(userId, 'weeklySchedule', weeklySchedule);
+                await window.FirebaseSync.saveUserDataToCloud(userId, 'timeSlots', timeSlots);
+                console.log('[Sync] ✅ Sincronização forçada concluída!');
+                
+                // Disparar evento para atualizar UI
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded', { 
+                    detail: { weeklySchedule, timeSlots } 
+                }));
+                
+                return true;
+            }
+        } catch (error) {
+            console.error('[Sync] Erro na sincronização forçada:', error);
+        }
+        
+        return false;
+    };
+    
+    // =====================================================
+    // RECARREGAR TODOS OS DADOS DA UI
+    // =====================================================
     window.refreshAllData = function() {
         console.log('[Sync] 🔄 Recarregando dados da UI...');
         
@@ -170,12 +226,16 @@
         if (pathname.includes('/perfil/')) {
             if (typeof loadProfileData === 'function') loadProfileData();
             if (typeof carregarDados === 'function') carregarDados();
+            if (typeof carregarFotoPerfil === 'function') carregarFotoPerfil();
         }
         
         window.dispatchEvent(new CustomEvent('dataRefreshed'));
         console.log('[Sync] UI atualizada');
     };
     
+    // =====================================================
+    // LOGOUT SEGURO
+    // =====================================================
     window.safeLogout = async function() {
         if (window.CacheManager) {
             await window.CacheManager.logout();
@@ -184,10 +244,23 @@
         window.location.href = '../login/index.html';
     };
     
+    // =====================================================
+    // EVENTOS GLOBAIS
+    // =====================================================
     window.addEventListener('forceRefresh', () => {
         console.log('[Sync] Refresh forçado manualmente');
         window.refreshAllData();
         window.forcarRecargaHorarioDesktop();
+    });
+    
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
+            console.log('[Sync] Storage event detectado:', e.key);
+            setTimeout(() => {
+                window.forcarRecargaHorarioDesktop();
+                window.refreshAllData();
+            }, 100);
+        }
     });
     
     console.log('[Sync] Helper carregado com suporte a tempo real');
@@ -198,6 +271,7 @@
 // =====================================================
 
 (function() {
+    // Sincronizar horário do mobile para o desktop
     window.syncScheduleToDesktop = function() {
         const pathname = window.location.pathname;
         const isHomePage = pathname.includes('/inicio/') || 
@@ -236,6 +310,7 @@
         }
     };
     
+    // Sincronizar todos os dados
     window.syncAllDataToDesktop = function() {
         const pathname = window.location.pathname;
         const isDesktop = pathname.includes('/inicio/') || 
@@ -256,12 +331,14 @@
         const notes = window.CacheManager.get('notes', []);
         const calendarEvents = window.CacheManager.get('calendarEvents', []);
         const weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        const timeSlots = window.CacheManager.get('timeSlots', []);
         
         console.log('[Sync] Dados sincronizados:', {
             tasks: tasks.length,
             notes: notes.length,
             events: calendarEvents.length,
-            schedule: Object.keys(weeklySchedule).length
+            schedule: Object.keys(weeklySchedule).length,
+            timeSlots: timeSlots.length
         });
         
         if (typeof window.carregarTarefas === 'function') {
@@ -283,8 +360,8 @@
         }
     };
     
-    // Executar sincronização periódica mais frequente
-    setInterval(() => {
+    // Executar sincronização periódica
+    let syncInterval = setInterval(() => {
         window.syncScheduleToDesktop();
         window.syncAllDataToDesktop();
     }, 3000);
@@ -303,17 +380,9 @@
         }, 1000);
     }
     
-    // Escutar mudanças no storage (quando outra aba salva dados)
-    window.addEventListener('storage', (e) => {
-        if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
-            console.log('[Sync] Storage event detectado:', e.key);
-            setTimeout(() => {
-                if (typeof window.forcarRecargaHorarioDesktop === 'function') {
-                    window.forcarRecargaHorarioDesktop();
-                }
-                if (window.refreshAllData) window.refreshAllData();
-            }, 100);
-        }
+    // Limpar intervalo quando a página for descarregada
+    window.addEventListener('beforeunload', () => {
+        if (syncInterval) clearInterval(syncInterval);
     });
     
     console.log('[Sync] Ponte PC-Mobile instalada com sincronização completa');
