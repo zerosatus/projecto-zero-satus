@@ -10,58 +10,9 @@
     --accent-red: #ef4444;
     --border-color: #2d3748;
     --nav-bg: #1a1d24;
-    --samsung-header-bg: #1a1d24;
-    --samsung-toolbar-bg: #14171d;
-    --samsung-editor-bg: #0f1115;
 }
 
-/* ==================== DESATIVAR SELEÇÃO DE TEXTO PARA WEBVIEW ==================== */
-* {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-/* Permite seleção APENAS em inputs, textareas e contenteditable */
-input,
-textarea,
-[contenteditable="true"],
-.samsung-title-input,
-.samsung-editor {
-    -webkit-user-select: text !important;
-    -moz-user-select: text !important;
-    -ms-user-select: text !important;
-    user-select: text !important;
-}
-
-/* Remove o highlight azul ao tocar em elementos clicáveis */
-button,
-a,
-.nav-item,
-.menu-item,
-.task-item,
-.event-item,
-.note-card-minimal,
-.class-block,
-.btn-add,
-.list-item,
-.samsung-toolbar-btn,
-.samsung-back-btn,
-.samsung-done-btn {
-    -webkit-tap-highlight-color: transparent;
-    cursor: pointer;
-}
-
-body {
-    -webkit-touch-callout: none;
-    touch-action: manipulation;
-}
-
-/* ==================== GLOBAL ==================== */
+/* ==================== RESET ==================== */
 * {
     margin: 0;
     padding: 0;
@@ -72,9 +23,6 @@ body {
 body {
     background-color: var(--bg-color);
     color: var(--text-primary);
-    display: flex;
-    justify-content: center;
-    align-items: center;
     min-height: 100vh;
     padding: 20px;
 }
@@ -82,72 +30,12 @@ body {
 /* ==================== CONTAINER PRINCIPAL ==================== */
 .mobile-container {
     width: 100%;
-    max-width: 375px;
-    height: 812px;
+    max-width: 100%;
+    min-height: 100vh;
     background-color: var(--bg-color);
-    border-radius: 30px;
-    overflow-y: auto;
-    overflow-x: visible;
     position: relative;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    padding-bottom: 100px;
     margin: 0 auto;
-}
-
-/* ==================== RESPONSIVIDADE ==================== */
-@media (max-width: 1024px) and (min-width: 768px) {
-    .mobile-container {
-        max-width: 768px;
-        height: auto;
-        min-height: 812px;
-        border-radius: 20px;
-        padding-bottom: 100px;
-    }
-    .summary-cards {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        padding: 0 30px 30px;
-    }
-    .bottom-nav {
-        width: 768px;
-        max-width: calc(100% - 40px);
-        height: 80px;
-    }
-}
-
-@media (max-width: 767px) and (min-width: 481px) {
-    .mobile-container {
-        max-width: 100%;
-        height: auto;
-        min-height: 100vh;
-        border-radius: 0;
-        padding-bottom: 100px;
-        box-shadow: none;
-    }
-    .bottom-nav {
-        width: 100%;
-        max-width: 100%;
-        border-radius: 20px 20px 0 0;
-        bottom: 0;
-    }
-}
-
-@media (max-width: 480px) {
-    body { padding: 0; }
-    .mobile-container {
-        max-width: 100%;
-        height: 100vh;
-        border-radius: 0;
-        padding-bottom: 90px;
-        box-shadow: none;
-    }
-    .bottom-nav {
-        width: 100%;
-        max-width: 100%;
-        height: 65px;
-        border-radius: 20px 20px 0 0;
-        bottom: 0;
-    }
+    padding-bottom: 100px;
 }
 
 /* ==================== HEADER ==================== */
@@ -162,15 +50,8 @@ header {
     z-index: 10;
 }
 
-.greeting h1 {
-    font-size: 1.2rem;
-    font-weight: 600;
-}
-
-.greeting p {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
+.greeting h1 { font-size: 1.2rem; font-weight: 600; }
+.greeting p { font-size: 0.9rem; color: var(--text-secondary); }
 
 .profile-icon {
     width: 40px;
@@ -182,17 +63,9 @@ header {
     align-items: center;
     position: relative;
     cursor: pointer;
-    transition: all 0.2s;
 }
 
-.profile-icon:hover {
-    background-color: var(--border-color);
-}
-
-.profile-icon ion-icon {
-    font-size: 1.3rem;
-    color: var(--text-primary);
-}
+.profile-icon ion-icon { font-size: 1.3rem; color: var(--text-primary); }
 
 .notification-badge {
     position: absolute;
@@ -210,10 +83,8 @@ header {
     font-weight: bold;
 }
 
-/* ==================== SEÇÃO DE ANOTAÇÕES ==================== */
-#notes-view {
-    padding: 20px;
-}
+/* ==================== SEÇÃO DE NOTAS ==================== */
+#notes-view { padding: 20px; }
 
 .notes-header-minimal {
     display: flex;
@@ -222,10 +93,7 @@ header {
     margin-bottom: 20px;
 }
 
-.notes-header-minimal h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-}
+.notes-header-minimal h1 { font-size: 1.5rem; font-weight: 700; }
 
 .btn-new-note {
     width: 48px;
@@ -242,12 +110,8 @@ header {
     transition: all 0.2s;
 }
 
-.btn-new-note:hover {
-    transform: scale(1.05);
-    opacity: 0.9;
-}
+.btn-new-note:hover { transform: scale(1.05); opacity: 0.9; }
 
-/* ==================== BARRA DE PESQUISA ==================== */
 .notes-search-minimal {
     display: flex;
     align-items: center;
@@ -259,10 +123,7 @@ header {
     margin-bottom: 24px;
 }
 
-.notes-search-minimal ion-icon {
-    color: var(--text-secondary);
-    font-size: 1.2rem;
-}
+.notes-search-minimal ion-icon { color: var(--text-secondary); font-size: 1.2rem; }
 
 .notes-search-minimal input {
     flex: 1;
@@ -273,11 +134,9 @@ header {
     outline: none;
 }
 
-.notes-search-minimal input::placeholder {
-    color: var(--text-secondary);
-}
+.notes-search-minimal input::placeholder { color: var(--text-secondary); }
 
-/* ==================== GRADE DE ANOTAÇÕES ==================== */
+/* ==================== GRADE DE NOTAS ==================== */
 .notes-grid-minimal {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -303,11 +162,7 @@ header {
     box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
 }
 
-.note-title-minimal {
-    font-weight: 600;
-    font-size: 0.95rem;
-    margin-bottom: 8px;
-}
+.note-title-minimal { font-weight: 600; font-size: 0.95rem; margin-bottom: 8px; }
 
 .note-preview-minimal {
     font-size: 0.75rem;
@@ -330,29 +185,11 @@ header {
     border-top: 1px solid var(--border-color);
 }
 
-.note-date-minimal {
-    font-size: 0.65rem;
-    color: var(--text-secondary);
-}
+.note-date-minimal { font-size: 0.65rem; color: var(--text-secondary); }
 
-.note-actions-minimal {
-    display: flex;
-    gap: 12px;
-}
+.note-actions-minimal { display: flex; gap: 12px; }
+.note-actions-minimal ion-icon { color: var(--text-secondary); font-size: 1rem; cursor: pointer; }
 
-.note-actions-minimal ion-icon {
-    color: var(--text-secondary);
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.note-actions-minimal ion-icon:hover {
-    color: var(--accent-purple);
-    transform: scale(1.1);
-}
-
-/* ==================== ESTADO VAZIO ==================== */
 .empty-notes-minimal {
     grid-column: span 2;
     text-align: center;
@@ -360,14 +197,10 @@ header {
     color: var(--text-secondary);
 }
 
-.empty-notes-minimal ion-icon {
-    font-size: 3.5rem;
-    margin-bottom: 16px;
-    opacity: 0.5;
-}
+.empty-notes-minimal ion-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.5; }
 
 /* ============================================
-   MODAL DE ANOTAÇÃO - ESTILO SAMSUNG NOTES
+   MODAL DE EDIÇÃO - ESTILO SAMSUNG NOTES
    ============================================ */
 .note-modal-minimal {
     display: none;
@@ -378,33 +211,29 @@ header {
     height: 100%;
     background: var(--bg-color);
     z-index: 200;
-    overflow-y: hidden;
+    overflow: hidden;
 }
 
-.note-modal-minimal.active {
-    display: block;
-}
+.note-modal-minimal.active { display: block; }
 
 .note-editor-container {
-    max-width: 375px;
+    max-width: 100%;
     margin: 0 auto;
     height: 100vh;
     height: 100dvh;
     display: flex;
     flex-direction: column;
-    background-color: var(--samsung-editor-bg);
+    background-color: var(--bg-color);
 }
 
-/* --- Header estilo Samsung Notes --- */
 .samsung-header {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
-    background-color: var(--samsung-header-bg);
+    background-color: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
-    z-index: 10;
 }
 
 .samsung-back-btn {
@@ -419,17 +248,7 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
     flex-shrink: 0;
-}
-
-.samsung-back-btn:hover,
-.samsung-back-btn:active {
-    background-color: var(--border-color);
-}
-
-.samsung-back-btn ion-icon {
-    font-size: 22px;
 }
 
 .samsung-title-input {
@@ -444,10 +263,7 @@ header {
     min-width: 0;
 }
 
-.samsung-title-input::placeholder {
-    color: var(--text-secondary);
-    opacity: 0.7;
-}
+.samsung-title-input::placeholder { color: var(--text-secondary); opacity: 0.7; }
 
 .samsung-done-btn {
     background: linear-gradient(135deg, var(--accent-green), #059669);
@@ -459,35 +275,55 @@ header {
     font-weight: 700;
     cursor: pointer;
     flex-shrink: 0;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
-.samsung-done-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+.samsung-editor-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
 }
 
-.samsung-done-btn:active {
-    transform: scale(0.95);
+.samsung-editor {
+    min-height: 100%;
+    color: var(--text-primary);
+    font-size: 16px;
+    line-height: 1.7;
+    outline: none;
+    padding-bottom: 200px;
+    word-wrap: break-word;
 }
 
-/* --- Toolbar de formatação --- */
-.samsung-toolbar {
+.samsung-editor:empty::before {
+    content: attr(placeholder);
+    color: var(--text-secondary);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.samsung-editor p { margin-bottom: 0.8rem; color: var(--text-primary); }
+.samsung-editor h1 { color: var(--accent-purple); margin: 1rem 0 0.5rem; }
+.samsung-editor h2 { color: var(--accent-purple); margin: 0.8rem 0 0.4rem; }
+.samsung-editor h3 { color: var(--text-primary); margin: 0.6rem 0 0.3rem; }
+.samsung-editor ul, .samsung-editor ol { margin: 0.8rem 0; padding-left: 1.5rem; }
+
+/* --- TOOLBAR EM BAIXO --- */
+.samsung-toolbar-bottom {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 10px;
-    background-color: var(--samsung-toolbar-bg);
-    border-bottom: 1px solid var(--border-color);
+    padding: 10px 12px;
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
     overflow-x: auto;
     flex-shrink: 0;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
 }
 
-.samsung-toolbar::-webkit-scrollbar {
-    height: 0;
-    display: none;
+.samsung-toolbar-bottom::-webkit-scrollbar { 
+    height: 0; 
+    display: none; 
 }
 
 .samsung-toolbar-group {
@@ -505,12 +341,13 @@ header {
 }
 
 .samsung-toolbar-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
     background: transparent;
     border: none;
     color: var(--text-secondary);
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -518,173 +355,73 @@ header {
     font-size: 15px;
     transition: all 0.15s;
     flex-shrink: 0;
-    position: relative;
+    padding: 0;
 }
 
-.samsung-toolbar-btn:hover {
-    background-color: var(--border-color);
-    color: var(--text-primary);
+.samsung-toolbar-btn:hover { background-color: var(--border-color); color: var(--text-primary); }
+.samsung-toolbar-btn:active { background-color: var(--accent-purple); color: white; }
+.samsung-toolbar-btn.active { background-color: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
+
+.samsung-toolbar-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
 }
 
-.samsung-toolbar-btn:active {
-    background-color: var(--accent-purple);
-    color: white;
-}
-
-.samsung-toolbar-btn.active {
-    background-color: rgba(139, 92, 246, 0.2);
-    color: var(--accent-purple);
-}
-
-.samsung-toolbar-btn ion-icon {
-    font-size: 18px;
-}
-
+/* Labels de texto para B, I, U, S */
 .toolbar-label {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
-    font-family: Georgia, serif;
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.toolbar-italic {
-    font-style: italic;
-}
-
-.toolbar-underline {
-    text-decoration: underline;
-}
-
-.toolbar-strike {
-    text-decoration: line-through;
-}
+.toolbar-bold { font-weight: 900; }
+.toolbar-italic { font-style: italic; }
+.toolbar-underline { text-decoration: underline; }
+.toolbar-strike { text-decoration: line-through; }
 
 .samsung-toolbar-select {
-    background: transparent;
+    background: var(--bg-color);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
-    padding: 6px 8px;
-    border-radius: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
     font-size: 13px;
     cursor: pointer;
     outline: none;
     flex-shrink: 0;
-    max-width: 110px;
-    -webkit-user-select: none;
-    user-select: none;
+    min-width: 100px;
+    max-width: 130px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
 }
 
-.samsung-toolbar-select option {
-    background-color: var(--card-bg);
-    color: var(--text-primary);
+.samsung-toolbar-select option { 
+    background-color: var(--card-bg); 
+    color: var(--text-primary); 
 }
 
-/* --- Editor que fica por cima do teclado --- */
-.samsung-editor-wrapper {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding: 16px;
-    position: relative;
-    height: auto;
-}
-
-.samsung-editor {
-    min-height: 100%;
-    color: var(--text-primary);
-    font-size: 16px;
-    line-height: 1.7;
-    outline: none;
-    padding-bottom: 200px;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-.samsung-editor:empty::before {
-    content: attr(placeholder);
-    color: var(--text-secondary);
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.samsung-editor p {
-    margin-bottom: 0.8rem;
-    color: var(--text-primary);
-}
-
-.samsung-editor h1 {
-    color: var(--accent-purple);
-    margin: 1rem 0 0.5rem;
-    font-size: 1.8rem;
-}
-
-.samsung-editor h2 {
-    color: var(--accent-purple);
-    margin: 0.8rem 0 0.4rem;
-    font-size: 1.5rem;
-}
-
-.samsung-editor h3 {
-    color: var(--text-primary);
-    margin: 0.6rem 0 0.3rem;
-    font-size: 1.2rem;
-}
-
-.samsung-editor ul,
-.samsung-editor ol {
-    margin: 0.8rem 0;
-    padding-left: 1.5rem;
-    color: var(--text-primary);
-}
-
-.samsung-editor li {
-    margin-bottom: 0.4rem;
-}
-
-.samsung-editor blockquote {
-    border-left: 3px solid var(--accent-purple);
-    padding-left: 0.8rem;
-    margin: 0.8rem 0;
-    font-style: italic;
-    color: var(--text-secondary);
-}
-
-.samsung-editor a {
-    color: var(--accent-purple);
-    text-decoration: none;
-}
-
-.samsung-editor pre {
-    background-color: var(--card-bg);
-    padding: 0.8rem;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-family: 'Courier New', monospace;
-    margin: 0.8rem 0;
-    font-size: 14px;
-}
-
-.samsung-editor strong { font-weight: 700; }
-.samsung-editor em { font-style: italic; }
-.samsung-editor u { text-decoration: underline; }
-.samsung-editor s,
-.samsung-editor strike { text-decoration: line-through; }
-
-/* --- Footer info --- */
+/* --- FOOTER INFO --- */
 .note-footer-info {
     padding: 12px 20px;
     border-top: 1px solid var(--border-color);
     text-align: center;
-    background-color: var(--samsung-header-bg);
+    background-color: var(--card-bg);
     flex-shrink: 0;
 }
 
-.note-footer-info span {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
+.note-footer-info span { font-size: 0.7rem; color: var(--text-secondary); }
 
-/* ==================== BARRA DE NAVEGAÇÃO ==================== */
+/* ==================== BOTTOM NAV ==================== */
 .bottom-nav {
     position: fixed;
     bottom: 20px;
@@ -712,18 +449,11 @@ header {
     cursor: pointer;
     padding: 6px 12px;
     border-radius: 30px;
-    transition: all 0.2s;
     gap: 2px;
 }
 
-.nav-item ion-icon {
-    font-size: 1.4rem;
-}
-
-.nav-item.active {
-    color: white;
-    background: var(--accent-purple);
-}
+.nav-item ion-icon { font-size: 1.4rem; }
+.nav-item.active { color: white; background: var(--accent-purple); }
 
 /* ==================== MODAL DE NOTIFICAÇÕES ==================== */
 .notifications-modal {
@@ -738,9 +468,7 @@ header {
     overflow-y: auto;
 }
 
-.notifications-modal.active {
-    display: block;
-}
+.notifications-modal.active { display: block; }
 
 .notifications-modal-content {
     max-width: 375px;
@@ -759,15 +487,8 @@ header {
     border-bottom: 1px solid var(--border-color);
 }
 
-.notifications-modal-header h2 {
-    font-size: 1.2rem;
-    font-weight: 600;
-}
-
-.notifications-actions {
-    display: flex;
-    gap: 10px;
-}
+.notifications-modal-header h2 { font-size: 1.2rem; font-weight: 600; }
+.notifications-actions { display: flex; gap: 10px; }
 
 .btn-mark-read {
     display: flex;
@@ -817,11 +538,7 @@ header {
     border-color: var(--accent-purple);
 }
 
-#notifications-list-modal {
-    padding: 10px 20px;
-    max-height: 400px;
-    overflow-y: auto;
-}
+#notifications-list-modal { padding: 10px 20px; max-height: 400px; overflow-y: auto; }
 
 .notification-item-modal {
     display: flex;
@@ -831,16 +548,10 @@ header {
     background-color: var(--card-bg);
     border-radius: 12px;
     margin-bottom: 10px;
-    cursor: pointer;
 }
 
-.notification-item-modal.unread {
-    border-left: 3px solid var(--accent-purple);
-}
-
-.notification-item-modal.read {
-    opacity: 0.7;
-}
+.notification-item-modal.unread { border-left: 3px solid var(--accent-purple); }
+.notification-item-modal.read { opacity: 0.7; }
 
 .notification-icon {
     width: 40px;
@@ -852,35 +563,13 @@ header {
     font-size: 1.2rem;
 }
 
-.notification-icon.aula {
-    background-color: rgba(99, 102, 241, 0.2);
-    color: #6366f1;
-}
+.notification-icon.aula { background-color: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.notification-icon.tarefa { background-color: rgba(16, 185, 129, 0.2); color: #10b981; }
 
-.notification-icon.tarefa {
-    background-color: rgba(16, 185, 129, 0.2);
-    color: #10b981;
-}
-
-.notification-content {
-    flex-grow: 1;
-}
-
-.notification-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.notification-message {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin: 4px 0;
-}
-
-.notification-time {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
+.notification-content { flex-grow: 1; }
+.notification-title { font-weight: 600; font-size: 0.9rem; }
+.notification-message { font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0; }
+.notification-time { font-size: 0.7rem; color: var(--text-secondary); }
 
 .btn-close-modal {
     width: calc(100% - 40px);
@@ -891,10 +580,6 @@ header {
     border-radius: 10px;
     color: var(--text-primary);
     cursor: pointer;
-}
-
-.btn-close-modal:hover {
-    background: var(--border-color);
 }
 
 /* ==================== MODAL DE CONFIRMAÇÃO ==================== */
@@ -911,9 +596,7 @@ header {
     align-items: center;
 }
 
-.confirm-modal.active {
-    display: flex;
-}
+.confirm-modal.active { display: flex; }
 
 .confirm-modal-content {
     background-color: var(--card-bg);
@@ -936,56 +619,16 @@ header {
     margin: 0 auto 15px;
 }
 
-.confirm-icon ion-icon {
-    font-size: 1.8rem;
-    color: var(--accent-red);
-}
-
-.confirm-modal-content h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.confirm-modal-content p {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 25px;
-}
-
-.confirm-buttons {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-}
-
-.confirm-buttons button {
-    flex: 1;
-    padding: 12px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-}
-
-.btn-cancel {
-    background-color: var(--border-color);
-    color: var(--text-secondary);
-}
-
-.btn-ok {
-    background-color: var(--accent-red);
-    color: white;
-}
+.confirm-icon ion-icon { font-size: 1.8rem; color: var(--accent-red); }
+.confirm-modal-content h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; }
+.confirm-modal-content p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 25px; }
+.confirm-buttons { display: flex; gap: 12px; justify-content: center; }
+.confirm-buttons button { flex: 1; padding: 12px; border-radius: 12px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; }
+.btn-cancel { background-color: var(--border-color); color: var(--text-secondary); }
+.btn-ok { background-color: var(--accent-red); color: white; }
 
 /* ==================== TOAST ==================== */
-#toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 600;
-}
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 600; }
 
 .toast {
     background-color: var(--card-bg);
@@ -1000,63 +643,328 @@ header {
     animation: slideInRight 0.3s ease;
 }
 
-.toast ion-icon {
-    font-size: 1.2rem;
+.toast ion-icon { font-size: 1.2rem; }
+.toast.toast-success { border-left: 4px solid var(--accent-green); }
+.toast.toast-success ion-icon { color: var(--accent-green); }
+.toast.toast-error { border-left: 4px solid var(--accent-red); }
+.toast.toast-error ion-icon { color: var(--accent-red); }
+.toast.toast-info { border-left: 4px solid var(--accent-purple); }
+.toast.toast-info ion-icon { color: var(--accent-purple); }
+.toast-hiding { animation: slideOutRight 0.3s ease forwards; }
+
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+/* ============================================
+   📱 MOBILE (até 480px)
+   ============================================ */
+@media (max-width: 480px) {
+    body { padding: 0; }
+    
+    .mobile-container {
+        max-width: 100%;
+        min-height: 100vh;
+        padding-bottom: 90px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 0 16px;
+    }
+    
+    .note-card-minimal {
+        min-height: 130px;
+        padding: 14px;
+    }
+    
+    .bottom-nav {
+        width: calc(100% - 20px);
+        max-width: 100%;
+        height: 65px;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+    
+    .nav-item {
+        padding: 4px 8px;
+        font-size: 0.65rem;
+    }
+    
+    .nav-item ion-icon { font-size: 1.3rem; }
+    
+    .samsung-toolbar-bottom {
+        padding: 8px 10px;
+        gap: 4px;
+        overflow-x: auto;
+    }
+    
+    .samsung-toolbar-btn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+    }
+    
+    .samsung-toolbar-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .toolbar-label {
+        font-size: 14px;
+    }
+    
+    .samsung-toolbar-select {
+        min-width: 90px;
+        font-size: 12px;
+        padding: 6px 24px 6px 8px;
+    }
 }
 
-.toast.toast-success {
-    border-left: 4px solid var(--accent-green);
+/* ============================================
+    TABLET PEQUENO (481px - 768px)
+   ============================================ */
+@media (min-width: 481px) and (max-width: 768px) {
+    body { padding: 10px; }
+    
+    .mobile-container {
+        max-width: 100%;
+        min-height: 100vh;
+        border-radius: 16px;
+        padding-bottom: 100px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        padding: 0 24px;
+    }
+    
+    .note-card-minimal {
+        min-height: 160px;
+        padding: 18px;
+    }
+    
+    .note-title-minimal { font-size: 1rem; }
+    .note-preview-minimal { font-size: 0.8rem; }
+    
+    .bottom-nav {
+        width: calc(100% - 40px);
+        max-width: 500px;
+        height: 70px;
+        border-radius: 35px;
+    }
+    
+    .nav-item {
+        padding: 6px 14px;
+        font-size: 0.75rem;
+    }
+    
+    .nav-item ion-icon { font-size: 1.5rem; }
+    
+    .samsung-toolbar-bottom {
+        padding: 12px 16px;
+        gap: 8px;
+    }
+    
+    .samsung-toolbar-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+    }
+    
+    .samsung-toolbar-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .toolbar-label {
+        font-size: 17px;
+    }
+    
+    .samsung-toolbar-select {
+        min-width: 110px;
+        font-size: 13px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 500px;
+    }
 }
 
-.toast.toast-success ion-icon {
-    color: var(--accent-green);
+/* ============================================
+   📱 TABLET GRANDE (769px - 1024px)
+   ============================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+    body { padding: 20px; }
+    
+    .mobile-container {
+        max-width: 900px;
+        min-height: 100vh;
+        border-radius: 20px;
+        padding-bottom: 110px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        padding: 0 30px;
+    }
+    
+    .note-card-minimal {
+        min-height: 180px;
+        padding: 20px;
+    }
+    
+    .note-title-minimal { font-size: 1.05rem; }
+    .note-preview-minimal { font-size: 0.85rem; }
+    
+    .notes-header-minimal h1 { font-size: 1.8rem; }
+    
+    .btn-new-note {
+        width: 52px;
+        height: 52px;
+    }
+    
+    .bottom-nav {
+        width: calc(100% - 60px);
+        max-width: 600px;
+        height: 75px;
+        border-radius: 38px;
+    }
+    
+    .nav-item {
+        padding: 8px 16px;
+        font-size: 0.8rem;
+    }
+    
+    .nav-item ion-icon { font-size: 1.6rem; }
+    
+    .samsung-toolbar-bottom {
+        padding: 14px 20px;
+        gap: 10px;
+    }
+    
+    .samsung-toolbar-btn {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+    }
+    
+    .samsung-toolbar-btn svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .toolbar-label {
+        font-size: 18px;
+    }
+    
+    .samsung-editor {
+        font-size: 17px;
+    }
+    
+    .samsung-toolbar-select {
+        min-width: 120px;
+        font-size: 14px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 600px;
+    }
+    
+    .confirm-modal-content {
+        max-width: 400px;
+    }
 }
 
-.toast.toast-error {
-    border-left: 4px solid var(--accent-red);
-}
-
-.toast.toast-error ion-icon {
-    color: var(--accent-red);
-}
-
-.toast.toast-info {
-    border-left: 4px solid var(--accent-purple);
-}
-
-.toast.toast-info ion-icon {
-    color: var(--accent-purple);
-}
-
-.toast-hiding {
-    animation: slideOutRight 0.3s ease forwards;
-}
-
-@keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes slideOutRight {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
+/* ============================================
+   💻 DESKTOP (acima de 1024px)
+   ============================================ */
+@media (min-width: 1025px) {
+    body { padding: 40px; }
+    
+    .mobile-container {
+        max-width: 1100px;
+        min-height: 100vh;
+        border-radius: 24px;
+        padding-bottom: 120px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        padding: 0 40px;
+    }
+    
+    .note-card-minimal {
+        min-height: 200px;
+        padding: 24px;
+    }
+    
+    .note-title-minimal { font-size: 1.1rem; }
+    .note-preview-minimal { font-size: 0.9rem; }
+    
+    .notes-header-minimal h1 { font-size: 2rem; }
+    
+    .btn-new-note {
+        width: 56px;
+        height: 56px;
+    }
+    
+    .bottom-nav {
+        width: calc(100% - 80px);
+        max-width: 700px;
+        height: 80px;
+        border-radius: 40px;
+    }
+    
+    .nav-item {
+        padding: 10px 20px;
+        font-size: 0.85rem;
+    }
+    
+    .nav-item ion-icon { font-size: 1.7rem; }
+    
+    .samsung-toolbar-bottom {
+        padding: 16px 24px;
+        gap: 12px;
+    }
+    
+    .samsung-toolbar-btn {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+    }
+    
+    .samsung-toolbar-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .toolbar-label {
+        font-size: 20px;
+    }
+    
+    .samsung-editor {
+        font-size: 18px;
+    }
+    
+    .samsung-toolbar-select {
+        min-width: 130px;
+        font-size: 14px;
+        padding: 10px 32px 10px 12px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 700px;
+    }
+    
+    .confirm-modal-content {
+        max-width: 450px;
+    }
 }
 
 /* ==================== UTILITÁRIOS ==================== */
-.hidden {
-    display: none !important;
-}
-
-/* Garantir que anotações sejam exibidas corretamente */
-.note-card-minimal {
-    transition: all 0.2s;
-}
-
-.note-card-minimal:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.note-preview-minimal {
-    word-break: break-word;
-}
+.hidden { display: none !important; }
