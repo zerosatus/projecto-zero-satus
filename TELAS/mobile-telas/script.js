@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO OTIMIZADA COM PRÉ-CARREGAMENTO
+// mobile-telas/script.js - VERSÃO COMPLETA COM REMOÇÃO DE HORÁRIOS
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -79,7 +79,81 @@ window.fastInit('Mobile', {
     }
 });
 
-// ===== FUNÇÕES EXISTENTES (MANTIDAS, MAS OTIMIZADAS) =====
+// ===== FUNÇÃO PARA REMOVER HORÁRIO COMPLETO =====
+function removerHorario(timeSlot) {
+    // Verificar se o horário tem aulas agendadas
+    let hasClasses = false;
+    
+    for (const day of days) {
+        if (weeklySchedule[day]?.some(cls => cls.horaInicio === timeSlot)) {
+            hasClasses = true;
+            break;
+        }
+    }
+    
+    if (hasClasses) {
+        showConfirm(
+            `O horário ${timeSlot} possui aulas agendadas. Excluir mesmo assim? As aulas serão removidas.`,
+            'Remover Horário',
+            (confirmed) => {
+                if (confirmed) {
+                    executarRemocaoHorario(timeSlot);
+                }
+            }
+        );
+    } else {
+        executarRemocaoHorario(timeSlot);
+    }
+}
+
+function executarRemocaoHorario(timeSlot) {
+    // 1. Remover o horário da lista de timeSlots
+    const index = timeSlots.indexOf(timeSlot);
+    if (index !== -1) {
+        timeSlots.splice(index, 1);
+    }
+    
+    // 2. Remover aulas que usam este horário em todos os dias
+    for (const day of days) {
+        if (weeklySchedule[day]) {
+            weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
+        }
+    }
+    
+    // 3. Ordenar os horários restantes
+    timeSlots.sort();
+    
+    // 4. Salvar e atualizar UI
+    salvarTodosDados();
+    
+    // Verificar qual modal está ativo para atualizar a visualização correta
+    if (document.getElementById('edit-modal').classList.contains('active')) {
+        renderizarEditSchedule();
+    } else {
+        renderizarHorario();
+    }
+    
+    showToast(`Horário ${timeSlot} removido!`, 'success');
+}
+
+// ===== FUNÇÃO PARA REMOVER APENAS UMA AULA =====
+function removerAula(day, timeSlot) {
+    showConfirm(`Remover aula de ${day} às ${timeSlot}?`, 'Remover Aula', (confirmed) => {
+        if (confirmed) {
+            if (weeklySchedule[day]) {
+                weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
+                salvarTodosDados();
+                
+                if (document.getElementById('edit-modal').classList.contains('active')) {
+                    renderizarEditSchedule();
+                } else {
+                    renderizarHorario();
+                }
+                showToast('Aula removida!', 'success');
+            }
+        }
+    });
+}
 
 async function atualizarAvatarMobile(photoUrl = null) {
     const profileIcon = document.getElementById('notification-bell');
@@ -171,6 +245,75 @@ function renderizarHorario() {
                 const day = days[dayIndex];
                 openSubjectModal(null, day, timeSlot);
             }
+        });
+    });
+}
+
+function renderizarEditSchedule() {
+    const grid = document.getElementById('edit-schedule-grid');
+    if (!grid) return;
+    
+    let html = '<div class="day-header">Hora</div>';
+    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    
+    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    
+    slots.forEach(time => {
+        // Linha de horário com botão de excluir
+        html += `<div class="time-slot-with-delete">
+                    <span class="time-slot-text">${time}</span>
+                    <button class="btn-delete-time" data-time="${time}" title="Remover este horário">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>`;
+        
+        days.forEach(day => {
+            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (classItem && classItem.materia) {
+                html += `<div class="edit-cell">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">
+                        ${escapeHtml(classItem.materia)}
+                        <button class="btn-delete-class" data-day="${day}" data-time="${time}" title="Remover esta aula">
+                            <ion-icon name="close-circle-outline"></ion-icon>
+                        </button>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="edit-cell">
+                    <button class="btn-add" data-day="${day}" data-time="${time}">+</button>
+                </div>`;
+            }
+        });
+    });
+    
+    grid.innerHTML = html;
+    
+    // Event listeners para botões de excluir horário
+    document.querySelectorAll('.btn-delete-time').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const timeSlot = btn.dataset.time;
+            removerHorario(timeSlot);
+        });
+    });
+    
+    // Event listeners para botões de excluir aula individual
+    document.querySelectorAll('.btn-delete-class').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const day = btn.dataset.day;
+            const time = btn.dataset.time;
+            removerAula(day, time);
+        });
+    });
+    
+    // Event listeners para botões de adicionar aula
+    document.querySelectorAll('.edit-cell .btn-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const day = btn.dataset.day;
+            const time = btn.dataset.time;
+            openSubjectModal(null, day, time);
         });
     });
 }
@@ -431,29 +574,33 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-function renderizarEditSchedule() {
-    const grid = document.getElementById('edit-schedule-grid');
-    if (!grid) return;
+function showConfirm(message, title, callback) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) { callback(false); return; }
     
-    let html = '<div class="day-header">Hora</div>';
-    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    document.getElementById('confirm-title').textContent = title || 'Confirmar';
+    document.getElementById('confirm-message').textContent = message;
+    modal.classList.add('active');
     
-    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    const handleConfirm = () => {
+        modal.classList.remove('active');
+        callback(true);
+        cleanup();
+    };
     
-    slots.forEach(time => {
-        html += `<div class="time-slot">${time}</div>`;
-        days.forEach(day => {
-            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
-            if (classItem) {
-                html += `<div class="edit-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">${escapeHtml(classItem.materia)}</div>
-                </div>`;
-            } else {
-                html += `<div class="edit-cell"><button class="btn-add">+</button></div>`;
-            }
-        });
-    });
-    grid.innerHTML = html;
+    const handleCancel = () => {
+        modal.classList.remove('active');
+        callback(false);
+        cleanup();
+    };
+    
+    const cleanup = () => {
+        document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
+        document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
+    };
+    
+    document.getElementById('confirm-ok').onclick = handleConfirm;
+    document.getElementById('confirm-cancel').onclick = handleCancel;
 }
 
 function renderizarNotificacoesModal(filter = 'all') {
@@ -509,14 +656,16 @@ function marcarTodasComoLidas() {
 }
 
 function limparTodasNotificacoes() {
-    if (confirm('Limpar todas as notificações?')) {
-        notifications = [];
-        salvarTodosDados();
-        atualizarBadgeNotificacoes();
-        renderizarNotificacoes();
-        renderizarNotificacoesModal();
-        showToast('Notificações limpas!', 'success');
-    }
+    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
+        if (confirmed) {
+            notifications = [];
+            salvarTodosDados();
+            atualizarBadgeNotificacoes();
+            renderizarNotificacoes();
+            renderizarNotificacoesModal();
+            showToast('Notificações limpas!', 'success');
+        }
+    });
 }
 
 // ===== EVENTOS E NAVEGAÇÃO =====
@@ -701,4 +850,4 @@ function checkUpcomingClasses() {
 setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
 setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
 
-console.log('%c📱 Mobile Otimizado - Pré-carregamento Ativo', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile Otimizado - Com remoção de horários e aulas', 'color: #10b981; font-size: 16px; font-weight: bold;');
