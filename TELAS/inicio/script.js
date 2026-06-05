@@ -655,6 +655,8 @@ document.querySelectorAll('.menu-item').forEach(item => {
 console.log('%c🏠 Painel Inicial', 'color: #9333ea; font-size: 20px; font-weight: bold;');
 
 // ===== ESCUTAR MUDANÇAS EM TEMPO REAL DO CACHE =====
+// NÃO declarar variáveis que já existem (usuarioLogado, tarefas, anotacoes, eventos, weeklySchedule, timeSlots)
+
 function iniciarEscutaCacheDesktop() {
     if (!window.CacheManager) {
         console.log('[Desktop] Aguardando CacheManager...');
@@ -667,7 +669,8 @@ function iniciarEscutaCacheDesktop() {
     window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
         if (newSchedule && Object.keys(newSchedule).length > 0) {
             console.log('[Desktop] Horário atualizado em tempo real!');
-            weeklySchedule = newSchedule;
+            // Usar a variável global existente
+            window.weeklySchedule = newSchedule;
             if (typeof atualizarHorarioDesktop === 'function') {
                 atualizarHorarioDesktop();
             }
@@ -683,7 +686,7 @@ function iniciarEscutaCacheDesktop() {
     window.CacheManager.addListener('timeSlots', (newSlots) => {
         if (newSlots && newSlots.length) {
             console.log('[Desktop] Horários atualizados em tempo real!');
-            timeSlots = newSlots;
+            window.timeSlots = newSlots;
             if (typeof atualizarHorarioDesktop === 'function') {
                 atualizarHorarioDesktop();
             }
@@ -696,7 +699,7 @@ function iniciarEscutaCacheDesktop() {
     window.CacheManager.addListener('tasks', (newTasks) => {
         if (newTasks) {
             console.log('[Desktop] Tarefas atualizadas em tempo real!');
-            tarefas = newTasks;
+            window.tarefas = newTasks;
             if (typeof atualizarEstatisticasMini === 'function') {
                 atualizarEstatisticasMini();
             }
@@ -709,14 +712,14 @@ function iniciarEscutaCacheDesktop() {
     window.CacheManager.addListener('notes', (newNotes) => {
         if (newNotes) {
             console.log('[Desktop] Anotações atualizadas em tempo real!');
-            anotacoes = newNotes;
+            window.anotacoes = newNotes;
         }
     });
     
     window.CacheManager.addListener('calendarEvents', (newEvents) => {
         if (newEvents) {
             console.log('[Desktop] Eventos atualizados em tempo real!');
-            eventos = newEvents;
+            window.eventos = newEvents;
             if (window.calendarInstance && typeof window.calendarInstance.renderCalendar === 'function') {
                 window.calendarInstance.renderCalendar();
             }
@@ -734,8 +737,8 @@ window.addEventListener('forceRefresh', () => {
             const newSchedule = window.CacheManager.get('weeklySchedule', {});
             const newSlots = window.CacheManager.get('timeSlots', []);
             if (newSchedule && Object.keys(newSchedule).length > 0) {
-                weeklySchedule = newSchedule;
-                timeSlots = newSlots;
+                window.weeklySchedule = newSchedule;
+                window.timeSlots = newSlots;
                 if (typeof atualizarHorarioDesktop === 'function') {
                     atualizarHorarioDesktop();
                 }
@@ -751,6 +754,30 @@ window.addEventListener('forceRefresh', () => {
             }
         }
     }, 100);
+});
+
+// Escutar mudanças no storage (quando outra aba salva dados)
+window.addEventListener('storage', (e) => {
+    if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
+        console.log('[Desktop] Storage event detectado:', e.key);
+        setTimeout(() => {
+            if (window.CacheManager) {
+                const newSchedule = window.CacheManager.get('weeklySchedule', {});
+                const newSlots = window.CacheManager.get('timeSlots', []);
+                if (newSchedule && Object.keys(newSchedule).length > 0) {
+                    window.weeklySchedule = newSchedule;
+                    window.timeSlots = newSlots;
+                    if (typeof atualizarHorarioDesktop === 'function') {
+                        atualizarHorarioDesktop();
+                    }
+                }
+            }
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
+            if (window.refreshAllData) window.refreshAllData();
+        }, 100);
+    }
 });
 
 // Iniciar escuta após o carregamento da página
