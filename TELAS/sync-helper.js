@@ -1,6 +1,8 @@
 // sync-helper.js - Helper de sincronização para todas as páginas
 (function() {
-    // Função principal de sincronização
+    // =====================================================
+    // FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
+    // =====================================================
     window.initSync = async function() {
         console.log('[Sync] Inicializando sistema de sincronização...');
         
@@ -29,13 +31,12 @@
             window.CacheManager.currentUserId = usuario.uid || usuario.email;
             console.log('[Sync] Usuário identificado:', window.CacheManager.currentUserId);
             
-            // Carregar dados da nuvem
             const loaded = await window.CacheManager.loadFromCloud(true);
             
-            // Iniciar escuta em tempo real
             setTimeout(() => {
                 if (window.CacheManager && window.CacheManager.startRealtimeSync) {
                     window.CacheManager.startRealtimeSync();
+                    window.CacheManager.startPhotoRealtimeSync();
                 }
             }, 1000);
             
@@ -45,29 +46,156 @@
         return false;
     };
     
-    // Escutar mudanças de dados em tempo real
+    // =====================================================
+    // ESCUTAR EVENTOS DE NUVEM
+    // =====================================================
     window.addEventListener('cloudDataLoaded', (event) => {
-        console.log('[Sync] Dados da nuvem recebidos, atualizando interface...');
-        if (window.refreshAllData) {
-            window.refreshAllData();
+        console.log('[Sync] 📡 cloudDataLoaded recebido, atualizando UI...');
+        setTimeout(() => {
+            window.forcarRecargaHorarioDesktop();
+            if (window.refreshAllData) window.refreshAllData();
+        }, 100);
+    });
+    
+    window.addEventListener('profilePhotoUpdated', (event) => {
+        console.log('[Sync] 📸 Foto de perfil atualizada:', event.detail);
+        if (typeof window.atualizarAvatarMobile === 'function') {
+            window.atualizarAvatarMobile(event.detail?.photoUrl);
         }
     });
     
-    // Função para forçar recarregamento de todos os dados
+    // =====================================================
+    // FORÇAR RECARGA DO HORÁRIO NO DESKTOP
+    // =====================================================
+    window.forcarRecargaHorarioDesktop = function() {
+        console.log('[Sync] 🔄 Forçando recarga do horário no Desktop...');
+        
+        if (!window.CacheManager) return;
+        
+        const weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        const timeSlots = window.CacheManager.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
+        
+        if (weeklySchedule && Object.keys(weeklySchedule).length > 0) {
+            atualizarTabelaHorarioDesktopForce(weeklySchedule, timeSlots);
+        }
+        
+        if (typeof window.atualizarListaDisciplinas === 'function') {
+            window.atualizarListaDisciplinas();
+        }
+        if (typeof window.atualizarEstatisticasMini === 'function') {
+            window.atualizarEstatisticasMini();
+        }
+    };
+    
+    function atualizarTabelaHorarioDesktopForce(weeklySchedule, timeSlots) {
+        const scheduleTable = document.querySelector('.schedule-table tbody');
+        if (!scheduleTable) {
+            console.log('[Sync] Tabela de horário não encontrada, tentando novamente em 1s...');
+            setTimeout(() => {
+                const table = document.querySelector('.schedule-table tbody');
+                if (table) atualizarTabelaHorarioDesktopForce(weeklySchedule, timeSlots);
+            }, 1000);
+            return;
+        }
+        
+        const diasChave = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        const slots = timeSlots && timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+        
+        let html = '';
+        slots.forEach(time => {
+            html += '<tr>';
+            html += `<td class="time-slot">${time}</td>`;
+            diasChave.forEach(day => {
+                const aula = weeklySchedule[day]?.find(a => a.horaInicio === time);
+                if (aula && aula.materia) {
+                    const cor = aula.color || getCorByMateria(aula.materia);
+                    html += `<td class="subject" style="background-color: ${cor}20; color: ${cor}; border-left: 3px solid ${cor};">
+                        ${aula.materia}
+                    </td>`;
+                } else {
+                    html += '<td class="empty-cell">-</td>';
+                }
+            });
+            html += '</tr>';
+        });
+        
+        scheduleTable.innerHTML = html;
+        console.log('[Sync] ✅ Horário do Desktop atualizado com sucesso!');
+    }
+    
+    function getCorByMateria(materia) {
+        const cores = {
+            'matemática': '#9b59b6', 'matematica': '#9b59b6',
+            'português': '#3498db', 'portugues': '#3498db',
+            'história': '#e74c3c', 'historia': '#e74c3c',
+            'física': '#e67e22', 'fisica': '#e67e22',
+            'química': '#2ecc71', 'quimica': '#2ecc71',
+            'biologia': '#f1c40f', 'geografia': '#1abc9c',
+            'inglês': '#34495e', 'ingles': '#34495e',
+            'redação': '#00bcd4', 'redacao': '#00bcd4'
+        };
+        const lowerMateria = materia?.toLowerCase()?.trim() || '';
+        return cores[lowerMateria] || '#95a5a6';
+    }
+    
+    window.atualizarTabelaHorarioDesktop = atualizarTabelaHorarioDesktopForce;
+    
+    // =====================================================
+    // FORÇAR SINCRONIZAÇÃO DO HORÁRIO (PC <-> MOBILE)
+    // =====================================================
+    window.forceSyncSchedule = async function() {
+        console.log('[Sync] 🔄 Forçando sincronização do horário...');
+        
+        if (!window.CacheManager) {
+            console.error('[Sync] CacheManager não disponível');
+            return false;
+        }
+        
+        const weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        const timeSlots = window.CacheManager.get('timeSlots', []);
+        const usuario = localStorage.getItem('usuarioLogado');
+        
+        if (!usuario) return false;
+        
+        try {
+            const usuarioObj = JSON.parse(usuario);
+            const userId = usuarioObj.uid || usuarioObj.email;
+            
+            if (window.FirebaseSync) {
+                await window.FirebaseSync.saveUserDataToCloud(userId, 'weeklySchedule', weeklySchedule);
+                await window.FirebaseSync.saveUserDataToCloud(userId, 'timeSlots', timeSlots);
+                console.log('[Sync] ✅ Sincronização forçada concluída!');
+                
+                // Disparar evento para atualizar UI
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded', { 
+                    detail: { weeklySchedule, timeSlots } 
+                }));
+                
+                return true;
+            }
+        } catch (error) {
+            console.error('[Sync] Erro na sincronização forçada:', error);
+        }
+        
+        return false;
+    };
+    
+    // =====================================================
+    // RECARREGAR TODOS OS DADOS DA UI
+    // =====================================================
     window.refreshAllData = function() {
         console.log('[Sync] 🔄 Recarregando dados da UI...');
         
         const pathname = window.location.pathname;
         
-        // Página Início (Desktop)
         if (pathname.includes('/inicio/')) {
             if (typeof atualizarEstatisticasMini === 'function') atualizarEstatisticasMini();
             if (typeof atualizarCards === 'function') atualizarCards();
             if (typeof carregarDados === 'function') carregarDados();
             if (typeof atualizarHorarioDesktop === 'function') atualizarHorarioDesktop();
+            window.forcarRecargaHorarioDesktop();
         }
         
-        // Página Mobile
         if (pathname.includes('/mobile-telas/')) {
             if (typeof atualizarCards === 'function') atualizarCards();
             if (typeof renderizarHorario === 'function') renderizarHorario();
@@ -77,7 +205,6 @@
             if (typeof atualizarBadgeNotificacoes === 'function') atualizarBadgeNotificacoes();
         }
         
-        // Página Tarefas
         if (pathname.includes('/tarefas/')) {
             if (typeof renderTasks === 'function') renderTasks();
             if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
@@ -85,31 +212,30 @@
             if (typeof renderizarDisciplinas === 'function') renderizarDisciplinas();
         }
         
-        // Página Calendário
         if (pathname.includes('/calendario/')) {
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderEvents === 'function') renderEvents();
             if (typeof carregarEventos === 'function') carregarEventos();
         }
         
-        // Página Anotações
         if (pathname.includes('/anotacoes/') || pathname.includes('/notas/')) {
             if (typeof renderNotes === 'function') renderNotes();
             if (typeof carregarAnotacoes === 'function') carregarAnotacoes();
         }
         
-        // Página Perfil
         if (pathname.includes('/perfil/')) {
             if (typeof loadProfileData === 'function') loadProfileData();
             if (typeof carregarDados === 'function') carregarDados();
+            if (typeof carregarFotoPerfil === 'function') carregarFotoPerfil();
         }
         
-        // Disparar evento personalizado
         window.dispatchEvent(new CustomEvent('dataRefreshed'));
         console.log('[Sync] UI atualizada');
     };
     
-    // Função para logout seguro
+    // =====================================================
+    // LOGOUT SEGURO
+    // =====================================================
     window.safeLogout = async function() {
         if (window.CacheManager) {
             await window.CacheManager.logout();
@@ -118,10 +244,23 @@
         window.location.href = '../login/index.html';
     };
     
-    // Escutar evento de refresh manual
+    // =====================================================
+    // EVENTOS GLOBAIS
+    // =====================================================
     window.addEventListener('forceRefresh', () => {
         console.log('[Sync] Refresh forçado manualmente');
         window.refreshAllData();
+        window.forcarRecargaHorarioDesktop();
+    });
+    
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
+            console.log('[Sync] Storage event detectado:', e.key);
+            setTimeout(() => {
+                window.forcarRecargaHorarioDesktop();
+                window.refreshAllData();
+            }, 100);
+        }
     });
     
     console.log('[Sync] Helper carregado com suporte a tempo real');
@@ -132,7 +271,7 @@
 // =====================================================
 
 (function() {
-    // Função para carregar horário do Mobile para o Desktop
+    // Sincronizar horário do mobile para o desktop
     window.syncScheduleToDesktop = function() {
         const pathname = window.location.pathname;
         const isHomePage = pathname.includes('/inicio/') || 
@@ -140,9 +279,7 @@
                           pathname === '/' ||
                           pathname === '/inicio';
         
-        if (!isHomePage) {
-            return;
-        }
+        if (!isHomePage) return;
         
         console.log('[Sync] 🔄 Sincronizando horário para Desktop...');
         
@@ -166,12 +303,14 @@
                 if (timeSlots) {
                     localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
                 }
-                atualizarTabelaHorarioDesktop(weeklySchedule);
+                if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                    window.forcarRecargaHorarioDesktop();
+                }
             }
         }
     };
     
-    // Função para carregar disciplinas e anotações para o Desktop
+    // Sincronizar todos os dados
     window.syncAllDataToDesktop = function() {
         const pathname = window.location.pathname;
         const isDesktop = pathname.includes('/inicio/') || 
@@ -192,118 +331,59 @@
         const notes = window.CacheManager.get('notes', []);
         const calendarEvents = window.CacheManager.get('calendarEvents', []);
         const weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        const timeSlots = window.CacheManager.get('timeSlots', []);
         
         console.log('[Sync] Dados sincronizados:', {
             tasks: tasks.length,
             notes: notes.length,
             events: calendarEvents.length,
-            schedule: Object.keys(weeklySchedule).length
+            schedule: Object.keys(weeklySchedule).length,
+            timeSlots: timeSlots.length
         });
         
-        // Sincronizar tarefas
         if (typeof window.carregarTarefas === 'function') {
             window.carregarTarefas();
         }
         
-        // Sincronizar anotações
         if (typeof window.carregarAnotacoes === 'function') {
             window.carregarAnotacoes();
         }
         
-        // Atualizar UI de disciplinas
         if (typeof window.renderizarDisciplinas === 'function') {
             setTimeout(() => window.renderizarDisciplinas(), 100);
         }
         
-        // Atualizar horário
         if (weeklySchedule && Object.keys(weeklySchedule).length > 0) {
-            atualizarTabelaHorarioDesktop(weeklySchedule);
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
         }
     };
     
-    function atualizarTabelaHorarioDesktop(weeklySchedule) {
-        const scheduleTable = document.querySelector('.schedule-table tbody');
-        if (!scheduleTable) {
-            console.log('[Sync] Tabela de horário não encontrada');
-            return;
-        }
-        
-        const diasChave = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-        const rows = scheduleTable.querySelectorAll('tr');
-        
-        // Obter timeSlots do CacheManager
-        let timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-        if (window.CacheManager) {
-            const cachedSlots = window.CacheManager.get('timeSlots', null);
-            if (cachedSlots && cachedSlots.length) timeSlots = cachedSlots;
-        }
-        
-        rows.forEach(row => {
-            const timeCell = row.querySelector('td:first-child');
-            if (!timeCell) return;
-            const timeSlot = timeCell.textContent.trim();
-            
-            for (let i = 0; i < diasChave.length; i++) {
-                const diaChave = diasChave[i];
-                const cell = row.children[i + 1];
-                if (cell) {
-                    const aula = weeklySchedule[diaChave]?.find(a => a.horaInicio === timeSlot);
-                    if (aula && aula.materia) {
-                        // Aplicar classe com cor
-                        const materiaClass = getMateriaClass(aula.materia);
-                        cell.className = `subject ${materiaClass}`;
-                        cell.textContent = aula.materia;
-                        // Adicionar estilo de cor personalizado se disponível
-                        if (aula.color) {
-                            cell.style.backgroundColor = `${aula.color}20`;
-                            cell.style.color = aula.color;
-                            cell.style.borderLeft = `3px solid ${aula.color}`;
-                        }
-                    } else {
-                        cell.className = '';
-                        cell.textContent = '';
-                    }
-                }
-            }
-        });
-        
-        console.log('[Sync] ✅ Horário atualizado com cores');
-    }
-    
-    function getMateriaClass(materia) {
-        const mapa = {
-            'matemática': 'matematica', 'matematica': 'matematica',
-            'português': 'portugues', 'portugues': 'portugues',
-            'física': 'fisica', 'fisica': 'fisica',
-            'química': 'quimica', 'quimica': 'quimica',
-            'história': 'historia', 'historia': 'historia',
-            'geografia': 'geografia', 'biologia': 'biologia',
-            'inglês': 'ingles', 'ingles': 'ingles',
-            'redação': 'redacao', 'redacao': 'redacao'
-        };
-        const lowerMateria = materia?.toLowerCase()?.trim() || '';
-        return mapa[lowerMateria] || 'outros';
-    }
-    
     // Executar sincronização periódica
-    setInterval(() => {
+    let syncInterval = setInterval(() => {
         window.syncScheduleToDesktop();
         window.syncAllDataToDesktop();
-    }, 5000);
+    }, 3000);
     
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 window.syncScheduleToDesktop();
                 window.syncAllDataToDesktop();
-            }, 2000);
+            }, 1000);
         });
     } else {
         setTimeout(() => {
             window.syncScheduleToDesktop();
             window.syncAllDataToDesktop();
-        }, 2000);
+        }, 1000);
     }
+    
+    // Limpar intervalo quando a página for descarregada
+    window.addEventListener('beforeunload', () => {
+        if (syncInterval) clearInterval(syncInterval);
+    });
     
     console.log('[Sync] Ponte PC-Mobile instalada com sincronização completa');
 })();

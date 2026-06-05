@@ -38,7 +38,13 @@
                 <span class="card-label">Pendentes</span>
             </div>
         </div>
-
+        <!-- Frase do Dia -->
+        <div class="frase-dia-card">
+            <div class="frase-icon">
+                <ion-icon name="bulb-outline"></ion-icon>
+            </div>
+            <p id="fraseDoDiaTextMobile">Carregando frase motivacional...</p>
+        </div>
         <section class="home-only">
             <div class="section-header">
                 <h3 class="section-title">Horário Semanal</h3>
@@ -195,16 +201,19 @@
 
     <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
      <!-- No index.html do login ou no cabeçalho principal -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
+    <script src="../preload-system.js"></script>
+<script src="../fast-bootstrap.js"></script>
+     <!-- E em cada página específica, como esta do calendário, você também inclui para garantir que o sistema de preload e fast bootstrap funcione corretamente -->
+     <!-- SCRIPTS NA ORDEM CORRETA -->
     <!-- SCRIPTS NA ORDEM CORRETA -->
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>
     <script src="../sync-helper.js"></script>
+      <script src="../daily-phrases.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

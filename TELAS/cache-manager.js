@@ -2,7 +2,7 @@
 class CacheManager {
     constructor() {
         this.listeners = new Map();
-        this.cacheVersion = 'v10';
+        this.cacheVersion = 'v11';
         this.isInitialized = false;
         this.currentUserId = null;
         this.isSyncing = false;
@@ -51,7 +51,7 @@ class CacheManager {
         });
         
         this.isInitialized = true;
-        console.log('[CacheManager] Inicializado v10');
+        console.log('[CacheManager] Inicializado v11');
     }
 
     // ========== MÉTODOS DE USUÁRIO ==========
@@ -63,6 +63,7 @@ class CacheManager {
                 try {
                     const user = JSON.parse(usuario);
                     this.currentUserId = user.uid || user.email || 'default';
+                    console.log('[CacheManager] Usuário identificado:', this.currentUserId);
                 } catch(e) {}
             }
         }
@@ -143,6 +144,7 @@ class CacheManager {
             
             this.notifyOtherTabs(key, value);
             
+            // Sincronizar com nuvem se estiver online
             if (this._isOnline && !this.isSyncing && window.FirebaseSync && 
                 typeof window.FirebaseSync.saveUserDataToCloud === 'function' &&
                 this.isUserLoggedIn()) {
@@ -223,14 +225,28 @@ class CacheManager {
             const userId = this.getCurrentUserId();
             
             if (!userId || userId === 'default') {
+                console.warn('[CacheManager] Usuário não identificado para sync:', key);
                 return false;
             }
             
             if (!window.FirebaseSync || typeof window.FirebaseSync.saveUserDataToCloud !== 'function') {
+                console.warn('[CacheManager] FirebaseSync não disponível');
                 return false;
             }
             
+            console.log(`[CacheManager] 📤 Sincronizando ${key} para nuvem...`);
             const result = await window.FirebaseSync.saveUserDataToCloud(userId, key, value);
+            
+            if (result) {
+                console.log(`[CacheManager] ✅ ${key} sincronizado com sucesso!`);
+                // Disparar evento para atualizar outras abas
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded', { 
+                    detail: { [key]: value } 
+                }));
+            } else {
+                console.warn(`[CacheManager] ⚠️ Falha ao sincronizar ${key}`);
+            }
+            
             return result;
         } catch (error) {
             console.error('[CacheManager] Erro ao sincronizar com nuvem:', error);
@@ -294,6 +310,7 @@ class CacheManager {
                 }
                 return true;
             } else {
+                console.log('[CacheManager] Nenhum dado encontrado na nuvem');
                 return false;
             }
         } catch (error) {
@@ -311,7 +328,10 @@ class CacheManager {
         const userId = this.getCurrentUserId();
         if (!userId || userId === 'default') return;
         
-        if (this.cloudListener) return;
+        if (this.cloudListener) {
+            console.log('[CacheManager] Escuta já ativa');
+            return;
+        }
         
         if (window.FirebaseSync && typeof window.FirebaseSync.listenToUserData === 'function') {
             console.log('[CacheManager] 🔌 Iniciando escuta em tempo real do Firebase para:', userId);
@@ -367,6 +387,7 @@ class CacheManager {
                     const storageKey = this.getStorageKey(key);
                     localStorage.setItem(storageKey, JSON.stringify(cloudData[key]));
                     hasChanges = true;
+                    console.log(`[CacheManager] 🔔 Dado "${key}" atualizado da nuvem em tempo real!`);
                     
                     if (this.listeners.has(key)) {
                         const callbacks = this.listeners.get(key);
@@ -422,6 +443,7 @@ class CacheManager {
         }
         
         try {
+            console.log('[CacheManager] 📤 Enviando foto para nuvem...');
             const photoUrl = await window.FirebaseStorage.uploadProfilePhoto(userId, file);
             
             if (photoUrl) {
@@ -432,6 +454,7 @@ class CacheManager {
                 localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
                 
                 window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
+                console.log('[CacheManager] ✅ Foto enviada com sucesso!');
             }
             
             return photoUrl;
@@ -446,7 +469,9 @@ class CacheManager {
         if (!userId || userId === 'default') return null;
         
         const usuario = this.get('usuarioLogado', {});
-        if (usuario.profilePhotoUrl) return usuario.profilePhotoUrl;
+        if (usuario.profilePhotoUrl && usuario.profilePhotoUrl.startsWith('data:')) {
+            return usuario.profilePhotoUrl;
+        }
         
         if (window.FirebaseStorage) {
             return await window.FirebaseStorage.getProfilePhotoUrl(userId);
@@ -471,6 +496,7 @@ class CacheManager {
                 localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
                 
                 window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl: null } }));
+                console.log('[CacheManager] ✅ Foto removida!');
             }
             return deleted;
         }
@@ -507,6 +533,7 @@ class CacheManager {
             if (loaded) {
                 console.log('[CacheManager] ✅ Dados da nuvem carregados com sucesso!');
             } else {
+                console.log('[CacheManager] Nenhum dado existente na nuvem, criando estrutura...');
                 const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications'];
                 for (const key of keys) {
                     const data = this.get(key, null);
@@ -690,7 +717,7 @@ window.uploadProfilePhoto = (file) => window.CacheManager.uploadProfilePhoto(fil
 window.getProfilePhotoUrl = () => window.CacheManager.getProfilePhotoUrl();
 window.deleteProfilePhoto = () => window.CacheManager.deleteProfilePhoto();
 
-console.log('[CacheManager] v10 carregado com suporte completo para:');
+console.log('[CacheManager] v11 carregado com suporte completo para:');
 console.log('  ✅ Anotações (notes)');
 console.log('  ✅ Tarefas (tasks)');
 console.log('  ✅ Calendário (calendarEvents)');

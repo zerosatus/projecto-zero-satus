@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anotações - Painel do Aluno</title>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -10,7 +10,6 @@
 </head>
 <body>
     <div class="mobile-container">
-        <!-- HEADER -->
         <header>
             <div class="greeting">
                 <h1 id="header-name">Usuário</h1>
@@ -22,112 +21,70 @@
             </div>
         </header>
 
-        <!-- VIEW: NOTAS -->
-        <section id="notes-view">
+        <div id="notes-view">
             <div class="notes-header-minimal">
                 <h1>Anotações</h1>
                 <button class="btn-new-note" id="btn-add-note">
                     <ion-icon name="add-outline"></ion-icon>
                 </button>
             </div>
-
-            <!-- BARRA DE PESQUISA -->
+            
             <div class="notes-search-minimal">
                 <ion-icon name="search-outline"></ion-icon>
-                <input type="text" id="notes-search-input" placeholder="Pesquisar anotações...">
+                <input type="text" id="notes-search-input" placeholder="Buscar anotações...">
             </div>
 
-            <!-- GRADE DE ANOTAÇÕES -->
             <div class="notes-grid-minimal" id="notes-grid"></div>
-        </section>
+        </div>
 
-        <!-- ============================================
-             MODAL DE ANOTAÇÃO - ESTILO SAMSUNG NOTES
-             ============================================ -->
+        <nav class="bottom-nav">
+            <div class="nav-item" data-view="home" onclick="window.location.href='../index.html'">
+                <ion-icon name="home-outline"></ion-icon>
+                <span>Início</span>
+            </div>
+            <div class="nav-item" data-view="calendar" onclick="window.location.href='../calendario/index.html'">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Calendário</span>
+            </div>
+            <div class="nav-item" data-view="tasks" onclick="window.location.href='../tarefas/index.html'">
+                <ion-icon name="checkbox-outline"></ion-icon>
+                <span>Tarefas</span>
+            </div>
+            <div class="nav-item active" data-view="notes">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>Notas</span>
+            </div>
+            <div class="nav-item" data-view="profile" onclick="window.location.href='../perfil/index.html'">
+                <ion-icon name="person-outline"></ion-icon>
+                <span>Perfil</span>
+            </div>
+        </nav>
+
         <div class="note-modal-minimal" id="note-modal">
             <div class="note-editor-container">
-                
-                <!-- Header estilo Samsung Notes -->
-                <div class="samsung-header">
-                    <button class="samsung-back-btn" id="note-modal-back">
+                <div class="note-editor-header">
+                    <button class="btn-back-minimal" id="note-modal-back">
                         <ion-icon name="arrow-back-outline"></ion-icon>
                     </button>
-                    <input type="text" class="samsung-title-input" id="note-title-input" placeholder="Título" autocomplete="off">
-                    <button class="samsung-done-btn" id="btn-save-note">
-                        Concluir
-                    </button>
+                    <input type="text" id="note-title-input" placeholder="Título" class="note-title-input">
+                    <button class="btn-save-minimal" id="btn-save-note">Concluir</button>
                 </div>
-
-                <!-- Toolbar de formatação -->
-                <div class="samsung-toolbar">
-                    <div class="samsung-toolbar-group">
-                        <button class="samsung-toolbar-btn" data-command="bold" title="Negrito">
-                            <ion-icon name="text-outline"></ion-icon>
-                            <span class="toolbar-label">B</span>
-                        </button>
-                        <button class="samsung-toolbar-btn" data-command="italic" title="Itálico">
-                            <span class="toolbar-label toolbar-italic">I</span>
-                        </button>
-                        <button class="samsung-toolbar-btn" data-command="underline" title="Sublinhado">
-                            <span class="toolbar-label toolbar-underline">U</span>
-                        </button>
-                        <button class="samsung-toolbar-btn" data-command="strikeThrough" title="Tachado">
-                            <span class="toolbar-label toolbar-strike">S</span>
-                        </button>
-                    </div>
-                    <div class="samsung-toolbar-divider"></div>
-                    <div class="samsung-toolbar-group">
-                        <button class="samsung-toolbar-btn" data-command="justifyLeft" title="Esquerda">
-                            <ion-icon name="align-left-outline"></ion-icon>
-                        </button>
-                        <button class="samsung-toolbar-btn" data-command="justifyCenter" title="Centro">
-                            <ion-icon name="align-center-outline"></ion-icon>
-                        </button>
-                        <button class="samsung-toolbar-btn" data-command="justifyRight" title="Direita">
-                            <ion-icon name="align-right-outline"></ion-icon>
-                        </button>
-                    </div>
-                    <div class="samsung-toolbar-divider"></div>
-                    <div class="samsung-toolbar-group">
-                        <button class="samsung-toolbar-btn" data-command="insertUnorderedList" title="Lista">
-                            <ion-icon name="list-outline"></ion-icon>
-                        </button>
-                        <button class="samsung-toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
-                            <ion-icon name="list-number-outline"></ion-icon>
-                        </button>
-                    </div>
-                    <div class="samsung-toolbar-divider"></div>
-                    <div class="samsung-toolbar-group">
-                        <select class="samsung-toolbar-select" id="samsung-format-select">
-                            <option value="p">Parágrafo</option>
-                            <option value="h1">Título 1</option>
-                            <option value="h2" selected>Título 2</option>
-                            <option value="h3">Título 3</option>
-                        </select>
-                    </div>
+                <div class="note-editor-area">
+                    <textarea id="note-content-input" placeholder="Digite sua anotação..."></textarea>
                 </div>
-
-                <!-- Editor que fica por cima do teclado -->
-                <div class="samsung-editor-wrapper" id="samsung-editor-wrapper">
-                    <div id="note-content-input" class="samsung-editor" contenteditable="true" placeholder="Digite sua anotação..."></div>
-                </div>
-
-                <!-- Info do rodapé -->
                 <div class="note-footer-info">
                     <span id="note-date-display"></span>
                 </div>
             </div>
         </div>
 
-        <!-- MODAL DE NOTIFICAÇÕES -->
         <div class="notifications-modal" id="notifications-modal">
             <div class="notifications-modal-content">
                 <div class="notifications-modal-header">
                     <h2>Notificações</h2>
                     <div class="notifications-actions">
                         <button class="btn-mark-read" id="btn-mark-read">
-                            <ion-icon name="checkmark-done-outline"></ion-icon>
-                            Marcar todas
+                            <ion-icon name="checkmark-done-outline"></ion-icon> Marcar todas
                         </button>
                         <button class="btn-clear-all" id="btn-clear-all">
                             <ion-icon name="trash-outline"></ion-icon>
@@ -135,22 +92,19 @@
                     </div>
                 </div>
                 <div class="notifications-tabs">
-                    <button class="notification-tab active" data-type="all">Todas</button>
-                    <button class="notification-tab" data-type="unread">Não Lidas</button>
-                    <button class="notification-tab" data-type="aulas">Aulas</button>
-                    <button class="notification-tab" data-type="tarefas">Tarefas</button>
+                    <div class="notification-tab active" data-type="all">Todas</div>
+                    <div class="notification-tab" data-type="unread">Não Lidas</div>
+                    <div class="notification-tab" data-type="aulas">Aulas</div>
+                    <div class="notification-tab" data-type="tarefas">Tarefas</div>
                 </div>
                 <div id="notifications-list-modal"></div>
                 <button class="btn-close-modal" id="btn-close-notifications">Fechar</button>
             </div>
         </div>
 
-        <!-- MODAL DE CONFIRMAÇÃO -->
         <div class="confirm-modal" id="confirm-modal">
             <div class="confirm-modal-content">
-                <div class="confirm-icon">
-                    <ion-icon name="alert-circle-outline"></ion-icon>
-                </div>
+                <div class="confirm-icon"><ion-icon name="warning-outline"></ion-icon></div>
                 <h3 id="confirm-title">Confirmar ação</h3>
                 <p id="confirm-message">Tem certeza que deseja continuar?</p>
                 <div class="confirm-buttons">
@@ -160,34 +114,19 @@
             </div>
         </div>
 
-        <!-- TOAST CONTAINER -->
         <div id="toast-container"></div>
 
-        <!-- BOTTOM NAV -->
-        <nav class="bottom-nav">
-            <div class="nav-item" data-view="home">
-                <ion-icon name="home-outline"></ion-icon>
-                <span>Início</span>
-            </div>
-            <div class="nav-item" data-view="calendar">
-                <ion-icon name="calendar-outline"></ion-icon>
-                <span>Calendário</span>
-            </div>
-            <div class="nav-item" data-view="tasks">
-                <ion-icon name="checkmark-done-outline"></ion-icon>
-                <span>Tarefas</span>
-            </div>
-            <div class="nav-item active" data-view="notes">
-                <ion-icon name="document-text-outline"></ion-icon>
-                <span>Notas</span>
-            </div>
-            <div class="nav-item" data-view="profile">
-                <ion-icon name="person-outline"></ion-icon>
-                <span>Perfil</span>
-            </div>
-        </nav>
-    </div>
-
+    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="../preload-system.js"></script>
+<script src="../fast-bootstrap.js"></script>
+    <!-- SCRIPTS NA ORDEM CORRETA -->
+    <script src="../../cache-manager.js"></script>
+    <script src="../../shared-data.js"></script>
+    <script src="../../firebase-config.js"></script>
+    <script src="../../sync-helper.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

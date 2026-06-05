@@ -1286,3 +1286,176 @@ section {
 .logout-mobile-btn ion-icon {
     font-size: 1.2rem;
 }
+/* ==================== ESTILOS PARA REMOÇÃO DE HORÁRIOS ==================== */
+
+.time-slot-with-delete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card-bg);
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.time-slot-with-delete .time-slot-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    flex: 1;
+    text-align: center;
+}
+
+.btn-delete-time {
+    background: none;
+    border: none;
+    color: var(--accent-red);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.btn-delete-time:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.btn-delete-time ion-icon {
+    font-size: 1rem;
+}
+
+.btn-delete-class {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s, transform 0.2s;
+    margin-top: 4px;
+}
+
+.btn-delete-class:hover {
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+.btn-delete-class ion-icon {
+    font-size: 0.9rem;
+}
+
+/* Ajuste na grade de edição para o novo layout */
+.edit-schedule-grid {
+    display: grid;
+    grid-template-columns: 85px repeat(5, 1fr);
+    gap: 0;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    min-width: 650px;
+}
+
+/* Ajuste para os botões de adicionar na edição */
+.edit-cell .btn-add {
+    background-color: transparent;
+    border: 1px dashed var(--text-secondary);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 100%;
+    min-height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.edit-cell .btn-add:hover {
+    border-color: var(--accent-purple);
+    color: var(--accent-purple);
+    background-color: rgba(139, 92, 246, 0.1);
+}
+
+/* Melhorias visuais para os blocos de matéria na edição */
+.edit-cell .class-block {
+    width: 100%;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+/* Responsividade para telas pequenas */
+@media (max-width: 480px) {
+    .edit-schedule-grid {
+        min-width: 550px;
+        grid-template-columns: 75px repeat(5, 1fr);
+    }
+    
+    .time-slot-with-delete .time-slot-text {
+        font-size: 0.7rem;
+    }
+    
+    .btn-delete-time ion-icon {
+        font-size: 0.8rem;
+    }
+    
+    .edit-cell .class-block {
+        font-size: 0.65rem;
+        padding: 6px;
+    }
+}
+/* Adicione no final do arquivo mobile-telas/style.css */
+
+/* Frase do Dia Mobile */
+.frase-dia-card {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.08));
+    border-radius: 20px;
+    padding: 20px;
+    margin: 10px 20px 20px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.frase-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(139, 92, 246, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.frase-icon ion-icon {
+    font-size: 28px;
+    color: #a78bfa;
+}
+
+.frase-dia-card p {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-style: italic;
+    margin: 0;
+}

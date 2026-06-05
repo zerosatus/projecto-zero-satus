@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM FOTO DE PERFIL
+// mobile-telas/script.js - VERSÃO COMPLETA COM SINCRONIZAÇÃO E FRASE DO DIA
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -12,78 +12,177 @@ let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 
-// ===== INICIALIZAÇÃO =====
-async function inicializar() {
-    console.log('[Mobile] 🚀 Inicializando aplicação mobile...');
-    
-    if (window.CacheManager) {
-        window.CacheManager.init();
-        console.log('[Mobile] ✅ CacheManager inicializado');
-    }
-    
-    const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (!usuarioSalvo) {
-        window.location.href = '../../login/index.html';
-        return;
-    }
-    
-    try {
-        usuarioLogado = JSON.parse(usuarioSalvo);
-        console.log('[Mobile] 👤 Usuário:', usuarioLogado.nome);
-        
-        const userId = usuarioLogado.uid || usuarioLogado.email;
-        if (window.CacheManager) {
-            window.CacheManager.setCurrentUser(userId);
-            console.log('[Mobile] ✅ CacheManager configurado para:', userId);
-        }
-        
-        const headerName = document.getElementById('header-name');
-        if (headerName) {
-            headerName.textContent = usuarioLogado.nome.split(' ')[0];
-        }
-        
-        await carregarTodosDadosDaNuvem();
-        await renderizarTudo();
-        
-        if (window.CacheManager && window.CacheManager.startRealtimeSync) {
-            await window.CacheManager.startRealtimeSync();
-        }
-        
-        window.addEventListener('cloudDataLoaded', async () => {
-            console.log('[Mobile] Dados da nuvem atualizados');
-            await recarregarDadosERenderizar();
-        });
-        
-        window.addEventListener('profilePhotoUpdated', async (event) => {
-            if (event.detail && event.detail.photoUrl) {
-                console.log('[Mobile] Foto de perfil atualizada em tempo real!');
-                await atualizarAvatarMobile(event.detail.photoUrl);
-            }
-        });
-        
-    } catch(e) {
-        console.error('[Mobile] Erro:', e);
-        carregarDadosLocalStorage();
-        renderizarTudo();
+// ===== FUNÇÃO DA FRASE DO DIA =====
+function atualizarFraseDoDiaMobile() {
+    const fraseElement = document.getElementById('fraseDoDiaTextMobile');
+    if (fraseElement && window.FrasesDoDia) {
+        const frase = window.FrasesDoDia.getFraseDoDia();
+        fraseElement.textContent = frase;
+        console.log('[Mobile] Frase do dia atualizada:', frase.substring(0, 40) + '...');
+    } else if (fraseElement) {
+        fraseElement.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
     }
 }
 
-// ===== FUNÇÃO PARA ATUALIZAR AVATAR MOBILE =====
+// ===== INICIALIZAÇÃO RÁPIDA COM FASTINIT =====
+window.fastInit('Mobile', {
+    onInit: async () => {
+        console.log('[Mobile] 🚀 Inicialização rápida...');
+        
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        if (!usuarioSalvo) {
+            window.location.href = '../../login/index.html';
+            return false;
+        }
+        
+        usuarioLogado = JSON.parse(usuarioSalvo);
+        
+        const cachedNotes = window.getFastData('notes', []);
+        const cachedTasks = window.getFastData('tasks', []);
+        const cachedEvents = window.getFastData('calendarEvents', []);
+        const cachedSchedule = window.getFastData('weeklySchedule', {});
+        const cachedSlots = window.getFastData('timeSlots', []);
+        const cachedNotif = window.getFastData('notifications', []);
+        
+        notes = cachedNotes;
+        tasks = cachedTasks;
+        calendarEvents = cachedEvents;
+        weeklySchedule = cachedSchedule;
+        timeSlots = cachedSlots.length ? cachedSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+        notifications = cachedNotif;
+        
+        days.forEach(day => {
+            if (!weeklySchedule[day]) weeklySchedule[day] = [];
+        });
+        
+        const headerName = document.getElementById('header-name');
+        if (headerName && usuarioLogado.nome) {
+            headerName.textContent = usuarioLogado.nome.split(' ')[0];
+        }
+        
+        // Iniciar CacheManager e escuta em tempo real
+        if (window.CacheManager) {
+            window.CacheManager.init();
+            window.CacheManager.currentUserId = usuarioLogado.uid || usuarioLogado.email;
+            
+            setTimeout(() => {
+                if (window.CacheManager.startRealtimeSync) {
+                    window.CacheManager.startRealtimeSync();
+                }
+                if (window.CacheManager.startPhotoRealtimeSync) {
+                    window.CacheManager.startPhotoRealtimeSync();
+                }
+            }, 500);
+        }
+        
+        console.log('[Mobile] ✅ Dados carregados:', {
+            notes: notes.length,
+            tasks: tasks.length,
+            events: calendarEvents.length,
+            schedule: Object.keys(weeklySchedule).length,
+            timeSlots: timeSlots.length
+        });
+        
+        return true;
+    },
+    onRender: () => {
+        console.log('[Mobile] 🎨 Renderizando interface...');
+        renderizarHorario();
+        renderizarProximoEvento();
+        renderizarProximasTarefas();
+        renderizarNotificacoes();
+        atualizarCards();
+        atualizarBadgeNotificacoes();
+        atualizarAvatarMobile();
+        atualizarFraseDoDiaMobile(); // 🔥 FRASE DO DIA ATUALIZADA
+    }
+});
+
+// ===== FUNÇÃO PARA REMOVER HORÁRIO COMPLETO (COM SINCRONIZAÇÃO) =====
+function removerHorario(timeSlot) {
+    let hasClasses = false;
+    
+    for (const day of days) {
+        if (weeklySchedule[day]?.some(cls => cls.horaInicio === timeSlot)) {
+            hasClasses = true;
+            break;
+        }
+    }
+    
+    if (hasClasses) {
+        showConfirm(
+            `O horário ${timeSlot} possui aulas agendadas. Excluir mesmo assim? As aulas serão removidas.`,
+            'Remover Horário',
+            (confirmed) => {
+                if (confirmed) {
+                    executarRemocaoHorario(timeSlot);
+                }
+            }
+        );
+    } else {
+        executarRemocaoHorario(timeSlot);
+    }
+}
+
+async function executarRemocaoHorario(timeSlot) {
+    console.log('[Mobile] Removendo horário:', timeSlot);
+    
+    const index = timeSlots.indexOf(timeSlot);
+    if (index !== -1) {
+        timeSlots.splice(index, 1);
+    }
+    
+    for (const day of days) {
+        if (weeklySchedule[day]) {
+            weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
+        }
+    }
+    
+    timeSlots.sort();
+    
+    await salvarTodosDados();
+    
+    if (document.getElementById('edit-modal').classList.contains('active')) {
+        renderizarEditSchedule();
+    } else {
+        renderizarHorario();
+    }
+    
+    showToast(`Horário ${timeSlot} removido!`, 'success');
+    console.log('[Mobile] ✅ Horário removido e sincronizado!');
+}
+
+function removerAula(day, timeSlot) {
+    showConfirm(`Remover aula de ${day} às ${timeSlot}?`, 'Remover Aula', async (confirmed) => {
+        if (confirmed) {
+            if (weeklySchedule[day]) {
+                weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
+                await salvarTodosDados();
+                
+                if (document.getElementById('edit-modal').classList.contains('active')) {
+                    renderizarEditSchedule();
+                } else {
+                    renderizarHorario();
+                }
+                showToast('Aula removida!', 'success');
+                console.log('[Mobile] ✅ Aula removida e sincronizada!');
+            }
+        }
+    });
+}
+
 async function atualizarAvatarMobile(photoUrl = null) {
     const profileIcon = document.getElementById('notification-bell');
     if (!profileIcon) return;
     
-    // Se recebeu uma URL específica, usa ela
-    if (photoUrl) {
+    if (photoUrl && photoUrl.startsWith('data:')) {
         profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         return;
     }
     
-    // Caso contrário, busca do CacheManager
     if (window.CacheManager && usuarioLogado) {
         const cachedPhotoUrl = await window.CacheManager.getProfilePhotoUrl();
-        
-        if (cachedPhotoUrl) {
+        if (cachedPhotoUrl && cachedPhotoUrl.startsWith('data:')) {
             profileIcon.innerHTML = `<img src="${cachedPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         } else if (usuarioLogado.nome) {
             const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
@@ -95,189 +194,9 @@ async function atualizarAvatarMobile(photoUrl = null) {
     }
 }
 
-// ===== CARREGAR DADOS =====
-async function carregarTodosDadosDaNuvem() {
-    if (!usuarioLogado) return false;
-    
-    try {
-        console.log('[Mobile] 🔍 Carregando dados da nuvem...');
-        
-        if (window.CacheManager) {
-            await window.CacheManager.loadFromCloud(true);
-        }
-        
-        const cachedNotes = window.CacheManager?.get('notes', null);
-        const cachedTasks = window.CacheManager?.get('tasks', null);
-        const cachedEvents = window.CacheManager?.get('calendarEvents', null);
-        const cachedSchedule = window.CacheManager?.get('weeklySchedule', null);
-        const cachedSlots = window.CacheManager?.get('timeSlots', null);
-        const cachedNotif = window.CacheManager?.get('notifications', null);
-        
-        if (cachedNotes !== null) notes = cachedNotes;
-        if (cachedTasks !== null) tasks = cachedTasks;
-        if (cachedEvents !== null) calendarEvents = cachedEvents;
-        if (cachedSchedule !== null) weeklySchedule = cachedSchedule;
-        if (cachedSlots !== null) timeSlots = cachedSlots;
-        if (cachedNotif !== null) notifications = cachedNotif;
-        
-        console.log('[Mobile] 📦 Dados carregados:', {
-            notes: notes?.length || 0,
-            tasks: tasks?.length || 0,
-            events: calendarEvents?.length || 0,
-            schedule: weeklySchedule ? Object.keys(weeklySchedule).length : 0,
-            slots: timeSlots?.length || 0
-        });
-        
-        if (notes.length === 0 && tasks.length === 0 && Object.keys(weeklySchedule).length === 0) {
-            carregarDadosLocalStorage();
-        }
-        
-        if (!timeSlots || timeSlots.length === 0) {
-            timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-        }
-        
-        if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
-            weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
-        }
-        
-        days.forEach(day => {
-            if (!weeklySchedule[day]) weeklySchedule[day] = [];
-        });
-        
-        return true;
-        
-    } catch (error) {
-        console.error('[Mobile] Erro ao carregar nuvem:', error);
-        carregarDadosLocalStorage();
-        return false;
-    }
-}
-
-// ===== FALLBACK LOCALSTORAGE =====
-function carregarDadosLocalStorage() {
-    if (!usuarioLogado) return;
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    const storedNotes = localStorage.getItem(`${userId}_notes`);
-    const storedTasks = localStorage.getItem(`${userId}_tasks`);
-    const storedEvents = localStorage.getItem(`${userId}_calendarEvents`);
-    const storedSchedule = localStorage.getItem(`${userId}_weeklySchedule`);
-    const storedSlots = localStorage.getItem(`${userId}_timeSlots`);
-    const storedNotif = localStorage.getItem(`${userId}_notifications`);
-    
-    if (storedNotes) notes = JSON.parse(storedNotes);
-    if (storedTasks) tasks = JSON.parse(storedTasks);
-    if (storedEvents) calendarEvents = JSON.parse(storedEvents);
-    if (storedSchedule) weeklySchedule = JSON.parse(storedSchedule);
-    if (storedSlots) timeSlots = JSON.parse(storedSlots);
-    if (storedNotif) notifications = JSON.parse(storedNotif);
-    
-    if (!timeSlots || timeSlots.length === 0) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) weeklySchedule = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
-    
-    days.forEach(day => { if (!weeklySchedule[day]) weeklySchedule[day] = []; });
-    console.log('[Mobile] 📦 Dados do localStorage carregados');
-}
-
-// ===== SALVAR DADOS NA NUVEM =====
-async function salvarTodosDados() {
-    if (!usuarioLogado) return;
-    
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    console.log('[Mobile] 💾 Salvando dados para:', userId);
-    
-    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
-    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
-    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
-    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
-    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-    
-    if (window.CacheManager && window.CacheManager.isUserLoggedIn()) {
-        window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
-        window.CacheManager.set('timeSlots', timeSlots || [], true);
-        window.CacheManager.set('tasks', tasks || [], true);
-        window.CacheManager.set('notes', notes || [], true);
-        window.CacheManager.set('calendarEvents', calendarEvents || [], true);
-        window.CacheManager.set('notifications', notifications || [], true);
-        
-        setTimeout(() => {
-            if (window.CacheManager && window.CacheManager.syncToCloud) {
-                window.CacheManager.syncToCloud('weeklySchedule', weeklySchedule);
-                window.CacheManager.syncToCloud('timeSlots', timeSlots);
-                window.CacheManager.syncToCloud('tasks', tasks);
-                window.CacheManager.syncToCloud('notes', notes);
-                window.CacheManager.syncToCloud('calendarEvents', calendarEvents);
-            }
-        }, 100);
-        
-        console.log('[Mobile] ✅ Dados salvos e enviados para nuvem');
-        showToast('Dados salvos na nuvem!', 'success', 1500);
-    } else {
-        console.warn('[Mobile] ⚠️ CacheManager não disponível ou usuário não logado');
-    }
-}
-
-// ===== SALVAR MATÉRIA =====
-async function salvarMateria() {
-    const name = document.getElementById('subject-name-input')?.value.trim();
-    const startTime = document.getElementById('subject-start-input')?.value;
-    const endTime = document.getElementById('subject-end-input')?.value;
-    const day = document.getElementById('subject-day-input')?.value;
-    
-    if (!name) {
-        showToast('Preencha o nome da matéria!', 'error');
-        return;
-    }
-    if (!startTime || !endTime) {
-        showToast('Defina início e término!', 'error');
-        return;
-    }
-    
-    if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    
-    if (editingSubject) {
-        const oldStart = editingSubject.horaInicio;
-        weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
-    }
-    
-    if (!timeSlots.includes(startTime)) {
-        timeSlots.push(startTime);
-        timeSlots.sort();
-    }
-    
-    weeklySchedule[day].push({
-        materia: name,
-        professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
-        color: selectedSubjectColor,
-        horaInicio: startTime,
-        horaFim: endTime
-    });
-    
-    weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-    
-    await salvarTodosDados();
-    
-    document.getElementById('subject-modal').classList.remove('active');
-    showToast(editingSubject ? 'Matéria atualizada e sincronizada!' : 'Matéria adicionada e sincronizada!', 'success');
-    
-    if (document.getElementById('edit-modal').classList.contains('active')) {
-        renderizarEditSchedule();
-    } else {
-        renderizarHorario();
-    }
-    atualizarCards();
-    editingSubject = null;
-}
-
-// ===== RENDERIZAR HORÁRIO =====
 function renderizarHorario() {
     const grid = document.getElementById('schedule-grid');
-    if (!grid) {
-        console.warn('[Mobile] schedule-grid não encontrado');
-        return;
-    }
+    if (!grid) return;
     
     if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
         grid.innerHTML = '<div style="grid-column:span 6;text-align:center;padding:40px;">Carregando horário...</div>';
@@ -320,7 +239,7 @@ function renderizarHorario() {
                 const timeSlot = slotsList[timeIndex];
                 const day = days[dayIndex];
                 const subject = weeklySchedule[day]?.find(c => c.horaInicio === timeSlot);
-                if (subject) openSubjectModal(subject, day, timeSlot);
+                openSubjectModal(subject, day, timeSlot);
             }
         });
     });
@@ -343,7 +262,71 @@ function renderizarHorario() {
     });
 }
 
-// ===== RENDERIZAR PRÓXIMAS TAREFAS =====
+function renderizarEditSchedule() {
+    const grid = document.getElementById('edit-schedule-grid');
+    if (!grid) return;
+    
+    let html = '<div class="day-header">Hora</div>';
+    days.forEach(day => html += `<div class="day-header">${day}</div>`);
+    
+    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    
+    slots.forEach(time => {
+        html += `<div class="time-slot-with-delete">
+                    <span class="time-slot-text">${time}</span>
+                    <button class="btn-delete-time" data-time="${time}" title="Remover este horário">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>`;
+        
+        days.forEach(day => {
+            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
+            if (classItem && classItem.materia) {
+                html += `<div class="edit-cell">
+                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">
+                        ${escapeHtml(classItem.materia)}
+                        <button class="btn-delete-class" data-day="${day}" data-time="${time}" title="Remover esta aula">
+                            <ion-icon name="close-circle-outline"></ion-icon>
+                        </button>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="edit-cell">
+                    <button class="btn-add" data-day="${day}" data-time="${time}">+</button>
+                </div>`;
+            }
+        });
+    });
+    
+    grid.innerHTML = html;
+    
+    document.querySelectorAll('.btn-delete-time').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const timeSlot = btn.dataset.time;
+            removerHorario(timeSlot);
+        });
+    });
+    
+    document.querySelectorAll('.btn-delete-class').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const day = btn.dataset.day;
+            const time = btn.dataset.time;
+            removerAula(day, time);
+        });
+    });
+    
+    document.querySelectorAll('.edit-cell .btn-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const day = btn.dataset.day;
+            const time = btn.dataset.time;
+            openSubjectModal(null, day, time);
+        });
+    });
+}
+
 function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
@@ -371,7 +354,74 @@ function renderizarProximasTarefas() {
     container.innerHTML = html;
 }
 
-// ===== ATUALIZAR CARDS =====
+function renderizarProximoEvento() {
+    const container = document.getElementById('next-event-container');
+    if (!container) return;
+    
+    if (!calendarEvents || calendarEvents.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
+        return;
+    }
+    
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const eventosFuturos = calendarEvents
+        .filter(e => e.date && e.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 3);
+    
+    if (eventosFuturos.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos futuros</div><div class="item-subtitle">Todos os eventos estão no passado</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    eventosFuturos.forEach(event => {
+        const [year, month, day] = event.date.split('-');
+        const dateFormatted = `${day}/${month}`;
+        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='./calendario/index.html'">
+            <div class="item-icon" style="background-color: ${event.color || '#8b5cf6'}20; color: ${event.color || '#8b5cf6'}">
+                <ion-icon name="calendar-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(event.title)}</div>
+                <div class="item-subtitle">${dateFormatted} • ${event.start || '--:--'}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function renderizarNotificacoes() {
+    const container = document.getElementById('notifications-list');
+    if (!container) return;
+    
+    const notificacoesNaoLidas = (notifications || []).filter(n => !n.read).slice(0, 3);
+    
+    if (notificacoesNaoLidas.length === 0) {
+        container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
+        return;
+    }
+    
+    let html = '';
+    notificacoesNaoLidas.forEach(notif => {
+        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
+        html += `<div class="list-item" data-id="${notif.id}">
+            <div class="item-icon notification" style="background-color: #8b5cf6; color: white">
+                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            </div>
+            <div class="item-info">
+                <div class="item-title">${escapeHtml(notif.title)}</div>
+                <div class="item-subtitle">${escapeHtml(notif.message)}</div>
+            </div>
+            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
 function atualizarCards() {
     const materias = new Set();
     if (weeklySchedule) {
@@ -394,7 +444,15 @@ function atualizarCards() {
     if (cardPendentes) cardPendentes.textContent = pendentes;
 }
 
-// ===== FUNÇÕES AUXILIARES =====
+function atualizarBadgeNotificacoes() {
+    const badge = document.getElementById('notification-badge');
+    const naoLidas = (notifications || []).filter(n => !n.read).length;
+    if (badge) {
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+}
+
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -402,49 +460,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showToast(message, type = 'info', duration = 3000) {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
-    toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('toast-hiding');
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-}
-
-// ===== RENDERIZAR EDIT SCHEDULE =====
-function renderizarEditSchedule() {
-    const grid = document.getElementById('edit-schedule-grid');
-    if (!grid) return;
-    
-    let html = '<div class="day-header">Hora</div>';
-    days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    
-    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    
-    slots.forEach(time => {
-        html += `<div class="time-slot">${time}</div>`;
-        days.forEach(day => {
-            const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
-            if (classItem) {
-                html += `<div class="edit-cell">
-                    <div class="class-block subject-custom" style="background-color: ${classItem.color || '#6366f1'}">${escapeHtml(classItem.materia)}</div>
-                </div>`;
-            } else {
-                html += `<div class="edit-cell"><button class="btn-add">+</button></div>`;
-            }
-        });
-    });
-    grid.innerHTML = html;
-}
-
-// ===== OPEN SUBJECT MODAL =====
 function openSubjectModal(subject, day, time) {
     editingSubject = subject;
     const modal = document.getElementById('subject-modal');
@@ -475,7 +490,159 @@ function openSubjectModal(subject, day, time) {
     modal.classList.add('active');
 }
 
-// ===== RENDERIZAR NOTIFICAÇÕES MODAL =====
+async function salvarMateria() {
+    const name = document.getElementById('subject-name-input')?.value.trim();
+    const startTime = document.getElementById('subject-start-input')?.value;
+    const endTime = document.getElementById('subject-end-input')?.value;
+    const day = document.getElementById('subject-day-input')?.value;
+    
+    if (!name) {
+        showToast('Preencha o nome da matéria!', 'error');
+        return;
+    }
+    if (!startTime || !endTime) {
+        showToast('Defina início e término!', 'error');
+        return;
+    }
+    
+    if (!weeklySchedule[day]) weeklySchedule[day] = [];
+    
+    if (editingSubject) {
+        const oldStart = editingSubject.horaInicio;
+        weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
+    }
+    
+    if (!timeSlots.includes(startTime)) {
+        timeSlots.push(startTime);
+        timeSlots.sort();
+    }
+    
+    weeklySchedule[day].push({
+        materia: name,
+        professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
+        color: selectedSubjectColor,
+        horaInicio: startTime,
+        horaFim: endTime
+    });
+    
+    weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+    
+    await salvarTodosDados();
+    
+    document.getElementById('subject-modal').classList.remove('active');
+    showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
+    
+    if (document.getElementById('edit-modal').classList.contains('active')) {
+        renderizarEditSchedule();
+    } else {
+        renderizarHorario();
+    }
+    atualizarCards();
+    editingSubject = null;
+}
+
+// ===== FUNÇÃO DE SALVAR TODOS OS DADOS (CORRIGIDA - GARANTE SINCRONIZAÇÃO) =====
+async function salvarTodosDados() {
+    if (!usuarioLogado) {
+        console.error('[Mobile] Usuário não logado');
+        return false;
+    }
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    console.log('[Mobile] 💾 Salvando dados no localStorage e CacheManager...');
+    
+    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+    
+    if (window.CacheManager) {
+        window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
+        window.CacheManager.set('timeSlots', timeSlots || [], true);
+        window.CacheManager.set('tasks', tasks || [], true);
+        window.CacheManager.set('notes', notes || [], true);
+        window.CacheManager.set('calendarEvents', calendarEvents || [], true);
+        window.CacheManager.set('notifications', notifications || [], true);
+        
+        if (window.FirebaseSync && usuarioLogado.uid) {
+            console.log('[Mobile] 🔥 Forçando sincronização com Firebase...');
+            await window.FirebaseSync.saveUserDataToCloud(usuarioLogado.uid, 'weeklySchedule', weeklySchedule);
+            await window.FirebaseSync.saveUserDataToCloud(usuarioLogado.uid, 'timeSlots', timeSlots);
+            console.log('[Mobile] ✅ Dados enviados para o Firebase!');
+        }
+        
+        window.dispatchEvent(new CustomEvent('forceRefresh'));
+        window.dispatchEvent(new CustomEvent('cloudDataLoaded', { 
+            detail: { 
+                weeklySchedule: weeklySchedule, 
+                timeSlots: timeSlots 
+            } 
+        }));
+        
+        console.log('[Mobile] ✅ Dados salvos e sincronizados com sucesso!');
+        console.log('[Mobile] 📊 Status:', {
+            weeklySchedule: Object.keys(weeklySchedule).length,
+            timeSlots: timeSlots.length,
+            tasks: tasks.length,
+            notes: notes.length,
+            events: calendarEvents.length
+        });
+        
+        return true;
+    } else {
+        console.warn('[Mobile] ⚠️ CacheManager não disponível!');
+        return false;
+    }
+}
+
+function showToast(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
+    toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('toast-hiding');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+function showConfirm(message, title, callback) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) { callback(false); return; }
+    
+    document.getElementById('confirm-title').textContent = title || 'Confirmar';
+    document.getElementById('confirm-message').textContent = message;
+    modal.classList.add('active');
+    
+    const handleConfirm = () => {
+        modal.classList.remove('active');
+        callback(true);
+        cleanup();
+    };
+    
+    const handleCancel = () => {
+        modal.classList.remove('active');
+        callback(false);
+        cleanup();
+    };
+    
+    const cleanup = () => {
+        document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
+        document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
+    };
+    
+    document.getElementById('confirm-ok').onclick = handleConfirm;
+    document.getElementById('confirm-cancel').onclick = handleCancel;
+}
+
 function renderizarNotificacoesModal(filter = 'all') {
     const container = document.getElementById('notifications-list-modal');
     if (!container) return;
@@ -529,129 +696,20 @@ function marcarTodasComoLidas() {
 }
 
 function limparTodasNotificacoes() {
-    if (confirm('Limpar todas as notificações?')) {
-        notifications = [];
-        salvarTodosDados();
-        atualizarBadgeNotificacoes();
-        renderizarNotificacoes();
-        renderizarNotificacoesModal();
-        showToast('Notificações limpas!', 'success');
-    }
-}
-
-function atualizarBadgeNotificacoes() {
-    const badge = document.getElementById('notification-badge');
-    const naoLidas = (notifications || []).filter(n => !n.read).length;
-    if (badge) {
-        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-    }
-}
-
-function renderizarNotificacoes() {
-    const container = document.getElementById('notifications-list');
-    if (!container) return;
-    
-    const notificacoesNaoLidas = (notifications || []).filter(n => !n.read).slice(0, 3);
-    
-    if (notificacoesNaoLidas.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
-        return;
-    }
-    
-    let html = '';
-    notificacoesNaoLidas.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="list-item" data-id="${notif.id}">
-            <div class="item-icon notification" style="background-color: #8b5cf6; color: white">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(notif.title)}</div>
-                <div class="item-subtitle">${escapeHtml(notif.message)}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
+    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
+        if (confirmed) {
+            notifications = [];
+            salvarTodosDados();
+            atualizarBadgeNotificacoes();
+            renderizarNotificacoes();
+            renderizarNotificacoesModal();
+            showToast('Notificações limpas!', 'success');
+        }
     });
-    container.innerHTML = html;
 }
 
-function renderizarProximoEvento() {
-    const container = document.getElementById('next-event-container');
-    if (!container) return;
-    
-    if (!calendarEvents || calendarEvents.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
-        return;
-    }
-    
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    
-    const eventosFuturos = calendarEvents
-        .filter(e => e.date && e.date >= todayStr)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(0, 3);
-    
-    if (eventosFuturos.length === 0) {
-        container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos futuros</div><div class="item-subtitle">Todos os eventos estão no passado</div></div></div>';
-        return;
-    }
-    
-    let html = '';
-    eventosFuturos.forEach(event => {
-        const [year, month, day] = event.date.split('-');
-        const dateFormatted = `${day}/${month}`;
-        html += `<div class="list-item" data-id="${event.id}" onclick="window.location.href='./calendario/index.html'">
-            <div class="item-icon" style="background-color: ${event.color || '#8b5cf6'}20; color: ${event.color || '#8b5cf6'}">
-                <ion-icon name="calendar-outline"></ion-icon>
-            </div>
-            <div class="item-info">
-                <div class="item-title">${escapeHtml(event.title)}</div>
-                <div class="item-subtitle">${dateFormatted} • ${event.start || '--:--'}</div>
-            </div>
-            <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-async function recarregarDadosERenderizar() {
-    console.log('[Mobile] 🔄 Recarregando dados...');
-    
-    if (window.CacheManager) {
-        const cachedSchedule = window.CacheManager.get('weeklySchedule', null);
-        const cachedSlots = window.CacheManager.get('timeSlots', null);
-        const cachedTasks = window.CacheManager.get('tasks', null);
-        const cachedNotes = window.CacheManager.get('notes', null);
-        const cachedEvents = window.CacheManager.get('calendarEvents', null);
-        
-        if (cachedSchedule !== null) weeklySchedule = cachedSchedule;
-        if (cachedSlots !== null) timeSlots = cachedSlots;
-        if (cachedTasks !== null) tasks = cachedTasks;
-        if (cachedNotes !== null) notes = cachedNotes;
-        if (cachedEvents !== null) calendarEvents = cachedEvents;
-    }
-    
-    await renderizarTudo();
-}
-
-async function renderizarTudo() {
-    console.log('[Mobile] 🎨 Renderizando interface...');
-    renderizarHorario();
-    renderizarProximoEvento();
-    renderizarProximasTarefas();
-    renderizarNotificacoes();
-    atualizarCards();
-    atualizarBadgeNotificacoes();
-    await atualizarAvatarMobile(); // ← ADICIONADO: Atualiza o avatar no header
-}
-
-// ===== INICIAR =====
+// ===== EVENTOS E NAVEGAÇÃO =====
 document.addEventListener('DOMContentLoaded', () => {
-    inicializar();
-    
-    // Botão editar horário
     const toggleEdit = document.getElementById('toggle-edit-mode');
     if (toggleEdit) {
         toggleEdit.addEventListener('click', () => {
@@ -676,15 +734,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Adicionar horário
     const btnAddTime = document.getElementById('btn-add-time');
     if (btnAddTime) {
-        btnAddTime.addEventListener('click', () => {
+        btnAddTime.addEventListener('click', async () => {
             const newTime = document.getElementById('new-time-input')?.value;
             if (newTime && !timeSlots.includes(newTime)) {
                 timeSlots.push(newTime);
                 timeSlots.sort();
-                salvarTodosDados();
+                await salvarTodosDados();
                 renderizarEditSchedule();
                 showToast('Horário adicionado!', 'success');
             } else if (timeSlots.includes(newTime)) {
@@ -702,7 +759,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Salvar matéria
     const btnSaveSubject = document.getElementById('btn-save-subject');
     if (btnSaveSubject) {
         btnSaveSubject.addEventListener('click', salvarMateria);
@@ -724,7 +780,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Notificações
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
         notificationBell.addEventListener('click', () => {
@@ -772,13 +827,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Navegação inferior
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
-            if (view === 'home') {
-                // já está na home
-            } else if (view === 'calendar') {
+            if (view === 'calendar') {
                 window.location.href = './calendario/index.html';
             } else if (view === 'tasks') {
                 window.location.href = './tarefas/index.html';
@@ -791,4 +843,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-console.log('%c📱 Mobile - Versão Completa com Foto de Perfil', 'color: #10b981; font-size: 16px; font-weight: bold;');
+// ===== NOTIFICAÇÕES NATIVAS =====
+function isAndroidApp() {
+    return typeof Android !== 'undefined';
+}
+
+function sendNativeNotification(title, message, type) {
+    if (isAndroidApp()) {
+        try {
+            Android.showNotification(title, message, type);
+        } catch(e) {}
+    }
+}
+
+function checkPendingTasks() {
+    const localTasks = tasks.length ? tasks : (window.getCached ? window.getCached('tasks', []) : []);
+    const today = new Date().toISOString().split('T')[0];
+    localTasks.forEach(task => {
+        if (!task.completed && task.date === today) {
+            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
+        }
+    });
+}
+
+function checkUpcomingClasses() {
+    const schedule = weeklySchedule;
+    const now = new Date();
+    const daysMap = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const today = daysMap[now.getDay()];
+    const currentTotal = now.getHours() * 60 + now.getMinutes();
+    
+    (schedule[today] || []).forEach(cls => {
+        if (cls.horaInicio) {
+            const [h, m] = cls.horaInicio.split(':').map(Number);
+            const minutesUntil = (h * 60 + m) - currentTotal;
+            if (minutesUntil <= 15 && minutesUntil > 0) {
+                sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+            }
+        }
+    });
+}
+
+setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
+setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
+
+console.log('%c📱 Mobile Otimizado - Frase do Dia Integrada!', 'color: #10b981; font-size: 16px; font-weight: bold;');

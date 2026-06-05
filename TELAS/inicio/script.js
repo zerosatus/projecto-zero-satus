@@ -4,6 +4,7 @@ let anotacoes = [];
 let eventos = [];
 let weeklySchedule = {};
 let timeSlots = [];
+let profilePhotoUnsubscribe = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -29,15 +30,18 @@ window.addEventListener('DOMContentLoaded', async () => {
             await criarDadosVazios();
         }
         
+        await carregarFotoPerfilDesktop();
+        iniciarEscutaFotoDesktop();
+        
         atualizarMiniPerfil();
         atualizarEstatisticasMini();
+        atualizarFraseDoDiaDesktop(); // 🔥 FRASE DO DIA ATUALIZADA
         
         new Calendar();
         new CircularProgress();
         new StudyChart();
         new StudyTimer();
         
-        // Registrar função global para ser chamada pelo sync-helper (APENAS UMA VEZ)
         if (typeof window.renderizarDisciplinas === 'undefined') {
             window.renderizarDisciplinas = function() {
                 atualizarListaDisciplinas();
@@ -50,13 +54,101 @@ window.addEventListener('DOMContentLoaded', async () => {
             atualizarEstatisticasMini();
             atualizarHorarioDesktop();
             atualizarListaDisciplinas();
+            atualizarFraseDoDiaDesktop(); // 🔥 ATUALIZA FRASE QUANDO DADOS DA NUVEM CHEGAM
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
+            carregarFotoPerfilDesktop();
+        });
+        
+        window.addEventListener('profilePhotoUpdated', (event) => {
+            if (event.detail && event.detail.photoUrl) {
+                console.log('[Inicio] Foto atualizada em tempo real!');
+                atualizarAvatarDesktop(event.detail.photoUrl);
+            }
         });
         
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
 });
+
+// ===== FUNÇÃO DA FRASE DO DIA =====
+function atualizarFraseDoDiaDesktop() {
+    const fraseElement = document.querySelector('.focus-content p');
+    if (fraseElement && window.FrasesDoDia) {
+        const frase = window.FrasesDoDia.getFraseDoDia();
+        fraseElement.textContent = frase;
+        console.log('[Inicio Desktop] Frase do dia atualizada:', frase.substring(0, 40) + '...');
+    } else if (fraseElement) {
+        fraseElement.textContent = 'Não espere o momento perfeito. Aproveite o que tem e faça acontecer. Pequenos passos levam a grandes conquistas!';
+    }
+}
+
+// ========== FUNÇÕES DE FOTO DE PERFIL PARA DESKTOP ==========
+
+async function carregarFotoPerfilDesktop() {
+    if (!usuarioAtual) return;
+    
+    const miniAvatar = document.getElementById('miniAvatar');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            if (miniAvatar) miniAvatar.src = photoUrl;
+            usuarioAtual.profilePhotoUrl = photoUrl;
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+        } else {
+            const iniciais = usuarioAtual.nome ? 
+                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
+            if (miniAvatar) miniAvatar.src = defaultAvatar;
+        }
+    } else {
+        if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
+            if (miniAvatar) miniAvatar.src = usuarioAtual.avatar;
+        } else {
+            const iniciais = usuarioAtual.nome ? 
+                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
+            if (miniAvatar) miniAvatar.src = defaultAvatar;
+        }
+    }
+}
+
+function atualizarAvatarDesktop(photoUrl) {
+    const miniAvatar = document.getElementById('miniAvatar');
+    
+    if (miniAvatar && photoUrl && photoUrl.startsWith('data:')) {
+        miniAvatar.src = photoUrl;
+    }
+    
+    if (usuarioAtual) {
+        usuarioAtual.profilePhotoUrl = photoUrl;
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    }
+}
+
+function iniciarEscutaFotoDesktop() {
+    if (!usuarioAtual) return;
+    
+    const userId = usuarioAtual.uid || usuarioAtual.email;
+    
+    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
+        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+            if (photoUrl && photoUrl.startsWith('data:')) {
+                console.log('[Inicio Desktop] Foto atualizada em tempo real!');
+                atualizarAvatarDesktop(photoUrl);
+            }
+        });
+    }
+}
+
+function pararEscutaFotoDesktop() {
+    if (profilePhotoUnsubscribe) {
+        profilePhotoUnsubscribe();
+        profilePhotoUnsubscribe = null;
+    }
+}
 
 function carregarDadosDoCache() {
     if (window.CacheManager) {
@@ -149,12 +241,6 @@ function atualizarMiniPerfil() {
     const miniEmail = document.getElementById('miniEmail');
     if (miniName) miniName.textContent = usuarioAtual.nome || 'Usuário';
     if (miniEmail) miniEmail.textContent = usuarioAtual.email || '';
-    
-    const iniciais = usuarioAtual.nome ? usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-    const miniAvatar = document.getElementById('miniAvatar');
-    if (miniAvatar) {
-        miniAvatar.src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
-    }
 }
 
 function atualizarEstatisticasMini() {
@@ -564,6 +650,7 @@ class StudyTimer {
 
 function logout() {
     if (confirm('Deseja sair?')) {
+        pararEscutaFotoDesktop();
         localStorage.removeItem('usuarioLogado');
         if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
@@ -579,4 +666,132 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-console.log('%c🏠 Painel Inicial', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c🏠 Painel Inicial - Frase do Dia Integrada!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+
+// ===== ESCUTAR MUDANÇAS EM TEMPO REAL DO CACHE =====
+function iniciarEscutaCacheDesktop() {
+    if (!window.CacheManager) {
+        console.log('[Desktop] Aguardando CacheManager...');
+        setTimeout(iniciarEscutaCacheDesktop, 1000);
+        return;
+    }
+    
+    console.log('[Desktop] Iniciando escuta de cache...');
+    
+    window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
+        if (newSchedule && Object.keys(newSchedule).length > 0) {
+            console.log('[Desktop] Horário atualizado em tempo real!');
+            window.weeklySchedule = newSchedule;
+            if (typeof atualizarHorarioDesktop === 'function') {
+                atualizarHorarioDesktop();
+            }
+            if (typeof atualizarListaDisciplinas === 'function') {
+                atualizarListaDisciplinas();
+            }
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
+        }
+    });
+    
+    window.CacheManager.addListener('timeSlots', (newSlots) => {
+        if (newSlots && newSlots.length) {
+            console.log('[Desktop] Horários atualizados em tempo real!');
+            window.timeSlots = newSlots;
+            if (typeof atualizarHorarioDesktop === 'function') {
+                atualizarHorarioDesktop();
+            }
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
+        }
+    });
+    
+    window.CacheManager.addListener('tasks', (newTasks) => {
+        if (newTasks) {
+            console.log('[Desktop] Tarefas atualizadas em tempo real!');
+            window.tarefas = newTasks;
+            if (typeof atualizarEstatisticasMini === 'function') {
+                atualizarEstatisticasMini();
+            }
+            if (typeof atualizarProximasTarefas === 'function') {
+                atualizarProximasTarefas();
+            }
+        }
+    });
+    
+    window.CacheManager.addListener('notes', (newNotes) => {
+        if (newNotes) {
+            console.log('[Desktop] Anotações atualizadas em tempo real!');
+            window.anotacoes = newNotes;
+        }
+    });
+    
+    window.CacheManager.addListener('calendarEvents', (newEvents) => {
+        if (newEvents) {
+            console.log('[Desktop] Eventos atualizados em tempo real!');
+            window.eventos = newEvents;
+            if (window.calendarInstance && typeof window.calendarInstance.renderCalendar === 'function') {
+                window.calendarInstance.renderCalendar();
+            }
+        }
+    });
+    
+    console.log('[Desktop] Escuta de cache iniciada com sucesso');
+}
+
+window.addEventListener('forceRefresh', () => {
+    console.log('[Desktop] ForceRefresh recebido, recarregando dados...');
+    setTimeout(() => {
+        if (window.CacheManager) {
+            const newSchedule = window.CacheManager.get('weeklySchedule', {});
+            const newSlots = window.CacheManager.get('timeSlots', []);
+            if (newSchedule && Object.keys(newSchedule).length > 0) {
+                window.weeklySchedule = newSchedule;
+                window.timeSlots = newSlots;
+                if (typeof atualizarHorarioDesktop === 'function') {
+                    atualizarHorarioDesktop();
+                }
+                if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                    window.forcarRecargaHorarioDesktop();
+                }
+            }
+            if (typeof atualizarEstatisticasMini === 'function') {
+                atualizarEstatisticasMini();
+            }
+            if (typeof atualizarListaDisciplinas === 'function') {
+                atualizarListaDisciplinas();
+            }
+            if (typeof atualizarFraseDoDiaDesktop === 'function') {
+                atualizarFraseDoDiaDesktop(); // 🔥 ATUALIZA FRASE QUANDO FORÇADO
+            }
+        }
+    }, 100);
+});
+
+window.addEventListener('storage', (e) => {
+    if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
+        console.log('[Desktop] Storage event detectado:', e.key);
+        setTimeout(() => {
+            if (window.CacheManager) {
+                const newSchedule = window.CacheManager.get('weeklySchedule', {});
+                const newSlots = window.CacheManager.get('timeSlots', []);
+                if (newSchedule && Object.keys(newSchedule).length > 0) {
+                    window.weeklySchedule = newSchedule;
+                    window.timeSlots = newSlots;
+                    if (typeof atualizarHorarioDesktop === 'function') {
+                        atualizarHorarioDesktop();
+                    }
+                }
+            }
+            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
+                window.forcarRecargaHorarioDesktop();
+            }
+            if (window.refreshAllData) window.refreshAllData();
+        }, 100);
+    }
+});
+
+setTimeout(iniciarEscutaCacheDesktop, 2000);
+
+console.log('%c🖥️ Desktop com sincronização em tempo real e Frase do Dia', 'color: #9333ea; font-size: 16px; font-weight: bold;');

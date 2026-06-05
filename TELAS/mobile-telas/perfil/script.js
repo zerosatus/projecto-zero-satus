@@ -1,4 +1,4 @@
-// Perfil Mobile - Configurações do usuário
+// Perfil Mobile - Configurações do usuário (VERSÃO BASE64)
 
 let notifications = [];
 let usuarioLogado = null;
@@ -176,8 +176,7 @@ function loadProfileData() {
         if (nameInput) nameInput.value = usuarioLogado.nome || '';
         if (emailInput) emailInput.value = usuarioLogado.email || '';
         
-        // Atualizar avatar
-        if (userPhotoURL) {
+        if (userPhotoURL && userPhotoURL.startsWith('data:')) {
             if (avatarPreview) {
                 avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
                 avatarPreview.style.display = 'flex';
@@ -197,7 +196,7 @@ function loadProfileData() {
     }
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL COM STORAGE ==========
+// ========== FUNÇÕES DE FOTO DE PERFIL COM BASE64 ==========
 
 async function carregarFotoPerfil() {
     if (!usuarioLogado) return;
@@ -209,7 +208,7 @@ async function carregarFotoPerfil() {
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.getProfilePhotoUrl();
         
-        if (photoUrl) {
+        if (photoUrl && photoUrl.startsWith('data:')) {
             userPhotoURL = photoUrl;
             usuarioLogado.profilePhotoUrl = photoUrl;
             localStorage.setItem('userPhotoURL', photoUrl);
@@ -225,7 +224,6 @@ async function carregarFotoPerfil() {
                 avatarPreview.style.justifyContent = 'center';
             }
         } else if (userPhotoURL && userPhotoURL.startsWith('data:')) {
-            // Avatar antigo em base64
             if (profileAvatar) {
                 profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
             }
@@ -234,7 +232,6 @@ async function carregarFotoPerfil() {
                 avatarPreview.style.display = 'flex';
             }
         } else {
-            // Avatar padrão com iniciais
             const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
             if (profileAvatar) {
                 profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
@@ -244,8 +241,7 @@ async function carregarFotoPerfil() {
             }
         }
     } else {
-        // Fallback localStorage
-        if (userPhotoURL) {
+        if (userPhotoURL && userPhotoURL.startsWith('data:')) {
             if (profileAvatar) {
                 profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
             }
@@ -268,18 +264,16 @@ async function carregarFotoPerfil() {
 async function uploadProfilePhoto(file) {
     if (!usuarioLogado) return null;
     
-    // Validar arquivo
     if (!file.type.startsWith('image/')) {
         showToast('Selecione uma imagem válida!', 'error');
         return null;
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-        showToast('Imagem deve ter no máximo 5MB!', 'error');
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('Imagem deve ter no máximo 2MB!', 'error');
         return null;
     }
     
-    // Mostrar preview local imediatamente
     const reader = new FileReader();
     reader.onload = function(e) {
         const profileAvatar = document.querySelector('.profile-avatar');
@@ -299,7 +293,7 @@ async function uploadProfilePhoto(file) {
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
         
-        if (photoUrl) {
+        if (photoUrl && photoUrl.startsWith('data:')) {
             userPhotoURL = photoUrl;
             usuarioLogado.profilePhotoUrl = photoUrl;
             localStorage.setItem('userPhotoURL', photoUrl);
@@ -307,7 +301,6 @@ async function uploadProfilePhoto(file) {
             
             showToast('Foto atualizada e sincronizada!', 'success');
             
-            // Disparar evento para outras telas
             window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
             
             return photoUrl;
@@ -317,13 +310,7 @@ async function uploadProfilePhoto(file) {
             return null;
         }
     } else {
-        // Fallback: salvar apenas localmente
-        const profileAvatar = document.querySelector('.profile-avatar img');
-        if (profileAvatar && profileAvatar.src) {
-            userPhotoURL = profileAvatar.src;
-            localStorage.setItem('userPhotoURL', userPhotoURL);
-            showToast('Foto salva localmente (sem nuvem)', 'success');
-        }
+        showToast('Salvando localmente...', 'success');
         return null;
     }
 }
@@ -366,7 +353,7 @@ function iniciarEscutaFotoMobile() {
     
     if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
         profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
-            if (photoUrl) {
+            if (photoUrl && photoUrl.startsWith('data:')) {
                 console.log('[Mobile Perfil] Foto atualizada em tempo real!');
                 userPhotoURL = photoUrl;
                 usuarioLogado.profilePhotoUrl = photoUrl;
@@ -418,7 +405,6 @@ function loadAparencia() {
     const slider = document.getElementById('font-size-slider');
     if (slider) slider.value = appearanceSettings.fontSize || 14;
     
-    // Aplicar fonte
     document.body.style.fontSize = `${appearanceSettings.fontSize || 14}px`;
 }
 
@@ -479,7 +465,7 @@ async function syncToCloud() {
     }
 }
 
-// Inicialização quando a página carregar
+// Inicialização
 document.addEventListener('DOMContentLoaded', async () => {
     if (window.CacheManager) window.CacheManager.init();
     loadAllData();
@@ -499,7 +485,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await carregarFotoPerfil();
     iniciarEscutaFotoMobile();
     
-    // Botão de notificações
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
         notificationBell.addEventListener('click', () => {
@@ -511,7 +496,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Fechar modal de notificações
     const closeNotificationsBtn = document.getElementById('btn-close-notifications');
     if (closeNotificationsBtn) {
         closeNotificationsBtn.addEventListener('click', () => {
@@ -520,14 +504,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Botões de notificações
     const markReadBtn = document.getElementById('btn-mark-read');
     if (markReadBtn) markReadBtn.addEventListener('click', markAllAsRead);
     
     const clearAllBtn = document.getElementById('btn-clear-all');
     if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllNotifications);
     
-    // Tabs de notificações
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -536,7 +518,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Upload de avatar
     const btnChangeAvatar = document.querySelector('.btn-change-avatar');
     if (btnChangeAvatar) {
         btnChangeAvatar.addEventListener('click', () => {
@@ -553,7 +534,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Menu do perfil
     const profileMenuItems = document.querySelectorAll('.profile-menu .menu-item');
     profileMenuItems.forEach(item => {
         item.addEventListener('click', (e) => {
@@ -603,7 +583,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Fechar modais com botão back
     document.querySelectorAll('.btn-back, .btn-close').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -617,7 +596,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Salvar dados pessoais
     const saveDadosBtn = document.getElementById('btn-save-dados');
     if (saveDadosBtn) {
         saveDadosBtn.addEventListener('click', () => {
@@ -642,7 +620,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (profileName) profileName.textContent = nome;
             if (profileEmail) profileEmail.textContent = email;
             
-            // Atualizar avatar preview se não tiver foto
             if (!userPhotoURL) {
                 const avatarPreview = document.getElementById('avatar-preview');
                 const profileInitial = document.getElementById('profile-initial');
@@ -656,7 +633,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Salvar senha
     const saveSenhaBtn = document.getElementById('btn-save-senha');
     if (saveSenhaBtn) {
         saveSenhaBtn.addEventListener('click', () => {
@@ -679,7 +655,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            // Verificar senha atual (simulação)
             if (currentPassword !== usuarioLogado.senha && usuarioLogado.senha !== '123456') {
                 showToast('Senha atual incorreta!', 'error');
                 return;
@@ -697,7 +672,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Salvar notificações
     const saveNotificacoesBtn = document.getElementById('btn-save-notificacoes');
     if (saveNotificacoesBtn) {
         saveNotificacoesBtn.addEventListener('click', () => {
@@ -713,14 +687,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Tema
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedTheme = btn.dataset.theme;
             
-            // Aplicar tema
             if (selectedTheme === 'light') {
                 document.documentElement.style.setProperty('--bg-color', '#ffffff');
                 document.documentElement.style.setProperty('--card-bg', '#f3f4f6');
@@ -739,7 +711,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Cores
     document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -749,7 +720,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Tamanho da fonte
     const fontSizeSlider = document.getElementById('font-size-slider');
     if (fontSizeSlider) {
         fontSizeSlider.addEventListener('input', (e) => {
@@ -758,7 +728,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Salvar aparência
     const saveAparenciaBtn = document.getElementById('btn-save-aparencia');
     if (saveAparenciaBtn) {
         saveAparenciaBtn.addEventListener('click', () => {
@@ -774,7 +743,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Ajuda
     const contatoBtn = document.getElementById('btn-contato');
     if (contatoBtn) contatoBtn.addEventListener('click', () => {
         window.open('https://wa.me/nao disponivel', '_blank');
@@ -795,7 +763,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Obrigado por avaliar! ⭐⭐⭐⭐⭐', 'success');
     });
     
-    // Navegação inferior
     document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
@@ -805,7 +772,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // =====================================================
-// NOTIFICAÇÕES NATIVAS PARA ANDROID (COMPARTILHADAS)
+// NOTIFICAÇÕES NATIVAS PARA ANDROID
 // =====================================================
 
 function isAndroidApp() {
@@ -848,7 +815,6 @@ function checkUpcomingClasses() {
     });
 }
 
-// Executar verificações
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
