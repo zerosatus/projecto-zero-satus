@@ -60,3 +60,4 @@ telas de mobile terminadas e sistema de mudaca de telas de pc para mobile finali
  
  09.05.26
  a base de dados ja funciona(realtime) e finalmete ja é usavel. bem continua
+ mas uma vez
