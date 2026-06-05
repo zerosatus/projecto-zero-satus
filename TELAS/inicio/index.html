@@ -215,13 +215,13 @@
             </div>
         </div>
 
-        <div class="focus-panel">
+                <div class="focus-panel">
             <h3>Frase do Dia</h3>
             <div class="focus-content">
                 <div class="focus-icon">
                     <i class="fas fa-lightbulb"></i>
                 </div>
-                <p>Não espere o momento perfeito. Aproveite o que tem e faça acontecer. Pequenos passos levam a grandes conquistas!</p>
+                <p id="fraseDoDiaText">Carregando frase...</p> <!-- Mudei para um ID específico -->
                 <button class="btn-start" id="startStudy">
                     <i class="fas fa-play"></i>
                     Começar Sessão de Estudo
@@ -236,6 +236,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="../preload-system.js"></script>
 <script src="../fast-bootstrap.js"></script>
+  <script src="../daily-phrases.js"></script>
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>

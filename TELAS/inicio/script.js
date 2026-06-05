@@ -35,6 +35,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         atualizarMiniPerfil();
         atualizarEstatisticasMini();
+        atualizarFraseDoDiaDesktop(); // 🔥 FRASE DO DIA ATUALIZADA
         
         new Calendar();
         new CircularProgress();
@@ -53,6 +54,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             atualizarEstatisticasMini();
             atualizarHorarioDesktop();
             atualizarListaDisciplinas();
+            atualizarFraseDoDiaDesktop(); // 🔥 ATUALIZA FRASE QUANDO DADOS DA NUVEM CHEGAM
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
             carregarFotoPerfilDesktop();
         });
@@ -68,6 +70,18 @@ window.addEventListener('DOMContentLoaded', async () => {
         console.error('Erro ao carregar usuário:', e);
     }
 });
+
+// ===== FUNÇÃO DA FRASE DO DIA =====
+function atualizarFraseDoDiaDesktop() {
+    const fraseElement = document.querySelector('.focus-content p');
+    if (fraseElement && window.FrasesDoDia) {
+        const frase = window.FrasesDoDia.getFraseDoDia();
+        fraseElement.textContent = frase;
+        console.log('[Inicio Desktop] Frase do dia atualizada:', frase.substring(0, 40) + '...');
+    } else if (fraseElement) {
+        fraseElement.textContent = 'Não espere o momento perfeito. Aproveite o que tem e faça acontecer. Pequenos passos levam a grandes conquistas!';
+    }
+}
 
 // ========== FUNÇÕES DE FOTO DE PERFIL PARA DESKTOP ==========
 
@@ -652,11 +666,9 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-console.log('%c🏠 Painel Inicial', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c🏠 Painel Inicial - Frase do Dia Integrada!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
 
 // ===== ESCUTAR MUDANÇAS EM TEMPO REAL DO CACHE =====
-// NÃO declarar variáveis que já existem (usuarioLogado, tarefas, anotacoes, eventos, weeklySchedule, timeSlots)
-
 function iniciarEscutaCacheDesktop() {
     if (!window.CacheManager) {
         console.log('[Desktop] Aguardando CacheManager...');
@@ -669,7 +681,6 @@ function iniciarEscutaCacheDesktop() {
     window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
         if (newSchedule && Object.keys(newSchedule).length > 0) {
             console.log('[Desktop] Horário atualizado em tempo real!');
-            // Usar a variável global existente
             window.weeklySchedule = newSchedule;
             if (typeof atualizarHorarioDesktop === 'function') {
                 atualizarHorarioDesktop();
@@ -729,7 +740,6 @@ function iniciarEscutaCacheDesktop() {
     console.log('[Desktop] Escuta de cache iniciada com sucesso');
 }
 
-// Escutar evento de força de refresh
 window.addEventListener('forceRefresh', () => {
     console.log('[Desktop] ForceRefresh recebido, recarregando dados...');
     setTimeout(() => {
@@ -752,11 +762,13 @@ window.addEventListener('forceRefresh', () => {
             if (typeof atualizarListaDisciplinas === 'function') {
                 atualizarListaDisciplinas();
             }
+            if (typeof atualizarFraseDoDiaDesktop === 'function') {
+                atualizarFraseDoDiaDesktop(); // 🔥 ATUALIZA FRASE QUANDO FORÇADO
+            }
         }
     }, 100);
 });
 
-// Escutar mudanças no storage (quando outra aba salva dados)
 window.addEventListener('storage', (e) => {
     if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
         console.log('[Desktop] Storage event detectado:', e.key);
@@ -780,7 +792,6 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-// Iniciar escuta após o carregamento da página
 setTimeout(iniciarEscutaCacheDesktop, 2000);
 
-console.log('%c🖥️ Desktop com sincronização em tempo real', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+console.log('%c🖥️ Desktop com sincronização em tempo real e Frase do Dia', 'color: #9333ea; font-size: 16px; font-weight: bold;');
