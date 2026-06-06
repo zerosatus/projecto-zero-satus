@@ -1,5 +1,5 @@
 // anotacoes/script.js - Painel do Aluno (Desktop)
-// Versão completa com sincronização bidirecional PC <-> Mobile
+// Versão corrigida - sem recursão infinita
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -43,9 +43,9 @@ function configurarEventos() {
     });
     
     // Eventos de sincronização com Firebase/Mobile
-    window.addEventListener('cloudDataLoaded', (event) => {
+    window.addEventListener('cloudDataLoaded', () => {
         console.log('[Anotacoes] cloudDataLoaded recebido');
-        carregarAnotacoesDoCache();
+        recarregarAnotacoesDaNuvem();
     });
     
     window.addEventListener('notesUpdated', (event) => {
@@ -72,7 +72,7 @@ function configurarEventos() {
     
     window.addEventListener('forceRefresh', () => {
         console.log('[Anotacoes] forceRefresh recebido');
-        carregarAnotacoesDoCache();
+        recarregarAnotacoesDaNuvem();
     });
 }
 
@@ -109,14 +109,14 @@ function carregarAnotacoes() {
     renderizarListaAnotacoes();
 }
 
-function carregarAnotacoesDoCache() {
+function recarregarAnotacoesDaNuvem() {
     if (!window.CacheManager) return;
     
     const cachedNotes = window.CacheManager.get('notes', null);
     if (cachedNotes !== null && Array.isArray(cachedNotes)) {
         const oldCount = anotacoes.length;
         anotacoes = cachedNotes;
-        console.log('[Anotacoes] Recarregado do CacheManager:', anotacoes.length);
+        console.log('[Anotacoes] Recarregado da nuvem:', anotacoes.length);
         
         renderizarListaAnotacoes();
         
@@ -277,7 +277,7 @@ function salvarAnotacoes() {
     // Salvar no CacheManager (sincroniza com Firebase e Mobile)
     if (window.CacheManager) {
         window.CacheManager.set('notes', anotacoes, true);
-        console.log('[Anotacoes] Anotações salvas no CacheManager e sincronizadas!');
+        console.log('[Anotacoes] Anotações salvas no CacheManager');
     }
     
     // Disparar evento para outras abas
@@ -371,17 +371,27 @@ document.querySelectorAll('.menu-item').forEach(item => {
 });
 
 // Registrar função global para sincronização de anotações
+// CORRIGIDO: sem recursão - apenas uma função simples
 window.carregarAnotacoes = function() {
-    carregarAnotacoes();
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuario) return;
+    
+    if (window.CacheManager) {
+        const cached = window.CacheManager.get('notes', null);
+        if (cached !== null && Array.isArray(cached)) {
+            anotacoes = cached;
+            renderizarListaAnotacoes();
+        }
+    }
 };
 
-window.carregarAnotacoesDoCache = carregarAnotacoesDoCache;
+window.recarregarAnotacoesDaNuvem = recarregarAnotacoesDaNuvem;
 
-// Forçar sincronização manual (útil para debugging)
+// Forçar sincronização manual
 window.forcarSincronizacaoAnotacoes = async function() {
     if (window.CacheManager) {
         await window.CacheManager.forceSync();
-        carregarAnotacoesDoCache();
+        recarregarAnotacoesDaNuvem();
         mostrarToast('Sincronização forçada concluída!');
     }
 };
