@@ -63,25 +63,51 @@ function escapeHtml(text) {
 }
 
 // ============================================
+// FUNÇÃO PARA NORMALIZAR ANOTAÇÕES (converter formato PC para Mobile)
+// ============================================
+function normalizarNota(nota) {
+    if (!nota) return nota;
+    
+    // Criar um objeto normalizado
+    const normalizada = {
+        id: nota.id,
+        title: nota.title || nota.titulo || 'Sem título',
+        content: nota.content || nota.conteudo || '',
+        date: nota.date || nota.dataModificacao || nota.dataCriacao || new Date().toISOString(),
+        dataModificacao: nota.dataModificacao || nota.date || new Date().toISOString()
+    };
+    
+    return normalizada;
+}
+
+function normalizarTodasNotas(notasArray) {
+    if (!notasArray || !Array.isArray(notasArray)) return [];
+    return notasArray.map(nota => normalizarNota(nota));
+}
+
+// ============================================
 // PERSISTÊNCIA (Integrada com CacheManager/Firebase)
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado) return false;
     
-    console.log('[Mobile Notas] 💾 Salvando anotações...', notes.length);
+    // Normalizar notas antes de salvar (garantir formato consistente)
+    const notasNormalizadas = normalizarTodasNotas(notes);
+    
+    console.log('[Mobile Notas] 💾 Salvando anotações...', notasNormalizadas.length);
     
     // Salvar no CacheManager (que já sincroniza com Firebase)
     if (window.CacheManager) {
-        window.CacheManager.set('notes', notes, true);
+        window.CacheManager.set('notes', notasNormalizadas, true);
         console.log('[Mobile Notas] ✅ Anotações salvas no CacheManager e enviadas para nuvem');
     }
     
     // Backup no localStorage
     const userId = usuarioLogado.uid || usuarioLogado.email;
-    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+    localStorage.setItem(`${userId}_notes`, JSON.stringify(notasNormalizadas));
     
     // Disparar evento para sincronizar com outras abas
-    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes } }));
+    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: notasNormalizadas } }));
     window.dispatchEvent(new CustomEvent('forceRefresh'));
     
     return true;
@@ -90,32 +116,44 @@ async function salvarTodosDados() {
 function carregarDados() {
     if (!usuarioLogado) return;
     
+    let dadosCarregados = null;
+    
     // Tentar carregar do CacheManager primeiro (dados da nuvem)
     if (window.CacheManager) {
         const cachedNotes = window.CacheManager.get('notes', null);
         if (cachedNotes !== null && Array.isArray(cachedNotes)) {
-            notes = cachedNotes;
-            console.log('[Mobile Notas] Carregado do CacheManager:', notes.length);
-            if (notes.length > 0) {
-                console.log('[Mobile Notas] Primeira anotação:', notes[0].titulo || notes[0].title);
-            }
-            return;
+            dadosCarregados = cachedNotes;
+            console.log('[Mobile Notas] Carregado do CacheManager:', dadosCarregados.length);
         }
     }
     
     // Fallback para localStorage
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    const notesSalvas = localStorage.getItem(`${userId}_notes`);
+    if (!dadosCarregados) {
+        const userId = usuarioLogado.uid || usuarioLogado.email;
+        const notesSalvas = localStorage.getItem(`${userId}_notes`);
+        
+        if (notesSalvas) {
+            dadosCarregados = JSON.parse(notesSalvas);
+            console.log('[Mobile Notas] Carregado do localStorage:', dadosCarregados.length);
+        }
+    }
     
-    if (notesSalvas) {
-        notes = JSON.parse(notesSalvas);
-        console.log('[Mobile Notas] Carregado do localStorage:', notes.length);
+    // Normalizar as notas (converter formato PC para Mobile)
+    if (dadosCarregados && Array.isArray(dadosCarregados)) {
+        notes = normalizarTodasNotas(dadosCarregados);
+        
+        if (notes.length > 0) {
+            console.log('[Mobile Notas] Primeira anotação normalizada:', {
+                title: notes[0].title,
+                content: notes[0].content?.substring(0, 50)
+            });
+        }
     } else {
         notes = [];
         console.log('[Mobile Notas] Nenhuma anotação encontrada');
     }
     
-    // Se carregou do localStorage, sincronizar com CacheManager
+    // Se carregou dados e tem CacheManager, sincronizar
     if (window.CacheManager && notes.length > 0) {
         window.CacheManager.set('notes', notes, true);
     }
@@ -232,9 +270,7 @@ function renderNotes(searchTerm = '') {
         const term = searchTerm.toLowerCase();
         filteredNotes = notes.filter(note =>
             (note.title && note.title.toLowerCase().includes(term)) ||
-            (note.content && note.content.toLowerCase().includes(term)) ||
-            (note.titulo && note.titulo.toLowerCase().includes(term)) ||
-            (note.conteudo && note.conteudo.toLowerCase().includes(term))
+            (note.content && note.content.toLowerCase().includes(term))
         );
     }
 
@@ -256,9 +292,9 @@ function renderNotes(searchTerm = '') {
     filteredNotes.forEach(note => {
         const dateFormatted = note.date ? new Date(note.date).toLocaleDateString('pt-BR') : 
                               (note.dataModificacao ? new Date(note.dataModificacao).toLocaleDateString('pt-BR') : '');
-        const conteudo = note.content || note.conteudo || '';
+        const conteudo = note.content || '';
         const preview = conteudo ? conteudo.substring(0, 80).replace(/\n/g, ' ').replace(/<[^>]*>/g, '') : '';
-        const titulo = note.title || note.titulo || 'Sem título';
+        const titulo = note.title || 'Sem título';
         
         html += `<div class="note-card-minimal" data-id="${note.id}">
             <div class="note-title-minimal">${escapeHtml(titulo)}</div>
@@ -322,8 +358,8 @@ function openNoteModal(note) {
     editingNoteId = note ? note.id : null;
 
     if (note) {
-        if (titleInput) titleInput.value = note.title || note.titulo || '';
-        if (contentInput) contentInput.innerHTML = note.content || note.conteudo || '';
+        if (titleInput) titleInput.value = note.title || '';
+        if (contentInput) contentInput.innerHTML = note.content || '';
         if (dateDisplay) dateDisplay.textContent = note.date ? new Date(note.date).toLocaleString('pt-BR') : 
                                               (note.dataModificacao ? new Date(note.dataModificacao).toLocaleString('pt-BR') : '');
     } else {
@@ -513,7 +549,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.detail && event.detail.notes) {
             console.log('[Mobile Notas] 📝 notesUpdated recebido, atualizando lista...');
             const oldCount = notes.length;
-            notes = event.detail.notes;
+            // Normalizar as notas recebidas
+            const novasNotas = normalizarTodasNotas(event.detail.notes);
+            notes = novasNotas;
             renderNotes();
             if (oldCount !== notes.length && notes.length > oldCount) {
                 showToast('Anotações sincronizadas do PC!', 'success');
@@ -643,14 +681,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // BOTÃO DE SINCRONIZAÇÃO MANUAL (adicione no HTML se quiser)
-    // forcarSincronizacao(); // Chamar após 3 segundos para garantir carregamento
-    
     // Forçar sincronização após 3 segundos
     setTimeout(() => {
         console.log('[Mobile Notas] Executando sincronização inicial tardia...');
         forcarSincronizacao();
     }, 3000);
+    
+    // Forçar sincronização a cada 10 segundos
+    setInterval(() => {
+        console.log('[Mobile Notas] Sincronização periódica...');
+        forcarSincronizacao();
+    }, 10000);
     
     console.log('✅ Inicialização das anotações mobile concluída!');
 });
