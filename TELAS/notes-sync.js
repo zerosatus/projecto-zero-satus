@@ -4,7 +4,7 @@
     console.log('[NotesSync] Iniciando módulo de sincronização de anotações...');
     
     let ultimaSincronizacao = 0;
-    const INTERVALO_SINCRONIZACAO = 5000; // 5 segundos
+    const INTERVALO_SINCRONIZACAO = 3000; // 3 segundos
     
     // Função para sincronizar anotações entre abas
     function sincronizarAnotacoes() {
@@ -15,30 +15,31 @@
         ultimaSincronizacao = agora;
         
         const notes = window.CacheManager.get('notes', null);
-        if (notes !== null) {
-            // Verificar se há mudanças nas anotações
-            const notesStorage = localStorage.getItem('_last_notes_hash');
-            const novoHash = JSON.stringify(notes).length;
-            
-            if (notesStorage !== String(novoHash)) {
-                console.log('[NotesSync] Mudanças detectadas nas anotações, atualizando UI...');
-                localStorage.setItem('_last_notes_hash', String(novoHash));
-                window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes } }));
-            }
+        if (notes !== null && Array.isArray(notes)) {
+            // Disparar evento para atualizar todas as abas
+            window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: notes } }));
         }
     }
     
     // Executar sincronização periódica
-    setInterval(sincronizarAnotacoes, 3000);
+    setInterval(sincronizarAnotacoes, 2000);
     
     // Sincronizar quando a página ganhar foco
     window.addEventListener('focus', () => {
         console.log('[NotesSync] Página em foco, sincronizando...');
-        setTimeout(sincronizarAnotacoes, 500);
+        setTimeout(sincronizarAnotacoes, 200);
     });
     
     // Sincronização inicial
-    setTimeout(sincronizarAnotacoes, 1000);
+    setTimeout(sincronizarAnotacoes, 500);
+    
+    // Também escutar mudanças no localStorage
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('notes') || e.key.includes('_notes'))) {
+            console.log('[NotesSync] Storage event detectado:', e.key);
+            setTimeout(sincronizarAnotacoes, 100);
+        }
+    });
     
     console.log('[NotesSync] Módulo carregado!');
 })();
