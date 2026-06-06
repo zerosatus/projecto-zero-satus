@@ -1,10 +1,12 @@
-// mobile-telas/notas/script.js - VERSÃO CORRIGIDA COM SINCRONIZAÇÃO COMPLETA
+// mobile-telas/notas/script.js - VERSÃO CORRIGIDA (SEM PERDA DE CONTEÚDO)
 
 let notifications = [];
 let notes = [];
 let usuarioLogado = null;
 let editingNoteId = null;
 let profilePhotoUnsubscribe = null;
+let saveTimeout = null;
+let isSaving = false;
 
 // ============================================
 // TOAST & CONFIRM
@@ -63,54 +65,69 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// FUNÇÃO PARA NORMALIZAR ANOTAÇÕES (converter formato PC para Mobile)
+// NORMALIZAÇÃO DE NOTAS (CONVERTE FORMATO PC PARA MOBILE)
 // ============================================
 function normalizarNota(nota) {
-    if (!nota) return nota;
+    if (!nota) return null;
     
-    // Criar um objeto normalizado
-    const normalizada = {
-        id: nota.id,
+    return {
+        id: nota.id || Date.now().toString(),
         title: nota.title || nota.titulo || 'Sem título',
         content: nota.content || nota.conteudo || '',
         date: nota.date || nota.dataModificacao || nota.dataCriacao || new Date().toISOString(),
         dataModificacao: nota.dataModificacao || nota.date || new Date().toISOString()
     };
-    
-    return normalizada;
 }
 
 function normalizarTodasNotas(notasArray) {
     if (!notasArray || !Array.isArray(notasArray)) return [];
-    return notasArray.map(nota => normalizarNota(nota));
+    return notasArray.map(nota => normalizarNota(nota)).filter(n => n !== null);
 }
 
 // ============================================
-// PERSISTÊNCIA (Integrada com CacheManager/Firebase)
+// PERSISTÊNCIA (SALVAR COM PREVENÇÃO DE LOOP)
 // ============================================
 async function salvarTodosDados() {
-    if (!usuarioLogado) return false;
+    if (!usuarioLogado || isSaving) return false;
     
-    // Normalizar notas antes de salvar (garantir formato consistente)
-    const notasNormalizadas = normalizarTodasNotas(notes);
+    isSaving = true;
     
-    console.log('[Mobile Notas] 💾 Salvando anotações...', notasNormalizadas.length);
-    
-    // Salvar no CacheManager (que já sincroniza com Firebase)
-    if (window.CacheManager) {
-        window.CacheManager.set('notes', notasNormalizadas, true);
-        console.log('[Mobile Notas] ✅ Anotações salvas no CacheManager e enviadas para nuvem');
+    try {
+        // Normalizar notas antes de salvar
+        const notasNormalizadas = notes.map(n => ({
+            id: n.id,
+            title: n.title,
+            content: n.content,
+            date: n.date,
+            dataModificacao: new Date().toISOString()
+        }));
+        
+        console.log('[Mobile Notas] 💾 Salvando anotações...', notasNormalizadas.length);
+        
+        // Salvar no localStorage (backup)
+        const userId = usuarioLogado.uid || usuarioLogado.email;
+        localStorage.setItem(`${userId}_notes`, JSON.stringify(notasNormalizadas));
+        
+        // Salvar no CacheManager (sincroniza com Firebase)
+        if (window.CacheManager) {
+            window.CacheManager.set('notes', notasNormalizadas, false); // false = não disparar evento imediato
+        }
+        
+        // Atualizar data de modificação da nota atual
+        if (editingNoteId) {
+            const currentNote = notes.find(n => n.id === editingNoteId);
+            if (currentNote) {
+                currentNote.dataModificacao = new Date().toISOString();
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('[Mobile Notas] Erro ao salvar:', error);
+        return false;
+    } finally {
+        isSaving = false;
     }
-    
-    // Backup no localStorage
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    localStorage.setItem(`${userId}_notes`, JSON.stringify(notasNormalizadas));
-    
-    // Disparar evento para sincronizar com outras abas
-    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: notasNormalizadas } }));
-    window.dispatchEvent(new CustomEvent('forceRefresh'));
-    
-    return true;
 }
 
 function carregarDados() {
@@ -118,10 +135,10 @@ function carregarDados() {
     
     let dadosCarregados = null;
     
-    // Tentar carregar do CacheManager primeiro (dados da nuvem)
+    // Tentar carregar do CacheManager primeiro
     if (window.CacheManager) {
         const cachedNotes = window.CacheManager.get('notes', null);
-        if (cachedNotes !== null && Array.isArray(cachedNotes)) {
+        if (cachedNotes !== null && Array.isArray(cachedNotes) && cachedNotes.length > 0) {
             dadosCarregados = cachedNotes;
             console.log('[Mobile Notas] Carregado do CacheManager:', dadosCarregados.length);
         }
@@ -138,25 +155,25 @@ function carregarDados() {
         }
     }
     
-    // Normalizar as notas (converter formato PC para Mobile)
+    // Normalizar as notas
     if (dadosCarregados && Array.isArray(dadosCarregados)) {
         notes = normalizarTodasNotas(dadosCarregados);
-        
-        if (notes.length > 0) {
-            console.log('[Mobile Notas] Primeira anotação normalizada:', {
-                title: notes[0].title,
-                content: notes[0].content?.substring(0, 50)
-            });
-        }
     } else {
-        notes = [];
-        console.log('[Mobile Notas] Nenhuma anotação encontrada');
+        // Criar nota de exemplo se não houver nenhuma
+        if (notes.length === 0) {
+            const exemplo = {
+                id: Date.now().toString(),
+                title: 'Bem-vindo!',
+                content: '<p>Esta é sua primeira anotação. Toque no lápis para editar!</p>',
+                date: new Date().toISOString(),
+                dataModificacao: new Date().toISOString()
+            };
+            notes = [exemplo];
+            salvarTodosDados();
+        }
     }
     
-    // Se carregou dados e tem CacheManager, sincronizar
-    if (window.CacheManager && notes.length > 0) {
-        window.CacheManager.set('notes', notes, true);
-    }
+    console.log('[Mobile Notas] Total de notas carregadas:', notes.length);
 }
 
 function loadAllData() {
@@ -175,7 +192,7 @@ function loadAllData() {
     
     // Carregar notificações
     if (window.getCached) {
-        notifications = window.getCached('notifications', window.getDefaultNotifications());
+        notifications = window.getCached('notifications', []);
     } else {
         notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
     }
@@ -240,7 +257,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
-    if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+    if (window.CacheManager) window.CacheManager.set('notifications', notifications, false);
     showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
@@ -250,7 +267,7 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
-            if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+            if (window.CacheManager) window.CacheManager.set('notifications', notifications, false);
             showToast('Notificações limpas!', 'success');
         }
     });
@@ -275,8 +292,8 @@ function renderNotes(searchTerm = '') {
     }
 
     filteredNotes.sort((a, b) => {
-        const dateA = new Date(a.date || a.dataModificacao || 0);
-        const dateB = new Date(b.date || b.dataModificacao || 0);
+        const dateA = new Date(a.dataModificacao || a.date || 0);
+        const dateB = new Date(b.dataModificacao || b.date || 0);
         return dateB - dateA;
     });
 
@@ -284,6 +301,7 @@ function renderNotes(searchTerm = '') {
         notesGrid.innerHTML = `<div class="empty-notes-minimal">
             <ion-icon name="document-text-outline"></ion-icon>
             <p>${searchTerm ? 'Nenhuma anotação encontrada' : 'Nenhuma anotação ainda'}</p>
+            <button class="btn-new-note" onclick="openNoteModal(null)" style="margin-top: 16px; background: var(--accent-purple); border: none; color: white; padding: 8px 20px; border-radius: 20px;">Criar primeira anotação</button>
         </div>`;
         return;
     }
@@ -293,7 +311,11 @@ function renderNotes(searchTerm = '') {
         const dateFormatted = note.date ? new Date(note.date).toLocaleDateString('pt-BR') : 
                               (note.dataModificacao ? new Date(note.dataModificacao).toLocaleDateString('pt-BR') : '');
         const conteudo = note.content || '';
-        const preview = conteudo ? conteudo.substring(0, 80).replace(/\n/g, ' ').replace(/<[^>]*>/g, '') : '';
+        // Remove HTML tags para preview
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = conteudo;
+        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+        const preview = plainText.substring(0, 80).replace(/\n/g, ' ');
         const titulo = note.title || 'Sem título';
         
         html += `<div class="note-card-minimal" data-id="${note.id}">
@@ -383,7 +405,7 @@ function closeNoteModal() {
 }
 
 // ============================================
-// AJUSTE DE ALTURA (Teclado)
+// AJUSTE DE ALTURA
 // ============================================
 function ajustarAlturaEditor() {
     const editorWrapper = document.querySelector('.samsung-editor-wrapper');
@@ -403,7 +425,7 @@ function ajustarAlturaEditor() {
     const footerHeight = footer ? footer.offsetHeight : 0;
 
     const editorHeight = viewportHeight - headerHeight - toolbarHeight - footerHeight;
-    editorWrapper.style.height = editorHeight + 'px';
+    editorWrapper.style.height = Math.max(editorHeight, 200) + 'px';
 }
 
 // ============================================
@@ -420,9 +442,81 @@ function updateToolbarState() {
     document.querySelectorAll('.samsung-toolbar-btn[data-command]').forEach(btn => {
         const command = btn.dataset.command;
         if (['bold', 'italic', 'underline', 'strikeThrough'].includes(command)) {
-            btn.classList.toggle('active', document.queryCommandState(command));
+            const isActive = document.queryCommandState(command);
+            if (isActive) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
         }
     });
+}
+
+// ============================================
+// SALVAR ANOTAÇÃO (CORRIGIDO)
+// ============================================
+async function salvarAnotacaoAtual() {
+    if (!editingNoteId && !notes.some(n => n.id === editingNoteId)) {
+        // Nova anotação
+        const title = document.getElementById('note-title-input')?.value.trim();
+        const content = document.getElementById('note-content-input')?.innerHTML;
+        
+        if (!title && (!content || content === '<br>' || content === '<div><br></div>')) {
+            closeNoteModal();
+            return false;
+        }
+        
+        const now = new Date().toISOString();
+        const novaNota = {
+            id: Date.now().toString(),
+            title: title || 'Sem título',
+            content: content || '',
+            date: now,
+            dataModificacao: now
+        };
+        
+        notes.unshift(novaNota);
+        editingNoteId = novaNota.id;
+        await salvarTodosDados();
+        renderNotes();
+        showToast('Anotação criada!', 'success');
+        return true;
+    } else {
+        // Editando anotação existente
+        const title = document.getElementById('note-title-input')?.value.trim();
+        const content = document.getElementById('note-content-input')?.innerHTML;
+        const noteIndex = notes.findIndex(n => n.id == editingNoteId);
+        
+        if (noteIndex === -1) return false;
+        
+        // Verificar se houve mudança
+        const oldNote = notes[noteIndex];
+        if (oldNote.title === title && oldNote.content === content) {
+            closeNoteModal();
+            return true;
+        }
+        
+        notes[noteIndex] = {
+            ...notes[noteIndex],
+            title: title || notes[noteIndex].title || 'Sem título',
+            content: content || '',
+            dataModificacao: new Date().toISOString()
+        };
+        
+        await salvarTodosDados();
+        const searchInput = document.getElementById('notes-search-input');
+        renderNotes(searchInput ? searchInput.value : '');
+        showToast('Anotação salva!', 'success');
+        closeNoteModal();
+        return true;
+    }
+}
+
+// ============================================
+// CONCLUSÃO DE ANOTAÇÃO (Botão Concluir)
+// ============================================
+async function concluirAnotacao() {
+    await salvarAnotacaoAtual();
 }
 
 // ============================================
@@ -432,7 +526,10 @@ function switchView(viewName) {
     if (viewName === 'home') window.location.href = '../index.html';
     else if (viewName === 'calendar') window.location.href = '../calendario/index.html';
     else if (viewName === 'tasks') window.location.href = '../tarefas/index.html';
-    else if (viewName === 'notes') renderNotes();
+    else if (viewName === 'notes') {
+        carregarDados();
+        renderNotes();
+    }
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
 }
 
@@ -484,35 +581,10 @@ function pararEscutaFotoMobile() {
 }
 
 // ============================================
-// FUNÇÃO PARA FORÇAR SINCRONIZAÇÃO DA NUVEM
-// ============================================
-async function forcarSincronizacao() {
-    if (!usuarioLogado) return;
-    
-    console.log('[Mobile Notas] 🔄 Forçando sincronização com a nuvem...');
-    showToast('Sincronizando...', 'info');
-    
-    if (window.CacheManager) {
-        // Forçar carregamento da nuvem
-        const loaded = await window.CacheManager.loadFromCloud(true);
-        
-        if (loaded) {
-            console.log('[Mobile Notas] ✅ Dados carregados da nuvem');
-            carregarDados();
-            renderNotes();
-            showToast(`${notes.length} anotações sincronizadas!`, 'success');
-        } else {
-            console.log('[Mobile Notas] ⚠️ Nenhum dado na nuvem ou erro ao carregar');
-            showToast('Nenhuma anotação encontrada na nuvem', 'info');
-        }
-    }
-}
-
-// ============================================
 // INICIALIZAÇÃO PRINCIPAL
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('📝 Iniciando anotações mobile com sincronização completa...');
+    console.log('📝 Iniciando anotações mobile...');
     
     if (window.CacheManager) {
         window.CacheManager.init();
@@ -531,40 +603,44 @@ document.addEventListener('DOMContentLoaded', () => {
     updateNotificationBadge();
     renderNotes();
 
-    // ===== ESCUTAR EVENTOS DE SINCRONIZAÇÃO =====
+    // ===== EVENTOS DE SINCRONIZAÇÃO (COM PREVENÇÃO DE LOOP) =====
+    let syncInProgress = false;
+    
     window.addEventListener('cloudDataLoaded', (event) => {
-        console.log('[Mobile Notas] 📡 cloudDataLoaded recebido!');
-        const oldNotesCount = notes.length;
-        carregarDados();
-        renderNotes();
-        if (oldNotesCount !== notes.length) {
-            console.log(`[Mobile Notas] Anotações atualizadas: ${oldNotesCount} → ${notes.length}`);
-            if (notes.length > oldNotesCount) {
-                showToast(`${notes.length - oldNotesCount} nova(s) anotação(ões) sincronizada(s)!`, 'success');
-            }
+        if (syncInProgress) return;
+        syncInProgress = true;
+        
+        console.log('[Mobile Notas] 📡 cloudDataLoaded recebido');
+        
+        // Salvar anotação atual antes de recarregar
+        if (editingNoteId && document.getElementById('note-modal').classList.contains('active')) {
+            salvarAnotacaoAtual().then(() => {
+                setTimeout(() => {
+                    carregarDados();
+                    renderNotes();
+                    syncInProgress = false;
+                }, 100);
+            });
+        } else {
+            carregarDados();
+            renderNotes();
+            syncInProgress = false;
         }
     });
     
     window.addEventListener('notesUpdated', (event) => {
+        if (syncInProgress) return;
+        syncInProgress = true;
+        
         if (event.detail && event.detail.notes) {
-            console.log('[Mobile Notas] 📝 notesUpdated recebido, atualizando lista...');
-            const oldCount = notes.length;
-            // Normalizar as notas recebidas
+            console.log('[Mobile Notas] 📝 notesUpdated recebido');
             const novasNotas = normalizarTodasNotas(event.detail.notes);
             notes = novasNotas;
             renderNotes();
-            if (oldCount !== notes.length && notes.length > oldCount) {
-                showToast('Anotações sincronizadas do PC!', 'success');
-            }
         }
+        setTimeout(() => { syncInProgress = false; }, 500);
     });
     
-    window.addEventListener('forceRefresh', () => {
-        console.log('[Mobile Notas] 🔄 forceRefresh recebido');
-        carregarDados();
-        renderNotes();
-    });
-
     // ===== EVENTOS DA INTERFACE =====
     
     // Notificações
@@ -600,48 +676,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fechar modal
     document.getElementById('note-modal-back')?.addEventListener('click', closeNoteModal);
 
-    // Salvar anotação
+    // Salvar anotação (botão Concluir)
     document.getElementById('btn-save-note')?.addEventListener('click', async () => {
-        const title = document.getElementById('note-title-input')?.value.trim();
-        const content = document.getElementById('note-content-input')?.innerHTML.trim();
-        
-        if (!title && (!content || content === '<br>' || content === '<div><br></div>')) {
-            showToast('Adicione um título ou conteúdo!', 'error');
-            return;
-        }
-        
-        const now = new Date().toISOString();
-        
-        if (editingNoteId) {
-            const noteIndex = notes.findIndex(n => n.id == editingNoteId);
-            if (noteIndex > -1) {
-                notes[noteIndex] = {
-                    ...notes[noteIndex],
-                    title: title || 'Sem título',
-                    content: content || '',
-                    date: now,
-                    dataModificacao: now
-                };
-                console.log('[Mobile Notas] Editando anotação:', editingNoteId);
-            }
-        } else {
-            const novaNota = {
-                id: Date.now().toString(),
-                title: title || 'Sem título',
-                content: content || '',
-                date: now,
-                dataModificacao: now,
-                dataCriacao: now
-            };
-            notes.unshift(novaNota);
-            console.log('[Mobile Notas] Criando nova anotação:', novaNota.id);
-        }
-        
-        await salvarTodosDados();
-        const searchInput = document.getElementById('notes-search-input');
-        renderNotes(searchInput ? searchInput.value : '');
-        closeNoteModal();
-        showToast(editingNoteId ? 'Anotação atualizada!' : 'Anotação criada!', 'success');
+        await salvarAnotacaoAtual();
     });
 
     // TOOLBAR DE FORMATAÇÃO
@@ -656,9 +693,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Seletor de formato
     document.getElementById('format-block-select')?.addEventListener('change', (e) => {
         formatText('formatBlock', e.target.value);
+        e.target.value = '';
     });
 
-    // Atualizar estado da toolbar ao digitar
+    // Atualizar estado da toolbar
     const editor = document.getElementById('note-content-input');
     if (editor) {
         editor.addEventListener('keyup', updateToolbarState);
@@ -670,7 +708,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ajustarAlturaEditor();
     if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', ajustarAlturaEditor);
-        window.visualViewport.addEventListener('scroll', ajustarAlturaEditor);
     }
     window.addEventListener('resize', ajustarAlturaEditor);
 
@@ -681,79 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Forçar sincronização após 3 segundos
-    setTimeout(() => {
-        console.log('[Mobile Notas] Executando sincronização inicial tardia...');
-        forcarSincronizacao();
-    }, 3000);
-    
-    // Forçar sincronização a cada 10 segundos
-    setInterval(() => {
-        console.log('[Mobile Notas] Sincronização periódica...');
-        forcarSincronizacao();
-    }, 10000);
-    
     console.log('✅ Inicialização das anotações mobile concluída!');
 });
 
-// ============================================
-// NOTIFICAÇÕES NATIVAS ANDROID
-// ============================================
-function isAndroidApp() {
-    return typeof Android !== 'undefined';
-}
-
-function sendNativeNotification(title, message, type) {
-    if (isAndroidApp()) {
-        try {
-            Android.showNotification(title, message, type);
-        } catch(e) {
-            console.log('Erro notificação nativa:', e);
-        }
-    }
-}
-
-function checkPendingTasks() {
-    if (!window.getCached && !localStorage.getItem('tasks')) return;
-    const tasks = window.getCached ? window.getCached('tasks', []) : JSON.parse(localStorage.getItem('tasks') || '[]');
-    const today = new Date().toISOString().split('T')[0];
-    tasks.forEach(task => {
-        if (!task.completed && task.date === today) {
-            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
-        }
-    });
-}
-
-function checkUpcomingClasses() {
-    if (!window.getCached && !localStorage.getItem('weeklySchedule')) return;
-    const schedule = window.getCached ? window.getCached('weeklySchedule', {}) : JSON.parse(localStorage.getItem('weeklySchedule') || '{}');
-    const now = new Date();
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const today = days[now.getDay()];
-    const currentTotal = now.getHours() * 60 + now.getMinutes();
-    
-    if (schedule[today]) {
-        schedule[today].forEach(cls => {
-            if (cls.horaInicio) {
-                const [h, m] = cls.horaInicio.split(':').map(Number);
-                const minutesUntil = (h * 60 + m) - currentTotal;
-                if (minutesUntil <= 15 && minutesUntil > 0) {
-                    sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
-                }
-            }
-        });
-    }
-}
-
-// Exportar função de sincronização para uso global
-window.forcarSincronizacaoNotas = forcarSincronizacao;
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
-        setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
-    });
-} else {
-    setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
-    setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
-}
+// Expor funções globais
+window.salvarAnotacaoAtual = salvarAnotacaoAtual;
+window.concluirAnotacao = concluirAnotacao;
+window.formatText = formatText;
+window.openNoteModal = openNoteModal;
