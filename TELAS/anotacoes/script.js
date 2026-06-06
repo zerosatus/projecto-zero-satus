@@ -1,3 +1,6 @@
+// anotacoes/script.js - Painel do Aluno (Desktop)
+// Versão completa com sincronização bidirecional PC <-> Mobile
+
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
     if (!usuario) { 
@@ -14,6 +17,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 let anotacoes = [];
 let anotacaoAtualId = null;
+let autoSaveTimer = null;
 
 function inicializarAnotacoes() {
     carregarAnotacoes();
@@ -38,16 +42,37 @@ function configurarEventos() {
         }
     });
     
-    window.addEventListener('cloudDataLoaded', () => {
-        carregarAnotacoes();
-        renderizarListaAnotacoes();
-        if (anotacaoAtualId) {
-            const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
-            if (anotacaoAtualizada) {
-                document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
-                document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
+    // Eventos de sincronização com Firebase/Mobile
+    window.addEventListener('cloudDataLoaded', (event) => {
+        console.log('[Anotacoes] cloudDataLoaded recebido');
+        carregarAnotacoesDoCache();
+    });
+    
+    window.addEventListener('notesUpdated', (event) => {
+        console.log('[Anotacoes] notesUpdated recebido');
+        if (event.detail && event.detail.notes) {
+            const oldCount = anotacoes.length;
+            anotacoes = event.detail.notes;
+            renderizarListaAnotacoes();
+            
+            if (anotacaoAtualId) {
+                const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
+                if (anotacaoAtualizada) {
+                    document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
+                    document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
+                    atualizarUltimoSalvo(anotacaoAtualizada.dataModificacao);
+                }
+            }
+            
+            if (oldCount !== anotacoes.length) {
+                mostrarToast('Anotações sincronizadas!');
             }
         }
+    });
+    
+    window.addEventListener('forceRefresh', () => {
+        console.log('[Anotacoes] forceRefresh recebido');
+        carregarAnotacoesDoCache();
     });
 }
 
@@ -55,9 +80,10 @@ function carregarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
     
+    // Tentar carregar do CacheManager primeiro (sincronizado com nuvem)
     if (window.CacheManager) {
         const cached = window.CacheManager.get('notes', null);
-        if (cached !== null) {
+        if (cached !== null && Array.isArray(cached)) {
             anotacoes = cached;
             console.log('[Anotacoes] Carregado do CacheManager:', anotacoes.length);
             renderizarListaAnotacoes();
@@ -65,6 +91,7 @@ function carregarAnotacoes() {
         }
     }
     
+    // Fallback para localStorage
     const storageKey = `anotacoes_${usuario.email}`;
     const anotacoesSalvas = localStorage.getItem(storageKey);
     
@@ -72,10 +99,46 @@ function carregarAnotacoes() {
         anotacoes = JSON.parse(anotacoesSalvas);
     } else {
         anotacoes = [];
-        salvarAnotacoes();
+    }
+    
+    // Salvar no CacheManager para sincronização futura
+    if (window.CacheManager && anotacoes.length > 0) {
+        window.CacheManager.set('notes', anotacoes, true);
     }
     
     renderizarListaAnotacoes();
+}
+
+function carregarAnotacoesDoCache() {
+    if (!window.CacheManager) return;
+    
+    const cachedNotes = window.CacheManager.get('notes', null);
+    if (cachedNotes !== null && Array.isArray(cachedNotes)) {
+        const oldCount = anotacoes.length;
+        anotacoes = cachedNotes;
+        console.log('[Anotacoes] Recarregado do CacheManager:', anotacoes.length);
+        
+        renderizarListaAnotacoes();
+        
+        if (anotacaoAtualId) {
+            const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
+            if (anotacaoAtualizada) {
+                document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
+                document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
+                atualizarUltimoSalvo(anotacaoAtualizada.dataModificacao);
+            } else if (anotacoes.length > 0) {
+                carregarAnotacao(anotacoes[0].id);
+            } else {
+                document.querySelector('.note-title').value = '';
+                document.getElementById('editor').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Nenhuma anotação selecionada<br>Clique em + para criar uma nova anotação</p>';
+                anotacaoAtualId = null;
+            }
+        }
+        
+        if (oldCount !== anotacoes.length) {
+            mostrarToast('Anotações sincronizadas com a nuvem!');
+        }
+    }
 }
 
 function renderizarListaAnotacoes() {
@@ -125,7 +188,9 @@ function formatarData(data) {
 }
 
 function carregarPrimeiraAnotacao() {
-    if (anotacoes && anotacoes.length > 0) carregarAnotacao(anotacoes[0].id);
+    if (anotacoes && anotacoes.length > 0) {
+        carregarAnotacao(anotacoes[0].id);
+    }
 }
 
 function carregarAnotacao(id) {
@@ -135,6 +200,7 @@ function carregarAnotacao(id) {
     anotacaoAtualId = id;
     const titleInput = document.querySelector('.note-title');
     const editor = document.getElementById('editor');
+    
     if (titleInput) titleInput.value = anotacao.titulo || '';
     if (editor) editor.innerHTML = anotacao.conteudo || '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Anotação vazia</p>';
     
@@ -146,12 +212,13 @@ function carregarAnotacao(id) {
 }
 
 function criarNovaAnotacao() {
+    const dataAtual = new Date().toISOString();
     const novaAnotacao = {
         id: gerarId(),
-        titulo: 'Nova Anotação',
-        conteudo: '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Comece a escrever sua anotação aqui...</p>',
-        dataModificacao: new Date().toISOString(),
-        dataCriacao: new Date().toISOString()
+        titulo: '',
+        conteudo: '',
+        dataModificacao: dataAtual,
+        dataCriacao: dataAtual
     };
     
     anotacoes.unshift(novaAnotacao);
@@ -160,8 +227,10 @@ function criarNovaAnotacao() {
     
     const titleInput = document.querySelector('.note-title');
     const editor = document.getElementById('editor');
-    if (titleInput) titleInput.value = novaAnotacao.titulo;
-    if (editor) editor.innerHTML = novaAnotacao.conteudo;
+    
+    if (titleInput) titleInput.value = '';
+    if (editor) editor.innerHTML = '';
+    
     renderizarListaAnotacoes();
     if (titleInput) titleInput.focus();
     mostrarToast('Nova anotação criada!');
@@ -173,12 +242,22 @@ function salvarAnotacaoAtual() {
     const noteTitle = document.querySelector('.note-title');
     const editor = document.getElementById('editor');
     const anotacaoIndex = anotacoes.findIndex(a => a.id === anotacaoAtualId);
+    
     if (anotacaoIndex === -1) return;
+    
+    const novoTitulo = noteTitle?.value || '';
+    const novoConteudo = editor?.innerHTML || '';
+    
+    // Verificar se houve mudança real para evitar saves desnecessários
+    const anotacaoAntiga = anotacoes[anotacaoIndex];
+    if (anotacaoAntiga.titulo === novoTitulo && anotacaoAntiga.conteudo === novoConteudo) {
+        return;
+    }
     
     anotacoes[anotacaoIndex] = {
         ...anotacoes[anotacaoIndex],
-        titulo: noteTitle?.value || 'Sem título',
-        conteudo: editor?.innerHTML || '',
+        titulo: novoTitulo,
+        conteudo: novoConteudo,
         dataModificacao: new Date().toISOString()
     };
     
@@ -191,18 +270,24 @@ function salvarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
     
+    // Salvar no localStorage
     const storageKey = `anotacoes_${usuario.email}`;
     localStorage.setItem(storageKey, JSON.stringify(anotacoes));
     
+    // Salvar no CacheManager (sincroniza com Firebase e Mobile)
     if (window.CacheManager) {
         window.CacheManager.set('notes', anotacoes, true);
+        console.log('[Anotacoes] Anotações salvas no CacheManager e sincronizadas!');
     }
+    
+    // Disparar evento para outras abas
+    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: anotacoes } }));
 }
 
-let autoSaveTimer;
 function programarAutoSave() {
     const lastSaved = document.querySelector('.last-saved');
     if (lastSaved) lastSaved.textContent = 'Digitando...';
+    
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => salvarAnotacaoAtual(), 2000);
 }
@@ -210,20 +295,37 @@ function programarAutoSave() {
 function atualizarUltimoSalvo(dataISO) {
     const lastSaved = document.querySelector('.last-saved');
     if (!lastSaved) return;
-    if (!dataISO) { lastSaved.textContent = 'Salvo automaticamente'; return; }
+    
+    if (!dataISO) {
+        lastSaved.textContent = 'Salvo automaticamente';
+        return;
+    }
     
     const data = new Date(dataISO);
     const agora = new Date();
     const diffMin = Math.floor((agora - data) / 60000);
     
-    if (diffMin < 1) lastSaved.textContent = 'Salvo agora';
-    else if (diffMin === 1) lastSaved.textContent = 'Salvo há 1 minuto';
-    else if (diffMin < 60) lastSaved.textContent = `Salvo há ${diffMin} minutos`;
-    else lastSaved.textContent = `Salvo às ${data.getHours().toString().padStart(2, '0')}:${data.getMinutes().toString().padStart(2, '0')}`;
+    if (diffMin < 1) {
+        lastSaved.textContent = 'Salvo agora';
+    } else if (diffMin === 1) {
+        lastSaved.textContent = 'Salvo há 1 minuto';
+    } else if (diffMin < 60) {
+        lastSaved.textContent = `Salvo há ${diffMin} minutos`;
+    } else {
+        lastSaved.textContent = `Salvo às ${data.getHours().toString().padStart(2, '0')}:${data.getMinutes().toString().padStart(2, '0')}`;
+    }
 }
 
-function gerarId() { return Date.now() + '-' + Math.random().toString(36).substr(2, 9); }
-function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+function gerarId() {
+    return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 function formatText(command, value = null) {
     document.execCommand(command, false, value);
@@ -240,8 +342,14 @@ function mostrarToast(mensagem) {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-function saveNote() { salvarAnotacaoAtual(); }
-function createNewNote() { criarNovaAnotacao(); }
+function saveNote() {
+    salvarAnotacaoAtual();
+    mostrarToast('Anotação salva!');
+}
+
+function createNewNote() {
+    criarNovaAnotacao();
+}
 
 function logout() {
     if (confirm('Deseja sair?')) {
@@ -252,6 +360,7 @@ function logout() {
     }
 }
 
+// Navegação do menu
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
         if (this.href && !this.href.endsWith('#')) {
@@ -266,22 +375,15 @@ window.carregarAnotacoes = function() {
     carregarAnotacoes();
 };
 
-// Garantir que as anotações sejam recarregadas quando dados da nuvem chegarem
-// Usar uma única referência para evitar múltiplos listeners
-if (!window._anotacoesListenerAdicionado) {
-    window._anotacoesListenerAdicionado = true;
-    window.addEventListener('cloudDataLoaded', () => {
-        console.log('[Anotacoes] Cloud data loaded, recarregando...');
-        carregarAnotacoes();
-        renderizarListaAnotacoes();
-        if (anotacaoAtualId) {
-            const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
-            if (anotacaoAtualizada) {
-                document.querySelector('.note-title').value = anotacaoAtualizada.titulo || '';
-                document.getElementById('editor').innerHTML = anotacaoAtualizada.conteudo || '';
-            }
-        }
-    });
-}
+window.carregarAnotacoesDoCache = carregarAnotacoesDoCache;
 
-console.log('%c📝 Anotações', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+// Forçar sincronização manual (útil para debugging)
+window.forcarSincronizacaoAnotacoes = async function() {
+    if (window.CacheManager) {
+        await window.CacheManager.forceSync();
+        carregarAnotacoesDoCache();
+        mostrarToast('Sincronização forçada concluída!');
+    }
+};
+
+console.log('%c📝 Anotações com sincronização completa!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
