@@ -727,3 +727,49 @@ console.log('  ✅ Configurações (appearanceSettings, notificacoesSettings)');
 console.log('  ✅ Foto de perfil (profilePhotoUrl)');
 console.log('  ✅ Sincronização em tempo real com Firebase');
 console.log('  ✅ Fallback offline com localStorage');
+// Adicionar no final do cache-manager.js, após as definições existentes:
+
+// ===== MÉTODOS ESPECÍFICOS PARA ANOTAÇÕES (REFORÇADOS) =====
+window.getNotes = () => window.CacheManager.get('notes', []);
+window.setNotes = (notes, notify) => {
+    const result = window.CacheManager.set('notes', notes, notify);
+    // Disparar evento para sincronização imediata
+    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes } }));
+    return result;
+};
+window.addNote = (note, notify) => {
+    const notes = window.getNotes();
+    notes.unshift(note);
+    window.setNotes(notes, notify);
+    return note;
+};
+window.updateNote = (noteId, updatedNote, notify) => {
+    const notes = window.getNotes();
+    const index = notes.findIndex(n => n.id === noteId);
+    if (index !== -1) {
+        notes[index] = { ...notes[index], ...updatedNote };
+        window.setNotes(notes, notify);
+        return true;
+    }
+    return false;
+};
+window.deleteNote = (noteId, notify) => {
+    const notes = window.getNotes();
+    const filtered = notes.filter(n => n.id !== noteId);
+    window.setNotes(filtered, notify);
+    return true;
+};
+
+// Forçar sincronização manual das anotações
+window.forceSyncNotes = async function() {
+    console.log('[CacheManager] Forçando sincronização de anotações...');
+    const notes = window.getNotes();
+    const userId = window.CacheManager.getCurrentUserId();
+    
+    if (userId && userId !== 'default' && window.FirebaseSync) {
+        await window.FirebaseSync.saveUserDataToCloud(userId, 'notes', notes);
+        console.log('[CacheManager] Anotações enviadas para nuvem:', notes.length);
+    }
+    
+    return notes;
+};
