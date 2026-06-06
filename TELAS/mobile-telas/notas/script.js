@@ -1,8 +1,10 @@
-// Notas - Gerenciamento de anotações MOBILE
+// mobile-telas/notas/script.js - VERSÃO CORRIGIDA COM SINCRONIZAÇÃO
+
 let notifications = [];
 let notes = [];
 let usuarioLogado = null;
 let editingNoteId = null;
+let profilePhotoUnsubscribe = null;
 
 // ============================================
 // TOAST & CONFIRM
@@ -63,33 +65,74 @@ function escapeHtml(text) {
 // ============================================
 // PERSISTÊNCIA (Integrada com CacheManager/Firebase)
 // ============================================
-function saveAllData() {
-    if (window.setCached) {
-        window.setCached('usuarioLogado', usuarioLogado);
-        window.setCached('notifications', notifications);
-        window.setCached('notes', notes);
-    } else {
-        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
-        localStorage.setItem('notifications', JSON.stringify(notifications));
-        localStorage.setItem('notes', JSON.stringify(notes));
+async function salvarTodosDados() {
+    if (!usuarioLogado) return false;
+    
+    console.log('[Mobile Notas] 💾 Salvando anotações...', notes.length);
+    
+    // Salvar no CacheManager (que já sincroniza com Firebase)
+    if (window.CacheManager) {
+        window.CacheManager.set('notes', notes, true);
+        console.log('[Mobile Notas] ✅ Anotações salvas no CacheManager');
     }
+    
+    // Backup no localStorage
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+    
+    // Disparar evento para sincronizar com outras abas
+    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes } }));
+    window.dispatchEvent(new CustomEvent('forceRefresh'));
+    
+    return true;
+}
+
+function carregarDados() {
+    if (!usuarioLogado) return;
+    
+    // Tentar carregar do CacheManager primeiro
+    if (window.CacheManager) {
+        const cachedNotes = window.CacheManager.get('notes', null);
+        if (cachedNotes !== null && Array.isArray(cachedNotes)) {
+            notes = cachedNotes;
+            console.log('[Mobile Notas] Carregado do CacheManager:', notes.length);
+            return;
+        }
+    }
+    
+    // Fallback para localStorage
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    const notesSalvas = localStorage.getItem(`${userId}_notes`);
+    
+    if (notesSalvas) {
+        notes = JSON.parse(notesSalvas);
+    } else {
+        notes = [];
+    }
+    
+    console.log('[Mobile Notas] Carregado do localStorage:', notes.length);
 }
 
 function loadAllData() {
     if (window.getCached && window.getDefaultUser) {
         usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
-        notifications = window.getCached('notifications', window.getDefaultNotifications());
-        notes = window.getCached('notes', window.getDefaultNotes());
     } else {
         usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-        notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
-        notes = JSON.parse(localStorage.getItem('notes') || '[]');
     }
     
     if (!usuarioLogado || !usuarioLogado.email) {
         window.location.href = '../../login/index.html';
         return;
     }
+    
+    // Carregar notificações
+    if (window.getCached) {
+        notifications = window.getCached('notifications', window.getDefaultNotifications());
+    } else {
+        notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+    }
+    
+    carregarDados();
 }
 
 // ============================================
@@ -149,7 +192,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
-    saveAllData();
+    if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
     showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
@@ -159,7 +202,7 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
-            saveAllData();
+            if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
             showToast('Notificações limpas!', 'success');
         }
     });
@@ -231,10 +274,10 @@ function renderNotes(searchTerm = '') {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
             const noteId = icon.dataset.id;
-            showConfirm('Excluir esta anotação?', 'Excluir Anotação', (confirmed) => {
+            showConfirm('Excluir esta anotação?', 'Excluir Anotação', async (confirmed) => {
                 if (confirmed) {
                     notes = notes.filter(n => n.id != noteId);
-                    saveAllData();
+                    await salvarTodosDados();
                     const searchInput = document.getElementById('notes-search-input');
                     renderNotes(searchInput ? searchInput.value : '');
                     showToast('Anotação excluída!', 'success');
@@ -335,26 +378,103 @@ function switchView(viewName) {
 }
 
 // ============================================
-// INICIALIZAÇÃO
+// FUNÇÕES DE FOTO DE PERFIL
+// ============================================
+async function carregarFotoPerfilMobile() {
+    if (!usuarioLogado) return;
+    
+    const profileIcon = document.getElementById('notification-bell');
+    if (!profileIcon) return;
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            return;
+        }
+    }
+    
+    const iniciais = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+    profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
+}
+
+function iniciarEscutaFotoMobile() {
+    if (!usuarioLogado) return;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
+        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+            if (photoUrl && photoUrl.startsWith('data:')) {
+                console.log('[Mobile Notas] Foto atualizada em tempo real!');
+                const profileIcon = document.getElementById('notification-bell');
+                if (profileIcon) {
+                    profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                }
+            }
+        });
+    }
+}
+
+function pararEscutaFotoMobile() {
+    if (profilePhotoUnsubscribe) {
+        profilePhotoUnsubscribe();
+        profilePhotoUnsubscribe = null;
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO PRINCIPAL
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('📝 Iniciando anotações mobile...');
+    console.log('📝 Iniciando anotações mobile com sincronização...');
     
-    if (window.CacheManager && window.CacheManager.init) {
+    if (window.CacheManager) {
         window.CacheManager.init();
     }
     
     loadAllData();
 
     if (usuarioLogado) {
-        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email.split('@')[0] || 'Usuário';
+        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+        carregarFotoPerfilMobile();
+        iniciarEscutaFotoMobile();
     }
 
     updateNotificationBadge();
     renderNotes();
 
+    // ===== ESCUTAR EVENTOS DE SINCRONIZAÇÃO =====
+    window.addEventListener('cloudDataLoaded', (event) => {
+        console.log('[Mobile Notas] Dados da nuvem carregados, atualizando...');
+        const oldNotesCount = notes.length;
+        carregarDados();
+        renderNotes();
+        if (oldNotesCount !== notes.length) {
+            console.log(`[Mobile Notas] Anotações atualizadas: ${oldNotesCount} → ${notes.length}`);
+            showToast('Anotações sincronizadas!', 'success');
+        }
+    });
+    
+    window.addEventListener('notesUpdated', (event) => {
+        if (event.detail && event.detail.notes) {
+            console.log('[Mobile Notas] Recebido notesUpdated, atualizando lista...');
+            notes = event.detail.notes;
+            renderNotes();
+        }
+    });
+    
+    window.addEventListener('forceRefresh', () => {
+        console.log('[Mobile Notas] Forçando refresh...');
+        carregarDados();
+        renderNotes();
+    });
+
+    // ===== EVENTOS DA INTERFACE =====
+    
     // Notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
@@ -379,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Busca
     document.getElementById('notes-search-input')?.addEventListener('input', (e) => renderNotes(e.target.value));
 
-    // BOTÃO ADICIONAR
+    // Botão ADICIONAR
     document.getElementById('btn-add-note')?.addEventListener('click', () => {
         console.log('➕ Criando nova anotação...');
         openNoteModal(null);
@@ -389,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('note-modal-back')?.addEventListener('click', closeNoteModal);
 
     // Salvar anotação
-    document.getElementById('btn-save-note')?.addEventListener('click', () => {
+    document.getElementById('btn-save-note')?.addEventListener('click', async () => {
         const title = document.getElementById('note-title-input')?.value.trim();
         const content = document.getElementById('note-content-input')?.innerHTML.trim();
         
@@ -409,17 +529,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     content: content || '',
                     date: now
                 };
+                console.log('[Mobile Notas] Editando anotação:', editingNoteId);
             }
         } else {
-            notes.unshift({
-                id: Date.now(),
+            const novaNota = {
+                id: Date.now().toString(),
                 title: title || 'Sem título',
                 content: content || '',
-                date: now
-            });
+                date: now,
+                dataModificacao: now
+            };
+            notes.unshift(novaNota);
+            console.log('[Mobile Notas] Criando nova anotação:', novaNota.id);
         }
         
-        saveAllData();
+        await salvarTodosDados();
         const searchInput = document.getElementById('notes-search-input');
         renderNotes(searchInput ? searchInput.value : '');
         closeNoteModal();
@@ -463,43 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    console.log('✅ Inicialização concluída!');
-});
-
-// Detectar abertura do teclado para mostrar a barra flutuante
-function setupKeyboardDetection() {
-    const mobileView = document.querySelector('.mobile-view');
-    if (!mobileView || !window.visualViewport) return;
-
-    // Altura inicial da tela sem teclado
-    let initialHeight = window.visualViewport.height;
-
-    window.visualViewport.addEventListener('resize', () => {
-        const currentHeight = window.visualViewport.height;
-        
-        // Se a altura diminuiu mais de 150px, provavelmente é o teclado
-        if (initialHeight - currentHeight > 150) {
-            mobileView.classList.add('keyboard-open');
-            
-            // Ajusta o scroll para o editor não ficar escondido
-            const editor = document.getElementById('mobileEditor');
-            if(editor) {
-                setTimeout(() => {
-                    editor.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                }, 300);
-            }
-        } else {
-            mobileView.classList.remove('keyboard-open');
-            // Atualiza a altura base caso o usuário tenha girado a tela
-            initialHeight = currentHeight; 
-        }
-    });
-}
-
-// Chame essa função no DOMContentLoaded
-document.addEventListener('DOMContentLoaded', () => {
-    // ... suas outras inicializações ...
-    setupKeyboardDetection();
+    console.log('✅ Inicialização das anotações mobile concluída!');
 });
 
 // ============================================
