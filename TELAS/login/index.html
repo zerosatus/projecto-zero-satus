@@ -8,16 +8,6 @@
     <link rel="icon" href="../../imagem/favicon.png" type="image/png"> 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Painel Zero - Login</title>
-    
-    <link rel="icon" href="../../imagem/favicon.png" type="image/png"> 
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -30,11 +20,19 @@
         </div>
 
         <div class="login-container">
-            <!-- ÚNICO BOTÃO - APENAS GOOGLE -->
+            <!-- Botão Google -->
             <button type="button" class="btn-google" id="google-login-btn">
                 <i class="fab fa-google"></i>
                 ENTRAR COM GOOGLE
             </button>
+
+            <!-- Link para migração (APENAS SE PRECISAR MIGRAR DADOS) -->
+            <div class="info-text" style="margin-top: 15px;">
+                <i class="fas fa-database"></i>
+                <a href="../migrate-to-firestore.html" style="color: #9333ea; text-decoration: none;">
+                    Precisa migrar dados? Clique aqui
+                </a>
+            </div>
 
             <div class="info-text">
                 <i class="fas fa-shield-alt"></i>
@@ -45,64 +43,156 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!-- FIREBASE CDNs (ORDEM CORRETA - FIRESTORE)      -->
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- FIREBASE CDNs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!-- SISTEMA PRINCIPAL (ORDEM CORRETA)              -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <script src="../cache-manager.js"></script>
-    <script src="../shared-data.js"></script>
-    <script src="../firebase-config.js"></script>
-    <script src="../sync-helper.js"></script>
-    <script src="../preload-system.js"></script>
-    <script src="../fast-bootstrap.js"></script>
-    
-    <!-- ═══════════════════════════════════════════════ -->
-    <!-- SCRIPT DA PÁGINA                               -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <script src="script.js"></script>
-</body>
-</html>
-</head>
-<body>
-    <div class="container">
-        <div class="logo-section">
-            <div class="logo">
-                <img src="../../imagem/icon.jpg" alt="Painel Zero Logo">
-            </div>
-            <h1>Painel Zero</h1>
-            <p class="subtitle">PLATAFORMA ACADÊMICA</p>
-        </div>
+    <script>
+        // Configuração Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
+            authDomain: "zero-5e74d.firebaseapp.com",
+            projectId: "zero-5e74d",
+            storageBucket: "zero-5e74d.firebasestorage.app",
+            messagingSenderId: "431244473899",
+            appId: "1:431244473899:web:da9424fd226f7386dddc6e"
+        };
+        
+        // Inicializar Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+        
+        // Configurar persistência OFFLINE
+        db.enablePersistence({ synchronizeTabs: true })
+            .catch(err => {
+                if (err.code === 'failed-precondition') {
+                    console.warn('Múltiplas abas abertas, usando cache em memória');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('Navegador não suporta persistência');
+                }
+            });
+        
+        console.log('[Firebase] Configuração carregada!');
 
-        <div class="login-container">
-            <!-- ÚNICO BOTÃO - APENAS GOOGLE -->
-            <button type="button" class="btn-google" id="google-login-btn">
-                <i class="fab fa-google"></i>
-                ENTRAR COM GOOGLE
-            </button>
+        // ========== SCRIPT DO LOGIN ==========
+        
+        function ehCelular() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                || window.innerWidth <= 768;
+        }
 
-            <div class="info-text">
-                <i class="fas fa-shield-alt"></i>
-                Login seguro e sincronização em nuvem
-            </div>
-        </div>
-    </div>
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        const isLoginPage = window.location.pathname.includes('/login/');
 
-    <div id="toast" class="toast"></div>
+        if (usuarioSalvo && !isLoginPage) {
+            const isMobile = ehCelular();
+            window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+        }
 
-    <script src="/TELAS/cache-manager.js"></script>
-    <script src="/TELAS/shared-data.js"></script>
-    <script src="/TELAS/firebase-config.js"></script>
-    <script src="/TELAS/login/script.js"></script>
-    <script src="/TELAS/preload-system.js"></script>
-    <script src="/TELAS/fast-bootstrap.js"></script>
+        const googleLoginBtn = document.getElementById('google-login-btn');
 
-    
+        function showMessage(message, isError = false) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.style.backgroundColor = isError ? '#dc2626' : '#10b981';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function setLoading(button, isLoading) {
+            if (isLoading) {
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AGUARDE...';
+                button.disabled = true;
+            } else {
+                button.innerHTML = button.dataset.originalHtml;
+                button.disabled = false;
+            }
+        }
+
+        async function criarDadosPadrao(usuario) {
+            console.log('[Login] Criando dados padrão para:', usuario.email);
+            const userId = usuario.uid;
+            
+            const dadosPadrao = {
+                tasks: [],
+                notes: [],
+                calendarEvents: [],
+                weeklySchedule: { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] },
+                timeSlots: ['08:00', '09:30', '11:00', '14:00', '15:30'],
+                notifications: [],
+                notificacoesSettings: { push: true, email: false, aulas: true, tarefas: true },
+                appearanceSettings: { theme: 'dark', accent: '#8b5cf6', fontSize: 14 }
+            };
+            
+            for (const [key, value] of Object.entries(dadosPadrao)) {
+                localStorage.setItem(`${userId}_${key}`, JSON.stringify(value));
+            }
+        }
+
+        async function processarLogin(user, isNewUser) {
+            const usuario = {
+                uid: user.uid,
+                email: user.email,
+                nome: user.displayName || user.email.split('@')[0],
+                foto: user.photoURL || null,
+                logado: true
+            };
+            
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+            
+            if (isNewUser) {
+                await criarDadosPadrao(usuario);
+            }
+            
+            showMessage(`Bem-vindo, ${usuario.nome}!`);
+            
+            setTimeout(() => {
+                const isMobile = ehCelular();
+                window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+            }, 500);
+        }
+
+        if (googleLoginBtn) {
+            googleLoginBtn.addEventListener('click', async () => {
+                try {
+                    setLoading(googleLoginBtn, true);
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' });
+                    
+                    const result = await auth.signInWithPopup(provider);
+                    const isNewUser = result.additionalUserInfo?.isNewUser || false;
+                    
+                    await processarLogin(result.user, isNewUser);
+                    
+                } catch (error) {
+                    console.error('[Google] Erro:', error);
+                    let msg = 'Erro ao fazer login. ';
+                    if (error.code === 'auth/popup-blocked') msg = 'Popup bloqueado! Permita popups.';
+                    else if (error.code === 'auth/network-request-failed') msg = 'Sem conexão com internet.';
+                    else msg += error.message;
+                    
+                    showMessage(msg, true);
+                    setLoading(googleLoginBtn, false);
+                }
+            });
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user && !localStorage.getItem('usuarioLogado')) {
+                processarLogin(user, false);
+            }
+        });
+
+        console.log('%c🔐 Painel Zero - Login com Google', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+    </script>
 </body>
 </html>
