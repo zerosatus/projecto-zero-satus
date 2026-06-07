@@ -3,84 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Migração Realtime → Firestore</title>
+    <title>Migração de Dados - Painel Zero</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        body {
             min-height: 100vh;
+            background: linear-gradient(135deg, #1a0033 0%, #0d001a 50%, #000000 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
         }
+
         .container {
-            max-width: 800px;
+            max-width: 700px;
             width: 100%;
-            background: #1e293b;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            border: 1px solid #334155;
+            background: rgba(20, 20, 20, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 28px;
+            padding: 40px;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
         }
-        h1 { color: #fff; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        h1::before { content: '🔄'; font-size: 28px; }
+
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #9333ea;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #9333ea, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .user-info h3 {
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .user-info p {
+            color: #888;
+            font-size: 13px;
+        }
+
         .status-box {
-            background: #0f172a;
-            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 16px;
             padding: 20px;
             margin: 20px 0;
-            color: #94a3b8;
             font-family: monospace;
             font-size: 13px;
-            max-height: 400px;
+            color: #94a3b8;
+            max-height: 300px;
             overflow-y: auto;
             border: 1px solid #334155;
         }
-        .progress-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin: 20px 0; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #7c3aed); width: 0%; transition: width 0.3s ease; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
         button {
+            width: 100%;
+            padding: 16px;
             background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            border: none; padding: 12px 24px; border-radius: 10px; color: white;
-            font-weight: 600; cursor: pointer; margin-top: 20px; width: 100%; font-size: 16px;
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
         }
-        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .success { color: #10b981; }
-        .error { color: #ef4444; }
-        .warning { color: #f59e0b; }
-        .user-info {
-            background: #0f172a; border-radius: 12px; padding: 15px; margin-bottom: 20px;
-            display: flex; align-items: center; gap: 15px;
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
         }
-        .user-avatar { width: 50px; height: 50px; border-radius: 50%; background: #8b5cf6; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-        .user-details h3 { color: white; margin-bottom: 4px; }
-        .user-details p { color: #94a3b8; font-size: 12px; }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-voltar {
+            background: transparent;
+            border: 1px solid #334155;
+            margin-top: 12px;
+        }
+
+        .btn-voltar:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: none;
+        }
+
+        .success-text { color: #10b981; }
+        .error-text { color: #ef4444; }
+        .warning-text { color: #f59e0b; }
+
+        .login-warning {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
     </style>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Migração para Firestore</h1>
+        <h1><i class="fas fa-database"></i> Migração de Dados</h1>
+        <p class="subtitle">Recupere seus dados do sistema antigo</p>
+
         <div id="userSection" style="display: none;">
-            <div class="user-info">
+            <div class="user-card">
                 <div class="user-avatar" id="userAvatar">👤</div>
-                <div class="user-details">
+                <div class="user-info">
                     <h3 id="userName">Carregando...</h3>
                     <p id="userEmail">usuario@email.com</p>
                 </div>
             </div>
         </div>
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="status-box" id="statusBox">🔐 Aguardando login...</div>
-        <button id="migrateBtn" style="display: none;" onclick="startMigration()">🚀 Iniciar Migração</button>
-        <button id="loginBtn" onclick="login()">🔑 Fazer Login com Google</button>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="status-box" id="statusBox">
+            <i class="fas fa-info-circle"></i> Aguardando login...
+        </div>
+
+        <button id="migrateBtn" style="display: none;" onclick="startMigration()">
+            <i class="fas fa-cloud-upload-alt"></i> Iniciar Migração
+        </button>
+
+        <button id="loginBtn" onclick="login()">
+            <i class="fab fa-google"></i> Fazer Login com Google
+        </button>
+
+        <button class="btn-voltar" onclick="window.location.href='login/index.html'">
+            <i class="fas fa-arrow-left"></i> Voltar para o Login
+        </button>
     </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -91,7 +206,10 @@
             databaseURL: "https://zero-5e74d-default-rtdb.firebaseio.com/"
         };
         
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
         const rtdb = firebase.database();
         const firestore = firebase.firestore();
         const auth = firebase.auth();
@@ -100,8 +218,9 @@
         
         function updateStatus(message, type = 'info') {
             const statusBox = document.getElementById('statusBox');
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
             const color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#94a3b8';
-            statusBox.innerHTML += `<div style="color: ${color}; margin-top: 8px;">${message}</div>`;
+            statusBox.innerHTML += `<div style="color: ${color}; margin-top: 8px;">${icon} ${message}</div>`;
             statusBox.scrollTop = statusBox.scrollHeight;
         }
         
@@ -110,18 +229,20 @@
         }
         
         async function login() {
-            updateStatus('🔐 Solicitando login...');
+            updateStatus('🔐 Solicitando login com Google...');
             const provider = new firebase.auth.GoogleAuthProvider();
             try {
                 const result = await auth.signInWithPopup(provider);
                 currentUser = result.user;
                 updateStatus(`✅ Logado como: ${currentUser.email}`, 'success');
+                
                 document.getElementById('userSection').style.display = 'block';
                 document.getElementById('userName').textContent = currentUser.displayName || currentUser.email.split('@')[0];
                 document.getElementById('userEmail').textContent = currentUser.email;
                 document.getElementById('userAvatar').textContent = currentUser.displayName?.charAt(0).toUpperCase() || '👤';
                 document.getElementById('loginBtn').style.display = 'none';
                 document.getElementById('migrateBtn').style.display = 'block';
+                
             } catch (error) {
                 updateStatus(`❌ Erro: ${error.message}`, 'error');
             }
@@ -136,32 +257,38 @@
             try {
                 snapshot = await rtdb.ref(`users/${userId}`).once('value');
             } catch (error) {
-                updateStatus(`❌ Erro: ${error.message}`, 'error');
+                updateStatus(`❌ Erro ao acessar banco antigo: ${error.message}`, 'error');
                 return false;
             }
             
             const data = snapshot.val();
-            if (!data) updateStatus(`⚠️ Nenhum dado encontrado no Realtime DB`, 'warning');
+            if (!data) {
+                updateStatus(`⚠️ Nenhum dado encontrado no sistema antigo!`, 'warning');
+                updateStatus(`ℹ️ Seus dados serão criados do zero.`, 'info');
+            } else {
+                updateStatus(`📊 Dados encontrados: ${Object.keys(data).length} categorias`, 'success');
+            }
             
             const userRef = firestore.collection('users').doc(userId);
             await userRef.set({
                 email: currentUser.email,
                 nome: currentUser.displayName || data?.nome || 'Usuário',
                 profilePhotoUrl: data?.profilePhotoUrl || null,
-                profilePhotoBase64: data?.profilePhotoBase64 || null,
                 migratedAt: new Date().toISOString()
             });
-            updateStatus(`✅ Usuário criado/atualizado`, 'success');
+            updateStatus(`✅ Perfil salvo no Firestore`, 'success');
             updateProgress(10);
             
             // TAREFAS
             const tasksRef = userRef.collection('tasks');
+            let tasksCount = 0;
             if (data?.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
                 updateStatus(`📋 Migrando ${data.tasks.length} tarefas...`);
                 for (const task of data.tasks) {
                     await tasksRef.doc(task.id || Date.now() + '_' + Math.random()).set({ ...task, migratedAt: new Date().toISOString() });
+                    tasksCount++;
                 }
-                updateStatus(`✅ ${data.tasks.length} tarefas migradas!`, 'success');
+                updateStatus(`✅ ${tasksCount} tarefas migradas!`, 'success');
             } else {
                 await tasksRef.doc('exemplo_' + Date.now()).set({ title: 'Exemplo de tarefa', completed: false, createdAt: new Date().toISOString() });
                 updateStatus(`ℹ️ Tarefa exemplo criada`, 'info');
@@ -170,6 +297,7 @@
             
             // ANOTAÇÕES
             const notesRef = userRef.collection('notes');
+            let notesCount = 0;
             if (data?.notes && Array.isArray(data.notes) && data.notes.length > 0) {
                 updateStatus(`📝 Migrando ${data.notes.length} anotações...`);
                 for (const note of data.notes) {
@@ -179,22 +307,25 @@
                         updatedAt: new Date().toISOString(),
                         migratedAt: new Date().toISOString()
                     });
+                    notesCount++;
                 }
-                updateStatus(`✅ ${data.notes.length} anotações migradas!`, 'success');
+                updateStatus(`✅ ${notesCount} anotações migradas!`, 'success');
             } else {
-                await notesRef.doc('exemplo_' + Date.now()).set({ title: 'Bem-vindo ao Firestore!', content: '<p>Sua primeira anotação.</p>', updatedAt: new Date().toISOString() });
+                await notesRef.doc('exemplo_' + Date.now()).set({ title: 'Bem-vindo!', content: '<p>Sua primeira anotação.</p>', updatedAt: new Date().toISOString() });
                 updateStatus(`ℹ️ Anotação exemplo criada`, 'info');
             }
             updateProgress(50);
             
             // EVENTOS
             const eventsRef = userRef.collection('calendarEvents');
+            let eventsCount = 0;
             if (data?.calendarEvents && Array.isArray(data.calendarEvents) && data.calendarEvents.length > 0) {
                 updateStatus(`📅 Migrando ${data.calendarEvents.length} eventos...`);
                 for (const event of data.calendarEvents) {
                     await eventsRef.doc(event.id || Date.now() + '_' + Math.random()).set({ ...event, migratedAt: new Date().toISOString() });
+                    eventsCount++;
                 }
-                updateStatus(`✅ ${data.calendarEvents.length} eventos migrados!`, 'success');
+                updateStatus(`✅ ${eventsCount} eventos migrados!`, 'success');
             }
             updateProgress(70);
             
@@ -216,37 +347,53 @@
             updateStatus(`✅ Configurações migradas!`, 'success');
             updateProgress(100);
             
+            // SALVAR TAMBÉM NO LOCALSTORAGE
+            const dadosLocais = {
+                tasks: data?.tasks || [],
+                notes: data?.notes || [],
+                calendarEvents: data?.calendarEvents || [],
+                weeklySchedule: data?.weeklySchedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] },
+                timeSlots: data?.timeSlots || ['08:00', '09:30', '11:00', '14:00', '15:30']
+            };
+            
+            for (const [key, value] of Object.entries(dadosLocais)) {
+                localStorage.setItem(`${userId}_${key}`, JSON.stringify(value));
+            }
+            updateStatus(`💾 Dados salvos localmente também!`, 'success');
+            
             return true;
         }
         
         async function startMigration() {
             const btn = document.getElementById('migrateBtn');
             btn.disabled = true;
-            btn.textContent = '⏳ Migrando...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Migrando dados...';
             updateStatus('🚀 INICIANDO MIGRAÇÃO...', 'success');
             
             const success = await migrateUserData();
             
             if (success) {
                 updateStatus('🎉 MIGRAÇÃO CONCLUÍDA COM SUCESSO!', 'success');
-                btn.textContent = '✅ Migração Concluída!';
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Migração Concluída!';
                 btn.style.background = '#10b981';
+                
                 setTimeout(() => {
-                    if (confirm('Migração concluída! Deseja ir para o painel inicial?')) {
+                    if (confirm('✅ Migração concluída! Deseja ir para o painel inicial?')) {
                         window.location.href = 'inicio/index.html';
                     }
                 }, 1000);
             } else {
-                updateStatus('❌ Falha na migração.', 'error');
+                updateStatus('❌ Falha na migração. Tente novamente.', 'error');
                 btn.disabled = false;
-                btn.textContent = '🔄 Tentar Novamente';
+                btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Tentar Novamente';
+                btn.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
             }
         }
         
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
-                updateStatus(`✅ Já logado como: ${user.email}`, 'success');
+                updateStatus(`✅ Usuário já logado: ${user.email}`, 'success');
                 document.getElementById('userSection').style.display = 'block';
                 document.getElementById('userName').textContent = user.displayName || user.email.split('@')[0];
                 document.getElementById('userEmail').textContent = user.email;
