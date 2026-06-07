@@ -383,3 +383,59 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(147, 51, 234, 0.7);
 }
+
+/* Estilo para o botão Google */
+.btn-google {
+    width: 100%;
+    padding: 16px;
+    background: #ffffff;
+    border: none;
+    border-radius: 12px;
+    color: #333;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.btn-google i {
+    font-size: 20px;
+    color: #db4437;
+}
+
+.btn-google:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn-google:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.info-text {
+    text-align: center;
+    margin-top: 20px;
+    color: #888;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.info-text i {
+    color: #10b981;
+}
+
+@media (max-width: 480px) {
+    .btn-google {
+        padding: 14px;
+        font-size: 14px;
+    }
+}

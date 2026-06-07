@@ -8,102 +8,101 @@
     <link rel="icon" href="../../imagem/favicon.png" type="image/png"> 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Painel Zero - Login</title>
+    
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png"> 
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <div class="logo-section">
             <div class="logo">
-                <img src="../../imagem/icon.jpg" alt="Painel Zero Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 16px;">
+                <img src="../../imagem/icon.jpg" alt="Painel Zero Logo">
             </div>
             <h1>Painel Zero</h1>
             <p class="subtitle">PLATAFORMA ACADÊMICA</p>
         </div>
 
         <div class="login-container">
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="login">LOGIN</button>
-                <button class="tab-btn" data-tab="registro">REGISTRO</button>
+            <!-- ÚNICO BOTÃO - APENAS GOOGLE -->
+            <button type="button" class="btn-google" id="google-login-btn">
+                <i class="fab fa-google"></i>
+                ENTRAR COM GOOGLE
+            </button>
+
+            <div class="info-text">
+                <i class="fas fa-shield-alt"></i>
+                Login seguro e sincronização em nuvem
             </div>
-
-            <form class="form active" id="login-form">
-                <div class="input-group">
-                    <label for="login-email">ENDEREÇO DE E-MAIL</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" id="login-email" placeholder="meuemail@gmail.com" required>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label for="login-password">SENHA</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-lock input-icon"></i>
-                        <input type="password" id="login-password" placeholder="••••••••" required>
-                        <button type="button" class="toggle-password" onclick="togglePassword('login-password')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                    <a href="#" class="forgot-password" id="forgot-password">ESQUECI A SENHA</a>
-                </div>
-
-                <button type="submit" class="btn-primary" id="login-btn">
-                    ENTRAR
-                    <i class="fas fa-arrow-right"></i>
-                </button>
-            </form>
-
-            <form class="form" id="registro-form">
-                <div class="input-group">
-                    <label for="registro-nome">NOME COMPLETO</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-user input-icon"></i>
-                        <input type="text" id="registro-nome" placeholder="Seu nome" required>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label for="registro-email">ENDEREÇO DE E-MAIL</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" id="registro-email" placeholder="meuemail@gmail.com" required>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label for="registro-password">SENHA</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-lock input-icon"></i>
-                        <input type="password" id="registro-password" placeholder="••••••••" required>
-                        <button type="button" class="toggle-password" onclick="togglePassword('registro-password')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-primary" id="registro-btn">
-                    CRIAR CONTA
-                    <i class="fas fa-user-plus"></i>
-                </button>
-            </form>
-
-            <p class="register-link">
-                Quer rever a animação? <a href="/index.html">Voltar ao início</a>
-            </p>
         </div>
     </div>
 
     <div id="toast" class="toast"></div>
 
-    <!-- SCRIPTS NA ORDEM CORRETA -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- FIREBASE CDNs (ORDEM CORRETA - FIRESTORE)      -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SISTEMA PRINCIPAL (ORDEM CORRETA)              -->
+    <!-- ═══════════════════════════════════════════════ -->
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>
-    <script src="script.js"></script>
-    <script src="updates-popup.js"></script>
+    <script src="../sync-helper.js"></script>
     <script src="../preload-system.js"></script>
-<script src="../fast-bootstrap.js"></script>
+    <script src="../fast-bootstrap.js"></script>
+    
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCRIPT DA PÁGINA                               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <script src="script.js"></script>
+</body>
+</html>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-section">
+            <div class="logo">
+                <img src="../../imagem/icon.jpg" alt="Painel Zero Logo">
+            </div>
+            <h1>Painel Zero</h1>
+            <p class="subtitle">PLATAFORMA ACADÊMICA</p>
+        </div>
+
+        <div class="login-container">
+            <!-- ÚNICO BOTÃO - APENAS GOOGLE -->
+            <button type="button" class="btn-google" id="google-login-btn">
+                <i class="fab fa-google"></i>
+                ENTRAR COM GOOGLE
+            </button>
+
+            <div class="info-text">
+                <i class="fas fa-shield-alt"></i>
+                Login seguro e sincronização em nuvem
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/TELAS/cache-manager.js"></script>
+    <script src="/TELAS/shared-data.js"></script>
+    <script src="/TELAS/firebase-config.js"></script>
+    <script src="/TELAS/login/script.js"></script>
+    <script src="/TELAS/preload-system.js"></script>
+    <script src="/TELAS/fast-bootstrap.js"></script>
+
+    
 </body>
 </html>
