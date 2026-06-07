@@ -230,17 +230,31 @@
         </div>
     </div>
 </main>
-    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+ <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SISTEMA PRINCIPAL (ORDEM CORRETA)              -->
+    <!-- ═══════════════════════════════════════════════ -->
     <script src="../preload-system.js"></script>
-<script src="../fast-bootstrap.js"></script>
-  <script src="../daily-phrases.js"></script>
+    <script src="../fast-bootstrap.js"></script>
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
     <script src="../firebase-config.js"></script>
     <script src="../sync-helper.js"></script>
+    
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- FEATURES ADICIONAIS                            -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <script src="../daily-phrases.js"></script>
+    <script src="../notes-sync.js"></script>
+    <script src="../updates-popup.js"></script>
+    
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCRIPT DA PÁGINA ESPECÍFICA                    -->
+    <!-- ═══════════════════════════════════════════════ -->
     <script src="script.js"></script>
 </body>
 </html>
