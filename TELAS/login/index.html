@@ -4,196 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Painel Zero - Login</title>
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png"> 
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #1a0033 0%, #0d001a 50%, #000000 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .logo-section {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .logo {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
-            border-radius: 24px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 20px;
-            box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-            overflow: hidden;
-        }
-
-        .logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .logo-section h1 {
-            color: #ffffff;
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: #9333ea;
-            font-size: 12px;
-            letter-spacing: 3px;
-            font-weight: 600;
-        }
-
-        .login-container {
-            background: rgba(20, 20, 20, 0.8);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
-            width: 100%;
-            border: 1px solid rgba(147, 51, 234, 0.2);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-
-        .btn-google {
-            width: 100%;
-            padding: 16px;
-            background: #ffffff;
-            border: none;
-            border-radius: 12px;
-            color: #333;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-google i {
-            font-size: 20px;
-            color: #db4437;
-        }
-
-        .btn-google:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .btn-google:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-
-        .info-text {
-            text-align: center;
-            margin-top: 20px;
-            color: #888;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .info-text i {
-            color: #10b981;
-        }
-
-        .btn-migrar {
-            width: 100%;
-            margin-top: 15px;
-            padding: 12px;
-            background: transparent;
-            border: 1px solid rgba(147, 51, 234, 0.3);
-            border-radius: 12px;
-            color: #9333ea;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-migrar:hover {
-            background: rgba(147, 51, 234, 0.1);
-            border-color: #9333ea;
-        }
-
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-        }
-
-        .toast.show {
-            transform: translateX(0);
-        }
-
-        @media (max-width: 480px) {
-            .login-container { padding: 30px 20px; }
-            .logo-section h1 { font-size: 28px; }
-            .logo { width: 80px; height: 80px; }
-        }
-    </style>
 </head>
 <body>
     <div class="container">
         <div class="logo-section">
             <div class="logo">
-                <img src="data:image/svg+xml,%3Csvg xmlns='https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%239333ea'/%3E%3Ctext x='50' y='67' text-anchor='middle' fill='white' font-size='50' font-weight='bold'%3EZ%3C/text%3E%3C/svg%3E" alt="Logo">
+                <img src="../../imagem/icon.jpg" alt="Painel Zero Logo">
             </div>
             <h1>Painel Zero</h1>
             <p class="subtitle">PLATAFORMA ACADÊMICA</p>
         </div>
 
         <div class="login-container">
+            <!-- Botão Google -->
             <button type="button" class="btn-google" id="google-login-btn">
                 <i class="fab fa-google"></i>
                 ENTRAR COM GOOGLE
             </button>
 
-            <!-- BOTÃO PARA MIGRAR DADOS -->
-            <a href="../migrate-to-firestore.html" class="btn-migrar">
+            <!-- Botão para Migrar Dados -->
+            <button type="button" class="btn-migrar" id="migrar-dados-btn" onclick="window.location.href='../migrate-to-firestore.html'">
                 <i class="fas fa-database"></i>
-                Recuperar meus dados antigos
-            </a>
+                RECUPERAR MEUS DADOS ANTIGOS
+            </button>
 
             <div class="info-text">
                 <i class="fas fa-shield-alt"></i>
@@ -204,10 +40,12 @@
 
     <div id="toast" class="toast"></div>
 
+    <!-- Firebase CDNs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <script>
+        // Configuração Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
             authDomain: "zero-5e74d.firebaseapp.com",
@@ -217,17 +55,20 @@
             appId: "1:431244473899:web:da9424fd226f7386dddc6e"
         };
         
+        // Inicializar Firebase
         if (typeof firebase !== 'undefined' && !firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         
         const auth = firebase.auth();
 
+        // Função para detectar mobile
         function ehCelular() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
                 || window.innerWidth <= 768;
         }
 
+        // Verificar se já está logado
         const usuarioSalvo = localStorage.getItem('usuarioLogado');
         const currentPath = window.location.pathname;
         
@@ -297,6 +138,7 @@
             }, 500);
         }
 
+        // Login com Google
         if (googleLoginBtn) {
             googleLoginBtn.addEventListener('click', async () => {
                 try {
@@ -325,6 +167,7 @@
             });
         }
 
+        // Monitorar estado de autenticação
         auth.onAuthStateChanged((user) => {
             if (user && !localStorage.getItem('usuarioLogado')) {
                 processarLogin(user, false);
