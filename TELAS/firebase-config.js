@@ -1,4 +1,5 @@
-// firebase-config.js - VERSÃO FIRESTORE COMPLETA
+// firebase-config.js - VERSÃO SIMPLIFICADA (SEM ERROS)
+
 (function() {
     const firebaseConfig = {
         apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -12,52 +13,66 @@
     let db = null;
     let auth = null;
     let storage = null;
-    let firebaseInitialized = false;
     
     function initFirebase() {
-        if (firebaseInitialized) return true;
-        if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+        if (typeof firebase === 'undefined') {
+            console.warn('[Firebase] Firebase não carregado');
+            return false;
+        }
+        
+        if (!firebase.apps.length) {
             try {
                 firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
-                auth = firebase.auth();
-                storage = firebase.storage();
-                firebaseInitialized = true;
-                
-                db.enablePersistence().catch(err => console.warn('[Firestore] Persistência offline:', err));
-                console.log('[Firestore] ✅ Inicializado!');
-                window.dispatchEvent(new CustomEvent('firebaseLoaded'));
-                return true;
+                console.log('[Firebase] ✅ Inicializado!');
             } catch (error) {
-                console.error('[Firestore] ❌ Erro:', error);
+                console.error('[Firebase] ❌ Erro:', error);
                 return false;
             }
         }
-        return false;
+        
+        db = firebase.firestore();
+        auth = firebase.auth();
+        storage = firebase.storage();
+        
+        // CONFIGURAR PERSISTÊNCIA DE FORMA SEGURA
+        try {
+            db.enablePersistence({ synchronizeTabs: true })
+                .catch(err => {
+                    if (err.code === 'failed-precondition') {
+                        console.warn('[Firestore] Múltiplas abas, usando cache em memória');
+                    } else if (err.code === 'unimplemented') {
+                        console.warn('[Firestore] Navegador não suporta persistência');
+                    }
+                });
+        } catch (err) {
+            console.warn('[Firestore] Persistência não disponível:', err);
+        }
+        
+        return true;
     }
     
     initFirebase();
     
     // ========== SERVIÇO PRINCIPAL DO FIRESTORE ==========
     window.FirestoreService = {
-        // Usuário
         async getUserData(userId) {
             if (!userId || !db) return null;
             try {
                 const doc = await db.collection('users').doc(userId).get();
                 return doc.exists ? doc.data() : null;
             } catch (error) {
+                console.error('[Firestore] getUserData error:', error);
                 return null;
             }
         },
         
-        // Tarefas
         async getTasks(userId) {
             if (!userId || !db) return [];
             try {
-                const snapshot = await db.collection('users').doc(userId).collection('tasks').orderBy('createdAt', 'desc').get();
+                const snapshot = await db.collection('users').doc(userId).collection('tasks').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (error) {
+                console.error('[Firestore] getTasks error:', error);
                 return [];
             }
         },
@@ -68,6 +83,7 @@
                 await db.collection('users').doc(userId).collection('tasks').doc(taskId).set(taskData, { merge: true });
                 return true;
             } catch (error) {
+                console.error('[Firestore] saveTask error:', error);
                 return false;
             }
         },
@@ -78,17 +94,18 @@
                 await db.collection('users').doc(userId).collection('tasks').doc(taskId).delete();
                 return true;
             } catch (error) {
+                console.error('[Firestore] deleteTask error:', error);
                 return false;
             }
         },
         
-        // Anotações
         async getNotes(userId) {
             if (!userId || !db) return [];
             try {
-                const snapshot = await db.collection('users').doc(userId).collection('notes').orderBy('updatedAt', 'desc').get();
+                const snapshot = await db.collection('users').doc(userId).collection('notes').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (error) {
+                console.error('[Firestore] getNotes error:', error);
                 return [];
             }
         },
@@ -99,6 +116,7 @@
                 await db.collection('users').doc(userId).collection('notes').doc(noteId).set(noteData, { merge: true });
                 return true;
             } catch (error) {
+                console.error('[Firestore] saveNote error:', error);
                 return false;
             }
         },
@@ -109,17 +127,18 @@
                 await db.collection('users').doc(userId).collection('notes').doc(noteId).delete();
                 return true;
             } catch (error) {
+                console.error('[Firestore] deleteNote error:', error);
                 return false;
             }
         },
         
-        // Eventos do calendário
         async getCalendarEvents(userId) {
             if (!userId || !db) return [];
             try {
                 const snapshot = await db.collection('users').doc(userId).collection('calendarEvents').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (error) {
+                console.error('[Firestore] getCalendarEvents error:', error);
                 return [];
             }
         },
@@ -130,6 +149,7 @@
                 await db.collection('users').doc(userId).collection('calendarEvents').doc(eventId).set(eventData, { merge: true });
                 return true;
             } catch (error) {
+                console.error('[Firestore] saveCalendarEvent error:', error);
                 return false;
             }
         },
@@ -140,17 +160,18 @@
                 await db.collection('users').doc(userId).collection('calendarEvents').doc(eventId).delete();
                 return true;
             } catch (error) {
+                console.error('[Firestore] deleteCalendarEvent error:', error);
                 return false;
             }
         },
         
-        // Horário semanal
         async getWeeklySchedule(userId) {
             if (!userId || !db) return null;
             try {
                 const doc = await db.collection('users').doc(userId).collection('settings').doc('weeklySchedule').get();
                 return doc.exists ? doc.data() : null;
             } catch (error) {
+                console.error('[Firestore] getWeeklySchedule error:', error);
                 return null;
             }
         },
@@ -161,11 +182,11 @@
                 await db.collection('users').doc(userId).collection('settings').doc('weeklySchedule').set(scheduleData);
                 return true;
             } catch (error) {
+                console.error('[Firestore] saveWeeklySchedule error:', error);
                 return false;
             }
         },
         
-        // TimeSlots
         async getTimeSlots(userId) {
             if (!userId || !db) return ['08:00', '09:30', '11:00', '14:00', '15:30'];
             try {
@@ -182,127 +203,62 @@
                 await db.collection('users').doc(userId).collection('settings').doc('timeSlots').set({ slots });
                 return true;
             } catch (error) {
+                console.error('[Firestore] saveTimeSlots error:', error);
                 return false;
             }
         },
         
-        // Notificações
         async getNotifications(userId) {
             if (!userId || !db) return [];
             try {
-                const snapshot = await db.collection('users').doc(userId).collection('notifications').orderBy('time', 'desc').get();
+                const snapshot = await db.collection('users').doc(userId).collection('notifications').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (error) {
+                console.error('[Firestore] getNotifications error:', error);
                 return [];
             }
         },
         
-        async saveNotification(userId, notificationId, notificationData) {
-            if (!userId || !db) return false;
-            try {
-                await db.collection('users').doc(userId).collection('notifications').doc(notificationId).set(notificationData);
-                return true;
-            } catch (error) {
-                return false;
-            }
-        },
-        
-        async markAllNotificationsAsRead(userId) {
-            if (!userId || !db) return false;
-            try {
-                const snapshot = await db.collection('users').doc(userId).collection('notifications').get();
-                const batch = db.batch();
-                snapshot.docs.forEach(doc => {
-                    batch.update(doc.ref, { read: true });
-                });
-                await batch.commit();
-                return true;
-            } catch (error) {
-                return false;
-            }
-        },
-        
-        async clearAllNotifications(userId) {
-            if (!userId || !db) return false;
-            try {
-                const snapshot = await db.collection('users').doc(userId).collection('notifications').get();
-                const batch = db.batch();
-                snapshot.docs.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-                return true;
-            } catch (error) {
-                return false;
-            }
-        },
-        
-        // Configurações
-        async getSettings(userId) {
-            if (!userId || !db) return { notifications: {}, appearance: {} };
-            try {
-                const doc = await db.collection('users').doc(userId).collection('settings').doc('preferences').get();
-                return doc.exists ? doc.data() : { notifications: {}, appearance: {} };
-            } catch (error) {
-                return { notifications: {}, appearance: {} };
-            }
-        },
-        
-        async saveSettings(userId, settings) {
-            if (!userId || !db) return false;
-            try {
-                await db.collection('users').doc(userId).collection('settings').doc('preferences').set(settings, { merge: true });
-                return true;
-            } catch (error) {
-                return false;
-            }
-        },
-        
-        // ESCUTA EM TEMPO REAL
         listenToUserData(userId, callback) {
-            if (!userId || !db) return null;
+            if (!userId || !db) return () => {};
             
-            const unsubscribeTasks = db.collection('users').doc(userId).collection('tasks')
+            // Retornar uma função vazia se não conseguir escutar
+            const unsubTasks = db.collection('users').doc(userId).collection('tasks')
                 .onSnapshot(snapshot => {
                     const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     callback({ tasks });
-                });
+                }, err => console.warn('[Firestore] Tasks listener error:', err));
             
-            const unsubscribeNotes = db.collection('users').doc(userId).collection('notes')
+            const unsubNotes = db.collection('users').doc(userId).collection('notes')
                 .onSnapshot(snapshot => {
                     const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     callback({ notes });
-                });
+                }, err => console.warn('[Firestore] Notes listener error:', err));
             
-            const unsubscribeEvents = db.collection('users').doc(userId).collection('calendarEvents')
+            const unsubEvents = db.collection('users').doc(userId).collection('calendarEvents')
                 .onSnapshot(snapshot => {
                     const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     callback({ calendarEvents: events });
-                });
-            
-            const unsubscribeSchedule = db.collection('users').doc(userId).collection('settings').doc('weeklySchedule')
-                .onSnapshot(doc => {
-                    if (doc.exists) callback({ weeklySchedule: doc.data() });
-                });
+                }, err => console.warn('[Firestore] Events listener error:', err));
             
             return () => {
-                unsubscribeTasks();
-                unsubscribeNotes();
-                unsubscribeEvents();
-                unsubscribeSchedule();
+                unsubTasks();
+                unsubNotes();
+                unsubEvents();
             };
         }
     };
     
-    // ========== FOTO DE PERFIL (STORAGE) ==========
+    // ========== FOTO DE PERFIL ==========
     window.FirebaseStorage = {
         async uploadProfilePhoto(userId, file) {
             if (!userId || !file || !storage) return null;
             try {
-                const extension = file.type.split('/')[1] || 'jpg';
-                const fileName = `profile_${userId}_${Date.now()}.${extension}`;
+                const fileName = `profile_${userId}_${Date.now()}`;
                 const storageRef = storage.ref().child(`profile_photos/${fileName}`);
                 const snapshot = await storageRef.put(file);
                 const downloadUrl = await snapshot.ref.getDownloadURL();
-                await db.collection('users').doc(userId).update({ profilePhotoUrl: downloadUrl, updatedAt: new Date().toISOString() });
+                await db.collection('users').doc(userId).update({ profilePhotoUrl: downloadUrl });
                 return downloadUrl;
             } catch (error) {
                 console.error('[Storage] Erro:', error);
@@ -331,15 +287,15 @@
         },
         
         listenProfilePhoto(userId, callback) {
-            if (!userId || !db) return null;
+            if (!userId || !db) return () => {};
             return db.collection('users').doc(userId).onSnapshot(doc => {
                 if (doc.exists && callback) callback(doc.data().profilePhotoUrl);
-            });
+            }, err => console.warn('[Storage] Profile photo listener error:', err));
         }
     };
     
     window.firebaseAuth = auth;
     window.firestore = db;
     
-    console.log('[Firebase] Configuração Firestore carregada!');
+    console.log('[Firebase] Configuração carregada!');
 })();
