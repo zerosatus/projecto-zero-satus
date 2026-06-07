@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migração Realtime → Firestore</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border: 1px solid #334155;
+        }
+        h1 { color: #fff; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        h1::before { content: '🔄'; font-size: 28px; }
+        .status-box {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #94a3b8;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+        .progress-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin: 20px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #7c3aed); width: 0%; transition: width 0.3s ease; }
+        button {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            border: none; padding: 12px 24px; border-radius: 10px; color: white;
+            font-weight: 600; cursor: pointer; margin-top: 20px; width: 100%; font-size: 16px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+        .user-info {
+            background: #0f172a; border-radius: 12px; padding: 15px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 15px;
+        }
+        .user-avatar { width: 50px; height: 50px; border-radius: 50%; background: #8b5cf6; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .user-details h3 { color: white; margin-bottom: 4px; }
+        .user-details p { color: #94a3b8; font-size: 12px; }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Migração para Firestore</h1>
+        <div id="userSection" style="display: none;">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-details">
+                    <h3 id="userName">Carregando...</h3>
+                    <p id="userEmail">usuario@email.com</p>
+                </div>
+            </div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="status-box" id="statusBox">🔐 Aguardando login...</div>
+        <button id="migrateBtn" style="display: none;" onclick="startMigration()">🚀 Iniciar Migração</button>
+        <button id="loginBtn" onclick="login()">🔑 Fazer Login com Google</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
+            authDomain: "zero-5e74d.firebaseapp.com",
+            projectId: "zero-5e74d",
+            storageBucket: "zero-5e74d.firebasestorage.app",
+            databaseURL: "https://zero-5e74d-default-rtdb.firebaseio.com/"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const rtdb = firebase.database();
+        const firestore = firebase.firestore();
+        const auth = firebase.auth();
+        
+        let currentUser = null;
+        
+        function updateStatus(message, type = 'info') {
+            const statusBox = document.getElementById('statusBox');
+            const color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#94a3b8';
+            statusBox.innerHTML += `<div style="color: ${color}; margin-top: 8px;">${message}</div>`;
+            statusBox.scrollTop = statusBox.scrollHeight;
+        }
+        
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+        
+        async function login() {
+            updateStatus('🔐 Solicitando login...');
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                const result = await auth.signInWithPopup(provider);
+                currentUser = result.user;
+                updateStatus(`✅ Logado como: ${currentUser.email}`, 'success');
+                document.getElementById('userSection').style.display = 'block';
+                document.getElementById('userName').textContent = currentUser.displayName || currentUser.email.split('@')[0];
+                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('userAvatar').textContent = currentUser.displayName?.charAt(0).toUpperCase() || '👤';
+                document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('migrateBtn').style.display = 'block';
+            } catch (error) {
+                updateStatus(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+        
+        async function migrateUserData() {
+            if (!currentUser) return false;
+            const userId = currentUser.uid;
+            updateStatus(`📁 Buscando dados do usuário: ${userId}`);
+            
+            let snapshot;
+            try {
+                snapshot = await rtdb.ref(`users/${userId}`).once('value');
+            } catch (error) {
+                updateStatus(`❌ Erro: ${error.message}`, 'error');
+                return false;
+            }
+            
+            const data = snapshot.val();
+            if (!data) updateStatus(`⚠️ Nenhum dado encontrado no Realtime DB`, 'warning');
+            
+            const userRef = firestore.collection('users').doc(userId);
+            await userRef.set({
+                email: currentUser.email,
+                nome: currentUser.displayName || data?.nome || 'Usuário',
+                profilePhotoUrl: data?.profilePhotoUrl || null,
+                profilePhotoBase64: data?.profilePhotoBase64 || null,
+                migratedAt: new Date().toISOString()
+            });
+            updateStatus(`✅ Usuário criado/atualizado`, 'success');
+            updateProgress(10);
+            
+            // TAREFAS
+            const tasksRef = userRef.collection('tasks');
+            if (data?.tasks && Array.isArray(data.tasks) && data.tasks.length > 0) {
+                updateStatus(`📋 Migrando ${data.tasks.length} tarefas...`);
+                for (const task of data.tasks) {
+                    await tasksRef.doc(task.id || Date.now() + '_' + Math.random()).set({ ...task, migratedAt: new Date().toISOString() });
+                }
+                updateStatus(`✅ ${data.tasks.length} tarefas migradas!`, 'success');
+            } else {
+                await tasksRef.doc('exemplo_' + Date.now()).set({ title: 'Exemplo de tarefa', completed: false, createdAt: new Date().toISOString() });
+                updateStatus(`ℹ️ Tarefa exemplo criada`, 'info');
+            }
+            updateProgress(30);
+            
+            // ANOTAÇÕES
+            const notesRef = userRef.collection('notes');
+            if (data?.notes && Array.isArray(data.notes) && data.notes.length > 0) {
+                updateStatus(`📝 Migrando ${data.notes.length} anotações...`);
+                for (const note of data.notes) {
+                    await notesRef.doc(note.id || Date.now() + '_' + Math.random()).set({
+                        title: note.title || note.titulo || 'Sem título',
+                        content: note.content || note.conteudo || '',
+                        updatedAt: new Date().toISOString(),
+                        migratedAt: new Date().toISOString()
+                    });
+                }
+                updateStatus(`✅ ${data.notes.length} anotações migradas!`, 'success');
+            } else {
+                await notesRef.doc('exemplo_' + Date.now()).set({ title: 'Bem-vindo ao Firestore!', content: '<p>Sua primeira anotação.</p>', updatedAt: new Date().toISOString() });
+                updateStatus(`ℹ️ Anotação exemplo criada`, 'info');
+            }
+            updateProgress(50);
+            
+            // EVENTOS
+            const eventsRef = userRef.collection('calendarEvents');
+            if (data?.calendarEvents && Array.isArray(data.calendarEvents) && data.calendarEvents.length > 0) {
+                updateStatus(`📅 Migrando ${data.calendarEvents.length} eventos...`);
+                for (const event of data.calendarEvents) {
+                    await eventsRef.doc(event.id || Date.now() + '_' + Math.random()).set({ ...event, migratedAt: new Date().toISOString() });
+                }
+                updateStatus(`✅ ${data.calendarEvents.length} eventos migrados!`, 'success');
+            }
+            updateProgress(70);
+            
+            // HORÁRIO SEMANAL
+            if (data?.weeklySchedule) {
+                await userRef.collection('settings').doc('weeklySchedule').set(data.weeklySchedule);
+                updateStatus(`✅ Horário semanal migrado!`, 'success');
+            } else {
+                await userRef.collection('settings').doc('weeklySchedule').set({ Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
+                updateStatus(`ℹ️ Horário padrão criado`, 'info');
+            }
+            updateProgress(85);
+            
+            // CONFIGURAÇÕES
+            await userRef.collection('settings').doc('preferences').set({
+                notifications: data?.notificacoesSettings || { push: true, email: false, aulas: true, tarefas: true },
+                appearance: data?.appearanceSettings || { theme: 'dark', accent: '#8b5cf6', fontSize: 14 }
+            });
+            updateStatus(`✅ Configurações migradas!`, 'success');
+            updateProgress(100);
+            
+            return true;
+        }
+        
+        async function startMigration() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Migrando...';
+            updateStatus('🚀 INICIANDO MIGRAÇÃO...', 'success');
+            
+            const success = await migrateUserData();
+            
+            if (success) {
+                updateStatus('🎉 MIGRAÇÃO CONCLUÍDA COM SUCESSO!', 'success');
+                btn.textContent = '✅ Migração Concluída!';
+                btn.style.background = '#10b981';
+                setTimeout(() => {
+                    if (confirm('Migração concluída! Deseja ir para o painel inicial?')) {
+                        window.location.href = 'inicio/index.html';
+                    }
+                }, 1000);
+            } else {
+                updateStatus('❌ Falha na migração.', 'error');
+                btn.disabled = false;
+                btn.textContent = '🔄 Tentar Novamente';
+            }
+        }
+        
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                updateStatus(`✅ Já logado como: ${user.email}`, 'success');
+                document.getElementById('userSection').style.display = 'block';
+                document.getElementById('userName').textContent = user.displayName || user.email.split('@')[0];
+                document.getElementById('userEmail').textContent = user.email;
+                document.getElementById('userAvatar').textContent = user.displayName?.charAt(0).toUpperCase() || '👤';
+                document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('migrateBtn').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

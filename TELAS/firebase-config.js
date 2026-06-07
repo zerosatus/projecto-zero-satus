@@ -1,4 +1,4 @@
-// Configuração do Firebase para sincronização em nuvem (Realtime Database + Base64 para fotos)
+// firebase-config.js - VERSÃO FIRESTORE COMPLETA
 (function() {
     const firebaseConfig = {
         apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -6,259 +6,340 @@
         projectId: "zero-5e74d",
         storageBucket: "zero-5e74d.firebasestorage.app",
         messagingSenderId: "431244473899",
-        appId: "1:431244473899:web:da9424fd226f7386dddc6e",
-        databaseURL: "https://zero-5e74d-default-rtdb.firebaseio.com/"
+        appId: "1:431244473899:web:da9424fd226f7386dddc6e"
     };
     
-    let database = null;
+    let db = null;
     let auth = null;
+    let storage = null;
     let firebaseInitialized = false;
     
     function initFirebase() {
         if (firebaseInitialized) return true;
-        
         if (typeof firebase !== 'undefined' && !firebase.apps.length) {
             try {
                 firebase.initializeApp(firebaseConfig);
-                database = firebase.database();
+                db = firebase.firestore();
                 auth = firebase.auth();
+                storage = firebase.storage();
                 firebaseInitialized = true;
-                console.log('[Firebase] ✅ Firebase inicializado com sucesso!');
+                
+                db.enablePersistence().catch(err => console.warn('[Firestore] Persistência offline:', err));
+                console.log('[Firestore] ✅ Inicializado!');
                 window.dispatchEvent(new CustomEvent('firebaseLoaded'));
                 return true;
             } catch (error) {
-                console.error('[Firebase] ❌ Erro ao inicializar:', error);
+                console.error('[Firestore] ❌ Erro:', error);
                 return false;
             }
-        } else if (typeof firebase !== 'undefined' && firebase.apps.length) {
-            database = firebase.database();
-            auth = firebase.auth();
-            firebaseInitialized = true;
-            return true;
         }
         return false;
     }
     
     initFirebase();
     
-    if (!firebaseInitialized) {
-        setTimeout(initFirebase, 1000);
-    }
+    // ========== SERVIÇO PRINCIPAL DO FIRESTORE ==========
+    window.FirestoreService = {
+        // Usuário
+        async getUserData(userId) {
+            if (!userId || !db) return null;
+            try {
+                const doc = await db.collection('users').doc(userId).get();
+                return doc.exists ? doc.data() : null;
+            } catch (error) {
+                return null;
+            }
+        },
+        
+        // Tarefas
+        async getTasks(userId) {
+            if (!userId || !db) return [];
+            try {
+                const snapshot = await db.collection('users').doc(userId).collection('tasks').orderBy('createdAt', 'desc').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                return [];
+            }
+        },
+        
+        async saveTask(userId, taskId, taskData) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('tasks').doc(taskId).set(taskData, { merge: true });
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        async deleteTask(userId, taskId) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('tasks').doc(taskId).delete();
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // Anotações
+        async getNotes(userId) {
+            if (!userId || !db) return [];
+            try {
+                const snapshot = await db.collection('users').doc(userId).collection('notes').orderBy('updatedAt', 'desc').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                return [];
+            }
+        },
+        
+        async saveNote(userId, noteId, noteData) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('notes').doc(noteId).set(noteData, { merge: true });
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        async deleteNote(userId, noteId) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('notes').doc(noteId).delete();
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // Eventos do calendário
+        async getCalendarEvents(userId) {
+            if (!userId || !db) return [];
+            try {
+                const snapshot = await db.collection('users').doc(userId).collection('calendarEvents').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                return [];
+            }
+        },
+        
+        async saveCalendarEvent(userId, eventId, eventData) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('calendarEvents').doc(eventId).set(eventData, { merge: true });
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        async deleteCalendarEvent(userId, eventId) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('calendarEvents').doc(eventId).delete();
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // Horário semanal
+        async getWeeklySchedule(userId) {
+            if (!userId || !db) return null;
+            try {
+                const doc = await db.collection('users').doc(userId).collection('settings').doc('weeklySchedule').get();
+                return doc.exists ? doc.data() : null;
+            } catch (error) {
+                return null;
+            }
+        },
+        
+        async saveWeeklySchedule(userId, scheduleData) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('settings').doc('weeklySchedule').set(scheduleData);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // TimeSlots
+        async getTimeSlots(userId) {
+            if (!userId || !db) return ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            try {
+                const doc = await db.collection('users').doc(userId).collection('settings').doc('timeSlots').get();
+                return doc.exists ? doc.data().slots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            } catch (error) {
+                return ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            }
+        },
+        
+        async saveTimeSlots(userId, slots) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('settings').doc('timeSlots').set({ slots });
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // Notificações
+        async getNotifications(userId) {
+            if (!userId || !db) return [];
+            try {
+                const snapshot = await db.collection('users').doc(userId).collection('notifications').orderBy('time', 'desc').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                return [];
+            }
+        },
+        
+        async saveNotification(userId, notificationId, notificationData) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('notifications').doc(notificationId).set(notificationData);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        async markAllNotificationsAsRead(userId) {
+            if (!userId || !db) return false;
+            try {
+                const snapshot = await db.collection('users').doc(userId).collection('notifications').get();
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => {
+                    batch.update(doc.ref, { read: true });
+                });
+                await batch.commit();
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        async clearAllNotifications(userId) {
+            if (!userId || !db) return false;
+            try {
+                const snapshot = await db.collection('users').doc(userId).collection('notifications').get();
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // Configurações
+        async getSettings(userId) {
+            if (!userId || !db) return { notifications: {}, appearance: {} };
+            try {
+                const doc = await db.collection('users').doc(userId).collection('settings').doc('preferences').get();
+                return doc.exists ? doc.data() : { notifications: {}, appearance: {} };
+            } catch (error) {
+                return { notifications: {}, appearance: {} };
+            }
+        },
+        
+        async saveSettings(userId, settings) {
+            if (!userId || !db) return false;
+            try {
+                await db.collection('users').doc(userId).collection('settings').doc('preferences').set(settings, { merge: true });
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+        
+        // ESCUTA EM TEMPO REAL
+        listenToUserData(userId, callback) {
+            if (!userId || !db) return null;
+            
+            const unsubscribeTasks = db.collection('users').doc(userId).collection('tasks')
+                .onSnapshot(snapshot => {
+                    const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    callback({ tasks });
+                });
+            
+            const unsubscribeNotes = db.collection('users').doc(userId).collection('notes')
+                .onSnapshot(snapshot => {
+                    const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    callback({ notes });
+                });
+            
+            const unsubscribeEvents = db.collection('users').doc(userId).collection('calendarEvents')
+                .onSnapshot(snapshot => {
+                    const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    callback({ calendarEvents: events });
+                });
+            
+            const unsubscribeSchedule = db.collection('users').doc(userId).collection('settings').doc('weeklySchedule')
+                .onSnapshot(doc => {
+                    if (doc.exists) callback({ weeklySchedule: doc.data() });
+                });
+            
+            return () => {
+                unsubscribeTasks();
+                unsubscribeNotes();
+                unsubscribeEvents();
+                unsubscribeSchedule();
+            };
+        }
+    };
     
-    // Função auxiliar para converter File para Base64
-    function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
-    }
-    
-    // ========== FUNÇÕES DE FOTO DE PERFIL COM BASE64 ==========
+    // ========== FOTO DE PERFIL (STORAGE) ==========
     window.FirebaseStorage = {
         async uploadProfilePhoto(userId, file) {
-            if (!userId || !file) {
-                console.error('[Storage] userId ou arquivo não fornecido');
-                return null;
-            }
-            
-            if (!database && !initFirebase()) {
-                console.error('[Storage] Database não disponível');
-                return null;
-            }
-            
+            if (!userId || !file || !storage) return null;
             try {
-                if (file.size > 2 * 1024 * 1024) {
-                    console.error('[Storage] Imagem muito grande para Base64 (max 2MB)');
-                    return null;
-                }
-                
-                console.log('[Storage] 📤 Convertendo foto para Base64...');
-                const base64 = await fileToBase64(file);
-                
-                console.log('[Storage] 💾 Salvando foto no Realtime Database...');
-                const userRef = database.ref(`users/${userId}/profilePhotoBase64`);
-                await userRef.set(base64);
-                await database.ref(`users/${userId}/profilePhotoUpdated`).set(Date.now());
-                
-                console.log('[Storage] ✅ Foto salva como Base64 com sucesso!');
-                return base64;
-                
+                const extension = file.type.split('/')[1] || 'jpg';
+                const fileName = `profile_${userId}_${Date.now()}.${extension}`;
+                const storageRef = storage.ref().child(`profile_photos/${fileName}`);
+                const snapshot = await storageRef.put(file);
+                const downloadUrl = await snapshot.ref.getDownloadURL();
+                await db.collection('users').doc(userId).update({ profilePhotoUrl: downloadUrl, updatedAt: new Date().toISOString() });
+                return downloadUrl;
             } catch (error) {
-                console.error('[Storage] ❌ Erro no upload:', error);
+                console.error('[Storage] Erro:', error);
                 return null;
             }
         },
         
         async getProfilePhotoUrl(userId) {
-            if (!userId) return null;
-            if (!database && !initFirebase()) return null;
-            
+            if (!userId || !db) return null;
             try {
-                const snapshot = await database.ref(`users/${userId}/profilePhotoBase64`).once('value');
-                return snapshot.val();
+                const doc = await db.collection('users').doc(userId).get();
+                return doc.exists ? doc.data().profilePhotoUrl : null;
             } catch (error) {
-                console.error('[Storage] ❌ Erro ao buscar foto:', error);
                 return null;
             }
         },
         
-        async deleteProfilePhoto(userId, photoUrl) {
-            if (!userId) return false;
-            if (!database && !initFirebase()) return false;
-            
+        async deleteProfilePhoto(userId) {
+            if (!userId || !db) return false;
             try {
-                await database.ref(`users/${userId}/profilePhotoBase64`).remove();
-                await database.ref(`users/${userId}/profilePhotoUpdated`).remove();
-                console.log('[Storage] ✅ Foto deletada do Realtime Database');
+                await db.collection('users').doc(userId).update({ profilePhotoUrl: null });
                 return true;
             } catch (error) {
-                console.error('[Storage] ❌ Erro ao deletar foto:', error);
                 return false;
             }
         },
         
         listenProfilePhoto(userId, callback) {
-            if (!userId || !database) return null;
-            
-            const photoRef = database.ref(`users/${userId}/profilePhotoBase64`);
-            const listener = photoRef.on('value', (snapshot) => {
-                const photoUrl = snapshot.val();
-                if (callback) callback(photoUrl);
+            if (!userId || !db) return null;
+            return db.collection('users').doc(userId).onSnapshot(doc => {
+                if (doc.exists && callback) callback(doc.data().profilePhotoUrl);
             });
-            
-            return () => photoRef.off('value', listener);
-        }
-    };
-    
-    // ========== FUNÇÕES DE SINCRONIZAÇÃO ==========
-    window.FirebaseSync = {
-        async saveUserDataToCloud(userId, dataType, data) {
-            if (!userId) {
-                console.error('[Cloud] ❌ userId não fornecido');
-                return false;
-            }
-            
-            if (!database && !initFirebase()) {
-                console.error('[Cloud] ❌ Database não disponível');
-                return false;
-            }
-            
-            try {
-                const userRef = database.ref(`users/${userId}/${dataType}`);
-                await userRef.set(data);
-                await database.ref(`users/${userId}/lastUpdated`).set(firebase.database.ServerValue.TIMESTAMP);
-                console.log(`[Cloud] ✅ ${dataType} salvo na nuvem para ${userId}`);
-                return true;
-            } catch (error) {
-                console.error(`[Cloud] ❌ Erro ao salvar ${dataType}:`, error);
-                return false;
-            }
-        },
-        
-        async loadUserDataFromCloud(userId, dataType) {
-            if (!userId) return null;
-            if (!database && !initFirebase()) return null;
-            
-            try {
-                const snapshot = await database.ref(`users/${userId}/${dataType}`).once('value');
-                return snapshot.val();
-            } catch (error) {
-                console.error(`[Cloud] ❌ Erro ao carregar ${dataType}:`, error);
-                return null;
-            }
-        },
-        
-        async loadAllUserDataFromCloud(userId) {
-            if (!userId) {
-                console.log('[Cloud] ❌ userId não fornecido');
-                return null;
-            }
-            
-            if (!database && !initFirebase()) {
-                console.log('[Cloud] ❌ Database indisponível');
-                return null;
-            }
-            
-            try {
-                console.log('[Cloud] 🔍 Buscando dados do usuário:', userId);
-                const snapshot = await database.ref(`users/${userId}`).once('value');
-                const data = snapshot.val();
-                
-                if (data && Object.keys(data).length > 0) {
-                    console.log('[Cloud] ✅ Dados carregados:', Object.keys(data));
-                    return data;
-                }
-                
-                console.log('[Cloud] ⚠️ Nenhum dado encontrado para:', userId);
-                return null;
-            } catch (error) {
-                console.error('[Cloud] ❌ Erro ao carregar todos dados:', error);
-                return null;
-            }
-        },
-        
-        listenToUserData(userId, callback) {
-            if (!userId) {
-                console.log('[Cloud] ❌ userId não fornecido');
-                return null;
-            }
-            
-            if (!database && !initFirebase()) {
-                console.log('[Cloud] ❌ Database indisponível para escuta');
-                return null;
-            }
-            
-            console.log('[Cloud] 📡 Iniciando escuta em tempo real para:', userId);
-            
-            const userRef = database.ref(`users/${userId}`);
-            const listener = userRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data && callback) {
-                    console.log('[Cloud] 🔔 Mudança detectada na nuvem!');
-                    callback(data);
-                }
-            }, (error) => {
-                console.error('[Cloud] ❌ Erro na escuta:', error);
-            });
-            
-            return () => {
-                console.log('[Cloud] 🔌 Parando escuta para:', userId);
-                userRef.off('value', listener);
-            };
-        },
-        
-        async deleteUserData(userId) {
-            if (!userId) return false;
-            if (!database && !initFirebase()) return false;
-            
-            try {
-                await database.ref(`users/${userId}`).remove();
-                console.log('[Cloud] ✅ Dados do usuário removidos da nuvem');
-                return true;
-            } catch (error) {
-                console.error('[Cloud] ❌ Erro ao remover dados:', error);
-                return false;
-            }
-        },
-        
-        async syncAllDataToCloud(userId, allData) {
-            if (!userId) return false;
-            if (!database && !initFirebase()) return false;
-            
-            try {
-                await database.ref(`users/${userId}`).update(allData);
-                console.log('[Cloud] ✅ Todos os dados sincronizados!');
-                return true;
-            } catch (error) {
-                console.error('[Cloud] ❌ Erro na sincronização:', error);
-                return false;
-            }
         }
     };
     
     window.firebaseAuth = auth;
+    window.firestore = db;
     
-    console.log('[Firebase] Configuração do Realtime Database com Base64 carregada!');
+    console.log('[Firebase] Configuração Firestore carregada!');
 })();
