@@ -7,6 +7,7 @@ class CacheManager {
         this.currentUserId = null;
         this._unsubscribe = null;
         this._syncTimeout = null;
+        this._pendingSync = new Map();
     }
 
     init() {
@@ -44,40 +45,81 @@ class CacheManager {
 
     get(key, defaultValue = null) {
         try {
-            const data = localStorage.getItem(this.getStorageKey(key));
-            return data === null ? defaultValue : JSON.parse(data);
+            const storageKey = this.getStorageKey(key);
+            const data = localStorage.getItem(storageKey);
+            if (data === null) return defaultValue;
+            return JSON.parse(data);
         } catch (error) {
+            console.error(`[CacheManager] Erro ao get ${key}:`, error);
             return defaultValue;
         }
     }
 
     set(key, value, notify = true) {
         try {
-            localStorage.setItem(this.getStorageKey(key), JSON.stringify(value));
+            const storageKey = this.getStorageKey(key);
+            const oldValue = this.get(key, null);
+            
+            // Verificar se realmente mudou para evitar loops
+            if (JSON.stringify(oldValue) === JSON.stringify(value)) {
+                return true;
+            }
+            
+            localStorage.setItem(storageKey, JSON.stringify(value));
             
             if (notify && this.listeners.has(key)) {
                 this.listeners.get(key).forEach(cb => cb(value));
             }
             
-            clearTimeout(this._syncTimeout);
-            this._syncTimeout = setTimeout(() => this.syncToFirestore(key, value), 500);
+            // Cancelar timeout anterior para este key
+            if (this._pendingSync.has(key)) {
+                clearTimeout(this._pendingSync.get(key));
+            }
+            
+            // Agendar sincronização com delay
+            const timeoutId = setTimeout(() => {
+                this.syncToFirestore(key, value);
+                this._pendingSync.delete(key);
+            }, 500);
+            
+            this._pendingSync.set(key, timeoutId);
             
             return true;
         } catch (error) {
+            console.error(`[CacheManager] Erro ao set ${key}:`, error);
             return false;
         }
     }
     
     async syncToFirestore(key, value) {
         const userId = this.getCurrentUserId();
-        if (!userId || userId === 'default' || !window.FirestoreService) return;
+        if (!userId || userId === 'default' || !window.FirestoreService) {
+            console.log(`[CacheManager] Não foi possível sincronizar ${key}: usuário não logado ou FirestoreService indisponível`);
+            return;
+        }
         
         try {
+            console.log(`[CacheManager] Sincronizando ${key} para o Firestore...`);
+            
             switch(key) {
                 case 'tasks':
                     if (Array.isArray(value)) {
+                        // Primeiro, obter todas as tasks existentes no Firestore
+                        const existingTasks = await window.FirestoreService.getTasks(userId);
+                        const existingIds = new Set(existingTasks.map(t => t.id));
+                        const newIds = new Set(value.map(t => t.id));
+                        
+                        // Remover tasks que não existem mais
+                        for (const existingId of existingIds) {
+                            if (!newIds.has(existingId)) {
+                                await window.FirestoreService.deleteTask(userId, existingId);
+                                console.log(`[CacheManager] Task ${existingId} removida do Firestore`);
+                            }
+                        }
+                        
+                        // Salvar ou atualizar tasks
                         for (const item of value) {
-                            if (item.id) {
+                            if (item && item.id) {
                                 await window.FirestoreService.saveTask(userId, item.id, item);
                             }
                         }
@@ -85,8 +127,22 @@ class CacheManager {
                     break;
                 case 'notes':
                     if (Array.isArray(value)) {
+                        // Primeiro, obter todas as notes existentes no Firestore
+                        const existingNotes = await window.FirestoreService.getNotes(userId);
+                        const existingIds = new Set(existingNotes.map(n => n.id));
+                        const newIds = new Set(value.map(n => n.id));
+                        
+                        // Remover notes que não existem mais
+                        for (const existingId of existingIds) {
+                            if (!newIds.has(existingId)) {
+                                await window.FirestoreService.deleteNote(userId, existingId);
+                                console.log(`[CacheManager] Note ${existingId} removida do Firestore`);
+                            }
+                        }
+                        
+                        // Salvar ou atualizar notes
                         for (const item of value) {
-                            if (item.id) {
+                            if (item && item.id) {
                                 await window.FirestoreService.saveNote(userId, item.id, item);
                             }
                         }
@@ -94,8 +150,18 @@ class CacheManager {
                     break;
                 case 'calendarEvents':
                     if (Array.isArray(value)) {
+                        const existingEvents = await window.FirestoreService.getCalendarEvents(userId);
+                        const existingIds = new Set(existingEvents.map(e => e.id));
+                        const newIds = new Set(value.map(e => e.id));
+                        
+                        for (const existingId of existingIds) {
+                            if (!newIds.has(existingId)) {
+                                await window.FirestoreService.deleteCalendarEvent(userId, existingId);
+                            }
+                        }
+                        
                         for (const item of value) {
-                            if (item.id) {
+                            if (item && item.id) {
                                 await window.FirestoreService.saveCalendarEvent(userId, item.id, item);
                             }
                         }
@@ -107,9 +173,20 @@ class CacheManager {
                 case 'timeSlots':
                     await window.FirestoreService.saveTimeSlots(userId, value);
                     break;
+                case 'notifications':
+                    if (Array.isArray(value)) {
+                        for (const item of value) {
+                            if (item && item.id) {
+                                await window.FirestoreService.saveNotification(userId, item.id, item);
+                            }
+                        }
+                    }
+                    break;
                 default:
                     console.log(`[CacheManager] Sincronizando ${key}...`);
             }
+            
+            console.log(`[CacheManager] ✅ ${key} sincronizado com sucesso!`);
         } catch (error) {
             console.error(`[CacheManager] Erro ao sincronizar ${key}:`, error);
         }
@@ -117,70 +194,86 @@ class CacheManager {
     
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
-        if (!userId || userId === 'default' || !window.FirestoreService) return false;
+        if (!userId || userId === 'default' || !window.FirestoreService) {
+            console.log('[CacheManager] Não foi possível carregar da nuvem: usuário não logado');
+            return false;
+        }
         
         try {
+            console.log('[CacheManager] ☁️ Carregando dados da nuvem...');
+            let hasChanges = false;
+            
             // Carregar tarefas
             const tasks = await window.FirestoreService.getTasks(userId);
-            if (tasks.length) {
-                localStorage.setItem(this.getStorageKey('tasks'), JSON.stringify(tasks));
-                console.log('[CacheManager] Tasks carregadas:', tasks.length);
+            if (tasks && Array.isArray(tasks)) {
+                const currentTasks = this.get('tasks', []);
+                if (JSON.stringify(currentTasks) !== JSON.stringify(tasks)) {
+                    localStorage.setItem(this.getStorageKey('tasks'), JSON.stringify(tasks));
+                    hasChanges = true;
+                    console.log('[CacheManager] Tasks carregadas:', tasks.length);
+                }
             }
             
             // Carregar anotações
             const notes = await window.FirestoreService.getNotes(userId);
-            if (notes.length) {
-                localStorage.setItem(this.getStorageKey('notes'), JSON.stringify(notes));
-                console.log('[CacheManager] Notes carregadas:', notes.length);
+            if (notes && Array.isArray(notes)) {
+                const currentNotes = this.get('notes', []);
+                if (JSON.stringify(currentNotes) !== JSON.stringify(notes)) {
+                    localStorage.setItem(this.getStorageKey('notes'), JSON.stringify(notes));
+                    hasChanges = true;
+                    console.log('[CacheManager] Notes carregadas:', notes.length);
+                }
             }
             
             // Carregar eventos do calendário
             const events = await window.FirestoreService.getCalendarEvents(userId);
-            if (events.length) {
-                localStorage.setItem(this.getStorageKey('calendarEvents'), JSON.stringify(events));
-                console.log('[CacheManager] Events carregados:', events.length);
+            if (events && Array.isArray(events)) {
+                const currentEvents = this.get('calendarEvents', []);
+                if (JSON.stringify(currentEvents) !== JSON.stringify(events)) {
+                    localStorage.setItem(this.getStorageKey('calendarEvents'), JSON.stringify(events));
+                    hasChanges = true;
+                    console.log('[CacheManager] Events carregados:', events.length);
+                }
             }
             
             // Carregar horário semanal
             const schedule = await window.FirestoreService.getWeeklySchedule(userId);
             if (schedule) {
-                localStorage.setItem(this.getStorageKey('weeklySchedule'), JSON.stringify(schedule));
-                console.log('[CacheManager] WeeklySchedule carregado');
+                const currentSchedule = this.get('weeklySchedule', {});
+                if (JSON.stringify(currentSchedule) !== JSON.stringify(schedule)) {
+                    localStorage.setItem(this.getStorageKey('weeklySchedule'), JSON.stringify(schedule));
+                    hasChanges = true;
+                    console.log('[CacheManager] WeeklySchedule carregado');
+                }
             }
             
             // Carregar time slots
             const slots = await window.FirestoreService.getTimeSlots(userId);
-            if (slots) {
-                localStorage.setItem(this.getStorageKey('timeSlots'), JSON.stringify(slots));
-                console.log('[CacheManager] TimeSlots carregados:', slots.length);
+            if (slots && Array.isArray(slots)) {
+                const currentSlots = this.get('timeSlots', []);
+                if (JSON.stringify(currentSlots) !== JSON.stringify(slots)) {
+                    localStorage.setItem(this.getStorageKey('timeSlots'), JSON.stringify(slots));
+                    hasChanges = true;
+                    console.log('[CacheManager] TimeSlots carregados:', slots.length);
+                }
             }
             
             // Carregar notificações
             const notifications = await window.FirestoreService.getNotifications(userId);
-            if (notifications.length) {
-                localStorage.setItem(this.getStorageKey('notifications'), JSON.stringify(notifications));
-                console.log('[CacheManager] Notifications carregadas:', notifications.length);
-            }
-            
-            // Carregar configurações (se disponível)
-            if (typeof window.FirestoreService.getSettings === 'function') {
-                try {
-                    const settings = await window.FirestoreService.getSettings(userId);
-                    if (settings) {
-                        if (settings.notifications) {
-                            localStorage.setItem(this.getStorageKey('notificacoesSettings'), JSON.stringify(settings.notifications));
-                        }
-                        if (settings.appearance) {
-                            localStorage.setItem(this.getStorageKey('appearanceSettings'), JSON.stringify(settings.appearance));
-                        }
-                        console.log('[CacheManager] Settings carregados');
-                    }
-                } catch(e) {
-                    console.warn('[CacheManager] Erro ao carregar settings:', e);
+            if (notifications && Array.isArray(notifications)) {
+                const currentNotif = this.get('notifications', []);
+                if (JSON.stringify(currentNotif) !== JSON.stringify(notifications)) {
+                    localStorage.setItem(this.getStorageKey('notifications'), JSON.stringify(notifications));
+                    hasChanges = true;
+                    console.log('[CacheManager] Notifications carregadas:', notifications.length);
                 }
             }
             
-            window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+            if (hasChanges) {
+                console.log('[CacheManager] 📢 Disparando cloudDataLoaded...');
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+            }
+            
             return true;
         } catch (error) {
             console.error('[CacheManager] Erro no loadFromCloud:', error);
@@ -190,44 +283,54 @@ class CacheManager {
     
     startRealtimeSync() {
         const userId = this.getCurrentUserId();
-        if (!userId || userId === 'default') return;
+        if (!userId || userId === 'default') {
+            console.log('[CacheManager] Não foi iniciar sync: usuário não logado');
+            return;
+        }
         if (this._unsubscribe) return;
         
         if (window.FirestoreService && typeof window.FirestoreService.listenToUserData === 'function') {
+            console.log('[CacheManager] 🔄 Iniciando escuta em tempo real...');
+            
             this._unsubscribe = window.FirestoreService.listenToUserData(userId, (data) => {
+                let hasChanges = false;
+                
                 // Atualizar tarefas
-                if (data.tasks) {
+                if (data.tasks && Array.isArray(data.tasks)) {
                     const currentTasks = this.get('tasks', []);
                     if (JSON.stringify(currentTasks) !== JSON.stringify(data.tasks)) {
                         localStorage.setItem(this.getStorageKey('tasks'), JSON.stringify(data.tasks));
                         if (this.listeners.has('tasks')) {
                             this.listeners.get('tasks').forEach(cb => cb(data.tasks));
                         }
-                        console.log('[CacheManager] Tasks atualizadas em tempo real');
+                        hasChanges = true;
+                        console.log('[CacheManager] Tasks atualizadas em tempo real:', data.tasks.length);
                     }
                 }
                 
                 // Atualizar anotações
-                if (data.notes) {
+                if (data.notes && Array.isArray(data.notes)) {
                     const currentNotes = this.get('notes', []);
                     if (JSON.stringify(currentNotes) !== JSON.stringify(data.notes)) {
                         localStorage.setItem(this.getStorageKey('notes'), JSON.stringify(data.notes));
                         if (this.listeners.has('notes')) {
                             this.listeners.get('notes').forEach(cb => cb(data.notes));
                         }
-                        console.log('[CacheManager] Notes atualizadas em tempo real');
+                        hasChanges = true;
+                        console.log('[CacheManager] Notes atualizadas em tempo real:', data.notes.length);
                     }
                 }
                 
                 // Atualizar eventos
-                if (data.calendarEvents) {
+                if (data.calendarEvents && Array.isArray(data.calendarEvents)) {
                     const currentEvents = this.get('calendarEvents', []);
                     if (JSON.stringify(currentEvents) !== JSON.stringify(data.calendarEvents)) {
                         localStorage.setItem(this.getStorageKey('calendarEvents'), JSON.stringify(data.calendarEvents));
                         if (this.listeners.has('calendarEvents')) {
                             this.listeners.get('calendarEvents').forEach(cb => cb(data.calendarEvents));
                         }
-                        console.log('[CacheManager] CalendarEvents atualizados em tempo real');
+                        hasChanges = true;
+                        console.log('[CacheManager] CalendarEvents atualizados em tempo real:', data.calendarEvents.length);
                     }
                 }
                 
@@ -239,13 +342,16 @@ class CacheManager {
                         if (this.listeners.has('weeklySchedule')) {
                             this.listeners.get('weeklySchedule').forEach(cb => cb(data.weeklySchedule));
                         }
+                        hasChanges = true;
                         console.log('[CacheManager] WeeklySchedule atualizado em tempo real');
                     }
                 }
                 
-                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+                if (hasChanges) {
+                    window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+                }
             });
-            console.log('[CacheManager] Sincronização em tempo real iniciada');
+            console.log('[CacheManager] ✅ Sincronização em tempo real iniciada');
         }
     }
     
@@ -266,6 +372,7 @@ class CacheManager {
     }
     
     async forceSync() { 
+        console.log('[CacheManager] Forçando sincronização manual...');
         return await this.loadFromCloud(true); 
     }
     
@@ -316,7 +423,6 @@ class CacheManager {
         return false;
     }
     
-    // Método para limpar todo o cache do usuário
     clearAllCache() {
         const userId = this.getCurrentUserId();
         if (userId && userId !== 'default') {
@@ -370,10 +476,7 @@ window.uploadProfilePhoto = (file) => window.CacheManager.uploadProfilePhoto(fil
 window.getProfilePhotoUrl = () => window.CacheManager.getProfilePhotoUrl();
 window.deleteProfilePhoto = () => window.CacheManager.deleteProfilePhoto();
 
-console.log('[CacheManager] Firestore v3 carregado com correções!');
-// Adicione esta função no final do arquivo cache-manager.js
-
-// Função para debug da sincronização
+// Função de debug
 window.debugSync = async function() {
     console.log('===== DEBUG SINCRONIZAÇÃO =====');
     console.log('Usuario logado:', localStorage.getItem('usuarioLogado'));
@@ -386,10 +489,11 @@ window.debugSync = async function() {
         console.log('Notes no cache:', notes.length);
         console.log('Tasks no cache:', tasks.length);
         
-        // Tentar forçar sincronização
         console.log('Forçando sincronização...');
         await window.CacheManager.forceSync();
         console.log('Sincronização forçada concluída');
     }
     console.log('===============================');
 };
+
+console.log('[CacheManager] Firestore v3 carregado com correções!');
