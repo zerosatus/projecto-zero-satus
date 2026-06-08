@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA CORRIGIDA
+// mobile-telas/script.js - VERSÃO COMPLETA CORRIGIDA COM FIRESTORE
 
 // ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
@@ -11,6 +11,7 @@ let notes = [];
 let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+let syncInProgress = false;
 
 // ===== FUNÇÃO DA FRASE DO DIA =====
 function atualizarFraseDoDiaMobile() {
@@ -48,12 +49,48 @@ async function atualizarAvatarMobile(photoUrl = null) {
     }
 }
 
+// ===== INICIALIZAR FIRESTORE E CACHE =====
+async function inicializarFirestore() {
+    if (!usuarioLogado) return false;
+    
+    console.log('[Mobile] 🔥 Inicializando Firestore...');
+    
+    if (!window.CacheManager) {
+        console.error('[Mobile] CacheManager não encontrado!');
+        return false;
+    }
+    
+    // Inicializar CacheManager
+    window.CacheManager.init();
+    
+    // Configurar ID do usuário
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    window.CacheManager.currentUserId = userId;
+    
+    // Carregar dados da nuvem
+    console.log('[Mobile] ☁️ Carregando dados da nuvem...');
+    const loaded = await window.CacheManager.loadFromCloud(true);
+    
+    // Iniciar sincronização em tempo real
+    if (window.CacheManager.startRealtimeSync) {
+        window.CacheManager.startRealtimeSync();
+    }
+    
+    console.log('[Mobile] ✅ Firestore inicializado, dados carregados:', loaded);
+    return loaded;
+}
+
 // ===== FUNÇÃO PRINCIPAL DE CARREGAMENTO =====
 async function carregarTodosDados() {
     if (!usuarioLogado) return;
     
     const userId = usuarioLogado.uid || usuarioLogado.email;
-    console.log('[Mobile] Carregando dados do usuário:', userId);
+    console.log('[Mobile] 📦 Carregando dados do usuário:', userId);
+    
+    // Garantir que o Firestore está inicializado
+    if (window.CacheManager && (!window.CacheManager.currentUserId || window.CacheManager.currentUserId === 'default')) {
+        await inicializarFirestore();
+    }
     
     try {
         // TENTAR CARREGAR DO CACHEMANAGER PRIMEIRO
@@ -74,7 +111,12 @@ async function carregarTodosDados() {
             if (cachedSlots !== null && Array.isArray(cachedSlots)) timeSlots = cachedSlots;
             if (cachedNotif !== null && Array.isArray(cachedNotif)) notifications = cachedNotif;
             
-            console.log('[Mobile] ✅ Dados do CacheManager carregados');
+            console.log('[Mobile] ✅ Dados do CacheManager carregados:', {
+                notes: notes.length,
+                tasks: tasks.length,
+                events: calendarEvents.length,
+                schedule: Object.keys(weeklySchedule).length
+            });
         }
         
         // FALLBACK PARA LOCALSTORAGE
@@ -137,7 +179,7 @@ async function carregarTodosDados() {
         if (!weeklySchedule[day]) weeklySchedule[day] = [];
     });
     
-    console.log('[Mobile] 📊 Dados carregados:', {
+    console.log('[Mobile] 📊 Dados finais carregados:', {
         notes: notes.length,
         tasks: tasks.length,
         events: calendarEvents.length,
@@ -147,39 +189,62 @@ async function carregarTodosDados() {
     });
 }
 
-// ===== FUNÇÃO PARA SALVAR DADOS =====
+// ===== FUNÇÃO PARA SALVAR DADOS COM SINCronizaÇÃO FORÇADA =====
 async function salvarTodosDados() {
     if (!usuarioLogado) {
         console.error('[Mobile] Usuário não logado');
         return false;
     }
     
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    console.log('[Mobile] 💾 Salvando dados...');
-    
-    // SALVAR NO LOCALSTORAGE
-    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
-    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
-    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
-    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
-    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-    
-    // SALVAR NO CACHEMANAGER (SINCRONIZA COM FIRESTORE)
-    if (window.CacheManager) {
-        window.CacheManager.set('weeklySchedule', weeklySchedule || {}, true);
-        window.CacheManager.set('timeSlots', timeSlots || [], true);
-        window.CacheManager.set('tasks', tasks || [], true);
-        window.CacheManager.set('notes', notes || [], true);
-        window.CacheManager.set('calendarEvents', calendarEvents || [], true);
-        window.CacheManager.set('notifications', notifications || [], true);
-        
-        console.log('[Mobile] ✅ Dados salvos e sincronizados!');
-        return true;
+    if (syncInProgress) {
+        console.log('[Mobile] Sincronização em andamento, aguardando...');
+        return false;
     }
     
-    return false;
+    syncInProgress = true;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    console.log('[Mobile] 💾 Salvando dados...', {
+        notes: notes.length,
+        tasks: tasks.length,
+        schedule: Object.keys(weeklySchedule).length
+    });
+    
+    try {
+        // SALVAR NO LOCALSTORAGE (BACKUP)
+        localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+        localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+        localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+        localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+        localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+        
+        // SALVAR NO CACHEMANAGER (SINCRONIZA COM FIRESTORE)
+        if (window.CacheManager) {
+            // Garantir que o usuário está configurado
+            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId === 'default') {
+                window.CacheManager.currentUserId = userId;
+            }
+            
+            // Salvar cada tipo de dado com notify=true para disparar eventos
+            if (weeklySchedule) window.CacheManager.set('weeklySchedule', weeklySchedule, true);
+            if (timeSlots) window.CacheManager.set('timeSlots', timeSlots, true);
+            if (tasks) window.CacheManager.set('tasks', tasks, true);
+            if (notes) window.CacheManager.set('notes', notes, true);
+            if (calendarEvents) window.CacheManager.set('calendarEvents', calendarEvents, true);
+            if (notifications) window.CacheManager.set('notifications', notifications, true);
+            
+            console.log('[Mobile] ✅ Dados salvos e enviados para sincronização!');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('[Mobile] Erro ao salvar:', error);
+        return false;
+    } finally {
+        syncInProgress = false;
+    }
 }
 
 // ===== RENDERIZAR HORÁRIO =====
@@ -333,9 +398,9 @@ function removerHorario(timeSlot) {
         showConfirm(
             `O horário ${timeSlot} possui aulas agendadas. Excluir mesmo assim? As aulas serão removidas.`,
             'Remover Horário',
-            (confirmed) => {
+            async (confirmed) => {
                 if (confirmed) {
-                    executarRemocaoHorario(timeSlot);
+                    await executarRemocaoHorario(timeSlot);
                 }
             }
         );
@@ -859,6 +924,65 @@ function configurarEventos() {
     });
 }
 
+// ===== ESCUTAR EVENTOS DE SINCronizaÇÃO =====
+function configurarSincronizacao() {
+    // Escutar mudanças da nuvem (PC -> Mobile)
+    window.addEventListener('cloudDataLoaded', async () => {
+        console.log('[Mobile] 📡 cloudDataLoaded - Dados da nuvem atualizados!');
+        
+        // Salvar anotação atual se estiver editando
+        if (editingSubject && document.getElementById('subject-modal').classList.contains('active')) {
+            await salvarMateria();
+        }
+        
+        // Recarregar dados
+        await carregarTodosDados();
+        
+        // Re-renderizar UI
+        renderizarHorario();
+        renderizarProximoEvento();
+        renderizarProximasTarefas();
+        renderizarNotificacoes();
+        atualizarCards();
+        atualizarBadgeNotificacoes();
+        atualizarFraseDoDiaMobile();
+        
+        showToast('🔄 Dados sincronizados com o PC!', 'success');
+    });
+    
+    // Escutar atualizações de notas
+    window.addEventListener('notesUpdated', (event) => {
+        if (event.detail && event.detail.notes && !syncInProgress) {
+            console.log('[Mobile] 📝 notesUpdated recebido');
+            const novasNotas = event.detail.notes;
+            if (JSON.stringify(notes) !== JSON.stringify(novasNotas)) {
+                notes = novasNotas;
+                showToast('📝 Anotações sincronizadas!', 'success');
+            }
+        }
+    });
+    
+    // Escutar atualizações de foto de perfil
+    window.addEventListener('profilePhotoUpdated', async (event) => {
+        if (event.detail && event.detail.photoUrl) {
+            await atualizarAvatarMobile(event.detail.photoUrl);
+        }
+    });
+    
+    // Escutar forçar recarga
+    window.addEventListener('forceRefresh', async () => {
+        console.log('[Mobile] 🔄 forceRefresh recebido');
+        await carregarTodosDados();
+        renderizarHorario();
+        renderizarProximoEvento();
+        renderizarProximasTarefas();
+        renderizarNotificacoes();
+        atualizarCards();
+        atualizarBadgeNotificacoes();
+        atualizarFraseDoDiaMobile();
+    });
+}
+
 // ===== NOTIFICAÇÕES NATIVAS =====
 function isAndroidApp() {
     return typeof Android !== 'undefined';
@@ -919,18 +1043,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     usuarioLogado = JSON.parse(usuarioSalvo);
     console.log('[Mobile] Usuário logado:', usuarioLogado.email);
     
-    // CONFIGURAR USER ID NO CACHEMANAGER
-    if (window.CacheManager) {
-        window.CacheManager.currentUserId = usuarioLogado.uid || usuarioLogado.email;
-        
-        // TENTAR CARREGAR DA NUVEM
-        await window.CacheManager.loadFromCloud(true);
-        
-        // INICIAR SINCRONIZAÇÃO EM TEMPO REAL
-        if (window.CacheManager.startRealtimeSync) {
-            window.CacheManager.startRealtimeSync();
-        }
-    }
+    // INICIALIZAR FIRESTORE
+    await inicializarFirestore();
     
     // CARREGAR DADOS
     await carregarTodosDados();
@@ -951,26 +1065,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await atualizarAvatarMobile();
     atualizarFraseDoDiaMobile();
     
-    // ESCUTAR EVENTOS DE SINCRONIZAÇÃO
-    window.addEventListener('cloudDataLoaded', async () => {
-        console.log('[Mobile] 📡 cloudDataLoaded - Recarregando dados...');
-        await carregarTodosDados();
-        renderizarHorario();
-        renderizarProximoEvento();
-        renderizarProximasTarefas();
-        renderizarNotificacoes();
-        atualizarCards();
-        atualizarBadgeNotificacoes();
-        atualizarFraseDoDiaMobile();
-        showToast('Dados sincronizados!', 'success');
-    });
-    
-    // ESCUTAR ATUALIZAÇÕES DE PERFIL
-    window.addEventListener('profilePhotoUpdated', async (event) => {
-        if (event.detail && event.detail.photoUrl) {
-            await atualizarAvatarMobile(event.detail.photoUrl);
-        }
-    });
+    // CONFIGURAR SINCRONIZAÇÃO
+    configurarSincronizacao();
     
     // CONFIGURAR EVENTOS DA INTERFACE
     configurarEventos();
@@ -989,4 +1085,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
 setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
 
-console.log('%c📱 Mobile Otimizado - Sincronização Completa!', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile Otimizado - Sincronização Completa com Firestore!', 'color: #10b981; font-size: 16px; font-weight: bold;');
