@@ -371,3 +371,25 @@ window.getProfilePhotoUrl = () => window.CacheManager.getProfilePhotoUrl();
 window.deleteProfilePhoto = () => window.CacheManager.deleteProfilePhoto();
 
 console.log('[CacheManager] Firestore v3 carregado com correções!');
+// Adicione esta função no final do arquivo cache-manager.js
+
+// Função para debug da sincronização
+window.debugSync = async function() {
+    console.log('===== DEBUG SINCRONIZAÇÃO =====');
+    console.log('Usuario logado:', localStorage.getItem('usuarioLogado'));
+    console.log('CacheManager.currentUserId:', window.CacheManager?.currentUserId);
+    console.log('FirestoreService disponível:', !!window.FirestoreService);
+    
+    if (window.CacheManager) {
+        const notes = window.CacheManager.get('notes', []);
+        const tasks = window.CacheManager.get('tasks', []);
+        console.log('Notes no cache:', notes.length);
+        console.log('Tasks no cache:', tasks.length);
+        
+        // Tentar forçar sincronização
+        console.log('Forçando sincronização...');
+        await window.CacheManager.forceSync();
+        console.log('Sincronização forçada concluída');
+    }
+    console.log('===============================');
+};
