@@ -1,4 +1,4 @@
-// firebase-config.js - VERSÃO FIRESTORE COMPLETA CORRIGIDA
+// firebase-config.js - VERSÃO COMPLETA CORRIGIDA
 (function() {
     const firebaseConfig = {
         apiKey: "AIzaSyDOXYoICsqe3D7bBALLI1MFLSGr1D-t4iY",
@@ -13,6 +13,7 @@
     let auth = null;
     let storage = null;
     let firebaseInitialized = false;
+    let currentFirebaseUser = null;
     
     function initFirebase() {
         if (firebaseInitialized) return true;
@@ -48,18 +49,74 @@
     
     initFirebase();
     
-    // ========== FUNÇÃO AUXILIAR PARA LIMPAR ID ==========
+    // MONITORAR AUTENTICAÇÃO
+    if (auth) {
+        auth.onAuthStateChanged((user) => {
+            currentFirebaseUser = user;
+            if (user) {
+                console.log('[Firebase] ✅ Usuário autenticado:', user.email, 'UID:', user.uid);
+                
+                if (window.CacheManager) {
+                    window.CacheManager.currentUserId = user.uid;
+                    window.CacheManager.currentUserEmail = user.email;
+                    window.CacheManager.loadFromCloud(true);
+                }
+            } else {
+                console.log('[Firebase] ⚠️ Nenhum usuário autenticado');
+            }
+        });
+    }
+    
     function cleanId(id) {
         if (!id || typeof id !== 'string') return Date.now().toString();
-        // Remove caracteres inválidos para Firestore (., #, $, [, ], /)
         return String(id).replace(/[.#$[\]]/g, '_');
+    }
+    
+    // FUNÇÃO PARA VERIFICAR AUTENTICAÇÃO
+    async function ensureAuthenticated() {
+        if (!auth) return false;
+        
+        let tentativas = 0;
+        while (!auth.currentUser && tentativas < 30) {
+            await new Promise(r => setTimeout(r, 100));
+            tentativas++;
+        }
+        
+        if (!auth.currentUser) {
+            console.error('[Firestore] ❌ Nenhum usuário autenticado!');
+            return false;
+        }
+        
+        try {
+            const token = await auth.currentUser.getIdToken();
+            console.log('[Firestore] ✅ Autenticação verificada:', auth.currentUser.email);
+            return true;
+        } catch (error) {
+            console.error('[Firestore] ❌ Erro ao verificar token:', error);
+            return false;
+        }
     }
     
     // ========== SERVIÇO PRINCIPAL DO FIRESTORE ==========
     window.FirestoreService = {
-        // ========== USUÁRIO ==========
+        setCurrentUser(user) {
+            currentFirebaseUser = user;
+            console.log('[Firestore] Usuário atual definido:', user?.email);
+        },
+        
+        getCurrentUser() {
+            return auth?.currentUser || currentFirebaseUser;
+        },
+        
+        async ensureAuthenticated() {
+            return await ensureAuthenticated();
+        },
+        
+        // USUÁRIO
         async getUserData(userId) {
-            if (!userId || !db) return null;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return null;
+            
             try {
                 const doc = await db.collection('users').doc(userId).get();
                 return doc.exists ? doc.data() : null;
@@ -70,7 +127,9 @@
         },
         
         async createUser(userId, userData) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 await db.collection('users').doc(userId).set({
                     ...userData,
@@ -85,7 +144,7 @@
             }
         },
         
-        // ========== CONFIGURAÇÕES ==========
+        // CONFIGURAÇÕES
         async getSettings(userId) {
             if (!userId || !db) return { notifications: {}, appearance: {} };
             try {
@@ -109,14 +168,18 @@
             }
         },
         
-        // ========== TAREFAS ==========
+        // TAREFAS
         async getTasks(userId) {
-            if (!userId || !db) return [];
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return [];
+            
             try {
                 const snapshot = await db.collection('users').doc(userId).collection('tasks')
                     .orderBy('createdAt', 'desc')
                     .get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log('[Firestore] Tasks carregadas:', tasks.length);
+                return tasks;
             } catch (error) {
                 console.error('[Firestore] getTasks error:', error);
                 return [];
@@ -124,13 +187,16 @@
         },
         
         async saveTask(userId, taskId, taskData) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
             if (!taskId) return false;
+            
             try {
                 const id = cleanId(taskId);
                 await db.collection('users').doc(userId).collection('tasks').doc(id).set({
                     ...taskData,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
+                    createdAt: taskData.createdAt || new Date().toISOString()
                 }, { merge: true });
                 console.log('[Firestore] Task salva:', id);
                 return true;
@@ -141,7 +207,9 @@
         },
         
         async deleteTask(userId, taskId) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 const id = cleanId(taskId);
                 await db.collection('users').doc(userId).collection('tasks').doc(id).delete();
@@ -168,14 +236,18 @@
             }
         },
         
-        // ========== ANOTAÇÕES ==========
+        // ANOTAÇÕES
         async getNotes(userId) {
-            if (!userId || !db) return [];
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return [];
+            
             try {
                 const snapshot = await db.collection('users').doc(userId).collection('notes')
                     .orderBy('updatedAt', 'desc')
                     .get();
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log('[Firestore] Notes carregadas:', notes.length);
+                return notes;
             } catch (error) {
                 console.error('[Firestore] getNotes error:', error);
                 return [];
@@ -183,13 +255,16 @@
         },
         
         async saveNote(userId, noteId, noteData) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
             if (!noteId) return false;
+            
             try {
                 const id = cleanId(noteId);
                 await db.collection('users').doc(userId).collection('notes').doc(id).set({
                     ...noteData,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
+                    createdAt: noteData.createdAt || new Date().toISOString()
                 }, { merge: true });
                 console.log('[Firestore] Note salva:', id);
                 return true;
@@ -200,7 +275,9 @@
         },
         
         async deleteNote(userId, noteId) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 const id = cleanId(noteId);
                 await db.collection('users').doc(userId).collection('notes').doc(id).delete();
@@ -227,9 +304,11 @@
             }
         },
         
-        // ========== EVENTOS DO CALENDÁRIO ==========
+        // EVENTOS DO CALENDÁRIO
         async getCalendarEvents(userId) {
-            if (!userId || !db) return [];
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return [];
+            
             try {
                 const snapshot = await db.collection('users').doc(userId).collection('calendarEvents').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -240,8 +319,10 @@
         },
         
         async saveCalendarEvent(userId, eventId, eventData) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
             if (!eventId) return false;
+            
             try {
                 const id = cleanId(eventId);
                 await db.collection('users').doc(userId).collection('calendarEvents').doc(id).set({
@@ -257,7 +338,9 @@
         },
         
         async deleteCalendarEvent(userId, eventId) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 const id = cleanId(eventId);
                 await db.collection('users').doc(userId).collection('calendarEvents').doc(id).delete();
@@ -284,9 +367,11 @@
             }
         },
         
-        // ========== HORÁRIO SEMANAL ==========
+        // HORÁRIO SEMANAL
         async getWeeklySchedule(userId) {
-            if (!userId || !db) return null;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return null;
+            
             try {
                 const doc = await db.collection('users').doc(userId).collection('settings').doc('weeklySchedule').get();
                 return doc.exists ? doc.data() : null;
@@ -297,7 +382,9 @@
         },
         
         async saveWeeklySchedule(userId, scheduleData) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 await db.collection('users').doc(userId).collection('settings').doc('weeklySchedule').set({
                     ...scheduleData,
@@ -311,9 +398,11 @@
             }
         },
         
-        // ========== TIME SLOTS ==========
+        // TIME SLOTS
         async getTimeSlots(userId) {
-            if (!userId || !db) return ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            
             try {
                 const doc = await db.collection('users').doc(userId).collection('settings').doc('timeSlots').get();
                 return doc.exists ? doc.data().slots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
@@ -324,7 +413,9 @@
         },
         
         async saveTimeSlots(userId, slots) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 await db.collection('users').doc(userId).collection('settings').doc('timeSlots').set({
                     slots: slots,
@@ -338,9 +429,11 @@
             }
         },
         
-        // ========== NOTIFICAÇÕES ==========
+        // NOTIFICAÇÕES
         async getNotifications(userId) {
-            if (!userId || !db) return [];
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return [];
+            
             try {
                 const snapshot = await db.collection('users').doc(userId).collection('notifications')
                     .orderBy('time', 'desc')
@@ -353,7 +446,9 @@
         },
         
         async saveNotification(userId, notificationId, notificationData) {
-            if (!userId || !db) return false;
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !db) return false;
+            
             try {
                 await db.collection('users').doc(userId).collection('notifications').doc(notificationId).set({
                     ...notificationData,
@@ -411,7 +506,7 @@
             }
         },
         
-        // ========== ESCUTA EM TEMPO REAL CORRIGIDA ==========
+        // ESCUTA EM TEMPO REAL
         listenToUserData(userId, callback) {
             if (!userId || !db) {
                 console.warn('[Firestore] listenToUserData: userId ou db não disponível');
@@ -423,50 +518,56 @@
             let isActive = true;
             let unsubscribes = [];
             
-            try {
-                const unsubscribeTasks = db.collection('users').doc(userId).collection('tasks')
-                    .onSnapshot(snapshot => {
-                        if (!isActive) return;
-                        const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        callback({ tasks });
-                    }, err => console.warn('[Firestore] Tasks listener error:', err));
-                unsubscribes.push(unsubscribeTasks);
+            const startListening = async () => {
+                const authOk = await ensureAuthenticated();
+                if (!authOk || !isActive) return;
                 
-                const unsubscribeNotes = db.collection('users').doc(userId).collection('notes')
-                    .onSnapshot(snapshot => {
-                        if (!isActive) return;
-                        const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        callback({ notes });
-                    }, err => console.warn('[Firestore] Notes listener error:', err));
-                unsubscribes.push(unsubscribeNotes);
-                
-                const unsubscribeEvents = db.collection('users').doc(userId).collection('calendarEvents')
-                    .onSnapshot(snapshot => {
-                        if (!isActive) return;
-                        const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        callback({ calendarEvents: events });
-                    }, err => console.warn('[Firestore] Events listener error:', err));
-                unsubscribes.push(unsubscribeEvents);
-                
-                const unsubscribeSchedule = db.collection('users').doc(userId).collection('settings').doc('weeklySchedule')
-                    .onSnapshot(doc => {
-                        if (!isActive) return;
-                        if (doc.exists) callback({ weeklySchedule: doc.data() });
-                    }, err => console.warn('[Firestore] Schedule listener error:', err));
-                unsubscribes.push(unsubscribeSchedule);
-                
-                const unsubscribeTimeSlots = db.collection('users').doc(userId).collection('settings').doc('timeSlots')
-                    .onSnapshot(doc => {
-                        if (!isActive) return;
-                        if (doc.exists) callback({ timeSlots: doc.data().slots });
-                    }, err => console.warn('[Firestore] TimeSlots listener error:', err));
-                unsubscribes.push(unsubscribeTimeSlots);
-                
-                console.log('[Firestore] ✅ Escuta em tempo real iniciada com sucesso');
-                
-            } catch (error) {
-                console.error('[Firestore] Erro ao iniciar escuta:', error);
-            }
+                try {
+                    const unsubscribeTasks = db.collection('users').doc(userId).collection('tasks')
+                        .onSnapshot(snapshot => {
+                            if (!isActive) return;
+                            const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            callback({ tasks });
+                        }, err => console.warn('[Firestore] Tasks listener error:', err));
+                    unsubscribes.push(unsubscribeTasks);
+                    
+                    const unsubscribeNotes = db.collection('users').doc(userId).collection('notes')
+                        .onSnapshot(snapshot => {
+                            if (!isActive) return;
+                            const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            callback({ notes });
+                        }, err => console.warn('[Firestore] Notes listener error:', err));
+                    unsubscribes.push(unsubscribeNotes);
+                    
+                    const unsubscribeEvents = db.collection('users').doc(userId).collection('calendarEvents')
+                        .onSnapshot(snapshot => {
+                            if (!isActive) return;
+                            const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            callback({ calendarEvents: events });
+                        }, err => console.warn('[Firestore] Events listener error:', err));
+                    unsubscribes.push(unsubscribeEvents);
+                    
+                    const unsubscribeSchedule = db.collection('users').doc(userId).collection('settings').doc('weeklySchedule')
+                        .onSnapshot(doc => {
+                            if (!isActive) return;
+                            if (doc.exists) callback({ weeklySchedule: doc.data() });
+                        }, err => console.warn('[Firestore] Schedule listener error:', err));
+                    unsubscribes.push(unsubscribeSchedule);
+                    
+                    const unsubscribeTimeSlots = db.collection('users').doc(userId).collection('settings').doc('timeSlots')
+                        .onSnapshot(doc => {
+                            if (!isActive) return;
+                            if (doc.exists) callback({ timeSlots: doc.data().slots });
+                        }, err => console.warn('[Firestore] TimeSlots listener error:', err));
+                    unsubscribes.push(unsubscribeTimeSlots);
+                    
+                    console.log('[Firestore] ✅ Escuta em tempo real iniciada com sucesso');
+                } catch (error) {
+                    console.error('[Firestore] Erro ao iniciar escuta:', error);
+                }
+            };
+            
+            startListening();
             
             return () => {
                 console.log('[Firestore] 🔌 Encerrando escuta em tempo real');
@@ -479,21 +580,17 @@
         }
     };
     
-    // ========== FOTO DE PERFIL (STORAGE) ==========
+    // FOTO DE PERFIL (STORAGE)
     window.FirebaseStorage = {
         async uploadProfilePhoto(userId, file) {
-            if (!userId || !file || !storage) {
-                console.error('[Storage] uploadProfilePhoto: parâmetros inválidos');
-                return null;
-            }
+            const authOk = await ensureAuthenticated();
+            if (!authOk || !file || !storage) return null;
             
-            // Validar tipo de arquivo
             if (!file.type.startsWith('image/')) {
                 console.error('[Storage] Arquivo não é uma imagem');
                 return null;
             }
             
-            // Limitar tamanho (2MB)
             if (file.size > 2 * 1024 * 1024) {
                 console.error('[Storage] Imagem muito grande (máx 2MB)');
                 return null;
@@ -508,7 +605,6 @@
                 const snapshot = await storageRef.put(file);
                 const downloadUrl = await snapshot.ref.getDownloadURL();
                 
-                // Salvar URL no Firestore como Base64 (simulado)
                 await db.collection('users').doc(userId).set({ 
                     profilePhotoUrl: downloadUrl,
                     updatedAt: new Date().toISOString()
@@ -558,7 +654,7 @@
         }
     };
     
-    // ========== FUNÇÕES DE UTILIDADE ==========
+    // FUNÇÕES DE UTILIDADE
     window.FirestoreUtils = {
         async deleteAllUserData(userId) {
             if (!userId || !db) return false;
@@ -598,11 +694,11 @@
         }
     };
     
-    // Expor instâncias para uso global
+    // Expor instâncias
     window.firebaseAuth = auth;
     window.firestore = db;
     window.firebaseStorage = storage;
     
     console.log('[Firebase] 🔥 Configuração Firestore completa carregada!');
-    console.log('[Firebase] Versão: FIRESTORE_COMPLETA_v2.1');
+    console.log('[Firebase] Versão: FIRESTORE_COMPLETA_v3.0');
 })();
