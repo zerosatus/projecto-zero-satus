@@ -1,18 +1,16 @@
-// login/script.js - VERSÃO CORRIGIDA PARA WEBVIEW
+// login/script.js - VERSÃO CORRIGIDA COM AUTENTICAÇÃO FIRESTORE COMPLETA
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
         || window.innerWidth <= 768;
 }
 
-// DETECTAR WEBVIEW
 function isInWebView() {
     return /wv|WebView|Android.*Chrome\/\d+\.\d+/.test(navigator.userAgent) 
         || (typeof Android !== 'undefined')
         || window.location.href.includes('file://');
 }
 
-// FORÇAR USO DE REDIRECT EM WEBVIEW
 const USE_REDIRECT = isInWebView();
 console.log(`[Login] Usando ${USE_REDIRECT ? 'REDIRECT' : 'POPUP'} para autenticação`);
 
@@ -22,7 +20,7 @@ const isLoginPage = window.location.pathname.includes('/login/');
 
 if (usuarioSalvo && !isLoginPage) {
     const isMobile = ehCelular();
-    window.location.href = isMobile ? '/TELAS/mobile-telas/index.html' : '../inicio/index.html';
+    window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
 }
 
 const googleLoginBtn = document.getElementById('google-login-btn');
@@ -72,30 +70,59 @@ async function criarDadosPadrao(usuario) {
 }
 
 async function processarLogin(user, isNewUser) {
+    console.log('[Login] Processando login para:', user.email);
+    
+    // 🔥 OBTER TOKEN DE AUTENTICAÇÃO
+    let idToken = null;
+    try {
+        idToken = await user.getIdToken();
+        console.log('[Login] Token obtido com sucesso');
+    } catch (error) {
+        console.error('[Login] Erro ao obter token:', error);
+    }
+    
     const usuario = {
         uid: user.uid,
         email: user.email,
         nome: user.displayName || user.email.split('@')[0],
         foto: user.photoURL || null,
-        logado: true
+        logado: true,
+        firebaseToken: idToken
     };
     
     localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+    sessionStorage.setItem('firebaseToken', idToken);
     
+    // 🔥 INICIALIZAR CACHE MANAGER E FIRESTORE
     if (window.CacheManager) {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuario.uid;
+        window.CacheManager.currentUserEmail = usuario.email;
         
-        const dadosExistentes = await window.CacheManager.loadFromCloud(true);
-        
-        if (!dadosExistentes || isNewUser) {
-            await criarDadosPadrao(usuario);
-            await window.CacheManager.loadFromCloud(true);
+        // Aguardar FirestoreService estar disponível
+        let tentativas = 0;
+        while (!window.FirestoreService && tentativas < 20) {
+            await new Promise(r => setTimeout(r, 100));
+            tentativas++;
         }
         
-        await window.CacheManager.startRealtimeSync();
-        if (user.photoURL) {
-            sessionStorage.setItem('preload_profilePhoto', user.photoURL);
+        if (window.FirestoreService) {
+            // Garantir autenticação no Firestore
+            if (typeof window.FirestoreService.setCurrentUser === 'function') {
+                window.FirestoreService.setCurrentUser(user);
+            }
+            
+            // Carregar dados da nuvem
+            await window.CacheManager.loadFromCloud(true);
+            
+            // Iniciar sincronização em tempo real
+            if (window.CacheManager.startRealtimeSync) {
+                window.CacheManager.startRealtimeSync();
+            }
+        }
+        
+        if (isNewUser) {
+            await criarDadosPadrao(usuario);
         }
     }
     
@@ -103,11 +130,11 @@ async function processarLogin(user, isNewUser) {
     
     setTimeout(() => {
         const isMobile = ehCelular();
-        window.location.href = isMobile ? '/TELAS/mobile-telas/index.html' : '/TELAS/inicio/index.html';
+        window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
     }, 500);
 }
 
-// 🔑 FUNÇÃO DE LOGIN PRINCIPAL
+// 🔑 LOGIN COM GOOGLE
 if (googleLoginBtn) {
     googleLoginBtn.addEventListener('click', async () => {
         try {
@@ -116,11 +143,9 @@ if (googleLoginBtn) {
             provider.setCustomParameters({ prompt: 'select_account' });
             
             if (USE_REDIRECT) {
-                // USAR REDIRECT PARA WEBVIEW
                 await firebase.auth().signInWithRedirect(provider);
                 return;
             } else {
-                // USAR POPUP PARA DESKTOP
                 const result = await firebase.auth().signInWithPopup(provider);
                 const isNewUser = result.additionalUserInfo?.isNewUser || false;
                 await processarLogin(result.user, isNewUser);
@@ -139,30 +164,30 @@ if (googleLoginBtn) {
     });
 }
 
-// 🔄 PROCESSAR RETORNO DO REDIRECT (IMPORTANTE PARA WEBVIEW)
-firebase.auth().getRedirectResult().then((result) => {
+// 🔄 PROCESSAR RETORNO DO REDIRECT
+firebase.auth().getRedirectResult().then(async (result) => {
     if (result.user) {
         console.log('[Login] Redirect result recebido');
         const isNewUser = result.additionalUserInfo?.isNewUser || false;
-        processarLogin(result.user, isNewUser);
-    }
-    if (result.credential) {
-        // Credencial obtida, pode processar
-        console.log('[Login] Credencial obtida');
+        await processarLogin(result.user, isNewUser);
     }
 }).catch((error) => {
     console.error('[Login] Erro no redirect:', error);
     showMessage('Erro ao processar login. Tente novamente.', true);
 });
 
-// Monitorar estado
-firebase.auth().onAuthStateChanged((user) => {
+// 🔥 MONITORAR ESTADO DE AUTENTICAÇÃO
+firebase.auth().onAuthStateChanged(async (user) => {
     if (user && !localStorage.getItem('usuarioLogado')) {
         console.log('[Login] Usuário já autenticado:', user.email);
-        processarLogin(user, false);
+        await processarLogin(user, false);
+    } else if (!user && localStorage.getItem('usuarioLogado')) {
+        console.log('[Login] Usuário deslogado do Firebase, limpando cache');
+        localStorage.removeItem('usuarioLogado');
+        if (window.CacheManager) window.CacheManager.logout();
     }
 });
 
 if (window.CacheManager) window.CacheManager.init();
 
-console.log('%c🔐 Painel Zero - Login com Google (WebView Compatível)', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+console.log('%c🔐 Painel Zero - Login com Google (Firestore Ready)', 'color: #9333ea; font-size: 16px; font-weight: bold;');
