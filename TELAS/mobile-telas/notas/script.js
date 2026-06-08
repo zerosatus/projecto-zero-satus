@@ -1,11 +1,10 @@
-// mobile-telas/notas/script.js - VERSÃO CORRIGIDA (SEM PERDA DE CONTEÚDO)
+// mobile-telas/notas/script.js - VERSÃO CORRIGIDA COM FIRESTORE
 
 let notifications = [];
 let notes = [];
 let usuarioLogado = null;
 let editingNoteId = null;
 let profilePhotoUnsubscribe = null;
-let saveTimeout = null;
 let isSaving = false;
 
 // ============================================
@@ -19,7 +18,6 @@ function showToast(message, type = 'info', duration = 3000) {
     const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
     toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
     container.appendChild(toast);
-
     setTimeout(() => {
         toast.classList.add('toast-hiding');
         setTimeout(() => toast.remove(), 300);
@@ -28,31 +26,24 @@ function showToast(message, type = 'info', duration = 3000) {
 
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
-    if (!modal) { 
-        if (callback) callback(false); 
-        return; 
-    }
+    if (!modal) { if (callback) callback(false); return; }
     document.getElementById('confirm-title').textContent = title || 'Confirmar';
     document.getElementById('confirm-message').textContent = message;
     modal.classList.add('active');
-
     const handleConfirm = () => {
         modal.classList.remove('active');
         if (callback) callback(true);
         cleanup();
     };
-
     const handleCancel = () => {
         modal.classList.remove('active');
         if (callback) callback(false);
         cleanup();
     };
-
     const cleanup = () => {
         document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
-
     document.getElementById('confirm-ok').onclick = handleConfirm;
     document.getElementById('confirm-cancel').onclick = handleCancel;
 }
@@ -65,65 +56,68 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// NORMALIZAÇÃO DE NOTAS (CONVERTE FORMATO PC PARA MOBILE)
+// INICIALIZAÇÃO DO FIRESTORE
 // ============================================
-function normalizarNota(nota) {
-    if (!nota) return null;
+async function inicializarFirestoreNotas() {
+    if (!usuarioLogado) return false;
     
-    return {
-        id: nota.id || Date.now().toString(),
-        title: nota.title || nota.titulo || 'Sem título',
-        content: nota.content || nota.conteudo || '',
-        date: nota.date || nota.dataModificacao || nota.dataCriacao || new Date().toISOString(),
-        dataModificacao: nota.dataModificacao || nota.date || new Date().toISOString()
-    };
-}
-
-function normalizarTodasNotas(notasArray) {
-    if (!notasArray || !Array.isArray(notasArray)) return [];
-    return notasArray.map(nota => normalizarNota(nota)).filter(n => n !== null);
+    console.log('[Notas Mobile] 🔥 Inicializando Firestore...');
+    
+    if (!window.CacheManager) {
+        console.error('[Notas Mobile] CacheManager não encontrado!');
+        return false;
+    }
+    
+    window.CacheManager.init();
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    window.CacheManager.currentUserId = userId;
+    console.log('[Notas Mobile] User ID configurado:', userId);
+    
+    // Carregar dados da nuvem
+    console.log('[Notas Mobile] ☁️ Carregando dados da nuvem...');
+    const loaded = await window.CacheManager.loadFromCloud(true);
+    
+    // Iniciar sincronização em tempo real
+    if (window.CacheManager.startRealtimeSync) {
+        window.CacheManager.startRealtimeSync();
+    }
+    
+    console.log('[Notas Mobile] ✅ Firestore inicializado, loaded:', loaded);
+    return loaded;
 }
 
 // ============================================
-// PERSISTÊNCIA (SALVAR COM PREVENÇÃO DE LOOP)
+// PERSISTÊNCIA
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || isSaving) return false;
-    
     isSaving = true;
     
     try {
-        // Normalizar notas antes de salvar
         const notasNormalizadas = notes.map(n => ({
             id: n.id,
-            title: n.title,
-            content: n.content,
-            date: n.date,
+            title: n.title || n.titulo || 'Sem título',
+            content: n.content || n.conteudo || '',
+            date: n.date || new Date().toISOString(),
             dataModificacao: new Date().toISOString()
         }));
         
-        console.log('[Mobile Notas] 💾 Salvando anotações...', notasNormalizadas.length);
+        console.log('[Notas Mobile] 💾 Salvando anotações:', notasNormalizadas.length);
         
-        // Salvar no localStorage (backup)
         const userId = usuarioLogado.uid || usuarioLogado.email;
         localStorage.setItem(`${userId}_notes`, JSON.stringify(notasNormalizadas));
         
-        // Salvar no CacheManager (sincroniza com Firebase)
         if (window.CacheManager) {
-            window.CacheManager.set('notes', notasNormalizadas, false); // false = não disparar evento imediato
-        }
-        
-        // Atualizar data de modificação da nota atual
-        if (editingNoteId) {
-            const currentNote = notes.find(n => n.id === editingNoteId);
-            if (currentNote) {
-                currentNote.dataModificacao = new Date().toISOString();
+            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId === 'default') {
+                window.CacheManager.currentUserId = userId;
             }
+            window.CacheManager.set('notes', notasNormalizadas, true);
         }
         
         return true;
     } catch (error) {
-        console.error('[Mobile Notas] Erro ao salvar:', error);
+        console.error('[Notas Mobile] Erro ao salvar:', error);
         return false;
     } finally {
         isSaving = false;
@@ -135,62 +129,56 @@ function carregarDados() {
     
     let dadosCarregados = null;
     
-    // Tentar carregar do CacheManager primeiro
     if (window.CacheManager) {
         const cachedNotes = window.CacheManager.get('notes', null);
-        if (cachedNotes !== null && Array.isArray(cachedNotes) && cachedNotes.length > 0) {
+        if (cachedNotes !== null && Array.isArray(cachedNotes)) {
             dadosCarregados = cachedNotes;
-            console.log('[Mobile Notas] Carregado do CacheManager:', dadosCarregados.length);
+            console.log('[Notas Mobile] Carregado do CacheManager:', dadosCarregados.length);
         }
     }
     
-    // Fallback para localStorage
     if (!dadosCarregados) {
         const userId = usuarioLogado.uid || usuarioLogado.email;
         const notesSalvas = localStorage.getItem(`${userId}_notes`);
-        
         if (notesSalvas) {
             dadosCarregados = JSON.parse(notesSalvas);
-            console.log('[Mobile Notas] Carregado do localStorage:', dadosCarregados.length);
+            console.log('[Notas Mobile] Carregado do localStorage:', dadosCarregados.length);
         }
     }
     
-    // Normalizar as notas
     if (dadosCarregados && Array.isArray(dadosCarregados)) {
-        notes = normalizarTodasNotas(dadosCarregados);
-    } else {
-        // Criar nota de exemplo se não houver nenhuma
-        if (notes.length === 0) {
-            const exemplo = {
-                id: Date.now().toString(),
-                title: 'Bem-vindo!',
-                content: '<p>Esta é sua primeira anotação. Toque no lápis para editar!</p>',
-                date: new Date().toISOString(),
-                dataModificacao: new Date().toISOString()
-            };
-            notes = [exemplo];
-            salvarTodosDados();
-        }
+        notes = dadosCarregados.map(nota => ({
+            id: nota.id || Date.now().toString(),
+            title: nota.title || nota.titulo || 'Sem título',
+            content: nota.content || nota.conteudo || '',
+            date: nota.date || nota.dataModificacao || new Date().toISOString(),
+            dataModificacao: nota.dataModificacao || nota.date || new Date().toISOString()
+        }));
+    } else if (notes.length === 0) {
+        const exemplo = {
+            id: Date.now().toString(),
+            title: 'Bem-vindo!',
+            content: '<p>Esta é sua primeira anotação. Toque no lápis para editar!</p>',
+            date: new Date().toISOString(),
+            dataModificacao: new Date().toISOString()
+        };
+        notes = [exemplo];
+        salvarTodosDados();
     }
     
-    console.log('[Mobile Notas] Total de notas carregadas:', notes.length);
+    console.log('[Notas Mobile] Total de notas:', notes.length);
 }
 
 function loadAllData() {
-    if (window.getCached && window.getDefaultUser) {
-        usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
-    } else {
-        usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    }
+    usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     
     if (!usuarioLogado || !usuarioLogado.email) {
         window.location.href = '../../login/index.html';
         return;
     }
     
-    console.log('[Mobile Notas] Usuário logado:', usuarioLogado.email);
+    console.log('[Notas Mobile] Usuário logado:', usuarioLogado.email);
     
-    // Carregar notificações
     if (window.getCached) {
         notifications = window.getCached('notifications', []);
     } else {
@@ -201,86 +189,11 @@ function loadAllData() {
 }
 
 // ============================================
-// NOTIFICAÇÕES
-// ============================================
-function updateNotificationBadge() {
-    const badge = document.getElementById('notification-badge');
-    if (!badge) return;
-    const unreadCount = notifications.filter(n => !n.read).length;
-    badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-    badge.style.display = unreadCount > 0 ? 'flex' : 'none';
-}
-
-function formatTimeAgo(timeString) {
-    if (!timeString) return '';
-    const now = new Date();
-    const notifTime = new Date(timeString);
-    const diffMins = Math.floor((now - notifTime) / 60000);
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `Há ${diffMins} min`;
-    if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
-    return notifTime.toLocaleDateString('pt-BR');
-}
-
-function renderNotificationsModal(filter = 'all') {
-    const list = document.getElementById('notifications-list-modal');
-    if (!list) return;
-    
-    let filtered = [...notifications];
-    if (filter === 'unread') filtered = notifications.filter(n => !n.read);
-    else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
-    else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
-        return;
-    }
-
-    let html = '';
-    filtered.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
-            <div class="notification-icon ${notif.type}">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
-            </div>
-            <div class="notification-content">
-                <div class="notification-title">${escapeHtml(notif.title)}</div>
-                <div class="notification-message">${escapeHtml(notif.message)}</div>
-                <div class="notification-time">${formatTimeAgo(notif.time)}</div>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-function markAllAsRead() {
-    notifications.forEach(n => n.read = true);
-    updateNotificationBadge();
-    renderNotificationsModal();
-    if (window.CacheManager) window.CacheManager.set('notifications', notifications, false);
-    showToast('Todas notificações marcadas como lidas!', 'success');
-}
-
-function clearAllNotifications() {
-    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
-        if (confirmed) {
-            notifications = [];
-            updateNotificationBadge();
-            renderNotificationsModal();
-            if (window.CacheManager) window.CacheManager.set('notifications', notifications, false);
-            showToast('Notificações limpas!', 'success');
-        }
-    });
-}
-
-// ============================================
-// NOTAS - RENDERIZAÇÃO
+// RENDERIZAÇÃO
 // ============================================
 function renderNotes(searchTerm = '') {
     const notesGrid = document.getElementById('notes-grid');
     if (!notesGrid) return;
-    
-    console.log('[Mobile Notas] Renderizando notas. Total:', notes.length);
     
     let filteredNotes = [...notes];
     if (searchTerm) {
@@ -291,11 +204,7 @@ function renderNotes(searchTerm = '') {
         );
     }
 
-    filteredNotes.sort((a, b) => {
-        const dateA = new Date(a.dataModificacao || a.date || 0);
-        const dateB = new Date(b.dataModificacao || b.date || 0);
-        return dateB - dateA;
-    });
+    filteredNotes.sort((a, b) => new Date(b.dataModificacao || b.date || 0) - new Date(a.dataModificacao || a.date || 0));
 
     if (filteredNotes.length === 0) {
         notesGrid.innerHTML = `<div class="empty-notes-minimal">
@@ -310,10 +219,8 @@ function renderNotes(searchTerm = '') {
     filteredNotes.forEach(note => {
         const dateFormatted = note.date ? new Date(note.date).toLocaleDateString('pt-BR') : 
                               (note.dataModificacao ? new Date(note.dataModificacao).toLocaleDateString('pt-BR') : '');
-        const conteudo = note.content || '';
-        // Remove HTML tags para preview
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = conteudo;
+        tempDiv.innerHTML = note.content || '';
         const plainText = tempDiv.textContent || tempDiv.innerText || '';
         const preview = plainText.substring(0, 80).replace(/\n/g, ' ');
         const titulo = note.title || 'Sem título';
@@ -332,15 +239,6 @@ function renderNotes(searchTerm = '') {
     });
     notesGrid.innerHTML = html;
 
-    document.querySelectorAll('.note-card-minimal').forEach(card => {
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.note-actions-minimal')) return;
-            const noteId = card.dataset.id;
-            const note = notes.find(n => n.id == noteId);
-            if (note) openNoteModal(note);
-        });
-    });
-
     document.querySelectorAll('.edit-note').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -358,8 +256,7 @@ function renderNotes(searchTerm = '') {
                 if (confirmed) {
                     notes = notes.filter(n => n.id != noteId);
                     await salvarTodosDados();
-                    const searchInput = document.getElementById('notes-search-input');
-                    renderNotes(searchInput ? searchInput.value : '');
+                    renderNotes(document.getElementById('notes-search-input')?.value || '');
                     showToast('Anotação excluída!', 'success');
                 }
             });
@@ -391,9 +288,7 @@ function openNoteModal(note) {
     }
 
     modal.classList.add('active');
-    
     setTimeout(() => {
-        ajustarAlturaEditor();
         if (contentInput) contentInput.focus();
     }, 100);
 }
@@ -404,63 +299,27 @@ function closeNoteModal() {
     editingNoteId = null;
 }
 
-// ============================================
-// AJUSTE DE ALTURA
-// ============================================
 function ajustarAlturaEditor() {
     const editorWrapper = document.querySelector('.samsung-editor-wrapper');
-    const header = document.querySelector('.samsung-header');
-    const toolbar = document.querySelector('.samsung-toolbar-bottom');
-    const footer = document.querySelector('.note-footer-info');
-
     if (!editorWrapper) return;
-
-    let viewportHeight = window.innerHeight;
-    if (window.visualViewport) {
-        viewportHeight = window.visualViewport.height;
-    }
-
-    const headerHeight = header ? header.offsetHeight : 0;
-    const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
-    const footerHeight = footer ? footer.offsetHeight : 0;
-
-    const editorHeight = viewportHeight - headerHeight - toolbarHeight - footerHeight;
-    editorWrapper.style.height = Math.max(editorHeight, 200) + 'px';
+    let viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const headerHeight = document.querySelector('.samsung-header')?.offsetHeight || 0;
+    const toolbarHeight = document.querySelector('.samsung-toolbar-bottom')?.offsetHeight || 0;
+    const footerHeight = document.querySelector('.note-footer-info')?.offsetHeight || 0;
+    editorWrapper.style.height = Math.max(viewportHeight - headerHeight - toolbarHeight - footerHeight, 200) + 'px';
 }
 
-// ============================================
-// FORMATAÇÃO DE TEXTO
-// ============================================
 function formatText(command, value = null) {
     document.execCommand(command, false, value);
     const editor = document.getElementById('note-content-input');
     if (editor) editor.focus();
-    updateToolbarState();
 }
 
-function updateToolbarState() {
-    document.querySelectorAll('.samsung-toolbar-btn[data-command]').forEach(btn => {
-        const command = btn.dataset.command;
-        if (['bold', 'italic', 'underline', 'strikeThrough'].includes(command)) {
-            const isActive = document.queryCommandState(command);
-            if (isActive) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-    });
-}
-
-// ============================================
-// SALVAR ANOTAÇÃO (CORRIGIDO)
-// ============================================
 async function salvarAnotacaoAtual() {
-    if (!editingNoteId && !notes.some(n => n.id === editingNoteId)) {
-        // Nova anotação
-        const title = document.getElementById('note-title-input')?.value.trim();
-        const content = document.getElementById('note-content-input')?.innerHTML;
-        
+    const title = document.getElementById('note-title-input')?.value.trim();
+    const content = document.getElementById('note-content-input')?.innerHTML;
+    
+    if (!editingNoteId) {
         if (!title && (!content || content === '<br>' || content === '<div><br></div>')) {
             closeNoteModal();
             return false;
@@ -480,21 +339,11 @@ async function salvarAnotacaoAtual() {
         await salvarTodosDados();
         renderNotes();
         showToast('Anotação criada!', 'success');
+        closeNoteModal();
         return true;
     } else {
-        // Editando anotação existente
-        const title = document.getElementById('note-title-input')?.value.trim();
-        const content = document.getElementById('note-content-input')?.innerHTML;
         const noteIndex = notes.findIndex(n => n.id == editingNoteId);
-        
         if (noteIndex === -1) return false;
-        
-        // Verificar se houve mudança
-        const oldNote = notes[noteIndex];
-        if (oldNote.title === title && oldNote.content === content) {
-            closeNoteModal();
-            return true;
-        }
         
         notes[noteIndex] = {
             ...notes[noteIndex],
@@ -504,91 +353,31 @@ async function salvarAnotacaoAtual() {
         };
         
         await salvarTodosDados();
-        const searchInput = document.getElementById('notes-search-input');
-        renderNotes(searchInput ? searchInput.value : '');
+        renderNotes(document.getElementById('notes-search-input')?.value || '');
         showToast('Anotação salva!', 'success');
         closeNoteModal();
         return true;
     }
 }
 
-// ============================================
-// CONCLUSÃO DE ANOTAÇÃO (Botão Concluir)
-// ============================================
 async function concluirAnotacao() {
     await salvarAnotacaoAtual();
 }
 
-// ============================================
-// NAVEGAÇÃO
-// ============================================
 function switchView(viewName) {
     if (viewName === 'home') window.location.href = '../index.html';
     else if (viewName === 'calendar') window.location.href = '../calendario/index.html';
     else if (viewName === 'tasks') window.location.href = '../tarefas/index.html';
-    else if (viewName === 'notes') {
-        carregarDados();
-        renderNotes();
-    }
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
-}
-
-// ============================================
-// FUNÇÕES DE FOTO DE PERFIL
-// ============================================
-async function carregarFotoPerfilMobile() {
-    if (!usuarioLogado) return;
-    
-    const profileIcon = document.getElementById('notification-bell');
-    if (!profileIcon) return;
-    
-    if (window.CacheManager) {
-        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-        
-        if (photoUrl && photoUrl.startsWith('data:')) {
-            profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-            return;
-        }
-    }
-    
-    const iniciais = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
-    profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
-}
-
-function iniciarEscutaFotoMobile() {
-    if (!usuarioLogado) return;
-    
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
-        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
-            if (photoUrl && photoUrl.startsWith('data:')) {
-                console.log('[Mobile Notas] Foto atualizada em tempo real!');
-                const profileIcon = document.getElementById('notification-bell');
-                if (profileIcon) {
-                    profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                }
-            }
-        });
-    }
-}
-
-function pararEscutaFotoMobile() {
-    if (profilePhotoUnsubscribe) {
-        profilePhotoUnsubscribe();
-        profilePhotoUnsubscribe = null;
-    }
 }
 
 // ============================================
 // INICIALIZAÇÃO PRINCIPAL
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📝 Iniciando anotações mobile...');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('📝 Iniciando anotações mobile com Firestore...');
     
-    if (window.CacheManager) {
-        window.CacheManager.init();
-    }
+    if (window.CacheManager) window.CacheManager.init();
     
     loadAllData();
 
@@ -596,132 +385,81 @@ document.addEventListener('DOMContentLoaded', () => {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        carregarFotoPerfilMobile();
-        iniciarEscutaFotoMobile();
+        
+        // INICIALIZAR FIRESTORE
+        await inicializarFirestoreNotas();
+        
+        // Recarregar dados após inicialização
+        carregarDados();
+        renderNotes();
     }
 
-    updateNotificationBadge();
-    renderNotes();
-
-    // ===== EVENTOS DE SINCRONIZAÇÃO (COM PREVENÇÃO DE LOOP) =====
-    let syncInProgress = false;
-    
-    window.addEventListener('cloudDataLoaded', (event) => {
-        if (syncInProgress) return;
-        syncInProgress = true;
-        
-        console.log('[Mobile Notas] 📡 cloudDataLoaded recebido');
-        
-        // Salvar anotação atual antes de recarregar
+    // Eventos de sincronização
+    window.addEventListener('cloudDataLoaded', async () => {
+        console.log('[Notas Mobile] 📡 cloudDataLoaded - Sincronizando...');
         if (editingNoteId && document.getElementById('note-modal').classList.contains('active')) {
-            salvarAnotacaoAtual().then(() => {
-                setTimeout(() => {
-                    carregarDados();
-                    renderNotes();
-                    syncInProgress = false;
-                }, 100);
-            });
-        } else {
-            carregarDados();
-            renderNotes();
-            syncInProgress = false;
+            await salvarAnotacaoAtual();
         }
+        carregarDados();
+        renderNotes();
+        showToast('📝 Anotações sincronizadas!', 'success');
     });
     
     window.addEventListener('notesUpdated', (event) => {
-        if (syncInProgress) return;
-        syncInProgress = true;
-        
-        if (event.detail && event.detail.notes) {
-            console.log('[Mobile Notas] 📝 notesUpdated recebido');
-            const novasNotas = normalizarTodasNotas(event.detail.notes);
-            notes = novasNotas;
-            renderNotes();
+        if (event.detail && event.detail.notes && !isSaving) {
+            console.log('[Notas Mobile] 📝 notesUpdated recebido');
+            const novasNotas = event.detail.notes.map(n => ({
+                id: n.id,
+                title: n.title || n.titulo || 'Sem título',
+                content: n.content || n.conteudo || '',
+                date: n.date || n.dataModificacao || new Date().toISOString(),
+                dataModificacao: n.dataModificacao || n.date || new Date().toISOString()
+            }));
+            if (JSON.stringify(notes) !== JSON.stringify(novasNotas)) {
+                notes = novasNotas;
+                renderNotes();
+                showToast('📝 Atualizado do PC!', 'info');
+            }
         }
-        setTimeout(() => { syncInProgress = false; }, 500);
     });
     
-    // ===== EVENTOS DA INTERFACE =====
-    
-    // Notificações
+    // Eventos da interface
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
-        renderNotificationsModal();
     });
 
     document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.remove('active');
     });
 
-    document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
-    document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
-
-    document.querySelectorAll('.notification-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            renderNotificationsModal(tab.dataset.type);
-        });
-    });
-
-    // Busca
     document.getElementById('notes-search-input')?.addEventListener('input', (e) => renderNotes(e.target.value));
-
-    // Botão ADICIONAR
-    document.getElementById('btn-add-note')?.addEventListener('click', () => {
-        console.log('➕ Criando nova anotação...');
-        openNoteModal(null);
-    });
-
-    // Fechar modal
+    document.getElementById('btn-add-note')?.addEventListener('click', () => openNoteModal(null));
     document.getElementById('note-modal-back')?.addEventListener('click', closeNoteModal);
-
-    // Salvar anotação (botão Concluir)
-    document.getElementById('btn-save-note')?.addEventListener('click', async () => {
-        await salvarAnotacaoAtual();
-    });
-
-    // TOOLBAR DE FORMATAÇÃO
+    document.getElementById('btn-save-note')?.addEventListener('click', async () => { await salvarAnotacaoAtual(); });
+    
     document.querySelectorAll('.samsung-toolbar-btn[data-command]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            const command = btn.dataset.command;
-            formatText(command);
+            formatText(btn.dataset.command);
         });
     });
-
-    // Seletor de formato
+    
     document.getElementById('format-block-select')?.addEventListener('change', (e) => {
         formatText('formatBlock', e.target.value);
         e.target.value = '';
     });
-
-    // Atualizar estado da toolbar
-    const editor = document.getElementById('note-content-input');
-    if (editor) {
-        editor.addEventListener('keyup', updateToolbarState);
-        editor.addEventListener('mouseup', updateToolbarState);
-        editor.addEventListener('click', updateToolbarState);
-    }
-
-    // Ajuste de altura
+    
     ajustarAlturaEditor();
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', ajustarAlturaEditor);
-    }
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', ajustarAlturaEditor);
     window.addEventListener('resize', ajustarAlturaEditor);
-
-    // Bottom nav
+    
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            switchView(item.dataset.view);
-        });
+        item.addEventListener('click', () => switchView(item.dataset.view));
     });
     
-    console.log('✅ Inicialização das anotações mobile concluída!');
+    console.log('✅ Anotações mobile inicializadas com Firestore!');
 });
 
-// Expor funções globais
 window.salvarAnotacaoAtual = salvarAnotacaoAtual;
 window.concluirAnotacao = concluirAnotacao;
 window.formatText = formatText;
