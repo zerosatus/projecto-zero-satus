@@ -6,6 +6,7 @@ let usuarioLogado = null;
 let editingNoteId = null;
 let profilePhotoUnsubscribe = null;
 let isSaving = false;
+let lastSyncTimestamp = 0;
 
 // ============================================
 // TOAST & CONFIRM
@@ -63,6 +64,14 @@ async function inicializarFirestoreNotas() {
     
     console.log('[Notas Mobile] 🔥 Inicializando Firestore...');
     
+    // Aguardar CacheManager ficar disponível
+    let tentativas = 0;
+    while (!window.CacheManager && tentativas < 20) {
+        console.log(`[Notas Mobile] Aguardando CacheManager... tentativa ${tentativas + 1}`);
+        await new Promise(r => setTimeout(r, 100));
+        tentativas++;
+    }
+    
     if (!window.CacheManager) {
         console.error('[Notas Mobile] CacheManager não encontrado!');
         return false;
@@ -100,7 +109,8 @@ async function salvarTodosDados() {
             title: n.title || n.titulo || 'Sem título',
             content: n.content || n.conteudo || '',
             date: n.date || new Date().toISOString(),
-            dataModificacao: new Date().toISOString()
+            dataModificacao: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         }));
         
         console.log('[Notas Mobile] 💾 Salvando anotações:', notasNormalizadas.length);
@@ -254,10 +264,17 @@ function renderNotes(searchTerm = '') {
             const noteId = icon.dataset.id;
             showConfirm('Excluir esta anotação?', 'Excluir Anotação', async (confirmed) => {
                 if (confirmed) {
-                    notes = notes.filter(n => n.id != noteId);
-                    await salvarTodosDados();
-                    renderNotes(document.getElementById('notes-search-input')?.value || '');
-                    showToast('Anotação excluída!', 'success');
+                    const noteToDelete = notes.find(n => n.id == noteId);
+                    if (noteToDelete) {
+                        // Se a anotação sendo excluída é a que está sendo editada, fechar modal
+                        if (editingNoteId == noteId) {
+                            closeNoteModal();
+                        }
+                        notes = notes.filter(n => n.id != noteId);
+                        await salvarTodosDados();
+                        renderNotes(document.getElementById('notes-search-input')?.value || '');
+                        showToast('Anotação excluída!', 'success');
+                    }
                 }
             });
         });
@@ -345,10 +362,19 @@ async function salvarAnotacaoAtual() {
         const noteIndex = notes.findIndex(n => n.id == editingNoteId);
         if (noteIndex === -1) return false;
         
+        const oldNote = notes[noteIndex];
+        const newTitle = title || oldNote.title || 'Sem título';
+        const newContent = content || '';
+        
+        if (oldNote.title === newTitle && oldNote.content === newContent) {
+            closeNoteModal();
+            return true;
+        }
+        
         notes[noteIndex] = {
             ...notes[noteIndex],
-            title: title || notes[noteIndex].title || 'Sem título',
-            content: content || '',
+            title: newTitle,
+            content: newContent,
             dataModificacao: new Date().toISOString()
         };
         
@@ -372,6 +398,53 @@ function switchView(viewName) {
 }
 
 // ============================================
+// FUNÇÕES DE FOTO DE PERFIL
+// ============================================
+async function carregarFotoPerfilMobile() {
+    if (!usuarioLogado) return;
+    
+    const profileIcon = document.getElementById('notification-bell');
+    if (!profileIcon) return;
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            return;
+        }
+    }
+    
+    const iniciais = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+    profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
+}
+
+function iniciarEscutaFotoMobile() {
+    if (!usuarioLogado) return;
+    
+    const userId = usuarioLogado.uid || usuarioLogado.email;
+    
+    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
+        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
+            if (photoUrl && photoUrl.startsWith('data:')) {
+                console.log('[Mobile Notas] Foto atualizada em tempo real!');
+                const profileIcon = document.getElementById('notification-bell');
+                if (profileIcon) {
+                    profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                }
+            }
+        });
+    }
+}
+
+function pararEscutaFotoMobile() {
+    if (profilePhotoUnsubscribe) {
+        profilePhotoUnsubscribe();
+        profilePhotoUnsubscribe = null;
+    }
+}
+
+// ============================================
 // INICIALIZAÇÃO PRINCIPAL
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -386,10 +459,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
         
-        // INICIALIZAR FIRESTORE
         await inicializarFirestoreNotas();
-        
-        // Recarregar dados após inicialização
         carregarDados();
         renderNotes();
     }
@@ -397,9 +467,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Eventos de sincronização
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Notas Mobile] 📡 cloudDataLoaded - Sincronizando...');
+        
         if (editingNoteId && document.getElementById('note-modal').classList.contains('active')) {
             await salvarAnotacaoAtual();
         }
+        
         carregarDados();
         renderNotes();
         showToast('📝 Anotações sincronizadas!', 'success');
@@ -408,6 +480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('notesUpdated', (event) => {
         if (event.detail && event.detail.notes && !isSaving) {
             console.log('[Notas Mobile] 📝 notesUpdated recebido');
+            
             const novasNotas = event.detail.notes.map(n => ({
                 id: n.id,
                 title: n.title || n.titulo || 'Sem título',
@@ -415,7 +488,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 date: n.date || n.dataModificacao || new Date().toISOString(),
                 dataModificacao: n.dataModificacao || n.date || new Date().toISOString()
             }));
-            if (JSON.stringify(notes) !== JSON.stringify(novasNotas)) {
+            
+            const notasAtuais = notes.map(n => n.id);
+            const novasNotasIds = novasNotas.map(n => n.id);
+            
+            // Verificar se alguma nota foi removida
+            const notasRemovidas = notasAtuais.filter(id => !novasNotasIds.includes(id));
+            
+            if (notasRemovidas.length > 0) {
+                console.log('[Notas Mobile] Notas removidas detectadas:', notasRemovidas);
+                
+                // Se a nota sendo editada foi removida, fechar modal
+                if (editingNoteId && notasRemovidas.includes(editingNoteId)) {
+                    closeNoteModal();
+                    editingNoteId = null;
+                    showToast('Esta anotação foi removida em outro dispositivo', 'info');
+                }
+            }
+            
+            if (JSON.stringify(notes.map(n => ({ id: n.id, title: n.title, content: n.content }))) !== 
+                JSON.stringify(novasNotas.map(n => ({ id: n.id, title: n.title, content: n.content })))) {
                 notes = novasNotas;
                 renderNotes();
                 showToast('📝 Atualizado do PC!', 'info');
