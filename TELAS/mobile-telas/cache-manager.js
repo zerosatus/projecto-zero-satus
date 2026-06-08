@@ -5,6 +5,7 @@ class CacheManager {
         this.cacheVersion = 'v3-firestore';
         this.isInitialized = false;
         this.currentUserId = null;
+        this.currentUserEmail = null;
         this._unsubscribe = null;
         this._syncTimeout = null;
         this._pendingSync = new Map();
@@ -27,12 +28,31 @@ class CacheManager {
     }
 
     getCurrentUserId() {
+        // PRIORIZAR O UID DO FIREBASE AUTH
+        if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+            const uid = window.firebaseAuth.currentUser.uid;
+            if (uid) {
+                this.currentUserId = uid;
+                console.log('[CacheManager] User ID do Firebase Auth:', uid);
+                return uid;
+            }
+        }
+        
+        if (window.FirestoreService && window.FirestoreService.getCurrentUser) {
+            const user = window.FirestoreService.getCurrentUser();
+            if (user && user.uid) {
+                this.currentUserId = user.uid;
+                return user.uid;
+            }
+        }
+        
         if (!this.currentUserId) {
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
                     const user = JSON.parse(usuario);
                     this.currentUserId = user.uid || user.email || 'default';
+                    console.log('[CacheManager] User ID do localStorage:', this.currentUserId);
                 } catch(e) {}
             }
         }
@@ -60,7 +80,6 @@ class CacheManager {
             const storageKey = this.getStorageKey(key);
             const oldValue = this.get(key, null);
             
-            // Verificar se realmente mudou para evitar loops
             if (JSON.stringify(oldValue) === JSON.stringify(value)) {
                 return true;
             }
@@ -71,12 +90,10 @@ class CacheManager {
                 this.listeners.get(key).forEach(cb => cb(value));
             }
             
-            // Cancelar timeout anterior para este key
             if (this._pendingSync.has(key)) {
                 clearTimeout(this._pendingSync.get(key));
             }
             
-            // Agendar sincronização com delay
             const timeoutId = setTimeout(() => {
                 this.syncToFirestore(key, value);
                 this._pendingSync.delete(key);
@@ -104,20 +121,17 @@ class CacheManager {
             switch(key) {
                 case 'tasks':
                     if (Array.isArray(value)) {
-                        // Primeiro, obter todas as tasks existentes no Firestore
                         const existingTasks = await window.FirestoreService.getTasks(userId);
                         const existingIds = new Set(existingTasks.map(t => t.id));
                         const newIds = new Set(value.map(t => t.id));
                         
-                        // Remover tasks que não existem mais
                         for (const existingId of existingIds) {
                             if (!newIds.has(existingId)) {
                                 await window.FirestoreService.deleteTask(userId, existingId);
-                                console.log(`[CacheManager] Task ${existingId} removida do Firestore`);
+                                console.log(`[CacheManager] Task ${existingId} removida`);
                             }
                         }
                         
-                        // Salvar ou atualizar tasks
                         for (const item of value) {
                             if (item && item.id) {
                                 await window.FirestoreService.saveTask(userId, item.id, item);
@@ -127,20 +141,17 @@ class CacheManager {
                     break;
                 case 'notes':
                     if (Array.isArray(value)) {
-                        // Primeiro, obter todas as notes existentes no Firestore
                         const existingNotes = await window.FirestoreService.getNotes(userId);
                         const existingIds = new Set(existingNotes.map(n => n.id));
                         const newIds = new Set(value.map(n => n.id));
                         
-                        // Remover notes que não existem mais
                         for (const existingId of existingIds) {
                             if (!newIds.has(existingId)) {
                                 await window.FirestoreService.deleteNote(userId, existingId);
-                                console.log(`[CacheManager] Note ${existingId} removida do Firestore`);
+                                console.log(`[CacheManager] Note ${existingId} removida`);
                             }
                         }
                         
-                        // Salvar ou atualizar notes
                         for (const item of value) {
                             if (item && item.id) {
                                 await window.FirestoreService.saveNote(userId, item.id, item);
@@ -203,7 +214,6 @@ class CacheManager {
             console.log('[CacheManager] ☁️ Carregando dados da nuvem...');
             let hasChanges = false;
             
-            // Carregar tarefas
             const tasks = await window.FirestoreService.getTasks(userId);
             if (tasks && Array.isArray(tasks)) {
                 const currentTasks = this.get('tasks', []);
@@ -214,7 +224,6 @@ class CacheManager {
                 }
             }
             
-            // Carregar anotações
             const notes = await window.FirestoreService.getNotes(userId);
             if (notes && Array.isArray(notes)) {
                 const currentNotes = this.get('notes', []);
@@ -225,7 +234,6 @@ class CacheManager {
                 }
             }
             
-            // Carregar eventos do calendário
             const events = await window.FirestoreService.getCalendarEvents(userId);
             if (events && Array.isArray(events)) {
                 const currentEvents = this.get('calendarEvents', []);
@@ -236,7 +244,6 @@ class CacheManager {
                 }
             }
             
-            // Carregar horário semanal
             const schedule = await window.FirestoreService.getWeeklySchedule(userId);
             if (schedule) {
                 const currentSchedule = this.get('weeklySchedule', {});
@@ -247,7 +254,6 @@ class CacheManager {
                 }
             }
             
-            // Carregar time slots
             const slots = await window.FirestoreService.getTimeSlots(userId);
             if (slots && Array.isArray(slots)) {
                 const currentSlots = this.get('timeSlots', []);
@@ -258,7 +264,6 @@ class CacheManager {
                 }
             }
             
-            // Carregar notificações
             const notifications = await window.FirestoreService.getNotifications(userId);
             if (notifications && Array.isArray(notifications)) {
                 const currentNotif = this.get('notifications', []);
@@ -295,7 +300,6 @@ class CacheManager {
             this._unsubscribe = window.FirestoreService.listenToUserData(userId, (data) => {
                 let hasChanges = false;
                 
-                // Atualizar tarefas
                 if (data.tasks && Array.isArray(data.tasks)) {
                     const currentTasks = this.get('tasks', []);
                     if (JSON.stringify(currentTasks) !== JSON.stringify(data.tasks)) {
@@ -308,7 +312,6 @@ class CacheManager {
                     }
                 }
                 
-                // Atualizar anotações
                 if (data.notes && Array.isArray(data.notes)) {
                     const currentNotes = this.get('notes', []);
                     if (JSON.stringify(currentNotes) !== JSON.stringify(data.notes)) {
@@ -321,7 +324,6 @@ class CacheManager {
                     }
                 }
                 
-                // Atualizar eventos
                 if (data.calendarEvents && Array.isArray(data.calendarEvents)) {
                     const currentEvents = this.get('calendarEvents', []);
                     if (JSON.stringify(currentEvents) !== JSON.stringify(data.calendarEvents)) {
@@ -334,7 +336,6 @@ class CacheManager {
                     }
                 }
                 
-                // Atualizar horário semanal
                 if (data.weeklySchedule) {
                     const currentSchedule = this.get('weeklySchedule', {});
                     if (JSON.stringify(currentSchedule) !== JSON.stringify(data.weeklySchedule)) {
@@ -393,6 +394,7 @@ class CacheManager {
             this._unsubscribe = null; 
         }
         this.currentUserId = null;
+        this.currentUserEmail = null;
         console.log('[CacheManager] Logout realizado');
     }
     
@@ -438,15 +440,11 @@ class CacheManager {
 // Instância global
 window.CacheManager = new CacheManager();
 
-// ============================================
 // FUNÇÕES GLOBAIS DE ACESSO RÁPIDO
-// ============================================
-
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
 
-// Funções específicas por tipo de dado
 window.getNotes = () => window.CacheManager.get('notes', []);
 window.setNotes = (notes, notify) => window.CacheManager.set('notes', notes, notify);
 
@@ -471,17 +469,16 @@ window.setNotificacoesSettings = (settings, notify) => window.CacheManager.set('
 window.getAppearanceSettings = () => window.CacheManager.get('appearanceSettings', { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
 window.setAppearanceSettings = (settings, notify) => window.CacheManager.set('appearanceSettings', settings, notify);
 
-// Foto de perfil
 window.uploadProfilePhoto = (file) => window.CacheManager.uploadProfilePhoto(file);
 window.getProfilePhotoUrl = () => window.CacheManager.getProfilePhotoUrl();
 window.deleteProfilePhoto = () => window.CacheManager.deleteProfilePhoto();
 
-// Função de debug
 window.debugSync = async function() {
     console.log('===== DEBUG SINCRONIZAÇÃO =====');
     console.log('Usuario logado:', localStorage.getItem('usuarioLogado'));
     console.log('CacheManager.currentUserId:', window.CacheManager?.currentUserId);
     console.log('FirestoreService disponível:', !!window.FirestoreService);
+    console.log('Firebase Auth currentUser:', window.firebaseAuth?.currentUser?.email);
     
     if (window.CacheManager) {
         const notes = window.CacheManager.get('notes', []);
