@@ -1,4 +1,3 @@
-// login/script.js - VERSÃO SUPABASE COMPLETA (CORRIGIDA)
 
 // ✅ Usar let ao invés de const para evitar dupla declaração
 let supabase = null;
