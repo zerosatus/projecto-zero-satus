@@ -54,32 +54,29 @@
     <div id="toast" class="toast"></div>
 
     <!-- ════════════════════════════════════════════════════════ -->
-    <!-- 1. SUPABASE CDN (PRIMEIRO - OBRIGATÓRIO)                 -->
+    <!-- SUPABASE CDN (COM FALLBACK)                             -->
     <!-- ════════════════════════════════════════════════════════ -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Fallback caso o CDN não carregue
+        if (typeof createClient === 'undefined') {
+            console.warn('[Login] CDN principal falhou, tentando fallback...');
+            var script = document.createElement('script');
+            script.src = 'https://unpkg.com/@supabase/supabase-js@2';
+            document.head.appendChild(script);
+        }
+    </script>
     
     <!-- ════════════════════════════════════════════════════════ -->
-    <!-- 2. SISTEMA PRINCIPAL (ORDEM CORRETA)                    -->
+    <!-- SISTEMA PRINCIPAL                                       -->
     <!-- ════════════════════════════════════════════════════════ -->
     <script src="../preload-system.js"></script>
     <script src="../fast-bootstrap.js"></script>
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
-    
-    <!-- ════════════════════════════════════════════════════════ -->
-    <!-- 3. SUPABASE CONFIG (DEPOIS DO CDN)                      -->
-    <!-- ════════════════════════════════════════════════════════ -->
     <script src="../supabase-config.js"></script>
-    
-    <!-- ════════════════════════════════════════════════════════ -->
-    <!-- 4. HELPERS E SINCRONIZAÇÃO                              -->
-    <!-- ════════════════════════════════════════════════════════ -->
     <script src="../sync-helper.js"></script>
     <script src="../daily-phrases.js"></script>
-    
-    <!-- ════════════════════════════════════════════════════════ -->
-    <!-- 5. SCRIPT DO LOGIN (ÚLTIMO)                             -->
-    <!-- ════════════════════════════════════════════════════════ -->
     <script src="script.js"></script>
 </body>
 </html>

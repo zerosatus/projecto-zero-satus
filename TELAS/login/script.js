@@ -1,5 +1,6 @@
-// login/script.js - Login com Supabase (COMPLETO E CORRIGIDO)
+// login/script.js - Login com Supabase (VERSÃO RESILIENTE)
 let isRegisterMode = false;
+let supabaseInitAttempts = 0;
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
@@ -40,12 +41,9 @@ async function processarLogin(user, isNewUser) {
     
     localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
     
-    // INICIALIZAR CACHE MANAGER
     if (window.CacheManager) {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuario.id;
-        
-        // Aguardar carregar dados da nuvem
         try {
             await window.CacheManager.loadFromCloud();
         } catch (e) {
@@ -61,9 +59,7 @@ async function processarLogin(user, isNewUser) {
     }, 500);
 }
 
-// LOGIN COM GOOGLE
 async function loginWithGoogle() {
-    // Aguardar AuthService estar disponível
     let tentativas = 0;
     while (!window.AuthService && tentativas < 30) {
         await new Promise(r => setTimeout(r, 100));
@@ -83,9 +79,7 @@ async function loginWithGoogle() {
     }
 }
 
-// LOGIN COM EMAIL/SENHA
 async function loginWithEmail(email, password) {
-    // Aguardar AuthService estar disponível
     let tentativas = 0;
     while (!window.AuthService && tentativas < 30) {
         await new Promise(r => setTimeout(r, 100));
@@ -110,9 +104,7 @@ async function loginWithEmail(email, password) {
     }
 }
 
-// REGISTRO COM EMAIL/SENHA
 async function registerWithEmail(email, password, nome) {
-    // Aguardar AuthService estar disponível
     let tentativas = 0;
     while (!window.AuthService && tentativas < 30) {
         await new Promise(r => setTimeout(r, 100));
@@ -138,7 +130,6 @@ async function registerWithEmail(email, password, nome) {
     }
 }
 
-// ALTERNAR ENTRE LOGIN E REGISTRO
 function toggleForm() {
     isRegisterMode = !isRegisterMode;
     const form = document.getElementById('email-login-form');
@@ -167,25 +158,59 @@ function toggleForm() {
     }
 }
 
+// FUNÇÃO PARA VERIFICAR SE O SUPABASE ESTÁ CARREGADO
+function isSupabaseLoaded() {
+    return typeof createClient !== 'undefined';
+}
+
+// FUNÇÃO PARA CARREGAR O SUPABASE MANUALMENTE SE NECESSÁRIO
+function loadSupabaseManually() {
+    return new Promise((resolve, reject) => {
+        if (isSupabaseLoaded()) {
+            resolve(true);
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.onload = () => {
+            console.log('[Login] Supabase CDN carregado manualmente!');
+            resolve(true);
+        };
+        script.onerror = () => {
+            console.error('[Login] Falha ao carregar Supabase manualmente');
+            reject(false);
+        };
+        document.head.appendChild(script);
+    });
+}
+
 // INICIALIZAÇÃO PRINCIPAL
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     
-    // 1. AGUARDAR SUPABASE CDN CARREGAR
-    let tentativas = 0;
-    while (typeof createClient === 'undefined' && tentativas < 30) {
-        console.log(`[Login] Aguardando Supabase CDN... tentativa ${tentativas + 1}`);
-        await new Promise(r => setTimeout(r, 100));
-        tentativas++;
+    // 1. TENTAR CARREGAR SUPABASE CDN
+    let supabaseLoaded = false;
+    
+    // Verificar se já está carregado
+    if (isSupabaseLoaded()) {
+        supabaseLoaded = true;
+        console.log('[Login] Supabase CDN já estava carregado!');
+    } else {
+        // Tentar carregar manualmente
+        try {
+            await loadSupabaseManually();
+            supabaseLoaded = true;
+        } catch (e) {
+            console.error('[Login] Falha ao carregar Supabase');
+        }
     }
     
-    if (typeof createClient === 'undefined') {
+    if (!supabaseLoaded) {
         console.error('[Login] Supabase CDN não carregou!');
         showMessage('Erro ao carregar sistema. Recarregue a página.', true);
         return;
     }
-    
-    console.log('[Login] Supabase CDN carregado!');
     
     // 2. INICIALIZAR CACHE MANAGER
     if (window.CacheManager) {
@@ -193,7 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // 3. AGUARDAR AUTH SERVICE CARREGAR
-    tentativas = 0;
+    let tentativas = 0;
     while (!window.AuthService && tentativas < 30) {
         console.log(`[Login] Aguardando AuthService... tentativa ${tentativas + 1}`);
         await new Promise(r => setTimeout(r, 100));
@@ -281,12 +306,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
 });
 
-// FUNÇÃO DE DEBUG (OPCIONAL)
+// FUNÇÃO DE DEBUG
 window.debugAuth = async function() {
     console.log('===== DEBUG AUTENTICAÇÃO =====');
+    console.log('createClient disponível:', typeof createClient !== 'undefined');
     console.log('AuthService disponível:', !!window.AuthService);
     console.log('CacheManager disponível:', !!window.CacheManager);
     console.log('Usuário logado:', localStorage.getItem('usuarioLogado'));
+    console.log('Supabase client:', !!window.supabaseClient);
     
     if (window.AuthService) {
         const { data: { user } } = await window.AuthService.getCurrentUser();
