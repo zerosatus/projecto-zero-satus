@@ -1,4 +1,4 @@
-// login/script.js - Login com Supabase (CORRIGIDO - sem duplicação)
+// login/script.js - Login com Supabase (COMPLETO E CORRIGIDO)
 let isRegisterMode = false;
 
 function ehCelular() {
@@ -46,7 +46,11 @@ async function processarLogin(user, isNewUser) {
         window.CacheManager.currentUserId = usuario.id;
         
         // Aguardar carregar dados da nuvem
-        await window.CacheManager.loadFromCloud();
+        try {
+            await window.CacheManager.loadFromCloud();
+        } catch (e) {
+            console.warn('[Login] Erro ao carregar da nuvem:', e);
+        }
     }
     
     showMessage(`Bem-vindo, ${usuario.nome}!`);
@@ -59,6 +63,13 @@ async function processarLogin(user, isNewUser) {
 
 // LOGIN COM GOOGLE
 async function loginWithGoogle() {
+    // Aguardar AuthService estar disponível
+    let tentativas = 0;
+    while (!window.AuthService && tentativas < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        tentativas++;
+    }
+    
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
         return;
@@ -74,6 +85,13 @@ async function loginWithGoogle() {
 
 // LOGIN COM EMAIL/SENHA
 async function loginWithEmail(email, password) {
+    // Aguardar AuthService estar disponível
+    let tentativas = 0;
+    while (!window.AuthService && tentativas < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        tentativas++;
+    }
+    
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
         return false;
@@ -85,13 +103,22 @@ async function loginWithEmail(email, password) {
         return true;
     } catch (error) {
         console.error('[Email] Erro:', error);
-        showMessage(error.message || 'E-mail ou senha incorretos!', true);
+        let errorMsg = error.message || 'E-mail ou senha incorretos!';
+        if (errorMsg.includes('Invalid login')) errorMsg = 'E-mail ou senha incorretos!';
+        showMessage(errorMsg, true);
         return false;
     }
 }
 
 // REGISTRO COM EMAIL/SENHA
 async function registerWithEmail(email, password, nome) {
+    // Aguardar AuthService estar disponível
+    let tentativas = 0;
+    while (!window.AuthService && tentativas < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        tentativas++;
+    }
+    
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
         return false;
@@ -104,7 +131,9 @@ async function registerWithEmail(email, password, nome) {
         return true;
     } catch (error) {
         console.error('[Registro] Erro:', error);
-        showMessage(error.message, true);
+        let errorMsg = error.message;
+        if (errorMsg.includes('User already registered')) errorMsg = 'Este e-mail já está cadastrado!';
+        showMessage(errorMsg, true);
         return false;
     }
 }
@@ -138,40 +167,72 @@ function toggleForm() {
     }
 }
 
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO PRINCIPAL
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     
-    if (window.CacheManager) window.CacheManager.init();
-    
-    // Aguardar o AuthService ser carregado
+    // 1. AGUARDAR SUPABASE CDN CARREGAR
     let tentativas = 0;
-    while (!window.AuthService && tentativas < 30) {
+    while (typeof createClient === 'undefined' && tentativas < 30) {
+        console.log(`[Login] Aguardando Supabase CDN... tentativa ${tentativas + 1}`);
         await new Promise(r => setTimeout(r, 100));
         tentativas++;
     }
     
-    // Configurar listener de auth
-    if (window.AuthService) {
-        window.AuthService.onAuthStateChange(async (event, session) => {
-            console.log('[Login] Auth state change:', event);
-            
-            if (event === 'SIGNED_IN' && session && !localStorage.getItem('usuarioLogado')) {
-                await processarLogin(session.user, false);
-            } else if (event === 'SIGNED_OUT') {
-                localStorage.removeItem('usuarioLogado');
-                if (window.CacheManager) window.CacheManager.logout();
-            }
-        });
-        
-        // Verificar sessão existente
-        const { data: { user } } = await window.AuthService.getCurrentUser();
-        if (user && !localStorage.getItem('usuarioLogado')) {
-            await processarLogin(user, false);
-        }
+    if (typeof createClient === 'undefined') {
+        console.error('[Login] Supabase CDN não carregou!');
+        showMessage('Erro ao carregar sistema. Recarregue a página.', true);
+        return;
     }
     
-    // Configurar eventos
+    console.log('[Login] Supabase CDN carregado!');
+    
+    // 2. INICIALIZAR CACHE MANAGER
+    if (window.CacheManager) {
+        window.CacheManager.init();
+    }
+    
+    // 3. AGUARDAR AUTH SERVICE CARREGAR
+    tentativas = 0;
+    while (!window.AuthService && tentativas < 30) {
+        console.log(`[Login] Aguardando AuthService... tentativa ${tentativas + 1}`);
+        await new Promise(r => setTimeout(r, 100));
+        tentativas++;
+    }
+    
+    if (!window.AuthService) {
+        console.error('[Login] AuthService não carregou!');
+        showMessage('Erro ao carregar autenticação. Recarregue a página.', true);
+        return;
+    }
+    
+    console.log('[Login] AuthService carregado!');
+    
+    // 4. CONFIGURAR LISTENER DE AUTENTICAÇÃO
+    window.AuthService.onAuthStateChange(async (event, session) => {
+        console.log('[Login] Auth state change:', event);
+        
+        if (event === 'SIGNED_IN' && session && !localStorage.getItem('usuarioLogado')) {
+            await processarLogin(session.user, false);
+        } else if (event === 'SIGNED_OUT') {
+            localStorage.removeItem('usuarioLogado');
+            if (window.CacheManager) window.CacheManager.logout();
+        }
+    });
+    
+    // 5. VERIFICAR SESSÃO EXISTENTE
+    try {
+        const { data: { user } } = await window.AuthService.getCurrentUser();
+        if (user && !localStorage.getItem('usuarioLogado')) {
+            console.log('[Login] Sessão existente encontrada:', user.email);
+            await processarLogin(user, false);
+            return;
+        }
+    } catch (e) {
+        console.warn('[Login] Erro ao verificar sessão:', e);
+    }
+    
+    // 6. CONFIGURAR EVENTOS DA INTERFACE
     const googleBtn = document.getElementById('google-login-btn');
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
@@ -219,3 +280,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
 });
+
+// FUNÇÃO DE DEBUG (OPCIONAL)
+window.debugAuth = async function() {
+    console.log('===== DEBUG AUTENTICAÇÃO =====');
+    console.log('AuthService disponível:', !!window.AuthService);
+    console.log('CacheManager disponível:', !!window.CacheManager);
+    console.log('Usuário logado:', localStorage.getItem('usuarioLogado'));
+    
+    if (window.AuthService) {
+        const { data: { user } } = await window.AuthService.getCurrentUser();
+        console.log('Usuário atual:', user?.email || 'Nenhum');
+    }
+    console.log('===============================');
+};
