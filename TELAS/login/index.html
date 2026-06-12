@@ -24,10 +24,25 @@
                 ENTRAR COM GOOGLE
             </button>
 
-            <button type="button" class="btn-migrar" onclick="window.location.href='../migrate-to-firestore.html'">
-                <i class="fas fa-database"></i>
-                RECUPERAR MEUS DADOS ANTIGOS
-            </button>
+            <div class="divider">
+                <span>ou</span>
+            </div>
+
+            <form id="email-login-form">
+                <div class="input-group">
+                    <input type="email" id="email" placeholder="seu@email.com" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" placeholder="Sua senha" required>
+                </div>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL
+                </button>
+            </form>
+
+            <div class="register-link">
+                <a href="#" id="show-register">Não tem conta? Cadastre-se</a>
+            </div>
 
             <div class="info-text">
                 <i class="fas fa-shield-alt"></i>
@@ -38,21 +53,17 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- FIREBASE CDNs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <!-- SUPABASE CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- SISTEMA PRINCIPAL (ORDEM CORRETA) -->
+    <!-- SISTEMA PRINCIPAL -->
     <script src="../preload-system.js"></script>
     <script src="../fast-bootstrap.js"></script>
     <script src="../cache-manager.js"></script>
     <script src="../shared-data.js"></script>
-    <script src="../firebase-config.js"></script>
+    <script src="../supabase-config.js"></script>
     <script src="../sync-helper.js"></script>
     <script src="../daily-phrases.js"></script>
-    <script src="../notes-sync.js"></script>
     
     <!-- SCRIPT DO LOGIN -->
     <script src="script.js"></script>

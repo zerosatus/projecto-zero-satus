@@ -1,29 +1,11 @@
-// login/script.js - VERSÃO CORRIGIDA COM AUTENTICAÇÃO FIRESTORE COMPLETA
+// login/script.js - VERSÃO SUPABASE COMPLETA
+
+let supabase = null;
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
         || window.innerWidth <= 768;
 }
-
-function isInWebView() {
-    return /wv|WebView|Android.*Chrome\/\d+\.\d+/.test(navigator.userAgent) 
-        || (typeof Android !== 'undefined')
-        || window.location.href.includes('file://');
-}
-
-const USE_REDIRECT = isInWebView();
-console.log(`[Login] Usando ${USE_REDIRECT ? 'REDIRECT' : 'POPUP'} para autenticação`);
-
-// Verificar se já está logado
-const usuarioSalvo = localStorage.getItem('usuarioLogado');
-const isLoginPage = window.location.pathname.includes('/login/');
-
-if (usuarioSalvo && !isLoginPage) {
-    const isMobile = ehCelular();
-    window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-}
-
-const googleLoginBtn = document.getElementById('google-login-btn');
 
 function showMessage(message, isError = false) {
     const toast = document.getElementById('toast');
@@ -47,7 +29,7 @@ function setLoading(button, isLoading) {
 
 async function criarDadosPadrao(usuario) {
     console.log('[Login] Criando dados padrão para:', usuario.email);
-    const userId = usuario.uid;
+    const userId = usuario.id;
     
     const dadosPadrao = {
         tasks: [],
@@ -67,58 +49,53 @@ async function criarDadosPadrao(usuario) {
         }
         sessionStorage.setItem(`preload_${key}`, JSON.stringify(value));
     }
+    
+    // Salvar perfil do usuário no Supabase
+    if (supabase) {
+        await supabase.from('profiles').upsert({
+            id: userId,
+            email: usuario.email,
+            nome: usuario.user_metadata?.full_name || usuario.email.split('@')[0],
+            avatar_url: usuario.user_metadata?.avatar_url || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });
+    }
 }
 
 async function processarLogin(user, isNewUser) {
     console.log('[Login] Processando login para:', user.email);
     
-    // 🔥 OBTER TOKEN DE AUTENTICAÇÃO
-    let idToken = null;
-    try {
-        idToken = await user.getIdToken();
-        console.log('[Login] Token obtido com sucesso');
-    } catch (error) {
-        console.error('[Login] Erro ao obter token:', error);
-    }
-    
     const usuario = {
-        uid: user.uid,
+        id: user.id,
+        uid: user.id,
         email: user.email,
-        nome: user.displayName || user.email.split('@')[0],
-        foto: user.photoURL || null,
+        nome: user.user_metadata?.full_name || user.email.split('@')[0],
+        foto: user.user_metadata?.avatar_url || null,
         logado: true,
-        firebaseToken: idToken
+        supabaseToken: user.access_token
     };
     
     localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
-    sessionStorage.setItem('firebaseToken', idToken);
+    sessionStorage.setItem('supabaseToken', user.access_token);
     
-    // 🔥 INICIALIZAR CACHE MANAGER E FIRESTORE
+    // INICIALIZAR CACHE MANAGER
     if (window.CacheManager) {
         window.CacheManager.init();
-        window.CacheManager.currentUserId = usuario.uid;
+        window.CacheManager.currentUserId = usuario.id;
         window.CacheManager.currentUserEmail = usuario.email;
         
-        // Aguardar FirestoreService estar disponível
+        // Aguardar carregar dados da nuvem
         let tentativas = 0;
-        while (!window.FirestoreService && tentativas < 20) {
+        while (!window.CacheManager.isUserLoggedIn() && tentativas < 20) {
             await new Promise(r => setTimeout(r, 100));
             tentativas++;
         }
         
-        if (window.FirestoreService) {
-            // Garantir autenticação no Firestore
-            if (typeof window.FirestoreService.setCurrentUser === 'function') {
-                window.FirestoreService.setCurrentUser(user);
-            }
-            
-            // Carregar dados da nuvem
-            await window.CacheManager.loadFromCloud(true);
-            
-            // Iniciar sincronização em tempo real
-            if (window.CacheManager.startRealtimeSync) {
-                window.CacheManager.startRealtimeSync();
-            }
+        await window.CacheManager.loadFromCloud(true);
+        
+        if (window.CacheManager.startRealtimeSync) {
+            window.CacheManager.startRealtimeSync();
         }
         
         if (isNewUser) {
@@ -134,60 +111,232 @@ async function processarLogin(user, isNewUser) {
     }, 500);
 }
 
-// 🔑 LOGIN COM GOOGLE
-if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', async () => {
-        try {
-            setLoading(googleLoginBtn, true);
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' });
-            
-            if (USE_REDIRECT) {
-                await firebase.auth().signInWithRedirect(provider);
-                return;
-            } else {
-                const result = await firebase.auth().signInWithPopup(provider);
-                const isNewUser = result.additionalUserInfo?.isNewUser || false;
-                await processarLogin(result.user, isNewUser);
-                setLoading(googleLoginBtn, false);
-            }
-        } catch (error) {
-            console.error('[Google] Erro:', error);
-            let msg = 'Erro ao fazer login. ';
-            if (error.code === 'auth/popup-blocked') msg = 'Popup bloqueado! Permita popups.';
-            else if (error.code === 'auth/network-request-failed') msg = 'Sem conexão com internet.';
-            else msg += error.message;
-            
-            showMessage(msg, true);
-            setLoading(googleLoginBtn, false);
+// ============================================
+// INICIALIZAR SUPABASE
+// ============================================
+async function initSupabase() {
+    if (typeof supabase === 'undefined') {
+        console.log('[Login] Aguardando Supabase CDN...');
+        await new Promise(r => setTimeout(r, 500));
+    }
+    
+    if (window.supabaseClient) {
+        supabase = window.supabaseClient;
+        console.log('[Login] Supabase inicializado');
+        
+        // Verificar sessão existente
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && !localStorage.getItem('usuarioLogado')) {
+            console.log('[Login] Sessão existente encontrada');
+            await processarLogin(session.user, false);
         }
-    });
+        
+        // Monitorar mudanças de autenticação
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('[Login] Auth state change:', event);
+            
+            if (event === 'SIGNED_IN' && session && !localStorage.getItem('usuarioLogado')) {
+                await processarLogin(session.user, false);
+            } else if (event === 'SIGNED_OUT') {
+                localStorage.removeItem('usuarioLogado');
+                if (window.CacheManager) window.CacheManager.logout();
+            }
+        });
+        
+        return true;
+    }
+    return false;
 }
 
-// 🔄 PROCESSAR RETORNO DO REDIRECT
-firebase.auth().getRedirectResult().then(async (result) => {
-    if (result.user) {
-        console.log('[Login] Redirect result recebido');
-        const isNewUser = result.additionalUserInfo?.isNewUser || false;
-        await processarLogin(result.user, isNewUser);
+// ============================================
+// LOGIN COM GOOGLE
+// ============================================
+async function loginWithGoogle() {
+    if (!supabase) return;
+    
+    try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin + '/login/index.html',
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent'
+                }
+            }
+        });
+        
+        if (error) throw error;
+        
+    } catch (error) {
+        console.error('[Google] Erro:', error);
+        showMessage('Erro ao fazer login com Google. Tente novamente.', true);
     }
-}).catch((error) => {
-    console.error('[Login] Erro no redirect:', error);
-    showMessage('Erro ao processar login. Tente novamente.', true);
-});
+}
 
-// 🔥 MONITORAR ESTADO DE AUTENTICAÇÃO
-firebase.auth().onAuthStateChanged(async (user) => {
-    if (user && !localStorage.getItem('usuarioLogado')) {
-        console.log('[Login] Usuário já autenticado:', user.email);
-        await processarLogin(user, false);
-    } else if (!user && localStorage.getItem('usuarioLogado')) {
-        console.log('[Login] Usuário deslogado do Firebase, limpando cache');
-        localStorage.removeItem('usuarioLogado');
-        if (window.CacheManager) window.CacheManager.logout();
+// ============================================
+// LOGIN COM EMAIL/SENHA
+// ============================================
+async function loginWithEmail(email, password) {
+    if (!supabase) {
+        showMessage('Sistema offline. Tente novamente.', true);
+        return false;
     }
+    
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+        
+        if (error) throw error;
+        
+        await processarLogin(data.user, false);
+        return true;
+        
+    } catch (error) {
+        console.error('[Email] Erro:', error);
+        if (error.message === 'Invalid login credentials') {
+            showMessage('E-mail ou senha incorretos!', true);
+        } else {
+            showMessage(error.message, true);
+        }
+        return false;
+    }
+}
+
+// ============================================
+// REGISTRO COM EMAIL/SENHA
+// ============================================
+async function registerWithEmail(email, password, nome) {
+    if (!supabase) {
+        showMessage('Sistema offline. Tente novamente.', true);
+        return false;
+    }
+    
+    try {
+        const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                data: {
+                    full_name: nome,
+                    email: email
+                }
+            }
+        });
+        
+        if (error) throw error;
+        
+        if (data.user) {
+            showMessage('Cadastro realizado! Faça login para continuar.', false);
+            toggleForm();
+            return true;
+        }
+        
+    } catch (error) {
+        console.error('[Registro] Erro:', error);
+        showMessage(error.message, true);
+        return false;
+    }
+}
+
+// ============================================
+// ALTERNAR ENTRE LOGIN E REGISTRO
+// ============================================
+let isRegisterMode = false;
+
+function toggleForm() {
+    isRegisterMode = !isRegisterMode;
+    const form = document.getElementById('email-login-form');
+    const submitBtn = form.querySelector('.btn-primary');
+    const toggleLink = document.getElementById('show-register');
+    const divider = document.querySelector('.divider');
+    
+    if (isRegisterMode) {
+        // Adicionar campo de nome se não existir
+        let nomeGroup = document.getElementById('nome-group');
+        if (!nomeGroup) {
+            nomeGroup = document.createElement('div');
+            nomeGroup.id = 'nome-group';
+            nomeGroup.className = 'input-group';
+            nomeGroup.innerHTML = '<input type="text" id="nome" placeholder="Seu nome completo" required>';
+            form.insertBefore(nomeGroup, form.firstChild);
+        }
+        submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
+        toggleLink.innerHTML = 'Já tem conta? Faça login';
+        if (divider) divider.style.display = 'flex';
+    } else {
+        const nomeGroup = document.getElementById('nome-group');
+        if (nomeGroup) nomeGroup.remove();
+        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+        toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
+        if (divider) divider.style.display = 'flex';
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[Login] Inicializando...');
+    
+    if (window.CacheManager) window.CacheManager.init();
+    
+    await initSupabase();
+    
+    // Verificar se já está logado
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    const isLoginPage = window.location.pathname.includes('/login/');
+    
+    if (usuarioSalvo && !isLoginPage) {
+        const isMobile = ehCelular();
+        window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+        return;
+    }
+    
+    // Configurar eventos
+    const googleBtn = document.getElementById('google-login-btn');
+    if (googleBtn) {
+        googleBtn.addEventListener('click', () => loginWithGoogle());
+    }
+    
+    const emailForm = document.getElementById('email-login-form');
+    if (emailForm) {
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email')?.value;
+            const password = document.getElementById('password')?.value;
+            
+            if (!email || !password) {
+                showMessage('Preencha e-mail e senha!', true);
+                return;
+            }
+            
+            if (isRegisterMode) {
+                const nome = document.getElementById('nome')?.value;
+                if (!nome) {
+                    showMessage('Preencha seu nome!', true);
+                    return;
+                }
+                setLoading(emailForm.querySelector('.btn-primary'), true);
+                await registerWithEmail(email, password, nome);
+                setLoading(emailForm.querySelector('.btn-primary'), false);
+            } else {
+                setLoading(emailForm.querySelector('.btn-primary'), true);
+                await loginWithEmail(email, password);
+                setLoading(emailForm.querySelector('.btn-primary'), false);
+            }
+        });
+    }
+    
+    const toggleLink = document.getElementById('show-register');
+    if (toggleLink) {
+        toggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleForm();
+        });
+    }
+    
+    console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
 });
-
-if (window.CacheManager) window.CacheManager.init();
-
-console.log('%c🔐 Painel Zero - Login com Google (Firestore Ready)', 'color: #9333ea; font-size: 16px; font-weight: bold;');
