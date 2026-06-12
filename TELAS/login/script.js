@@ -1,6 +1,8 @@
-// login/script.js - VERSÃO SUPABASE COMPLETA
+// login/script.js - VERSÃO SUPABASE COMPLETA (CORRIGIDA)
 
+// ✅ Usar let ao invés de const para evitar dupla declaração
 let supabase = null;
+let isRegisterMode = false;
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
@@ -17,6 +19,7 @@ function showMessage(message, isError = false) {
 }
 
 function setLoading(button, isLoading) {
+    if (!button) return;
     if (isLoading) {
         button.dataset.originalHtml = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AGUARDE...';
@@ -52,14 +55,19 @@ async function criarDadosPadrao(usuario) {
     
     // Salvar perfil do usuário no Supabase
     if (supabase) {
-        await supabase.from('profiles').upsert({
-            id: userId,
-            email: usuario.email,
-            nome: usuario.user_metadata?.full_name || usuario.email.split('@')[0],
-            avatar_url: usuario.user_metadata?.avatar_url || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+        try {
+            const { error } = await supabase.from('profiles').upsert({
+                id: userId,
+                email: usuario.email,
+                nome: usuario.user_metadata?.full_name || usuario.email.split('@')[0],
+                avatar_url: usuario.user_metadata?.avatar_url || null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+            if (error) console.error('[Login] Erro ao salvar perfil:', error);
+        } catch(e) {
+            console.error('[Login] Erro ao salvar perfil:', e);
+        }
     }
 }
 
@@ -86,12 +94,6 @@ async function processarLogin(user, isNewUser) {
         window.CacheManager.currentUserEmail = usuario.email;
         
         // Aguardar carregar dados da nuvem
-        let tentativas = 0;
-        while (!window.CacheManager.isUserLoggedIn() && tentativas < 20) {
-            await new Promise(r => setTimeout(r, 100));
-            tentativas++;
-        }
-        
         await window.CacheManager.loadFromCloud(true);
         
         if (window.CacheManager.startRealtimeSync) {
@@ -115,15 +117,29 @@ async function processarLogin(user, isNewUser) {
 // INICIALIZAR SUPABASE
 // ============================================
 async function initSupabase() {
-    if (typeof supabase === 'undefined') {
-        console.log('[Login] Aguardando Supabase CDN...');
-        await new Promise(r => setTimeout(r, 500));
-    }
-    
+    // ✅ Verificar se já existe e usar o existente
     if (window.supabaseClient) {
         supabase = window.supabaseClient;
-        console.log('[Login] Supabase inicializado');
-        
+        console.log('[Login] Supabase já inicializado');
+    } 
+    // ✅ Aguardar o CDN carregar
+    else if (typeof createClient !== 'undefined') {
+        const config = window.supabaseConfig || {
+            url: "https://yqxtfnnjjpoitbmtcxjd.supabase.co",
+            anonKey: "sb_publishable_CnZEwvltWwOT0H2t0-HXqA_WO-zWL2n"
+        };
+        supabase = createClient(config.url, config.anonKey);
+        window.supabaseClient = supabase;
+        console.log('[Login] Supabase inicializado pelo login');
+    }
+    // ✅ Aguardar um pouco e tentar novamente
+    else {
+        console.log('[Login] Aguardando Supabase CDN...');
+        await new Promise(r => setTimeout(r, 500));
+        return initSupabase();
+    }
+    
+    if (supabase) {
         // Verificar sessão existente
         const { data: { session } } = await supabase.auth.getSession();
         if (session && !localStorage.getItem('usuarioLogado')) {
@@ -152,7 +168,10 @@ async function initSupabase() {
 // LOGIN COM GOOGLE
 // ============================================
 async function loginWithGoogle() {
-    if (!supabase) return;
+    if (!supabase) {
+        showMessage('Sistema offline. Tente novamente.', true);
+        return;
+    }
     
     try {
         const { data, error } = await supabase.auth.signInWithOAuth({
@@ -244,12 +263,10 @@ async function registerWithEmail(email, password, nome) {
 // ============================================
 // ALTERNAR ENTRE LOGIN E REGISTRO
 // ============================================
-let isRegisterMode = false;
-
 function toggleForm() {
     isRegisterMode = !isRegisterMode;
     const form = document.getElementById('email-login-form');
-    const submitBtn = form.querySelector('.btn-primary');
+    const submitBtn = form?.querySelector('.btn-primary');
     const toggleLink = document.getElementById('show-register');
     const divider = document.querySelector('.divider');
     
@@ -261,16 +278,16 @@ function toggleForm() {
             nomeGroup.id = 'nome-group';
             nomeGroup.className = 'input-group';
             nomeGroup.innerHTML = '<input type="text" id="nome" placeholder="Seu nome completo" required>';
-            form.insertBefore(nomeGroup, form.firstChild);
+            if (form) form.insertBefore(nomeGroup, form.firstChild);
         }
-        submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
-        toggleLink.innerHTML = 'Já tem conta? Faça login';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
+        if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
         if (divider) divider.style.display = 'flex';
     } else {
         const nomeGroup = document.getElementById('nome-group');
         if (nomeGroup) nomeGroup.remove();
-        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
-        toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+        if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
         if (divider) divider.style.display = 'flex';
     }
 }
@@ -298,7 +315,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Configurar eventos
     const googleBtn = document.getElementById('google-login-btn');
     if (googleBtn) {
-        googleBtn.addEventListener('click', () => loginWithGoogle());
+        googleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginWithGoogle();
+        });
     }
     
     const emailForm = document.getElementById('email-login-form');
@@ -340,3 +360,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
 });
+
+// ✅ Exportar funções para debug (opcional)
+window.debugSupabase = () => {
+    console.log('Supabase client:', supabase);
+    console.log('Usuário logado:', localStorage.getItem('usuarioLogado'));
+    supabase?.auth.getSession().then(console.log);
+};
