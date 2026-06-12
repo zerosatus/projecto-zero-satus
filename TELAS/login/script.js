@@ -1,4 +1,4 @@
-// login/script.js - Login completo com Supabase (LOGIN E CADASTRO)
+// login/script.js - Login completo com Supabase (VERSÃO CORRIGIDA)
 let isRegisterMode = false;
 let supabaseClient = null;
 
@@ -41,17 +41,6 @@ async function processarLogin(user) {
     
     localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
     
-    // Inicializar CacheManager se disponível
-    if (window.CacheManager) {
-        try {
-            window.CacheManager.init();
-            window.CacheManager.currentUserId = usuario.id;
-            await window.CacheManager.loadFromCloud();
-        } catch (e) {
-            console.warn('[Login] Erro no cache:', e);
-        }
-    }
-    
     showMessage(`Bem-vindo, ${usuario.nome}!`);
     
     setTimeout(() => {
@@ -70,13 +59,65 @@ function initSupabase() {
     const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_CnZEwvltWwOT0H2t0-HXqA_WO-zWL2n";
     
+    // Verificar se createClient está disponível (Suporte a múltiplos formatos)
     if (typeof createClient !== 'undefined') {
         supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('[Login] Supabase client inicializado');
-    } else {
-        console.error('[Login] createClient não disponível');
+        console.log('[Login] Supabase client criado com createClient');
+    } 
+    // Verificar se supabase já está disponível globalmente
+    else if (typeof supabase !== 'undefined') {
+        supabaseClient = supabase;
+        console.log('[Login] Supabase client já disponível');
     }
+    // Verificar se window.supabase está disponível
+    else if (window.supabase) {
+        supabaseClient = window.supabase;
+        console.log('[Login] Supabase client via window.supabase');
+    }
+    else {
+        console.error('[Login] Nenhum cliente Supabase disponível');
+        return null;
+    }
+    
     return supabaseClient;
+}
+
+// Função para carregar o Supabase manualmente se necessário
+function loadSupabaseManually() {
+    return new Promise((resolve, reject) => {
+        // Verificar se já está carregado
+        if (typeof createClient !== 'undefined' || typeof supabase !== 'undefined') {
+            resolve(true);
+            return;
+        }
+        
+        console.log('[Login] Tentando carregar Supabase manualmente...');
+        
+        // Tentar com CDN principal
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.onload = () => {
+            console.log('[Login] Supabase CDN carregado manualmente!');
+            resolve(true);
+        };
+        script.onerror = () => {
+            console.error('[Login] Falha ao carregar CDN principal');
+            
+            // Tentar com CDN alternativo
+            const script2 = document.createElement('script');
+            script2.src = 'https://unpkg.com/@supabase/supabase-js@2';
+            script2.onload = () => {
+                console.log('[Login] Supabase CDN alternativo carregado!');
+                resolve(true);
+            };
+            script2.onerror = () => {
+                console.error('[Login] Falha ao carregar todos os CDNs');
+                reject(false);
+            };
+            document.head.appendChild(script2);
+        };
+        document.head.appendChild(script);
+    });
 }
 
 async function loginWithGoogle() {
@@ -134,7 +175,6 @@ async function registerWithEmail(email, password, nome) {
         return false;
     }
     
-    // Validar senha
     if (password.length < 6) {
         showMessage('A senha deve ter no mínimo 6 caracteres!', true);
         return false;
@@ -155,26 +195,17 @@ async function registerWithEmail(email, password, nome) {
         if (error) throw error;
         
         if (data.user) {
-            // Verificar se precisa de confirmação de email
-            if (data.user.identities && data.user.identities.length === 0) {
-                showMessage('Este e-mail já está cadastrado! Faça login.', true);
-                return false;
-            }
+            showMessage('Cadastro realizado com sucesso! Faça login.', false);
             
-            showMessage('Cadastro realizado com sucesso! Faça login para continuar.', false);
-            
-            // Limpar formulário e voltar para modo login
+            // Limpar e voltar para login
             document.getElementById('email').value = email;
             document.getElementById('password').value = '';
             if (document.getElementById('nome')) {
                 document.getElementById('nome').value = '';
             }
-            
-            // Voltar para modo login
             if (isRegisterMode) {
                 toggleForm();
             }
-            
             return true;
         }
         return false;
@@ -214,7 +245,6 @@ function toggleForm() {
     const form = document.getElementById('email-login-form');
     const submitBtn = form?.querySelector('.btn-primary');
     const toggleLink = document.getElementById('show-register');
-    const divider = document.querySelector('.divider');
     const googleBtn = document.getElementById('google-login-btn');
     
     if (isRegisterMode) {
@@ -225,17 +255,11 @@ function toggleForm() {
             nomeGroup.id = 'nome-group';
             nomeGroup.className = 'input-group';
             nomeGroup.innerHTML = '<input type="text" id="nome" placeholder="Seu nome completo" required autocomplete="name">';
-            // Inserir após o campo de senha
             const passwordGroup = document.querySelector('#password')?.closest('.input-group');
             if (passwordGroup && passwordGroup.parentNode) {
                 passwordGroup.parentNode.insertBefore(nomeGroup, passwordGroup.nextSibling);
             } else if (form) {
-                const emailGroup = document.getElementById('email')?.closest('.input-group');
-                if (emailGroup && emailGroup.nextSibling) {
-                    form.insertBefore(nomeGroup, emailGroup.nextSibling);
-                } else {
-                    form.appendChild(nomeGroup);
-                }
+                form.appendChild(nomeGroup);
             }
         }
         if (submitBtn) {
@@ -243,10 +267,8 @@ function toggleForm() {
             submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
         }
         if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
-        if (divider) divider.style.display = 'flex';
         if (googleBtn) googleBtn.style.display = 'flex';
         
-        // Alterar título da página
         document.querySelector('.logo-section h1').textContent = 'Criar Conta';
         document.querySelector('.subtitle').textContent = 'CADASTRE-SE GRATUITAMENTE';
         
@@ -260,15 +282,12 @@ function toggleForm() {
             submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
         }
         if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
-        if (divider) divider.style.display = 'flex';
         if (googleBtn) googleBtn.style.display = 'flex';
         
-        // Restaurar título
         document.querySelector('.logo-section h1').textContent = 'Painel Zero';
         document.querySelector('.subtitle').textContent = 'PLATAFORMA ACADÊMICA';
     }
     
-    // Limpar campos
     document.getElementById('email').value = '';
     document.getElementById('password').value = '';
     if (document.getElementById('nome')) {
@@ -276,23 +295,32 @@ function toggleForm() {
     }
 }
 
-// Aguardar o Supabase CDN carregar
+// Aguardar o Supabase CDN carregar com polling mais agressivo
 function waitForSupabaseCDN() {
     return new Promise((resolve) => {
-        if (typeof createClient !== 'undefined') {
+        // Verificação rápida
+        if (typeof createClient !== 'undefined' || typeof supabase !== 'undefined') {
+            console.log('[Login] Supabase já disponível');
             resolve(true);
             return;
         }
         
+        console.log('[Login] Aguardando Supabase CDN...');
+        
         let tentativas = 0;
+        const maxTentativas = 100; // 10 segundos
         const interval = setInterval(() => {
             tentativas++;
-            if (typeof createClient !== 'undefined') {
+            
+            // Verificar múltiplas formas
+            if (typeof createClient !== 'undefined' || typeof supabase !== 'undefined' || window.supabase) {
                 clearInterval(interval);
+                console.log('[Login] Supabase CDN detectado após', tentativas, 'tentativas');
                 resolve(true);
-            } else if (tentativas > 50) {
+            } 
+            else if (tentativas >= maxTentativas) {
                 clearInterval(interval);
-                console.error('[Login] Supabase CDN não carregou');
+                console.error('[Login] Supabase CDN não carregou após', maxTentativas, 'tentativas');
                 resolve(false);
             }
         }, 100);
@@ -305,7 +333,14 @@ function waitForSupabaseCDN() {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     
-    // Aguardar CDN do Supabase
+    // Tentar carregar Supabase manualmente primeiro
+    try {
+        await loadSupabaseManually();
+    } catch (e) {
+        console.warn('[Login] Falha no carregamento manual');
+    }
+    
+    // Aguardar CDN
     const cdnLoaded = await waitForSupabaseCDN();
     if (!cdnLoaded) {
         showMessage('Erro ao carregar sistema. Recarregue a página.', true);
@@ -315,20 +350,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Supabase CDN carregado!');
     
     // Inicializar Supabase
-    initSupabase();
+    const supabase = initSupabase();
+    if (!supabase) {
+        showMessage('Erro ao inicializar conexão. Recarregue.', true);
+        return;
+    }
+    
+    console.log('[Login] Supabase inicializado com sucesso!');
     
     // Configurar listener de autenticação
-    if (supabaseClient) {
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Login] Auth state change:', event);
-            
-            if (event === 'SIGNED_IN' && session && !localStorage.getItem('usuarioLogado')) {
-                await processarLogin(session.user);
-            } else if (event === 'SIGNED_OUT') {
-                localStorage.removeItem('usuarioLogado');
-            }
-        });
-    }
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[Login] Auth state change:', event);
+        
+        if (event === 'SIGNED_IN' && session && !localStorage.getItem('usuarioLogado')) {
+            await processarLogin(session.user);
+        } else if (event === 'SIGNED_OUT') {
+            localStorage.removeItem('usuarioLogado');
+        }
+    });
     
     // Verificar sessão existente
     const hasSession = await checkExistingSession();
@@ -391,4 +430,15 @@ window.debugAuth = function() {
     console.log('usuarioLogado:', localStorage.getItem('usuarioLogado'));
     console.log('isRegisterMode:', isRegisterMode);
     console.log('================');
+};
+
+// Função para teste rápido de conexão
+window.testSupabase = async function() {
+    const supabase = initSupabase();
+    if (!supabase) {
+        console.error('Supabase não inicializado');
+        return;
+    }
+    const { data, error } = await supabase.auth.getSession();
+    console.log('Sessão atual:', data?.session?.user?.email || 'Nenhum');
 };

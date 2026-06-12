@@ -53,8 +53,23 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- SUPABASE CDN + SCRIPT DO LOGIN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SUPABASE CDN (Carregamento com fallback) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null; document.write('<script src=&quot;https://unpkg.com/@supabase/supabase-js@2&quot;><\\/script>');"></script>
+    </script>
+    
+    <!-- SCRIPT DO LOGIN -->
     <script src="script.js"></script>
+    
+    <script>
+        // Verificar se o Supabase carregou
+        setTimeout(function() {
+            if (typeof createClient === 'undefined' && typeof supabase === 'undefined') {
+                console.warn('[HTML] Supabase ainda não carregou, tentando fallback...');
+                var fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://unpkg.com/@supabase/supabase-js@2';
+                document.head.appendChild(fallbackScript);
+            }
+        }, 2000);
+    </script>
 </body>
 </html>
