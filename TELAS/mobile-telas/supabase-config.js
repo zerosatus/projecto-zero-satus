@@ -1,3 +1,39 @@
+// supabase-config.js - Configuração do Supabase
+// AGUARDAR O CDN CARREGAR
+if (typeof createClient === 'undefined') {
+    console.error('[Supabase] createClient não disponível. Aguardando CDN...');
+    // Não tentar inicializar ainda
+} else {
+    iniciarSupabase();
+}
+
+function iniciarSupabase() {
+    // Verificar se já foi carregado para evitar duplicação
+    if (typeof window._supabaseConfigured !== 'undefined') return;
+    window._supabaseConfigured = true;
+
+    const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_CnZEwvltWwOT0H2t0-HXqA_WO-zWL2n";
+
+    // Inicializar Supabase (apenas se não existir)
+    if (typeof window.supabaseClient === 'undefined') {
+        window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('[Supabase] ✅ Cliente inicializado');
+    }
+
+    // ... resto do código do AuthService, DatabaseService, etc. ...
+}
+
+// Se o CDN ainda não carregou, esperar
+if (typeof createClient === 'undefined') {
+    window.addEventListener('load', function() {
+        if (typeof createClient !== 'undefined') {
+            iniciarSupabase();
+        } else {
+            console.error('[Supabase] CDN não carregou após o load!');
+        }
+    });
+}
 // supabase-config.js - Configuração do Supabase (COMPLETO E CORRIGIDO)
 // Verificar se já foi carregado para evitar duplicação
 if (typeof window._supabaseConfigured === 'undefined') {
