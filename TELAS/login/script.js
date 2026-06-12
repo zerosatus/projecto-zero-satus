@@ -1,5 +1,4 @@
-// login/script.js - Login com Supabase
-let supabase = null;
+// login/script.js - Login com Supabase (CORRIGIDO - sem duplicação)
 let isRegisterMode = false;
 
 function ehCelular() {
@@ -144,6 +143,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     
     if (window.CacheManager) window.CacheManager.init();
+    
+    // Aguardar o AuthService ser carregado
+    let tentativas = 0;
+    while (!window.AuthService && tentativas < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        tentativas++;
+    }
     
     // Configurar listener de auth
     if (window.AuthService) {
