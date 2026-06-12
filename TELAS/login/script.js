@@ -1,4 +1,4 @@
-// login/script.js - Login completo com Supabase (TUDO EM UM)
+// login/script.js - Login completo com Supabase (LOGIN E CADASTRO)
 let isRegisterMode = false;
 let supabaseClient = null;
 
@@ -134,21 +134,58 @@ async function registerWithEmail(email, password, nome) {
         return false;
     }
     
+    // Validar senha
+    if (password.length < 6) {
+        showMessage('A senha deve ter no mínimo 6 caracteres!', true);
+        return false;
+    }
+    
     try {
         const { data, error } = await supabase.auth.signUp({
             email, 
             password,
-            options: { data: { full_name: nome } }
+            options: { 
+                data: { 
+                    full_name: nome,
+                    email: email
+                } 
+            }
         });
+        
         if (error) throw error;
         
-        showMessage('Cadastro realizado! Faça login para continuar.', false);
-        toggleForm();
-        return true;
+        if (data.user) {
+            // Verificar se precisa de confirmação de email
+            if (data.user.identities && data.user.identities.length === 0) {
+                showMessage('Este e-mail já está cadastrado! Faça login.', true);
+                return false;
+            }
+            
+            showMessage('Cadastro realizado com sucesso! Faça login para continuar.', false);
+            
+            // Limpar formulário e voltar para modo login
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = '';
+            if (document.getElementById('nome')) {
+                document.getElementById('nome').value = '';
+            }
+            
+            // Voltar para modo login
+            if (isRegisterMode) {
+                toggleForm();
+            }
+            
+            return true;
+        }
+        return false;
     } catch (error) {
         console.error('[Registro] Erro:', error);
         let errorMsg = error.message;
-        if (errorMsg.includes('User already registered')) errorMsg = 'Este e-mail já está cadastrado!';
+        if (errorMsg.includes('User already registered')) {
+            errorMsg = 'Este e-mail já está cadastrado! Faça login.';
+        } else if (errorMsg.includes('Password should be at least 6 characters')) {
+            errorMsg = 'A senha deve ter no mínimo 6 caracteres!';
+        }
         showMessage(errorMsg, true);
         return false;
     }
@@ -177,23 +214,65 @@ function toggleForm() {
     const form = document.getElementById('email-login-form');
     const submitBtn = form?.querySelector('.btn-primary');
     const toggleLink = document.getElementById('show-register');
+    const divider = document.querySelector('.divider');
+    const googleBtn = document.getElementById('google-login-btn');
     
     if (isRegisterMode) {
+        // MODO CADASTRO
         let nomeGroup = document.getElementById('nome-group');
         if (!nomeGroup) {
             nomeGroup = document.createElement('div');
             nomeGroup.id = 'nome-group';
             nomeGroup.className = 'input-group';
-            nomeGroup.innerHTML = '<input type="text" id="nome" placeholder="Seu nome completo" required>';
-            if (form) form.insertBefore(nomeGroup, form.firstChild);
+            nomeGroup.innerHTML = '<input type="text" id="nome" placeholder="Seu nome completo" required autocomplete="name">';
+            // Inserir após o campo de senha
+            const passwordGroup = document.querySelector('#password')?.closest('.input-group');
+            if (passwordGroup && passwordGroup.parentNode) {
+                passwordGroup.parentNode.insertBefore(nomeGroup, passwordGroup.nextSibling);
+            } else if (form) {
+                const emailGroup = document.getElementById('email')?.closest('.input-group');
+                if (emailGroup && emailGroup.nextSibling) {
+                    form.insertBefore(nomeGroup, emailGroup.nextSibling);
+                } else {
+                    form.appendChild(nomeGroup);
+                }
+            }
         }
-        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
+            submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        }
         if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
+        if (divider) divider.style.display = 'flex';
+        if (googleBtn) googleBtn.style.display = 'flex';
+        
+        // Alterar título da página
+        document.querySelector('.logo-section h1').textContent = 'Criar Conta';
+        document.querySelector('.subtitle').textContent = 'CADASTRE-SE GRATUITAMENTE';
+        
     } else {
+        // MODO LOGIN
         const nomeGroup = document.getElementById('nome-group');
         if (nomeGroup) nomeGroup.remove();
-        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+        
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+            submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
+        }
         if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
+        if (divider) divider.style.display = 'flex';
+        if (googleBtn) googleBtn.style.display = 'flex';
+        
+        // Restaurar título
+        document.querySelector('.logo-section h1').textContent = 'Painel Zero';
+        document.querySelector('.subtitle').textContent = 'PLATAFORMA ACADÊMICA';
+    }
+    
+    // Limpar campos
+    document.getElementById('email').value = '';
+    document.getElementById('password').value = '';
+    if (document.getElementById('nome')) {
+        document.getElementById('nome').value = '';
     }
 }
 
@@ -268,7 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (emailForm) {
         emailForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('email')?.value;
+            const email = document.getElementById('email')?.value.trim();
             const password = document.getElementById('password')?.value;
             
             if (!email || !password) {
@@ -277,9 +356,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             if (isRegisterMode) {
-                const nome = document.getElementById('nome')?.value;
+                const nome = document.getElementById('nome')?.value.trim();
                 if (!nome) {
-                    showMessage('Preencha seu nome!', true);
+                    showMessage('Preencha seu nome completo!', true);
                     return;
                 }
                 setLoading(emailForm.querySelector('.btn-primary'), true);
@@ -310,5 +389,6 @@ window.debugAuth = function() {
     console.log('createClient:', typeof createClient);
     console.log('supabaseClient:', !!supabaseClient);
     console.log('usuarioLogado:', localStorage.getItem('usuarioLogado'));
+    console.log('isRegisterMode:', isRegisterMode);
     console.log('================');
 };

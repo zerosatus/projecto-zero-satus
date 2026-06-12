@@ -30,10 +30,10 @@
 
             <form id="email-login-form">
                 <div class="input-group">
-                    <input type="email" id="email" placeholder="seu@email.com" required>
+                    <input type="email" id="email" placeholder="seu@email.com" required autocomplete="email">
                 </div>
                 <div class="input-group">
-                    <input type="password" id="password" placeholder="Sua senha" required>
+                    <input type="password" id="password" placeholder="Sua senha" required autocomplete="current-password">
                 </div>
                 <button type="submit" class="btn-primary">
                     <i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL
@@ -53,7 +53,7 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- APENAS O CDN DO SUPABASE + SCRIPT DO LOGIN -->
+    <!-- SUPABASE CDN + SCRIPT DO LOGIN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
