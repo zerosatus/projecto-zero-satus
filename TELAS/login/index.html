@@ -12,7 +12,7 @@
     <div class="container">
         <div class="logo-section">
             <div class="logo">
-
+                <i class="fas fa-graduation-cap"></i>
             </div>
             <h1 id="main-title">Painel Zero</h1>
             <p class="subtitle" id="main-subtitle">PLATAFORMA ACADÊMICA</p>   
@@ -56,10 +56,30 @@
 
     <div id="toast" class="toast"></div>
 
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- ============================================ -->
+    <!-- SUPABASE CDN (OBRIGATÓRIO)                   -->
+    <!-- ============================================ -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- PÁGINA -->
-<script src="script.js"></script>
+    <!-- ============================================ -->
+    <!-- SERVIÇOS DO SISTEMA (ORDEM CORRETA)          -->
+    <!-- ============================================ -->
+    <script src="../supabase-client.js"></script>
+    <script src="../database-service.js"></script>
+    <script src="../realtime-sync.js"></script>
+    <script src="../cache-manager.js"></script>
+    <script src="../shared-data.js"></script>
+    <script src="../sync-helper.js"></script>
+
+    <!-- ============================================ -->
+    <!-- FUNCIONALIDADES ADICIONAIS                   -->
+    <!-- ============================================ -->
+    <script src="../daily-phrases.js"></script>
+    <script src="../notes-sync.js"></script>
+
+    <!-- ============================================ -->
+    <!-- SCRIPT DA PÁGINA                             -->
+    <!-- ============================================ -->
+    <script src="script.js"></script>
 </body>
 </html>
