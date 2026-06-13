@@ -1,4 +1,4 @@
-// cache-manager.js - Versão Supabase COMPLETA
+// cache-manager.js - Versão Supabase COMPLETA E CORRIGIDA
 
 class SupabaseCacheManager {
     constructor() {
@@ -19,9 +19,13 @@ class SupabaseCacheManager {
         if (usuario) {
             try {
                 const user = JSON.parse(usuario);
+                // Usar o ID do Supabase (UUID) que vem do login
                 this.currentUserId = user.id;
-                return user.id;
-            } catch(e) {}
+                console.log('[CacheManager] User ID:', this.currentUserId);
+                return this.currentUserId;
+            } catch(e) {
+                console.error('[CacheManager] Erro ao parsear usuário:', e);
+            }
         }
         return null;
     }
@@ -49,7 +53,7 @@ class SupabaseCacheManager {
             const storageKey = `${userId}_${key}`;
             localStorage.setItem(storageKey, JSON.stringify(value));
             
-            // Salvar no Supabase se possível
+            // Salvar no Supabase
             this.saveToCloud(key, value, userId);
             
             if (notify && this.listeners.has(key)) {
@@ -86,13 +90,8 @@ class SupabaseCacheManager {
                     await window.DatabaseService.saveNotifications(userId, value);
                     break;
                 case 'usuarioLogado':
-                    if (value.id) {
-                        await window.DatabaseService.updateUserProfile(value.id, {
-                            nome: value.nome,
-                            telefone: value.telefone,
-                            nascimento: value.nascimento,
-                            genero: value.genero
-                        });
+                    if (value.id && value.email) {
+                        await window.DatabaseService.ensureUserData(value.id, value.email, value.nome);
                     }
                     break;
             }
@@ -112,47 +111,48 @@ class SupabaseCacheManager {
         }
         
         this.isLoading = true;
-        console.log('[CacheManager] ☁️ Carregando dados da nuvem...');
+        console.log('[CacheManager] ☁️ Carregando dados da nuvem para:', userId);
         let hasChanges = false;
         
         try {
             const tasks = await window.DatabaseService.getTasks(userId);
-            if (tasks) {
+            if (tasks && tasks.length > 0) {
                 localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
                 hasChanges = true;
             }
             
             const notes = await window.DatabaseService.getNotes(userId);
-            if (notes) {
+            if (notes && notes.length > 0) {
                 localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
                 hasChanges = true;
             }
             
             const events = await window.DatabaseService.getCalendarEvents(userId);
-            if (events) {
+            if (events && events.length > 0) {
                 localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(events));
                 hasChanges = true;
             }
             
             const schedule = await window.DatabaseService.getWeeklySchedule(userId);
-            if (schedule) {
+            if (schedule && Object.keys(schedule).length > 0) {
                 localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(schedule));
                 hasChanges = true;
             }
             
             const slots = await window.DatabaseService.getTimeSlots(userId);
-            if (slots) {
+            if (slots && slots.length > 0) {
                 localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(slots));
                 hasChanges = true;
             }
             
             const notif = await window.DatabaseService.getNotifications(userId);
-            if (notif) {
+            if (notif && notif.length > 0) {
                 localStorage.setItem(`${userId}_notifications`, JSON.stringify(notif));
                 hasChanges = true;
             }
             
             if (hasChanges) {
+                console.log('[CacheManager] Dados carregados da nuvem!');
                 window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
             }
             return true;
@@ -181,11 +181,9 @@ class SupabaseCacheManager {
     }
     
     async logout() {
-        // Desconectar realtime
         if (window.RealtimeSyncManager) {
             window.RealtimeSyncManager.disconnect();
         }
-        
         this.currentUserId = null;
         this.listeners.clear();
         console.log('[CacheManager] Logout realizado');
@@ -224,7 +222,7 @@ if (typeof window.CacheManager === 'undefined') {
     window.CacheManager = new SupabaseCacheManager();
 }
 
-// Funções globais de conveniência
+// Funções globais
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
