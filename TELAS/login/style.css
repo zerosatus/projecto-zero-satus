@@ -37,21 +37,12 @@ body {
     align-items: center;
     margin: 0 auto 20px;
     box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-    overflow: hidden;
-    padding: 3px;
+    animation: pulse 2s infinite;
 }
 
-.logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 20px;
-    display: block;
-    transition: transform 0.3s ease;
-}
-
-.logo:hover img {
-    transform: scale(1.05);
+.logo i {
+    font-size: 50px;
+    color: white;
 }
 
 .logo-section h1 {
@@ -81,95 +72,66 @@ body {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
-.tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 30px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-.tab-btn {
-    flex: 1;
-    padding: 12px;
-    background: transparent;
-    border: none;
-    color: #888;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.tab-btn:hover {
-    color: #b07cee;
-}
-
-.tab-btn.active {
-    color: #9333ea;
-}
-
-.tab-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
+.btn-google {
     width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, #9333ea, #7c3aed);
+    padding: 16px;
+    background: #ffffff;
+    border: none;
+    border-radius: 12px;
+    color: #333;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.form {
-    display: none;
+.btn-google i {
+    font-size: 20px;
+    color: #db4437;
 }
 
-.form.active {
-    display: block;
-    animation: fadeIn 0.4s ease;
+.btn-google:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.btn-google:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: #666;
+    font-size: 12px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.divider span {
+    margin: 0 10px;
 }
 
 .input-group {
     margin-bottom: 24px;
 }
 
-.input-group label {
-    display: block;
-    color: #888;
-    font-size: 11px;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-icon {
-    position: absolute;
-    left: 16px;
-    color: #666;
-    font-size: 14px;
-    z-index: 1;
-}
-
-.input-wrapper input {
+.input-group input {
     width: 100%;
-    padding: 14px 16px 14px 48px;
+    padding: 14px 16px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
@@ -178,47 +140,15 @@ body {
     transition: all 0.3s ease;
 }
 
-.input-wrapper input:focus {
+.input-group input:focus {
     outline: none;
     border-color: #9333ea;
     background: rgba(147, 51, 234, 0.05);
     box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
 }
 
-.input-wrapper input::placeholder {
+.input-group input::placeholder {
     color: #666;
-}
-
-.toggle-password {
-    position: absolute;
-    right: 16px;
-    background: none;
-    border: none;
-    color: #666;
-    cursor: pointer;
-    font-size: 14px;
-    transition: color 0.3s ease;
-    z-index: 1;
-}
-
-.toggle-password:hover {
-    color: #9333ea;
-}
-
-.forgot-password {
-    display: block;
-    text-align: right;
-    color: #9333ea;
-    font-size: 11px;
-    margin-top: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
-.forgot-password:hover {
-    text-decoration: underline;
-    color: #b07cee;
 }
 
 .btn-primary {
@@ -274,22 +204,36 @@ body {
 
 .register-link {
     text-align: center;
-    color: #666;
-    font-size: 12px;
-    letter-spacing: 1px;
     margin-top: 24px;
 }
 
 .register-link a {
     color: #9333ea;
     text-decoration: none;
+    font-size: 13px;
     font-weight: 600;
     transition: color 0.3s ease;
+    cursor: pointer;
 }
 
 .register-link a:hover {
     color: #b07cee;
     text-decoration: underline;
+}
+
+.info-text {
+    text-align: center;
+    margin-top: 20px;
+    color: #888;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.info-text i {
+    color: #10b981;
 }
 
 .toast {
@@ -318,10 +262,6 @@ body {
     background: #dc2626;
 }
 
-.toast.success {
-    background: #10b981;
-}
-
 @media (max-width: 480px) {
     .login-container {
         padding: 30px 20px;
@@ -336,6 +276,10 @@ body {
         height: 80px;
     }
 
+    .logo i {
+        font-size: 40px;
+    }
+
     .subtitle {
         font-size: 10px;
         letter-spacing: 2px;
@@ -346,6 +290,11 @@ body {
         right: 20px;
         max-width: none;
         text-align: center;
+    }
+
+    .btn-google {
+        padding: 14px;
+        font-size: 14px;
     }
 }
 
@@ -359,10 +308,6 @@ body {
     100% {
         box-shadow: 0 0 0 0 rgba(147, 51, 234, 0);
     }
-}
-
-.logo {
-    animation: pulse 2s infinite;
 }
 
 ::-webkit-scrollbar {
@@ -382,198 +327,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(147, 51, 234, 0.7);
-}
-
-/* Estilo para o botão Google */
-.btn-google {
-    width: 100%;
-    padding: 16px;
-    background: #ffffff;
-    border: none;
-    border-radius: 12px;
-    color: #333;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.btn-google i {
-    font-size: 20px;
-    color: #db4437;
-}
-
-.btn-google:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.btn-google:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.info-text {
-    text-align: center;
-    margin-top: 20px;
-    color: #888;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.info-text i {
-    color: #10b981;
-}
-
-@media (max-width: 480px) {
-    .btn-google {
-        padding: 14px;
-        font-size: 14px;
-    }
-}
-
-/* Botão de Migrar */
-.btn-migrar {
-    width: 100%;
-    margin-top: 15px;
-    padding: 14px;
-    background: rgba(147, 51, 234, 0.15);
-    border: 1px solid rgba(147, 51, 234, 0.4);
-    border-radius: 12px;
-    color: #9333ea;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.3s ease;
-}
-
-.btn-migrar:hover {
-    background: rgba(147, 51, 234, 0.25);
-    border-color: #9333ea;
-    transform: translateY(-2px);
-}
-
-.btn-migrar i {
-    font-size: 16px;
-}
-
-/* Divisor entre botões */
-.divider {
-    display: flex;
-    align-items: center;
-    text-align: center;
-    margin: 20px 0;
-    color: #666;
-    font-size: 12px;
-}
-
-.divider::before,
-.divider::after {
-    content: '';
-    flex: 1;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.divider span {
-    margin: 0 10px;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    color: #fff;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
-
-.input-group input:focus {
-    outline: none;
-    border-color: #9333ea;
-    background: rgba(147, 51, 234, 0.05);
-    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
-}
-
-.btn-primary {
-    width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
-    border: none;
-    border-radius: 12px;
-    color: white;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    transition: all 0.3s ease;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(147, 51, 234, 0.6);
-}
-
-.btn-google {
-    width: 100%;
-    padding: 16px;
-    background: #ffffff;
-    border: none;
-    border-radius: 12px;
-    color: #333;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    transition: all 0.3s ease;
-}
-
-.btn-google i {
-    font-size: 20px;
-    color: #db4437;
-}
-
-.register-link {
-    text-align: center;
-    margin-top: 20px;
-}
-
-.register-link a {
-    color: #9333ea;
-    text-decoration: none;
-    font-size: 13px;
-}
-
-.register-link a:hover {
-    text-decoration: underline;
-}
-
-.info-text {
-    text-align: center;
-    margin-top: 20px;
-    color: #888;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
 }

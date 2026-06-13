@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Painel Zero - Login</title>
-    <link rel="icon" href="../../imagem/favicon.png" type="image/png"> 
+    <title>Painel Zero - Login e Cadastro</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%239333ea' rx='20'/%3E%3Ctext x='50' y='67' font-size='50' text-anchor='middle' fill='white' font-weight='bold'%3E0%3C/text%3E%3C/svg%3E" type="image/png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -12,10 +12,10 @@
     <div class="container">
         <div class="logo-section">
             <div class="logo">
-                <img src="../../imagem/icon.jpg" alt="Painel Zero Logo">
+                <i class="fas fa-graduation-cap" style="font-size: 50px; color: white;"></i>
             </div>
-            <h1>Painel Zero</h1>
-            <p class="subtitle">PLATAFORMA ACADÊMICA</p>
+            <h1 id="main-title">Painel Zero</h1>
+            <p class="subtitle" id="main-subtitle">PLATAFORMA ACADÊMICA</p>
         </div>
 
         <div class="login-container">
@@ -28,20 +28,23 @@
                 <span>ou</span>
             </div>
 
-            <form id="email-login-form">
+            <form id="auth-form">
+                <div id="nome-field" class="input-group" style="display: none;">
+                    <input type="text" id="nome" placeholder="Seu nome completo" autocomplete="name">
+                </div>
                 <div class="input-group">
                     <input type="email" id="email" placeholder="seu@email.com" required autocomplete="email">
                 </div>
                 <div class="input-group">
                     <input type="password" id="password" placeholder="Sua senha" required autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn-primary" id="submit-btn">
                     <i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL
                 </button>
             </form>
 
             <div class="register-link">
-                <a href="#" id="show-register">Não tem conta? Cadastre-se</a>
+                <a href="#" id="toggle-mode-link">Não tem conta? Cadastre-se</a>
             </div>
 
             <div class="info-text">
@@ -53,23 +56,7 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- SUPABASE CDN (Carregamento com fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null; document.write('<script src=&quot;https://unpkg.com/@supabase/supabase-js@2&quot;><\\/script>');"></script>
-    </script>
-    
-    <!-- SCRIPT DO LOGIN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
-    
-    <script>
-        // Verificar se o Supabase carregou
-        setTimeout(function() {
-            if (typeof createClient === 'undefined' && typeof supabase === 'undefined') {
-                console.warn('[HTML] Supabase ainda não carregou, tentando fallback...');
-                var fallbackScript = document.createElement('script');
-                fallbackScript.src = 'https://unpkg.com/@supabase/supabase-js@2';
-                document.head.appendChild(fallbackScript);
-            }
-        }, 2000);
-    </script>
 </body>
 </html>

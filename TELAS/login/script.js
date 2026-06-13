@@ -1,21 +1,27 @@
-// login/script.js - Login completo com Supabase (VERSÃO CORRIGIDA)
+// Configurações do Supabase
+const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
+
+// Inicializar Supabase
+let supabase = null;
+
+// Estado da UI
 let isRegisterMode = false;
-let supabaseClient = null;
 
-function ehCelular() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
-        || window.innerWidth <= 768;
-}
+// Elementos DOM
+let nomeField, nomeInput, emailInput, passwordInput, submitBtn, toggleLink, mainTitle, mainSubtitle, googleBtn, toastEl;
 
+// Função para mostrar mensagem
 function showMessage(message, isError = false) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.style.backgroundColor = isError ? '#dc2626' : '#10b981';
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 3000);
+    console.log('[Message]', message);
+    if (!toastEl) return;
+    toastEl.textContent = message;
+    toastEl.style.backgroundColor = isError ? '#dc2626' : '#10b981';
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 4000);
 }
 
+// Função de loading
 function setLoading(button, isLoading) {
     if (!button) return;
     if (isLoading) {
@@ -28,139 +34,52 @@ function setLoading(button, isLoading) {
     }
 }
 
-async function processarLogin(user) {
-    console.log('[Login] Processando login para:', user.email);
+// Detectar mobile
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+}
+
+// Processar login do usuário
+async function processUserLogin(user) {
+    console.log('[Auth] Processando login para:', user.email);
+    
+    let nomeUsuario = user.user_metadata?.full_name || user.user_metadata?.name || '';
+    if (!nomeUsuario && user.email) {
+        nomeUsuario = user.email.split('@')[0];
+    }
     
     const usuario = {
         id: user.id,
         email: user.email,
-        nome: user.user_metadata?.full_name || user.email.split('@')[0],
+        nome: nomeUsuario,
         foto: user.user_metadata?.avatar_url || null,
         logado: true
     };
     
     localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
-    
-    showMessage(`Bem-vindo, ${usuario.nome}!`);
+    showMessage(`Bem-vindo, ${usuario.nome}! Redirecionando...`);
     
     setTimeout(() => {
-        const isMobile = ehCelular();
-        window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-    }, 500);
+        const mobile = isMobileDevice();
+        const redirectPath = mobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+        console.log('[Redirect] Indo para:', redirectPath);
+        window.location.href = redirectPath;
+    }, 800);
 }
 
-// ============================================
-// SUPABASE AUTH FUNCTIONS
-// ============================================
-
-function initSupabase() {
-    if (supabaseClient) return supabaseClient;
-    
-    const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_CnZEwvltWwOT0H2t0-HXqA_WO-zWL2n";
-    
-    // Verificar se createClient está disponível (Suporte a múltiplos formatos)
-    if (typeof createClient !== 'undefined') {
-        supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('[Login] Supabase client criado com createClient');
-    } 
-    // Verificar se supabase já está disponível globalmente
-    else if (typeof supabase !== 'undefined') {
-        supabaseClient = supabase;
-        console.log('[Login] Supabase client já disponível');
-    }
-    // Verificar se window.supabase está disponível
-    else if (window.supabase) {
-        supabaseClient = window.supabase;
-        console.log('[Login] Supabase client via window.supabase');
-    }
-    else {
-        console.error('[Login] Nenhum cliente Supabase disponível');
-        return null;
-    }
-    
-    return supabaseClient;
-}
-
-// Função para carregar o Supabase manualmente se necessário
-function loadSupabaseManually() {
-    return new Promise((resolve, reject) => {
-        // Verificar se já está carregado
-        if (typeof createClient !== 'undefined' || typeof supabase !== 'undefined') {
-            resolve(true);
-            return;
-        }
-        
-        console.log('[Login] Tentando carregar Supabase manualmente...');
-        
-        // Tentar com CDN principal
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-        script.onload = () => {
-            console.log('[Login] Supabase CDN carregado manualmente!');
-            resolve(true);
-        };
-        script.onerror = () => {
-            console.error('[Login] Falha ao carregar CDN principal');
-            
-            // Tentar com CDN alternativo
-            const script2 = document.createElement('script');
-            script2.src = 'https://unpkg.com/@supabase/supabase-js@2';
-            script2.onload = () => {
-                console.log('[Login] Supabase CDN alternativo carregado!');
-                resolve(true);
-            };
-            script2.onerror = () => {
-                console.error('[Login] Falha ao carregar todos os CDNs');
-                reject(false);
-            };
-            document.head.appendChild(script2);
-        };
-        document.head.appendChild(script);
-    });
-}
-
-async function loginWithGoogle() {
-    const supabase = initSupabase();
-    if (!supabase) {
-        showMessage('Sistema offline. Tente novamente.', true);
-        return;
-    }
-    
-    try {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { 
-                redirectTo: window.location.origin + window.location.pathname
-            }
-        });
-        if (error) throw error;
-    } catch (error) {
-        console.error('[Google] Erro:', error);
-        showMessage('Erro ao fazer login com Google. Tente novamente.', true);
-    }
-}
-
+// LOGIN COM EMAIL/SENHA
 async function loginWithEmail(email, password) {
-    const supabase = initSupabase();
-    if (!supabase) {
-        showMessage('Sistema offline. Tente novamente.', true);
-        return false;
-    }
-    
     try {
-        const { data, error } = await supabase.auth.signInWithPassword({ 
-            email, password 
-        });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
         if (data.user) {
-            await processarLogin(data.user);
+            await processUserLogin(data.user);
             return true;
         }
         return false;
     } catch (error) {
-        console.error('[Email] Erro:', error);
+        console.error('[Login] Erro:', error);
         let errorMsg = error.message || 'E-mail ou senha incorretos!';
         if (errorMsg.includes('Invalid login credentials')) errorMsg = 'E-mail ou senha incorretos!';
         showMessage(errorMsg, true);
@@ -168,44 +87,41 @@ async function loginWithEmail(email, password) {
     }
 }
 
-async function registerWithEmail(email, password, nome) {
-    const supabase = initSupabase();
-    if (!supabase) {
-        showMessage('Sistema offline. Tente novamente.', true);
-        return false;
-    }
-    
+// REGISTRO com EMAIL/SENHA + NOME
+async function registerWithEmail(email, password, fullName) {
     if (password.length < 6) {
         showMessage('A senha deve ter no mínimo 6 caracteres!', true);
         return false;
     }
     
+    if (!fullName || fullName.trim().length < 3) {
+        showMessage('Por favor, insira seu nome completo (mínimo 3 letras)', true);
+        return false;
+    }
+    
     try {
         const { data, error } = await supabase.auth.signUp({
-            email, 
+            email,
             password,
-            options: { 
-                data: { 
-                    full_name: nome,
+            options: {
+                data: {
+                    full_name: fullName.trim(),
                     email: email
-                } 
+                }
             }
         });
         
         if (error) throw error;
         
         if (data.user) {
-            showMessage('Cadastro realizado com sucesso! Faça login.', false);
-            
-            // Limpar e voltar para login
-            document.getElementById('email').value = email;
-            document.getElementById('password').value = '';
-            if (document.getElementById('nome')) {
-                document.getElementById('nome').value = '';
-            }
+            showMessage('✅ Cadastro realizado com sucesso! Agora faça seu login.', false);
+            // Voltar para modo login
             if (isRegisterMode) {
-                toggleForm();
+                toggleFormMode();
             }
+            emailInput.value = email;
+            passwordInput.value = '';
+            if (nomeInput) nomeInput.value = '';
             return true;
         }
         return false;
@@ -222,223 +138,179 @@ async function registerWithEmail(email, password, nome) {
     }
 }
 
-async function checkExistingSession() {
-    const supabase = initSupabase();
-    if (!supabase) return false;
+// LOGIN COM GOOGLE
+async function loginWithGoogle() {
+    try {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin + window.location.pathname
+            }
+        });
+        if (error) throw error;
+    } catch (error) {
+        console.error('[Google] Erro:', error);
+        showMessage('Erro ao iniciar login com Google. Tente novamente.', true);
+    }
+}
+
+// Alternar entre modo login e cadastro
+function toggleFormMode() {
+    console.log('[Toggle] Alternando modo. Atual:', isRegisterMode ? 'cadastro' : 'login');
+    isRegisterMode = !isRegisterMode;
     
+    if (isRegisterMode) {
+        // Modo CADASTRO
+        nomeField.style.display = 'block';
+        submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
+        submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        toggleLink.innerHTML = 'Já tem conta? Faça login';
+        mainTitle.textContent = 'Criar Conta';
+        mainSubtitle.textContent = 'CADASTRE-SE GRATUITAMENTE';
+        emailInput.placeholder = 'seu@email.com';
+        passwordInput.placeholder = 'Senha (min 6 caracteres)';
+        console.log('[Toggle] Modo alterado para: CADASTRO');
+    } else {
+        // Modo LOGIN
+        nomeField.style.display = 'none';
+        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+        submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
+        toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
+        mainTitle.textContent = 'Painel Zero';
+        mainSubtitle.textContent = 'PLATAFORMA ACADÊMICA';
+        emailInput.placeholder = 'seu@email.com';
+        passwordInput.placeholder = 'Sua senha';
+        console.log('[Toggle] Modo alterado para: LOGIN');
+    }
+    
+    // Limpar campos
+    emailInput.value = '';
+    passwordInput.value = '';
+    if (nomeInput) nomeInput.value = '';
+}
+
+// Verificar sessão existente
+async function checkExistingSession() {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user && !localStorage.getItem('usuarioLogado')) {
-            console.log('[Login] Sessão existente encontrada');
-            await processarLogin(session.user);
+            console.log('[Auth] Sessão existente encontrada, redirecionando...');
+            await processUserLogin(session.user);
             return true;
         }
         return false;
     } catch (error) {
-        console.warn('[Login] Erro ao verificar sessão:', error);
+        console.warn('[Auth] Erro ao verificar sessão:', error);
         return false;
     }
 }
 
-function toggleForm() {
-    isRegisterMode = !isRegisterMode;
-    const form = document.getElementById('email-login-form');
-    const submitBtn = form?.querySelector('.btn-primary');
-    const toggleLink = document.getElementById('show-register');
-    const googleBtn = document.getElementById('google-login-btn');
-    
-    if (isRegisterMode) {
-        // MODO CADASTRO
-        let nomeGroup = document.getElementById('nome-group');
-        if (!nomeGroup) {
-            nomeGroup = document.createElement('div');
-            nomeGroup.id = 'nome-group';
-            nomeGroup.className = 'input-group';
-            nomeGroup.innerHTML = '<input type="text" id="nome" placeholder="Seu nome completo" required autocomplete="name">';
-            const passwordGroup = document.querySelector('#password')?.closest('.input-group');
-            if (passwordGroup && passwordGroup.parentNode) {
-                passwordGroup.parentNode.insertBefore(nomeGroup, passwordGroup.nextSibling);
-            } else if (form) {
-                form.appendChild(nomeGroup);
-            }
-        }
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
-            submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        }
-        if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
-        if (googleBtn) googleBtn.style.display = 'flex';
-        
-        document.querySelector('.logo-section h1').textContent = 'Criar Conta';
-        document.querySelector('.subtitle').textContent = 'CADASTRE-SE GRATUITAMENTE';
-        
-    } else {
-        // MODO LOGIN
-        const nomeGroup = document.getElementById('nome-group');
-        if (nomeGroup) nomeGroup.remove();
-        
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
-            submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
-        }
-        if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
-        if (googleBtn) googleBtn.style.display = 'flex';
-        
-        document.querySelector('.logo-section h1').textContent = 'Painel Zero';
-        document.querySelector('.subtitle').textContent = 'PLATAFORMA ACADÊMICA';
-    }
-    
-    document.getElementById('email').value = '';
-    document.getElementById('password').value = '';
-    if (document.getElementById('nome')) {
-        document.getElementById('nome').value = '';
-    }
-}
-
-// Aguardar o Supabase CDN carregar com polling mais agressivo
-function waitForSupabaseCDN() {
-    return new Promise((resolve) => {
-        // Verificação rápida
-        if (typeof createClient !== 'undefined' || typeof supabase !== 'undefined') {
-            console.log('[Login] Supabase já disponível');
-            resolve(true);
-            return;
-        }
-        
-        console.log('[Login] Aguardando Supabase CDN...');
-        
-        let tentativas = 0;
-        const maxTentativas = 100; // 10 segundos
-        const interval = setInterval(() => {
-            tentativas++;
-            
-            // Verificar múltiplas formas
-            if (typeof createClient !== 'undefined' || typeof supabase !== 'undefined' || window.supabase) {
-                clearInterval(interval);
-                console.log('[Login] Supabase CDN detectado após', tentativas, 'tentativas');
-                resolve(true);
-            } 
-            else if (tentativas >= maxTentativas) {
-                clearInterval(interval);
-                console.error('[Login] Supabase CDN não carregou após', maxTentativas, 'tentativas');
-                resolve(false);
-            }
-        }, 100);
-    });
-}
-
-// ============================================
-// INICIALIZAÇÃO PRINCIPAL
-// ============================================
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[Login] Inicializando...');
-    
-    // Tentar carregar Supabase manualmente primeiro
-    try {
-        await loadSupabaseManually();
-    } catch (e) {
-        console.warn('[Login] Falha no carregamento manual');
-    }
-    
-    // Aguardar CDN
-    const cdnLoaded = await waitForSupabaseCDN();
-    if (!cdnLoaded) {
-        showMessage('Erro ao carregar sistema. Recarregue a página.', true);
-        return;
-    }
-    
-    console.log('[Login] Supabase CDN carregado!');
-    
-    // Inicializar Supabase
-    const supabase = initSupabase();
-    if (!supabase) {
-        showMessage('Erro ao inicializar conexão. Recarregue.', true);
-        return;
-    }
-    
-    console.log('[Login] Supabase inicializado com sucesso!');
-    
-    // Configurar listener de autenticação
+// Listener de mudança de estado de autenticação
+function setupAuthStateListener() {
     supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('[Login] Auth state change:', event);
-        
-        if (event === 'SIGNED_IN' && session && !localStorage.getItem('usuarioLogado')) {
-            await processarLogin(session.user);
+        console.log('[Auth] Evento:', event);
+        if (event === 'SIGNED_IN' && session && session.user) {
+            if (!localStorage.getItem('usuarioLogado')) {
+                await processUserLogin(session.user);
+            }
         } else if (event === 'SIGNED_OUT') {
             localStorage.removeItem('usuarioLogado');
         }
     });
+}
+
+// Evento de submit do formulário
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    console.log('[Form] Submit detectado. Modo:', isRegisterMode ? 'cadastro' : 'login');
+    
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    
+    if (!email || !password) {
+        showMessage('Preencha e-mail e senha!', true);
+        return;
+    }
+    
+    if (isRegisterMode) {
+        const nome = nomeInput ? nomeInput.value.trim() : '';
+        if (!nome) {
+            showMessage('Preencha seu nome completo!', true);
+            return;
+        }
+        setLoading(submitBtn, true);
+        await registerWithEmail(email, password, nome);
+        setLoading(submitBtn, false);
+    } else {
+        setLoading(submitBtn, true);
+        await loginWithEmail(email, password);
+        setLoading(submitBtn, false);
+    }
+}
+
+// Inicialização
+async function init() {
+    console.log('[Init] Iniciando aplicação...');
+    
+    // Inicializar Supabase diretamente
+    if (window.supabase && window.supabase.createClient) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('[Init] Supabase inicializado!');
+    } else {
+        console.error('[Init] Supabase não disponível');
+        showMessage('Erro ao carregar sistema. Recarregue a página.', true);
+        return;
+    }
+    
+    // Obter elementos DOM
+    nomeField = document.getElementById('nome-field');
+    nomeInput = document.getElementById('nome');
+    emailInput = document.getElementById('email');
+    passwordInput = document.getElementById('password');
+    submitBtn = document.getElementById('submit-btn');
+    toggleLink = document.getElementById('toggle-mode-link');
+    mainTitle = document.getElementById('main-title');
+    mainSubtitle = document.getElementById('main-subtitle');
+    googleBtn = document.getElementById('google-login-btn');
+    toastEl = document.getElementById('toast');
+    
+    // Configurar listener de auth
+    setupAuthStateListener();
     
     // Verificar sessão existente
     const hasSession = await checkExistingSession();
     if (hasSession) return;
     
-    // Configurar eventos da UI
-    const googleBtn = document.getElementById('google-login-btn');
+    // Configurar eventos
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
             e.preventDefault();
             loginWithGoogle();
         });
+        console.log('[Init] Evento do Google configurado');
     }
     
-    const emailForm = document.getElementById('email-login-form');
-    if (emailForm) {
-        emailForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email')?.value.trim();
-            const password = document.getElementById('password')?.value;
-            
-            if (!email || !password) {
-                showMessage('Preencha e-mail e senha!', true);
-                return;
-            }
-            
-            if (isRegisterMode) {
-                const nome = document.getElementById('nome')?.value.trim();
-                if (!nome) {
-                    showMessage('Preencha seu nome completo!', true);
-                    return;
-                }
-                setLoading(emailForm.querySelector('.btn-primary'), true);
-                await registerWithEmail(email, password, nome);
-                setLoading(emailForm.querySelector('.btn-primary'), false);
-            } else {
-                setLoading(emailForm.querySelector('.btn-primary'), true);
-                await loginWithEmail(email, password);
-                setLoading(emailForm.querySelector('.btn-primary'), false);
-            }
-        });
+    const authForm = document.getElementById('auth-form');
+    if (authForm) {
+        authForm.addEventListener('submit', handleFormSubmit);
+        console.log('[Init] Evento do formulário configurado');
     }
     
-    const toggleLink = document.getElementById('show-register');
     if (toggleLink) {
         toggleLink.addEventListener('click', (e) => {
             e.preventDefault();
-            toggleForm();
+            console.log('[Toggle] Link clicado!');
+            toggleFormMode();
         });
+        console.log('[Init] Evento do toggle configurado');
     }
     
-    console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-});
+    console.log('%c🔐 Painel Zero - Login/Cadastro com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+}
 
-// Função de debug
-window.debugAuth = function() {
-    console.log('===== DEBUG =====');
-    console.log('createClient:', typeof createClient);
-    console.log('supabaseClient:', !!supabaseClient);
-    console.log('usuarioLogado:', localStorage.getItem('usuarioLogado'));
-    console.log('isRegisterMode:', isRegisterMode);
-    console.log('================');
-};
-
-// Função para teste rápido de conexão
-window.testSupabase = async function() {
-    const supabase = initSupabase();
-    if (!supabase) {
-        console.error('Supabase não inicializado');
-        return;
-    }
-    const { data, error } = await supabase.auth.getSession();
-    console.log('Sessão atual:', data?.session?.user?.email || 'Nenhum');
-};
+// Iniciar quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
