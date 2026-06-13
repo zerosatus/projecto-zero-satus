@@ -194,25 +194,22 @@
 
     <div id="toast-container"></div>
 
-    <!-- FIREBASE CDNs (OBRIGATÓRIO) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!-- SISTEMA PRINCIPAL (ORDEM CORRETA)              -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <script src="../preload-system.js"></script>
-    <script src="../fast-bootstrap.js"></script>
-    <script src="../cache-manager.js"></script>
-    <script src="../shared-data.js"></script>
-    <script src="../supabase-config.js"></script>
-    <script src="../sync-helper.js"></script>
-    
-    <!-- ═══════════════════════════════════════════════ -->
-    <!-- FEATURES ADICIONAIS                            -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <script src="../daily-phrases.js"></script>
-    <script src="../notes-sync.js"></script>
-    
-    <!-- ═══════════════════════════════════════════════ -->
-    <script src="script.js"></script>
+<!-- Supabase CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
+<script src="../supabase-client.js"></script>     <!-- AuthService primeiro -->
+<script src="../database-service.js"></script>    <!-- DatabaseService -->
+<script src="../realtime-sync.js"></script>       <!-- Realtime -->
+<script src="../cache-manager.js"></script>       <!-- Cache -->
+<script src="../shared-data.js"></script>         <!-- Shared -->
+<script src="../sync-helper.js"></script>         <!-- Sync -->
+
+<!-- FUNCIONALIDADES -->
+<script src="../daily-phrases.js"></script>
+<script src="../notes-sync.js"></script>
+
+<!-- PÁGINA -->
+<script src="script.js"></script>
 </body>
 </html>
