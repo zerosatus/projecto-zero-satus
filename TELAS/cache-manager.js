@@ -1,13 +1,15 @@
-// cache-manager.js - Versão Supabase
+// cache-manager.js - Versão Supabase COMPLETA
+
 class SupabaseCacheManager {
     constructor() {
         this.listeners = new Map();
         this.currentUserId = null;
         this._pendingSync = new Map();
+        this.isLoading = false;
     }
     
     init() {
-        console.log('[CacheManager] Supabase v1 inicializado');
+        console.log('[CacheManager] Inicializado');
     }
     
     getCurrentUserId() {
@@ -47,6 +49,9 @@ class SupabaseCacheManager {
             const storageKey = `${userId}_${key}`;
             localStorage.setItem(storageKey, JSON.stringify(value));
             
+            // Salvar no Supabase se possível
+            this.saveToCloud(key, value, userId);
+            
             if (notify && this.listeners.has(key)) {
                 this.listeners.get(key).forEach(cb => cb(value));
             }
@@ -57,10 +62,56 @@ class SupabaseCacheManager {
         }
     }
     
-    async loadFromCloud() {
+    async saveToCloud(key, value, userId) {
+        if (!window.DatabaseService || !userId) return;
+        
+        try {
+            switch(key) {
+                case 'tasks':
+                    await window.DatabaseService.saveTasks(userId, value);
+                    break;
+                case 'notes':
+                    await window.DatabaseService.saveNotes(userId, value);
+                    break;
+                case 'calendarEvents':
+                    await window.DatabaseService.saveCalendarEvents(userId, value);
+                    break;
+                case 'weeklySchedule':
+                    await window.DatabaseService.saveWeeklySchedule(userId, value);
+                    break;
+                case 'timeSlots':
+                    await window.DatabaseService.saveTimeSlots(userId, value);
+                    break;
+                case 'notifications':
+                    await window.DatabaseService.saveNotifications(userId, value);
+                    break;
+                case 'usuarioLogado':
+                    if (value.id) {
+                        await window.DatabaseService.updateUserProfile(value.id, {
+                            nome: value.nome,
+                            telefone: value.telefone,
+                            nascimento: value.nascimento,
+                            genero: value.genero
+                        });
+                    }
+                    break;
+            }
+            console.log(`[CacheManager] Dados ${key} salvos na nuvem`);
+        } catch (error) {
+            console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
+        }
+    }
+    
+    async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
         if (!userId || !window.DatabaseService) return false;
         
+        if (this.isLoading && !force) {
+            console.log('[CacheManager] Já carregando...');
+            return false;
+        }
+        
+        this.isLoading = true;
         console.log('[CacheManager] ☁️ Carregando dados da nuvem...');
         let hasChanges = false;
         
@@ -108,11 +159,13 @@ class SupabaseCacheManager {
         } catch (error) {
             console.error('[CacheManager] Erro no loadFromCloud:', error);
             return false;
+        } finally {
+            this.isLoading = false;
         }
     }
     
     async forceSync() {
-        return await this.loadFromCloud();
+        return await this.loadFromCloud(true);
     }
     
     addListener(key, callback) {
@@ -128,6 +181,11 @@ class SupabaseCacheManager {
     }
     
     async logout() {
+        // Desconectar realtime
+        if (window.RealtimeSyncManager) {
+            window.RealtimeSyncManager.disconnect();
+        }
+        
         this.currentUserId = null;
         this.listeners.clear();
         console.log('[CacheManager] Logout realizado');
@@ -135,12 +193,10 @@ class SupabaseCacheManager {
     
     async getProfilePhotoUrl() {
         const userId = this.getCurrentUserId();
-        if (!userId) return null;
-        if (window.DatabaseService) {
-            const profile = await window.DatabaseService.getUserProfile(userId);
-            return profile?.avatar_url || null;
-        }
-        return null;
+        if (!userId || !window.DatabaseService) return null;
+        
+        const profile = await window.DatabaseService.getUserProfile(userId);
+        return profile?.avatar_url || null;
     }
     
     async uploadProfilePhoto(file) {
@@ -154,14 +210,21 @@ class SupabaseCacheManager {
         if (!userId || !window.StorageService) return false;
         return await window.StorageService.deleteProfilePhoto(userId);
     }
+    
+    startRealtimeSync() {
+        const userId = this.getCurrentUserId();
+        if (userId && window.RealtimeSyncManager) {
+            window.RealtimeSyncManager.init(userId);
+        }
+    }
 }
 
-// Instância global (APENAS UMA VEZ)
+// Instância global
 if (typeof window.CacheManager === 'undefined') {
     window.CacheManager = new SupabaseCacheManager();
 }
 
-// Funções globais
+// Funções globais de conveniência
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
@@ -184,4 +247,4 @@ window.setTimeSlots = (slots, notify) => window.CacheManager.set('timeSlots', sl
 window.getNotifications = () => window.CacheManager.get('notifications', []);
 window.setNotifications = (notifications, notify) => window.CacheManager.set('notifications', notifications, notify);
 
-console.log('[CacheManager] Supabase v1 carregado!');
+console.log('[CacheManager] Supabase v2 carregado!');
