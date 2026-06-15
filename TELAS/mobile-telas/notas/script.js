@@ -1,4 +1,4 @@
-// mobile-telas/notas/script.js - VERSÃO CORRIGIDA COM FIRESTORE
+// mobile-telas/notas/script.js - VERSÃO CORRIGIDA COM UUID
 
 let notifications = [];
 let notes = [];
@@ -57,14 +57,13 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// INICIALIZAÇÃO DO FIRESTORE
+// INICIALIZAÇÃO (CORRIGIDA - USANDO UUID)
 // ============================================
 async function inicializarFirestoreNotas() {
     if (!usuarioLogado) return false;
     
     console.log('[Notas Mobile] 🔥 Inicializando Firestore...');
     
-    // Aguardar CacheManager ficar disponível
     let tentativas = 0;
     while (!window.CacheManager && tentativas < 20) {
         console.log(`[Notas Mobile] Aguardando CacheManager... tentativa ${tentativas + 1}`);
@@ -79,15 +78,14 @@ async function inicializarFirestoreNotas() {
     
     window.CacheManager.init();
     
-    const userId = usuarioLogado.uid || usuarioLogado.email;
+    // ✅ CORRIGIDO: Usar o UUID do Supabase, NÃO o email!
+    const userId = usuarioLogado.id;  // ← UUID correto!
     window.CacheManager.currentUserId = userId;
-    console.log('[Notas Mobile] User ID configurado:', userId);
+    console.log('[Notas Mobile] User ID (UUID):', userId);
     
-    // Carregar dados da nuvem
     console.log('[Notas Mobile] ☁️ Carregando dados da nuvem...');
     const loaded = await window.CacheManager.loadFromCloud(true);
     
-    // Iniciar sincronização em tempo real
     if (window.CacheManager.startRealtimeSync) {
         window.CacheManager.startRealtimeSync();
     }
@@ -97,7 +95,7 @@ async function inicializarFirestoreNotas() {
 }
 
 // ============================================
-// PERSISTÊNCIA
+// PERSISTÊNCIA (CORRIGIDA - USANDO UUID)
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || isSaving) return false;
@@ -115,11 +113,12 @@ async function salvarTodosDados() {
         
         console.log('[Notas Mobile] 💾 Salvando anotações:', notasNormalizadas.length);
         
-        const userId = usuarioLogado.uid || usuarioLogado.email;
+        // ✅ CORRIGIDO: Usar UUID
+        const userId = usuarioLogado.id;
         localStorage.setItem(`${userId}_notes`, JSON.stringify(notasNormalizadas));
         
         if (window.CacheManager) {
-            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId === 'default') {
+            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId !== userId) {
                 window.CacheManager.currentUserId = userId;
             }
             window.CacheManager.set('notes', notasNormalizadas, true);
@@ -148,7 +147,8 @@ function carregarDados() {
     }
     
     if (!dadosCarregados) {
-        const userId = usuarioLogado.uid || usuarioLogado.email;
+        // ✅ CORRIGIDO: Usar UUID
+        const userId = usuarioLogado.id;
         const notesSalvas = localStorage.getItem(`${userId}_notes`);
         if (notesSalvas) {
             dadosCarregados = JSON.parse(notesSalvas);
@@ -182,12 +182,12 @@ function carregarDados() {
 function loadAllData() {
     usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     
-    if (!usuarioLogado || !usuarioLogado.email) {
+    if (!usuarioLogado || !usuarioLogado.id) {
         window.location.href = '../../login/index.html';
         return;
     }
     
-    console.log('[Notas Mobile] Usuário logado:', usuarioLogado.email);
+    console.log('[Notas Mobile] Usuário logado (UUID):', usuarioLogado.id);
     
     if (window.getCached) {
         notifications = window.getCached('notifications', []);
@@ -266,7 +266,6 @@ function renderNotes(searchTerm = '') {
                 if (confirmed) {
                     const noteToDelete = notes.find(n => n.id == noteId);
                     if (noteToDelete) {
-                        // Se a anotação sendo excluída é a que está sendo editada, fechar modal
                         if (editingNoteId == noteId) {
                             closeNoteModal();
                         }
@@ -422,7 +421,7 @@ async function carregarFotoPerfilMobile() {
 function iniciarEscutaFotoMobile() {
     if (!usuarioLogado) return;
     
-    const userId = usuarioLogado.uid || usuarioLogado.email;
+    const userId = usuarioLogado.id;
     
     if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
         profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
@@ -445,7 +444,7 @@ function pararEscutaFotoMobile() {
 }
 
 // ============================================
-// INICIALIZAÇÃO PRINCIPAL
+// INICIALIZAÇÃO PRINCIPAL (CORRIGIDA)
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📝 Iniciando anotações mobile com Firestore...');
@@ -464,7 +463,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderNotes();
     }
 
-    // Eventos de sincronização
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Notas Mobile] 📡 cloudDataLoaded - Sincronizando...');
         
@@ -492,13 +490,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const notasAtuais = notes.map(n => n.id);
             const novasNotasIds = novasNotas.map(n => n.id);
             
-            // Verificar se alguma nota foi removida
             const notasRemovidas = notasAtuais.filter(id => !novasNotasIds.includes(id));
             
             if (notasRemovidas.length > 0) {
                 console.log('[Notas Mobile] Notas removidas detectadas:', notasRemovidas);
                 
-                // Se a nota sendo editada foi removida, fechar modal
                 if (editingNoteId && notasRemovidas.includes(editingNoteId)) {
                     closeNoteModal();
                     editingNoteId = null;
@@ -515,7 +511,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    // Eventos da interface
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
     });
