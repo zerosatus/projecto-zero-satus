@@ -1,4 +1,4 @@
-// anotacoes/script.js - COMPLETO E CORRIGIDO
+// anotacoes/script.js - COMPLETO E CORRIGIDO (Desktop)
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -58,26 +58,46 @@ function configurarEventos() {
     });
 }
 
+// ============================================
+// FUNÇÕES DE CARREGAMENTO E SALVAMENTO (CORRIGIDAS)
+// ============================================
+
 function carregarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
     
+    // ✅ PRIORIDADE: CacheManager (já usa UUID)
     if (window.CacheManager) {
         const cached = window.CacheManager.get('notes', null);
         if (cached !== null && Array.isArray(cached)) {
             anotacoes = cached;
+            console.log('[Anotacoes] Carregado do CacheManager:', anotacoes.length);
             renderizarListaAnotacoes();
             return;
         }
     }
     
-    const storageKey = `anotacoes_${usuario.email}`;
+    // ✅ CORRIGIDO: Usar UUID em vez de email (mesma chave do mobile)
+    const userId = usuario.id;
+    const storageKey = `${userId}_notes`;
     const anotacoesSalvas = localStorage.getItem(storageKey);
     
     if (anotacoesSalvas) {
         anotacoes = JSON.parse(anotacoesSalvas);
+        console.log('[Anotacoes] Carregado do localStorage com UUID:', anotacoes.length);
     } else {
-        anotacoes = [];
+        // Tentar migrar dados antigos (se existirem com email)
+        const oldStorageKey = `anotacoes_${usuario.email}`;
+        const oldAnotacoes = localStorage.getItem(oldStorageKey);
+        if (oldAnotacoes) {
+            anotacoes = JSON.parse(oldAnotacoes);
+            console.log('[Anotacoes] Migrado do formato antigo:', anotacoes.length);
+            // Salvar no novo formato e remover o antigo
+            localStorage.setItem(storageKey, oldAnotacoes);
+            localStorage.removeItem(oldStorageKey);
+        } else {
+            anotacoes = [];
+        }
     }
     
     if (window.CacheManager && anotacoes.length > 0) {
@@ -87,9 +107,28 @@ function carregarAnotacoes() {
     renderizarListaAnotacoes();
 }
 
+function salvarAnotacoes() {
+    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuario) return;
+    
+    // ✅ Salvar no CacheManager (sincroniza com Supabase e outras abas)
+    if (window.CacheManager) {
+        window.CacheManager.set('notes', anotacoes, true);
+    }
+    
+    // ✅ Backup no localStorage com UUID (mesma chave do mobile)
+    const userId = usuario.id;
+    const storageKey = `${userId}_notes`;
+    localStorage.setItem(storageKey, JSON.stringify(anotacoes));
+    
+    // Disparar evento para outras abas
+    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: anotacoes } }));
+}
+
 function carregarAnotacoesDoCacheSemPerderEditor() {
     if (!window.CacheManager) return;
     
+    // Salvar anotação atual antes de recarregar
     if (anotacaoAtualId && !isSaving) {
         salvarAnotacaoAtual();
     }
@@ -97,40 +136,48 @@ function carregarAnotacoesDoCacheSemPerderEditor() {
     const cachedNotes = window.CacheManager.get('notes', null);
     if (cachedNotes !== null && Array.isArray(cachedNotes)) {
         const oldCount = anotacoes.length;
-        const oldCurrentNote = anotacaoAtualId ? anotacoes.find(a => a.id === anotacaoAtualId) : null;
+        
+        // Verificar se a anotação atual ainda existe no cache
+        const anotacaoAtualExistente = anotacaoAtualId ? cachedNotes.find(a => a.id === anotacaoAtualId) : null;
         
         anotacoes = cachedNotes;
         
         if (anotacaoAtualId) {
-            const anotacaoAtualizada = anotacoes.find(a => a.id === anotacaoAtualId);
-            if (anotacaoAtualizada) {
+            if (anotacaoAtualExistente) {
+                // Atualizar o editor se o conteúdo mudou externamente
                 const titleInput = document.querySelector('.note-title');
                 const editor = document.getElementById('editor');
                 
                 const tituloAtual = titleInput?.value || '';
                 const conteudoAtual = editor?.innerHTML || '';
-                const tituloCache = anotacaoAtualizada.titulo || '';
-                const conteudoCache = anotacaoAtualizada.conteudo || '';
+                const tituloCache = anotacaoAtualExistente.titulo || anotacaoAtualExistente.title || '';
+                const conteudoCache = anotacaoAtualExistente.conteudo || anotacaoAtualExistente.content || '';
                 
                 if (tituloAtual !== tituloCache && tituloCache !== '') {
                     titleInput.value = tituloCache;
                 }
                 if (conteudoAtual !== conteudoCache && conteudoCache !== '') {
                     editor.innerHTML = conteudoCache;
-                    atualizarUltimoSalvo(anotacaoAtualizada.dataModificacao);
+                    atualizarUltimoSalvo(anotacaoAtualExistente.dataModificacao || anotacaoAtualExistente.updated_at);
                 }
             } else if (anotacoes.length > 0) {
+                // A anotação atual foi deletada em outro lugar, carregar a primeira
                 carregarAnotacao(anotacoes[0].id);
+                mostrarToast('Anotação atual foi removida em outro dispositivo', 'info');
             }
         }
         
         renderizarListaAnotacoes();
         
         if (oldCount !== anotacoes.length && anotacoes.length > 0) {
-            mostrarToast(`${anotacoes.length} anotações sincronizadas!`);
+            mostrarToast(`${anotacoes.length} anotações sincronizadas!`, 'success');
         }
     }
 }
+
+// ============================================
+// FUNÇÕES DE RENDERIZAÇÃO E UI
+// ============================================
 
 function renderizarListaAnotacoes() {
     const notesList = document.getElementById('notesList');
@@ -143,13 +190,13 @@ function renderizarListaAnotacoes() {
         return;
     }
     
-    anotacoes.sort((a, b) => new Date(b.dataModificacao || b.date) - new Date(a.dataModificacao || a.date));
+    anotacoes.sort((a, b) => new Date(b.dataModificacao || b.updated_at || b.date) - new Date(a.dataModificacao || a.updated_at || a.date));
     
     anotacoes.forEach(anotacao => {
-        const preview = anotacao.conteudo ? anotacao.conteudo.replace(/<[^>]*>/g, '').substring(0, 50) + '...' : 'Anotação vazia';
-        const data = new Date(anotacao.dataModificacao || anotacao.date || Date.now());
+        const preview = (anotacao.conteudo || anotacao.content || '').replace(/<[^>]*>/g, '').substring(0, 50) + '...';
+        const data = new Date(anotacao.dataModificacao || anotacao.updated_at || anotacao.date || Date.now());
         const dataFormatada = formatarData(data);
-        const titulo = anotacao.titulo || 'Sem título';
+        const titulo = anotacao.titulo || anotacao.title || 'Sem título';
         
         const noteItem = document.createElement('div');
         noteItem.className = 'note-item';
@@ -186,6 +233,7 @@ function carregarPrimeiraAnotacao() {
 }
 
 function carregarAnotacao(id) {
+    // Salvar anotação atual antes de trocar
     if (anotacaoAtualId && anotacaoAtualId !== id) {
         salvarAnotacaoAtual();
     }
@@ -197,17 +245,18 @@ function carregarAnotacao(id) {
     const titleInput = document.querySelector('.note-title');
     const editor = document.getElementById('editor');
     
-    if (titleInput) titleInput.value = anotacao.titulo || '';
-    if (editor) editor.innerHTML = anotacao.conteudo || '';
+    if (titleInput) titleInput.value = anotacao.titulo || anotacao.title || '';
+    if (editor) editor.innerHTML = anotacao.conteudo || anotacao.content || '';
     
     document.querySelectorAll('.note-item').forEach(item => {
         item.classList.toggle('active', item.dataset.id === id);
     });
     
-    atualizarUltimoSalvo(anotacao.dataModificacao);
+    atualizarUltimoSalvo(anotacao.dataModificacao || anotacao.updated_at);
 }
 
 function criarNovaAnotacao() {
+    // Salvar anotação atual antes de criar nova
     if (anotacaoAtualId) {
         salvarAnotacaoAtual();
     }
@@ -218,7 +267,9 @@ function criarNovaAnotacao() {
         titulo: '',
         conteudo: '',
         dataModificacao: dataAtual,
-        dataCriacao: dataAtual
+        dataCriacao: dataAtual,
+        updated_at: dataAtual,
+        created_at: dataAtual
     };
     
     anotacoes.unshift(novaAnotacao);
@@ -234,7 +285,7 @@ function criarNovaAnotacao() {
     salvarAnotacoes();
     
     if (titleInput) titleInput.focus();
-    mostrarToast('Nova anotação criada!');
+    mostrarToast('Nova anotação criada!', 'success');
 }
 
 function salvarAnotacaoAtual() {
@@ -265,7 +316,8 @@ function salvarAnotacaoAtual() {
             ...anotacoes[anotacaoIndex],
             titulo: novoTitulo,
             conteudo: novoConteudo,
-            dataModificacao: new Date().toISOString()
+            dataModificacao: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
         
         salvarAnotacoes();
@@ -274,17 +326,6 @@ function salvarAnotacaoAtual() {
     } finally {
         isSaving = false;
     }
-}
-
-function salvarAnotacoes() {
-    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-    if (!usuario) return;
-    
-    if (window.CacheManager) {
-        window.CacheManager.set('notes', anotacoes, true);
-    }
-    
-    window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: anotacoes } }));
 }
 
 function programarAutoSave() {
@@ -319,6 +360,10 @@ function atualizarUltimoSalvo(dataISO) {
     }
 }
 
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
+
 function gerarId() {
     return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 }
@@ -336,18 +381,25 @@ function formatText(command, value = null) {
     programarAutoSave();
 }
 
-function mostrarToast(mensagem) {
+function mostrarToast(mensagem, tipo = 'success') {
     const toast = document.getElementById('toast');
     if (!toast) return;
     const toastSpan = toast.querySelector('span');
     if (toastSpan) toastSpan.textContent = mensagem;
+    
+    if (tipo === 'error') {
+        toast.style.background = 'linear-gradient(135deg, #d63031, #c0392b)';
+    } else {
+        toast.style.background = 'linear-gradient(135deg, #00b894, #059669)';
+    }
+    
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
 function saveNote() {
     salvarAnotacaoAtual();
-    mostrarToast('Anotação salva!');
+    mostrarToast('Anotação salva!', 'success');
 }
 
 function createNewNote() {
@@ -363,14 +415,9 @@ function logout() {
     }
 }
 
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', function() {
-        if (this.href && !this.href.endsWith('#')) {
-            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-            this.classList.add('active');
-        }
-    });
-});
+// ============================================
+// FUNÇÕES GLOBAIS PARA SINCRONIZAÇÃO
+// ============================================
 
 window.carregarAnotacoes = function() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
@@ -381,22 +428,38 @@ window.carregarAnotacoes = function() {
         if (cached !== null && Array.isArray(cached)) {
             anotacoes = cached;
             renderizarListaAnotacoes();
+            console.log('[Anotacoes] Forçado recarregamento via window.carregarAnotacoes');
         }
     }
 };
 
 window.recarregarAnotacoesDaNuvem = carregarAnotacoesDoCacheSemPerderEditor;
+
 window.forcarSincronizacaoAnotacoes = async function() {
     if (window.CacheManager) {
-        mostrarToast('Sincronizando...');
+        mostrarToast('Sincronizando...', 'info');
         await window.CacheManager.forceSync();
         carregarAnotacoesDoCacheSemPerderEditor();
-        mostrarToast('Sincronização concluída!');
+        mostrarToast('Sincronização concluída!', 'success');
     }
 };
 
+// ============================================
+// NAVEGAÇÃO DO MENU
+// ============================================
+
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', function() {
+        if (this.href && !this.href.endsWith('#')) {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+        }
+    });
+});
+
+// Sincronização inicial atrasada para garantir que tudo carregou
 setTimeout(() => {
     carregarAnotacoesDoCacheSemPerderEditor();
 }, 2000);
 
-console.log('%c📝 Anotações com sincronização completa!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c📝 Anotações com sincronização completa (UUID corrigido)!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
