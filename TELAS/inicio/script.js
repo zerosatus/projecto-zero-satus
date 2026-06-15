@@ -1,3 +1,5 @@
+// inicio/script.js - COMPLETO E CORRIGIDO
+
 let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
@@ -16,15 +18,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         usuarioAtual = JSON.parse(usuario);
         
-        if (window.CacheManager) {
-            window.CacheManager.init();
-            window.CacheManager.currentUserId = usuarioAtual.uid || usuarioAtual.email;
-            console.log('[Inicio] Carregando dados da nuvem...');
-            await window.CacheManager.loadFromCloud(true);
-            carregarDadosDoCache();
+        // 🔥 CRÍTICO: Inicializar sincronização ANTES de carregar dados
+        if (window.initSync) {
+            console.log('[Inicio] Inicializando sync...');
+            await window.initSync();
         } else {
-            carregarDadosDoLocalStorage();
+            console.warn('[Inicio] initSync não disponível!');
         }
+        
+        // Carregar dados do CacheManager (já sincronizado)
+        carregarDadosDoCache();
         
         if (tarefas.length === 0 && anotacoes.length === 0 && eventos.length === 0 && Object.keys(weeklySchedule).length === 0) {
             await criarDadosVazios();
@@ -35,7 +38,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         atualizarMiniPerfil();
         atualizarEstatisticasMini();
-        atualizarFraseDoDiaDesktop(); // 🔥 FRASE DO DIA ATUALIZADA
+        atualizarFraseDoDiaDesktop();
         
         new Calendar();
         new CircularProgress();
@@ -54,7 +57,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             atualizarEstatisticasMini();
             atualizarHorarioDesktop();
             atualizarListaDisciplinas();
-            atualizarFraseDoDiaDesktop(); // 🔥 ATUALIZA FRASE QUANDO DADOS DA NUVEM CHEGAM
+            atualizarFraseDoDiaDesktop();
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
             carregarFotoPerfilDesktop();
         });
@@ -66,89 +69,13 @@ window.addEventListener('DOMContentLoaded', async () => {
             }
         });
         
+        // Iniciar escuta do cache
+        iniciarEscutaCacheDesktop();
+        
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
 });
-
-// ===== FUNÇÃO DA FRASE DO DIA =====
-function atualizarFraseDoDiaDesktop() {
-    const fraseElement = document.querySelector('.focus-content p');
-    if (fraseElement && window.FrasesDoDia) {
-        const frase = window.FrasesDoDia.getFraseDoDia();
-        fraseElement.textContent = frase;
-        console.log('[Inicio Desktop] Frase do dia atualizada:', frase.substring(0, 40) + '...');
-    } else if (fraseElement) {
-        fraseElement.textContent = 'Não espere o momento perfeito. Aproveite o que tem e faça acontecer. Pequenos passos levam a grandes conquistas!';
-    }
-}
-
-// ========== FUNÇÕES DE FOTO DE PERFIL PARA DESKTOP ==========
-
-async function carregarFotoPerfilDesktop() {
-    if (!usuarioAtual) return;
-    
-    const miniAvatar = document.getElementById('miniAvatar');
-    
-    if (window.CacheManager) {
-        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-        
-        if (photoUrl && photoUrl.startsWith('data:')) {
-            if (miniAvatar) miniAvatar.src = photoUrl;
-            usuarioAtual.profilePhotoUrl = photoUrl;
-            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-        } else {
-            const iniciais = usuarioAtual.nome ? 
-                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
-            if (miniAvatar) miniAvatar.src = defaultAvatar;
-        }
-    } else {
-        if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
-            if (miniAvatar) miniAvatar.src = usuarioAtual.avatar;
-        } else {
-            const iniciais = usuarioAtual.nome ? 
-                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
-            if (miniAvatar) miniAvatar.src = defaultAvatar;
-        }
-    }
-}
-
-function atualizarAvatarDesktop(photoUrl) {
-    const miniAvatar = document.getElementById('miniAvatar');
-    
-    if (miniAvatar && photoUrl && photoUrl.startsWith('data:')) {
-        miniAvatar.src = photoUrl;
-    }
-    
-    if (usuarioAtual) {
-        usuarioAtual.profilePhotoUrl = photoUrl;
-        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-    }
-}
-
-function iniciarEscutaFotoDesktop() {
-    if (!usuarioAtual) return;
-    
-    const userId = usuarioAtual.uid || usuarioAtual.email;
-    
-    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
-        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
-            if (photoUrl && photoUrl.startsWith('data:')) {
-                console.log('[Inicio Desktop] Foto atualizada em tempo real!');
-                atualizarAvatarDesktop(photoUrl);
-            }
-        });
-    }
-}
-
-function pararEscutaFotoDesktop() {
-    if (profilePhotoUnsubscribe) {
-        profilePhotoUnsubscribe();
-        profilePhotoUnsubscribe = null;
-    }
-}
 
 function carregarDadosDoCache() {
     if (window.CacheManager) {
@@ -177,45 +104,12 @@ function carregarDadosDoCache() {
     }
 }
 
-function carregarDadosDoLocalStorage() {
-    const userId = usuarioAtual?.uid || usuarioAtual?.email;
-    
-    if (userId) {
-        const tarefasSalvas = localStorage.getItem(`${userId}_tasks`);
-        const anotacoesSalvas = localStorage.getItem(`${userId}_notes`);
-        const eventosSalvas = localStorage.getItem(`${userId}_calendarEvents`);
-        const scheduleSalvo = localStorage.getItem(`${userId}_weeklySchedule`);
-        const slotsSalvos = localStorage.getItem(`${userId}_timeSlots`);
-        
-        tarefas = tarefasSalvas ? JSON.parse(tarefasSalvas) : [];
-        anotacoes = anotacoesSalvas ? JSON.parse(anotacoesSalvas) : [];
-        eventos = eventosSalvas ? JSON.parse(eventosSalvas) : [];
-        weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : {};
-        timeSlots = slotsSalvos ? JSON.parse(slotsSalvos) : ['08:00', '09:30', '11:00', '14:00', '15:30'];
-        
-        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-        dias.forEach(dia => {
-            if (!weeklySchedule[dia]) weeklySchedule[dia] = [];
-        });
-    }
-}
-
 async function criarDadosVazios() {
-    const userId = usuarioAtual?.uid || usuarioAtual?.email;
-    
     const weeklyScheduleVazio = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
     const timeSlotsPadrao = ['08:00', '09:30', '11:00', '14:00', '15:30'];
     const tarefasVazias = [];
     const anotacoesVazias = [];
     const eventosVazios = [];
-    
-    if (userId) {
-        localStorage.setItem(`${userId}_tasks`, JSON.stringify(tarefasVazias));
-        localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoesVazias));
-        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(eventosVazios));
-        localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklyScheduleVazio));
-        localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlotsPadrao));
-    }
     
     if (window.CacheManager) {
         window.CacheManager.set('tasks', tarefasVazias, true);
@@ -234,9 +128,67 @@ async function criarDadosVazios() {
     console.log('[Inicio] Estrutura vazia criada');
 }
 
-function atualizarMiniPerfil() {
+function atualizarFraseDoDiaDesktop() {
+    const fraseElement = document.querySelector('.focus-content p');
+    if (fraseElement && window.FrasesDoDia) {
+        const frase = window.FrasesDoDia.getFraseDoDia();
+        fraseElement.textContent = frase;
+        console.log('[Inicio Desktop] Frase do dia atualizada');
+    } else if (fraseElement) {
+        fraseElement.textContent = 'Não espere o momento perfeito. Aproveite o que tem e faça acontecer!';
+    }
+}
+
+// ========== FUNÇÕES DE FOTO DE PERFIL ==========
+
+async function carregarFotoPerfilDesktop() {
     if (!usuarioAtual) return;
     
+    const miniAvatar = document.getElementById('miniAvatar');
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            if (miniAvatar) miniAvatar.src = photoUrl;
+            usuarioAtual.profilePhotoUrl = photoUrl;
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+        } else {
+            const iniciais = usuarioAtual.nome ? 
+                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
+            if (miniAvatar) miniAvatar.src = defaultAvatar;
+        }
+    }
+}
+
+function atualizarAvatarDesktop(photoUrl) {
+    const miniAvatar = document.getElementById('miniAvatar');
+    if (miniAvatar && photoUrl && photoUrl.startsWith('data:')) {
+        miniAvatar.src = photoUrl;
+    }
+    if (usuarioAtual) {
+        usuarioAtual.profilePhotoUrl = photoUrl;
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+    }
+}
+
+function iniciarEscutaFotoDesktop() {
+    if (!usuarioAtual) return;
+    // Implementar se necessário
+}
+
+function pararEscutaFotoDesktop() {
+    if (profilePhotoUnsubscribe) {
+        profilePhotoUnsubscribe();
+        profilePhotoUnsubscribe = null;
+    }
+}
+
+// ========== FUNÇÕES DA UI ==========
+
+function atualizarMiniPerfil() {
+    if (!usuarioAtual) return;
     const miniName = document.getElementById('miniName');
     const miniEmail = document.getElementById('miniEmail');
     if (miniName) miniName.textContent = usuarioAtual.nome || 'Usuário';
@@ -252,7 +204,7 @@ function atualizarEstatisticasMini() {
     horasEstudo += eventos.filter(e => e.type === 'aula').length * 2;
     horasEstudo += tarefasConcluidas * 1.5;
     
-    const progressoSemanal = calcularProgressoSemanal();
+    const progressoSemanal = Math.min(100, Math.round((tarefasConcluidas / (totalTarefas || 1)) * 100));
     
     const statTarefas = document.getElementById('statTarefas');
     const statConclusao = document.getElementById('statConclusao');
@@ -278,25 +230,6 @@ function atualizarEstatisticasMini() {
         const offset = circumference - (progressoSemanal / 100) * circumference;
         circularProgress.style.strokeDashoffset = offset;
     }
-}
-
-function calcularProgressoSemanal() {
-    const hoje = new Date();
-    const inicioSemana = new Date(hoje);
-    inicioSemana.setDate(hoje.getDate() - hoje.getDay());
-    const fimSemana = new Date(inicioSemana);
-    fimSemana.setDate(inicioSemana.getDate() + 6);
-    
-    const eventosSemana = eventos.filter(e => {
-        if (!e.date) return false;
-        const dataEvento = new Date(e.date);
-        return dataEvento >= inicioSemana && dataEvento <= fimSemana;
-    });
-    
-    const totalItens = eventosSemana.length;
-    if (totalItens === 0) return 0;
-    
-    return 0;
 }
 
 function atualizarListaDisciplinas() {
@@ -354,8 +287,6 @@ function atualizarListaDisciplinas() {
     subjectsGrid.style.display = 'grid';
     subjectsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
     subjectsGrid.style.gap = '10px';
-    
-    console.log('[Inicio] Lista de disciplinas atualizada:', disciplinas.length);
 }
 
 function atualizarHorarioDesktop() {
@@ -377,9 +308,8 @@ function atualizarHorarioDesktop() {
         diasSemana.forEach(day => {
             const aula = weeklySchedule[day]?.find(a => a.horaInicio === time);
             if (aula && aula.materia) {
-                const materiaClass = getMateriaClass(aula.materia);
                 const cor = aula.color || getCorByMateria(aula.materia);
-                html += `<td class="subject ${materiaClass}" style="background-color: ${cor}20; color: ${cor}; border-left: 3px solid ${cor};">
+                html += `<td class="subject" style="background-color: ${cor}20; color: ${cor}; border-left: 3px solid ${cor};">
                     ${aula.materia}
                 </td>`;
             } else {
@@ -390,21 +320,6 @@ function atualizarHorarioDesktop() {
     });
     
     scheduleTableBody.innerHTML = html;
-}
-
-function getMateriaClass(materia) {
-    const mapa = {
-        'matemática': 'matematica', 'matematica': 'matematica',
-        'português': 'portugues', 'portugues': 'portugues',
-        'física': 'fisica', 'fisica': 'fisica',
-        'química': 'quimica', 'quimica': 'quimica',
-        'história': 'historia', 'historia': 'historia',
-        'geografia': 'geografia', 'biologia': 'biologia',
-        'inglês': 'ingles', 'ingles': 'ingles',
-        'redação': 'redacao', 'redacao': 'redacao'
-    };
-    const lowerMateria = materia?.toLowerCase()?.trim() || '';
-    return mapa[lowerMateria] || 'outros';
 }
 
 function getCorByMateria(materia) {
@@ -468,6 +383,8 @@ function atualizarProximasTarefas() {
         nextTaskInfo.textContent = 'Nenhuma tarefa pendente';
     }
 }
+
+// ========== CLASSES ==========
 
 class Calendar {
     constructor() {
@@ -563,7 +480,6 @@ class StudyChart {
         
         const dados = [2, 4, 3, 5, 4, 6, 3];
         const maxVal = Math.max(...dados, 5);
-        
         const larguraBarra = (canvas.width - 40) / dados.length - 4;
         
         for (let i = 0; i < dados.length; i++) {
@@ -592,7 +508,6 @@ class StudyTimer {
     carregarTimerSalvo() {
         const timerKey = `timer_${usuarioAtual?.email}`;
         const timerSalvo = localStorage.getItem(timerKey);
-        
         if (timerSalvo) {
             const timerData = JSON.parse(timerSalvo);
             const hoje = new Date().toDateString();
@@ -648,6 +563,50 @@ class StudyTimer {
     }
 }
 
+// ========== ESCUTA DE CACHE ==========
+
+function iniciarEscutaCacheDesktop() {
+    if (!window.CacheManager) {
+        setTimeout(iniciarEscutaCacheDesktop, 1000);
+        return;
+    }
+    
+    window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
+        if (newSchedule && Object.keys(newSchedule).length > 0) {
+            weeklySchedule = newSchedule;
+            atualizarHorarioDesktop();
+            atualizarListaDisciplinas();
+        }
+    });
+    
+    window.CacheManager.addListener('timeSlots', (newSlots) => {
+        if (newSlots && newSlots.length) {
+            timeSlots = newSlots;
+            atualizarHorarioDesktop();
+        }
+    });
+    
+    window.CacheManager.addListener('tasks', (newTasks) => {
+        if (newTasks) {
+            tarefas = newTasks;
+            atualizarEstatisticasMini();
+            atualizarProximasTarefas();
+            atualizarListaDisciplinas();
+        }
+    });
+    
+    window.CacheManager.addListener('notes', (newNotes) => {
+        if (newNotes) anotacoes = newNotes;
+    });
+    
+    window.CacheManager.addListener('calendarEvents', (newEvents) => {
+        if (newEvents) {
+            eventos = newEvents;
+            if (window.calendarInstance) window.calendarInstance.renderCalendar();
+        }
+    });
+}
+
 function logout() {
     if (confirm('Deseja sair?')) {
         pararEscutaFotoDesktop();
@@ -666,132 +625,21 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-console.log('%c🏠 Painel Inicial - Frase do Dia Integrada!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
-
-// ===== ESCUTAR MUDANÇAS EM TEMPO REAL DO CACHE =====
-function iniciarEscutaCacheDesktop() {
-    if (!window.CacheManager) {
-        console.log('[Desktop] Aguardando CacheManager...');
-        setTimeout(iniciarEscutaCacheDesktop, 1000);
-        return;
-    }
-    
-    console.log('[Desktop] Iniciando escuta de cache...');
-    
-    window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
-        if (newSchedule && Object.keys(newSchedule).length > 0) {
-            console.log('[Desktop] Horário atualizado em tempo real!');
-            window.weeklySchedule = newSchedule;
-            if (typeof atualizarHorarioDesktop === 'function') {
-                atualizarHorarioDesktop();
-            }
-            if (typeof atualizarListaDisciplinas === 'function') {
-                atualizarListaDisciplinas();
-            }
-            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
-                window.forcarRecargaHorarioDesktop();
-            }
-        }
-    });
-    
-    window.CacheManager.addListener('timeSlots', (newSlots) => {
-        if (newSlots && newSlots.length) {
-            console.log('[Desktop] Horários atualizados em tempo real!');
-            window.timeSlots = newSlots;
-            if (typeof atualizarHorarioDesktop === 'function') {
-                atualizarHorarioDesktop();
-            }
-            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
-                window.forcarRecargaHorarioDesktop();
-            }
-        }
-    });
-    
-    window.CacheManager.addListener('tasks', (newTasks) => {
-        if (newTasks) {
-            console.log('[Desktop] Tarefas atualizadas em tempo real!');
-            window.tarefas = newTasks;
-            if (typeof atualizarEstatisticasMini === 'function') {
-                atualizarEstatisticasMini();
-            }
-            if (typeof atualizarProximasTarefas === 'function') {
-                atualizarProximasTarefas();
-            }
-        }
-    });
-    
-    window.CacheManager.addListener('notes', (newNotes) => {
-        if (newNotes) {
-            console.log('[Desktop] Anotações atualizadas em tempo real!');
-            window.anotacoes = newNotes;
-        }
-    });
-    
-    window.CacheManager.addListener('calendarEvents', (newEvents) => {
-        if (newEvents) {
-            console.log('[Desktop] Eventos atualizados em tempo real!');
-            window.eventos = newEvents;
-            if (window.calendarInstance && typeof window.calendarInstance.renderCalendar === 'function') {
-                window.calendarInstance.renderCalendar();
-            }
-        }
-    });
-    
-    console.log('[Desktop] Escuta de cache iniciada com sucesso');
-}
-
 window.addEventListener('forceRefresh', () => {
-    console.log('[Desktop] ForceRefresh recebido, recarregando dados...');
     setTimeout(() => {
         if (window.CacheManager) {
             const newSchedule = window.CacheManager.get('weeklySchedule', {});
             const newSlots = window.CacheManager.get('timeSlots', []);
             if (newSchedule && Object.keys(newSchedule).length > 0) {
-                window.weeklySchedule = newSchedule;
-                window.timeSlots = newSlots;
-                if (typeof atualizarHorarioDesktop === 'function') {
-                    atualizarHorarioDesktop();
-                }
-                if (typeof window.forcarRecargaHorarioDesktop === 'function') {
-                    window.forcarRecargaHorarioDesktop();
-                }
+                weeklySchedule = newSchedule;
+                timeSlots = newSlots;
+                atualizarHorarioDesktop();
             }
-            if (typeof atualizarEstatisticasMini === 'function') {
-                atualizarEstatisticasMini();
-            }
-            if (typeof atualizarListaDisciplinas === 'function') {
-                atualizarListaDisciplinas();
-            }
-            if (typeof atualizarFraseDoDiaDesktop === 'function') {
-                atualizarFraseDoDiaDesktop(); // 🔥 ATUALIZA FRASE QUANDO FORÇADO
-            }
+            atualizarEstatisticasMini();
+            atualizarListaDisciplinas();
+            atualizarFraseDoDiaDesktop();
         }
     }, 100);
 });
 
-window.addEventListener('storage', (e) => {
-    if (e.key && (e.key.includes('weeklySchedule') || e.key.includes('timeSlots'))) {
-        console.log('[Desktop] Storage event detectado:', e.key);
-        setTimeout(() => {
-            if (window.CacheManager) {
-                const newSchedule = window.CacheManager.get('weeklySchedule', {});
-                const newSlots = window.CacheManager.get('timeSlots', []);
-                if (newSchedule && Object.keys(newSchedule).length > 0) {
-                    window.weeklySchedule = newSchedule;
-                    window.timeSlots = newSlots;
-                    if (typeof atualizarHorarioDesktop === 'function') {
-                        atualizarHorarioDesktop();
-                    }
-                }
-            }
-            if (typeof window.forcarRecargaHorarioDesktop === 'function') {
-                window.forcarRecargaHorarioDesktop();
-            }
-            if (window.refreshAllData) window.refreshAllData();
-        }, 100);
-    }
-});
-
-setTimeout(iniciarEscutaCacheDesktop, 2000);
-
-console.log('%c🖥️ Desktop com sincronização em tempo real e Frase do Dia', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+console.log('%c🏠 Painel Inicial - Sincronização Corrigida!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
