@@ -1,3 +1,5 @@
+// perfil/script.js - CORRIGIDO COM SUPABASE STORAGE
+
 let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
@@ -21,10 +23,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         carregarDados();
         atualizarPerfil();
         await carregarFotoAtual();
-        iniciarEscutaFoto();
         
         window.addEventListener('cloudDataLoaded', () => {
-            console.log('[Perfil] Dados atualizados do Firebase');
+            console.log('[Perfil] Dados atualizados do Supabase');
             carregarDados();
             atualizarEstatisticasPerfil();
             atualizarAtividadesRecentes();
@@ -49,10 +50,10 @@ function carregarDados() {
         anotacoes = window.CacheManager.get('notes', []);
         eventos = window.CacheManager.get('calendarEvents', []);
     } else {
-        const userId = usuarioAtual.email;
-        tarefas = JSON.parse(localStorage.getItem(`tasks_${userId}`) || '[]');
-        anotacoes = JSON.parse(localStorage.getItem(`notes_${userId}`) || '[]');
-        eventos = JSON.parse(localStorage.getItem(`calendarEvents_${userId}`) || '[]');
+        const userId = usuarioAtual.id;  // ✅ UUID
+        tarefas = JSON.parse(localStorage.getItem(`${userId}_tasks`) || '[]');
+        anotacoes = JSON.parse(localStorage.getItem(`${userId}_notes`) || '[]');
+        eventos = JSON.parse(localStorage.getItem(`${userId}_calendarEvents`) || '[]');
     }
     
     atualizarEstatisticasPerfil();
@@ -133,14 +134,6 @@ function atualizarAtividadesRecentes() {
         });
     });
     
-    atividades.push({
-        titulo: 'Login realizado',
-        descricao: 'Acesso à plataforma',
-        icone: 'fa-sign-in-alt',
-        cor: '#f59e0b',
-        data: new Date(usuarioAtual?.dataLogin || Date.now())
-    });
-    
     atividades.sort((a, b) => b.data - a.data);
     const recentes = atividades.slice(0, 4);
     
@@ -198,37 +191,25 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL COM BASE64 ==========
+// ========== FUNÇÕES DE FOTO DE PERFIL CORRIGIDAS ==========
 
 async function carregarFotoAtual() {
     if (!usuarioAtual) return;
     
     const avatarImg = document.getElementById('avatarImage');
-    const profileAvatar = document.querySelector('.profile-avatar img');
-    const userAvatar = document.querySelector('.user-avatar img');
     
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.getProfilePhotoUrl();
         
         if (photoUrl && photoUrl.startsWith('data:')) {
             if (avatarImg) avatarImg.src = photoUrl;
-            if (profileAvatar) profileAvatar.src = photoUrl;
-            if (userAvatar) userAvatar.src = photoUrl;
             usuarioAtual.profilePhotoUrl = photoUrl;
-        } else if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
-            if (avatarImg) avatarImg.src = usuarioAtual.avatar;
-            if (profileAvatar) profileAvatar.src = usuarioAtual.avatar;
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
         } else {
             const iniciais = usuarioAtual.nome ? 
                 usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
             const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
             if (avatarImg) avatarImg.src = defaultAvatar;
-            if (profileAvatar) profileAvatar.src = defaultAvatar;
-        }
-    } else {
-        if (usuarioAtual.avatar && usuarioAtual.avatar.startsWith('data:')) {
-            if (avatarImg) avatarImg.src = usuarioAtual.avatar;
-            if (profileAvatar) profileAvatar.src = usuarioAtual.avatar;
         }
     }
 }
@@ -236,48 +217,12 @@ async function carregarFotoAtual() {
 function atualizarFotoEmTodasTelas(photoUrl) {
     if (usuarioAtual) {
         usuarioAtual.profilePhotoUrl = photoUrl;
-        usuarioAtual.avatar = photoUrl;
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
     }
     
     const avatarImg = document.getElementById('avatarImage');
-    const profileAvatar = document.querySelector('.profile-avatar img');
-    const userAvatar = document.querySelector('.user-avatar img');
-    
-    if (avatarImg && photoUrl && photoUrl.startsWith('data:')) avatarImg.src = photoUrl;
-    if (profileAvatar && photoUrl && photoUrl.startsWith('data:')) profileAvatar.src = photoUrl;
-    if (userAvatar && photoUrl && photoUrl.startsWith('data:')) userAvatar.src = photoUrl;
-    
-    if (!photoUrl) {
-        const iniciais = usuarioAtual?.nome ? 
-            usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-        const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
-        if (avatarImg) avatarImg.src = defaultAvatar;
-        if (profileAvatar) profileAvatar.src = defaultAvatar;
-    }
-}
-
-function iniciarEscutaFoto() {
-    if (!usuarioAtual) return;
-    
-    if (window.CacheManager) {
-        const userId = usuarioAtual.uid || usuarioAtual.email;
-        
-        if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
-            currentPhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
-                if (photoUrl && photoUrl.startsWith('data:')) {
-                    console.log('[Perfil] Foto atualizada em tempo real!');
-                    atualizarFotoEmTodasTelas(photoUrl);
-                }
-            });
-        }
-    }
-}
-
-function pararEscutaFoto() {
-    if (currentPhotoUnsubscribe) {
-        currentPhotoUnsubscribe();
-        currentPhotoUnsubscribe = null;
+    if (avatarImg && photoUrl && photoUrl.startsWith('data:')) {
+        avatarImg.src = photoUrl;
     }
 }
 
@@ -295,6 +240,7 @@ async function previewAvatar(event) {
         return;
     }
     
+    // Preview imediato
     const reader = new FileReader();
     reader.onload = function(e) {
         const avatarImg = document.getElementById('avatarImage');
@@ -304,22 +250,21 @@ async function previewAvatar(event) {
     
     mostrarToast('Enviando foto...', 'info');
     
+    // Upload para o Supabase
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
         
         if (photoUrl && photoUrl.startsWith('data:')) {
             mostrarToast('Foto atualizada com sucesso e sincronizada!', 'success');
             atualizarFotoEmTodasTelas(photoUrl);
+            // Disparar evento para outras abas/dispositivos
+            window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
         } else {
             mostrarToast('Erro ao enviar foto!', 'error');
             await carregarFotoAtual();
         }
     } else {
-        if (avatarImg && avatarImg.src) {
-            usuarioAtual.avatar = avatarImg.src;
-            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-            mostrarToast('Foto salva localmente (sem nuvem)', 'success');
-        }
+        mostrarToast('Sistema de upload não disponível', 'error');
     }
 }
 
@@ -439,21 +384,17 @@ function deletarConta() {
     if (confirm('TEM CERTEZA ABSOLUTA? Esta ação é irreversível e todos os seus dados serão permanentemente excluídos.')) {
         const confirmacao = prompt('Digite "DELETAR" para confirmar a exclusão da sua conta:');
         if (confirmacao === 'DELETAR') {
-            const userId = usuarioAtual.email;
-            localStorage.removeItem(`tasks_${userId}`);
-            localStorage.removeItem(`notes_${userId}`);
-            localStorage.removeItem(`calendarEvents_${userId}`);
-            localStorage.removeItem(`weeklySchedule_${userId}`);
-            localStorage.removeItem(`timeSlots_${userId}`);
-            localStorage.removeItem(`notifications_${userId}`);
+            const userId = usuarioAtual.id;
+            localStorage.removeItem(`${userId}_tasks`);
+            localStorage.removeItem(`${userId}_notes`);
+            localStorage.removeItem(`${userId}_calendarEvents`);
+            localStorage.removeItem(`${userId}_weeklySchedule`);
+            localStorage.removeItem(`${userId}_timeSlots`);
+            localStorage.removeItem(`${userId}_notifications`);
             localStorage.removeItem('usuarioLogado');
             
             if (window.CacheManager) {
                 window.CacheManager.deleteProfilePhoto();
-                window.CacheManager.clearAllCache();
-                if (window.FirebaseSync && usuarioAtual.uid) {
-                    window.FirebaseSync.deleteUserData(usuarioAtual.uid);
-                }
             }
             
             mostrarToast('Conta deletada com sucesso!', 'success');
@@ -488,7 +429,6 @@ function mostrarToast(mensagem, tipo = 'success') {
 
 function logout() {
     if (confirm('Deseja sair da sua conta?')) {
-        pararEscutaFoto();
         localStorage.removeItem('usuarioLogado');
         if (window.CacheManager) window.CacheManager.logout();
         window.location.href = '../login/index.html';
@@ -509,4 +449,4 @@ setInterval(() => {
     console.log('[Perfil] Dados atualizados');
 }, 30000);
 
-console.log('%c👤 Perfil - Painel do Aluno', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c👤 Perfil - Painel do Aluno (Supabase)', 'color: #9333ea; font-size: 20px; font-weight: bold;');
