@@ -1,6 +1,5 @@
-// mobile-telas/script.js - VERSÃO COMPLETA CORRIGIDA COM FIRESTORE
+// mobile-telas/script.js - VERSÃO COMPLETA COM CHAVE UNIFICADA
 
-// ===== VARIÁVEIS GLOBAIS =====
 let usuarioLogado = null;
 let notifications = [];
 let weeklySchedule = {};
@@ -13,19 +12,16 @@ let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 let syncInProgress = false;
 
-// ===== FUNÇÃO DA FRASE DO DIA =====
 function atualizarFraseDoDiaMobile() {
     const fraseElement = document.getElementById('fraseDoDiaTextMobile');
     if (fraseElement && window.FrasesDoDia) {
         const frase = window.FrasesDoDia.getFraseDoDia();
         fraseElement.textContent = frase;
-        console.log('[Mobile] Frase do dia atualizada:', frase.substring(0, 40) + '...');
     } else if (fraseElement) {
         fraseElement.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
     }
 }
 
-// ===== FUNÇÃO PARA ATUALIZAR AVATAR =====
 async function atualizarAvatarMobile(photoUrl = null) {
     const profileIcon = document.getElementById('notification-bell');
     if (!profileIcon) return;
@@ -43,60 +39,41 @@ async function atualizarAvatarMobile(photoUrl = null) {
             const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
             profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
         }
-    } else if (usuarioLogado && usuarioLogado.nome) {
-        const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
-        profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
     }
 }
 
-// ===== INICIALIZAR FIRESTORE E CACHE =====
 async function inicializarFirestore() {
     if (!usuarioLogado) return false;
     
-    console.log('[Mobile] 🔥 Inicializando Firestore...');
+    if (!window.CacheManager) return false;
     
-    if (!window.CacheManager) {
-        console.error('[Mobile] CacheManager não encontrado!');
-        return false;
-    }
-    
-    // Inicializar CacheManager
     window.CacheManager.init();
     
-    // Configurar ID do usuário
-    const userId = usuarioLogado.uid || usuarioLogado.email;
+    // 🔥 USAR O UUID DO SUPABASE (NÃO O EMAIL!)
+    const userId = usuarioLogado.id;
     window.CacheManager.currentUserId = userId;
     
-    // Carregar dados da nuvem
-    console.log('[Mobile] ☁️ Carregando dados da nuvem...');
-    const loaded = await window.CacheManager.loadFromCloud(true);
+    await window.CacheManager.loadFromCloud(true);
     
-    // Iniciar sincronização em tempo real
     if (window.CacheManager.startRealtimeSync) {
         window.CacheManager.startRealtimeSync();
     }
     
-    console.log('[Mobile] ✅ Firestore inicializado, dados carregados:', loaded);
-    return loaded;
+    return true;
 }
 
-// ===== FUNÇÃO PRINCIPAL DE CARREGAMENTO =====
 async function carregarTodosDados() {
     if (!usuarioLogado) return;
     
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    console.log('[Mobile] 📦 Carregando dados do usuário:', userId);
+    // 🔥 USAR O MESMO IDENTIFICADOR QUE O DESKTOP
+    const userId = usuarioLogado.id;
     
-    // Garantir que o Firestore está inicializado
-    if (window.CacheManager && (!window.CacheManager.currentUserId || window.CacheManager.currentUserId === 'default')) {
+    if (window.CacheManager && window.CacheManager.currentUserId !== userId) {
         await inicializarFirestore();
     }
     
     try {
-        // TENTAR CARREGAR DO CACHEMANAGER PRIMEIRO
         if (window.CacheManager) {
-            console.log('[Mobile] 📦 Carregando do CacheManager...');
-            
             const cachedNotes = window.CacheManager.get('notes', null);
             const cachedTasks = window.CacheManager.get('tasks', null);
             const cachedEvents = window.CacheManager.get('calendarEvents', null);
@@ -110,132 +87,75 @@ async function carregarTodosDados() {
             if (cachedSchedule !== null) weeklySchedule = cachedSchedule;
             if (cachedSlots !== null && Array.isArray(cachedSlots)) timeSlots = cachedSlots;
             if (cachedNotif !== null && Array.isArray(cachedNotif)) notifications = cachedNotif;
-            
-            console.log('[Mobile] ✅ Dados do CacheManager carregados:', {
-                notes: notes.length,
-                tasks: tasks.length,
-                events: calendarEvents.length,
-                schedule: Object.keys(weeklySchedule).length
-            });
         }
         
-        // FALLBACK PARA LOCALSTORAGE
+        // FALLBACK usando a MESMA chave que o desktop
         if (notes.length === 0) {
             const notesSalvas = localStorage.getItem(`${userId}_notes`);
-            if (notesSalvas) {
-                notes = JSON.parse(notesSalvas);
-                console.log('[Mobile] Notes do localStorage:', notes.length);
-            }
+            if (notesSalvas) notes = JSON.parse(notesSalvas);
         }
         
         if (tasks.length === 0) {
             const tasksSalvas = localStorage.getItem(`${userId}_tasks`);
-            if (tasksSalvas) {
-                tasks = JSON.parse(tasksSalvas);
-                console.log('[Mobile] Tasks do localStorage:', tasks.length);
-            }
+            if (tasksSalvas) tasks = JSON.parse(tasksSalvas);
         }
         
         if (calendarEvents.length === 0) {
             const eventosSalvos = localStorage.getItem(`${userId}_calendarEvents`);
-            if (eventosSalvos) {
-                calendarEvents = JSON.parse(eventosSalvos);
-                console.log('[Mobile] Events do localStorage:', calendarEvents.length);
-            }
+            if (eventosSalvos) calendarEvents = JSON.parse(eventosSalvos);
         }
         
         if (Object.keys(weeklySchedule).length === 0) {
             const scheduleSalvo = localStorage.getItem(`${userId}_weeklySchedule`);
-            if (scheduleSalvo) {
-                weeklySchedule = JSON.parse(scheduleSalvo);
-                console.log('[Mobile] Schedule do localStorage');
-            }
+            if (scheduleSalvo) weeklySchedule = JSON.parse(scheduleSalvo);
         }
         
         if (timeSlots.length === 0) {
             const slotsSalvos = localStorage.getItem(`${userId}_timeSlots`);
-            if (slotsSalvos) {
-                timeSlots = JSON.parse(slotsSalvos);
-                console.log('[Mobile] TimeSlots do localStorage:', timeSlots.length);
-            }
+            if (slotsSalvos) timeSlots = JSON.parse(slotsSalvos);
         }
         
         if (notifications.length === 0) {
             const notifSalvas = localStorage.getItem(`${userId}_notifications`);
-            if (notifSalvas) {
-                notifications = JSON.parse(notifSalvas);
-                console.log('[Mobile] Notifications do localStorage:', notifications.length);
-            }
+            if (notifSalvas) notifications = JSON.parse(notifSalvas);
         }
         
     } catch (error) {
         console.error('[Mobile] Erro ao carregar dados:', error);
     }
     
-    // GARANTIR ESTRUTURAS PADRÃO
     if (timeSlots.length === 0) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
     
     days.forEach(day => {
         if (!weeklySchedule[day]) weeklySchedule[day] = [];
     });
-    
-    console.log('[Mobile] 📊 Dados finais carregados:', {
-        notes: notes.length,
-        tasks: tasks.length,
-        events: calendarEvents.length,
-        schedule: Object.keys(weeklySchedule).length,
-        timeSlots: timeSlots.length,
-        notifications: notifications.length
-    });
 }
 
-// ===== FUNÇÃO PARA SALVAR DADOS COM SINCronizaÇÃO FORÇADA =====
 async function salvarTodosDados() {
-    if (!usuarioLogado) {
-        console.error('[Mobile] Usuário não logado');
-        return false;
-    }
-    
-    if (syncInProgress) {
-        console.log('[Mobile] Sincronização em andamento, aguardando...');
-        return false;
-    }
+    if (!usuarioLogado || syncInProgress) return false;
     
     syncInProgress = true;
-    
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    console.log('[Mobile] 💾 Salvando dados...', {
-        notes: notes.length,
-        tasks: tasks.length,
-        schedule: Object.keys(weeklySchedule).length
-    });
+    const userId = usuarioLogado.id;
     
     try {
-        // SALVAR NO LOCALSTORAGE (BACKUP)
-        localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
-        localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
-        localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
-        localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
-        localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+        if (weeklySchedule) localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+        if (timeSlots) localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+        if (tasks) localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+        if (notes) localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+        if (calendarEvents) localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+        if (notifications) localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
         
-        // SALVAR NO CACHEMANAGER (SINCRONIZA COM FIRESTORE)
         if (window.CacheManager) {
-            // Garantir que o usuário está configurado
-            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId === 'default') {
+            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId !== userId) {
                 window.CacheManager.currentUserId = userId;
             }
             
-            // Salvar cada tipo de dado com notify=true para disparar eventos
             if (weeklySchedule) window.CacheManager.set('weeklySchedule', weeklySchedule, true);
             if (timeSlots) window.CacheManager.set('timeSlots', timeSlots, true);
             if (tasks) window.CacheManager.set('tasks', tasks, true);
             if (notes) window.CacheManager.set('notes', notes, true);
             if (calendarEvents) window.CacheManager.set('calendarEvents', calendarEvents, true);
             if (notifications) window.CacheManager.set('notifications', notifications, true);
-            
-            console.log('[Mobile] ✅ Dados salvos e enviados para sincronização!');
         }
         
         return true;
@@ -247,7 +167,6 @@ async function salvarTodosDados() {
     }
 }
 
-// ===== RENDERIZAR HORÁRIO =====
 function renderizarHorario() {
     const grid = document.getElementById('schedule-grid');
     if (!grid) return;
@@ -280,7 +199,6 @@ function renderizarHorario() {
     
     grid.innerHTML = html;
     
-    // EVENTOS DE CLIQUE
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -317,7 +235,6 @@ function renderizarHorario() {
     });
 }
 
-// ===== RENDERIZAR EDIÇÃO DE HORÁRIO =====
 function renderizarEditSchedule() {
     const grid = document.getElementById('edit-schedule-grid');
     if (!grid) return;
@@ -383,10 +300,8 @@ function renderizarEditSchedule() {
     });
 }
 
-// ===== FUNÇÕES DE REMOÇÃO =====
 function removerHorario(timeSlot) {
     let hasClasses = false;
-    
     for (const day of days) {
         if (weeklySchedule[day]?.some(cls => cls.horaInicio === timeSlot)) {
             hasClasses = true;
@@ -395,27 +310,17 @@ function removerHorario(timeSlot) {
     }
     
     if (hasClasses) {
-        showConfirm(
-            `O horário ${timeSlot} possui aulas agendadas. Excluir mesmo assim? As aulas serão removidas.`,
-            'Remover Horário',
-            async (confirmed) => {
-                if (confirmed) {
-                    await executarRemocaoHorario(timeSlot);
-                }
-            }
-        );
+        showConfirm(`O horário ${timeSlot} possui aulas. Remover mesmo assim?`, 'Remover Horário', async (confirmed) => {
+            if (confirmed) await executarRemocaoHorario(timeSlot);
+        });
     } else {
         executarRemocaoHorario(timeSlot);
     }
 }
 
 async function executarRemocaoHorario(timeSlot) {
-    console.log('[Mobile] Removendo horário:', timeSlot);
-    
     const index = timeSlots.indexOf(timeSlot);
-    if (index !== -1) {
-        timeSlots.splice(index, 1);
-    }
+    if (index !== -1) timeSlots.splice(index, 1);
     
     for (const day of days) {
         if (weeklySchedule[day]) {
@@ -424,7 +329,6 @@ async function executarRemocaoHorario(timeSlot) {
     }
     
     timeSlots.sort();
-    
     await salvarTodosDados();
     
     if (document.getElementById('edit-modal').classList.contains('active')) {
@@ -454,7 +358,6 @@ function removerAula(day, timeSlot) {
     });
 }
 
-// ===== RENDERIZAR PRÓXIMAS TAREFAS =====
 function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
@@ -473,8 +376,8 @@ function renderizarProximasTarefas() {
                 <ion-icon name="checkbox-outline"></ion-icon>
             </div>
             <div class="item-info">
-                <div class="item-title">${escapeHtml(task.title)}</div>
-                <div class="item-subtitle">${escapeHtml(task.subject || 'Geral')} • ${task.date || 'Sem data'}</div>
+                <div class="item-title">${escapeHtml(task.title || task.nome)}</div>
+                <div class="item-subtitle">${escapeHtml(task.subject || task.disciplina || 'Geral')} • ${task.date || task.prazo || 'Sem data'}</div>
             </div>
             <div class="item-arrow"><ion-icon name="chevron-forward-outline"></ion-icon></div>
         </div>`;
@@ -482,7 +385,6 @@ function renderizarProximasTarefas() {
     container.innerHTML = html;
 }
 
-// ===== RENDERIZAR PRÓXIMO EVENTO =====
 function renderizarProximoEvento() {
     const container = document.getElementById('next-event-container');
     if (!container) return;
@@ -523,7 +425,6 @@ function renderizarProximoEvento() {
     container.innerHTML = html;
 }
 
-// ===== RENDERIZAR NOTIFICAÇÕES =====
 function renderizarNotificacoes() {
     const container = document.getElementById('notifications-list');
     if (!container) return;
@@ -552,7 +453,6 @@ function renderizarNotificacoes() {
     container.innerHTML = html;
 }
 
-// ===== ATUALIZAR CARDS =====
 function atualizarCards() {
     const materias = new Set();
     if (weeklySchedule) {
@@ -575,7 +475,6 @@ function atualizarCards() {
     if (cardPendentes) cardPendentes.textContent = pendentes;
 }
 
-// ===== ATUALIZAR BADGE NOTIFICAÇÕES =====
 function atualizarBadgeNotificacoes() {
     const badge = document.getElementById('notification-badge');
     const naoLidas = (notifications || []).filter(n => !n.read).length;
@@ -585,7 +484,6 @@ function atualizarBadgeNotificacoes() {
     }
 }
 
-// ===== FUNÇÃO ESCAPE HTML =====
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -593,7 +491,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ===== ABRIR MODAL DE MATÉRIA =====
 function openSubjectModal(subject, day, time) {
     editingSubject = subject;
     const modal = document.getElementById('subject-modal');
@@ -624,7 +521,6 @@ function openSubjectModal(subject, day, time) {
     modal.classList.add('active');
 }
 
-// ===== SALVAR MATÉRIA =====
 async function salvarMateria() {
     const name = document.getElementById('subject-name-input')?.value.trim();
     const startTime = document.getElementById('subject-start-input')?.value;
@@ -676,7 +572,6 @@ async function salvarMateria() {
     editingSubject = null;
 }
 
-// ===== TOAST =====
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -693,7 +588,6 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-// ===== CONFIRM =====
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
     if (!modal) { callback(false); return; }
@@ -723,7 +617,6 @@ function showConfirm(message, title, callback) {
     document.getElementById('confirm-cancel').onclick = handleCancel;
 }
 
-// ===== RENDERIZAR NOTIFICAÇÕES MODAL =====
 function renderizarNotificacoesModal(filter = 'all') {
     const container = document.getElementById('notifications-list-modal');
     if (!container) return;
@@ -789,7 +682,6 @@ function limparTodasNotificacoes() {
     });
 }
 
-// ===== CONFIGURAR EVENTOS =====
 function configurarEventos() {
     const toggleEdit = document.getElementById('toggle-edit-mode');
     if (toggleEdit) {
@@ -911,34 +803,22 @@ function configurarEventos() {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
-            if (view === 'calendar') {
-                window.location.href = './calendario/index.html';
-            } else if (view === 'tasks') {
-                window.location.href = './tarefas/index.html';
-            } else if (view === 'notes') {
-                window.location.href = './notas/index.html';
-            } else if (view === 'profile') {
-                window.location.href = './perfil/index.html';
-            }
+            if (view === 'calendar') window.location.href = './calendario/index.html';
+            else if (view === 'tasks') window.location.href = './tarefas/index.html';
+            else if (view === 'notes') window.location.href = './notas/index.html';
+            else if (view === 'profile') window.location.href = './perfil/index.html';
         });
     });
 }
 
-// ===== ESCUTAR EVENTOS DE SINCronizaÇÃO =====
 function configurarSincronizacao() {
-    // Escutar mudanças da nuvem (PC -> Mobile)
     window.addEventListener('cloudDataLoaded', async () => {
-        console.log('[Mobile] 📡 cloudDataLoaded - Dados da nuvem atualizados!');
-        
-        // Salvar anotação atual se estiver editando
         if (editingSubject && document.getElementById('subject-modal').classList.contains('active')) {
             await salvarMateria();
         }
         
-        // Recarregar dados
         await carregarTodosDados();
         
-        // Re-renderizar UI
         renderizarHorario();
         renderizarProximoEvento();
         renderizarProximasTarefas();
@@ -950,10 +830,8 @@ function configurarSincronizacao() {
         showToast('🔄 Dados sincronizados com o PC!', 'success');
     });
     
-    // Escutar atualizações de notas
     window.addEventListener('notesUpdated', (event) => {
         if (event.detail && event.detail.notes && !syncInProgress) {
-            console.log('[Mobile] 📝 notesUpdated recebido');
             const novasNotas = event.detail.notes;
             if (JSON.stringify(notes) !== JSON.stringify(novasNotas)) {
                 notes = novasNotas;
@@ -962,16 +840,13 @@ function configurarSincronizacao() {
         }
     });
     
-    // Escutar atualizações de foto de perfil
     window.addEventListener('profilePhotoUpdated', async (event) => {
         if (event.detail && event.detail.photoUrl) {
             await atualizarAvatarMobile(event.detail.photoUrl);
         }
     });
     
-    // Escutar forçar recarga
     window.addEventListener('forceRefresh', async () => {
-        console.log('[Mobile] 🔄 forceRefresh recebido');
         await carregarTodosDados();
         renderizarHorario();
         renderizarProximoEvento();
@@ -983,7 +858,6 @@ function configurarSincronizacao() {
     });
 }
 
-// ===== NOTIFICAÇÕES NATIVAS =====
 function isAndroidApp() {
     return typeof Android !== 'undefined';
 }
@@ -997,11 +871,11 @@ function sendNativeNotification(title, message, type) {
 }
 
 function checkPendingTasks() {
-    const localTasks = tasks.length ? tasks : (window.getCached ? window.getCached('tasks', []) : []);
+    const localTasks = tasks.length ? tasks : [];
     const today = new Date().toISOString().split('T')[0];
     localTasks.forEach(task => {
-        if (!task.completed && task.date === today) {
-            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
+        if (!task.completed && (task.date === today || task.prazo === today)) {
+            sendNativeNotification('📋 Tarefa Hoje', task.title || task.nome, 'tarefa');
         }
     });
 }
@@ -1024,16 +898,7 @@ function checkUpcomingClasses() {
     });
 }
 
-// ===== INICIALIZAÇÃO PRINCIPAL =====
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[Mobile] 🚀 Inicializando...');
-    
-    // INICIAR CACHEMANAGER
-    if (window.CacheManager) {
-        window.CacheManager.init();
-    }
-    
-    // OBTER USUÁRIO
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
         window.location.href = '../../login/index.html';
@@ -1041,21 +906,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     usuarioLogado = JSON.parse(usuarioSalvo);
-    console.log('[Mobile] Usuário logado:', usuarioLogado.email);
     
-    // INICIALIZAR FIRESTORE
+    // 🔥 INICIALIZAR SYNC ANTES DE TUDO
+    if (window.initSync) {
+        await window.initSync();
+    }
+    
+    if (window.CacheManager) {
+        window.CacheManager.init();
+    }
+    
     await inicializarFirestore();
-    
-    // CARREGAR DADOS
     await carregarTodosDados();
     
-    // ATUALIZAR NOME NA TELA
     const headerName = document.getElementById('header-name');
     if (headerName && usuarioLogado.nome) {
         headerName.textContent = usuarioLogado.nome.split(' ')[0];
     }
     
-    // RENDERIZAR INTERFACE
     renderizarHorario();
     renderizarProximoEvento();
     renderizarProximasTarefas();
@@ -1065,24 +933,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await atualizarAvatarMobile();
     atualizarFraseDoDiaMobile();
     
-    // CONFIGURAR SINCRONIZAÇÃO
     configurarSincronizacao();
-    
-    // CONFIGURAR EVENTOS DA INTERFACE
     configurarEventos();
-    
-    console.log('[Mobile] ✅ Inicialização concluída!');
-    console.log('[Mobile] 📊 Dados finais:', {
-        notes: notes.length,
-        tasks: tasks.length,
-        events: calendarEvents.length,
-        schedule: Object.keys(weeklySchedule).length,
-        notifications: notifications.length
-    });
 });
 
-// INICIAR VERIFICAÇÕES PERIÓDICAS
 setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
 setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
 
-console.log('%c📱 Mobile Otimizado - Sincronização Completa com Firestore!', 'color: #10b981; font-size: 16px; font-weight: bold;');
+console.log('%c📱 Mobile Otimizado - Sincronização Completa!', 'color: #10b981; font-size: 16px; font-weight: bold;');
