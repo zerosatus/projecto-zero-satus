@@ -1,4 +1,4 @@
-// Perfil Mobile - Configurações do usuário (VERSÃO BASE64)
+// mobile-telas/perfil/script.js - COMPLETO CORRIGIDO COM SUPABASE
 
 let notifications = [];
 let usuarioLogado = null;
@@ -67,10 +67,12 @@ function closeModal(modalId) {
 }
 
 function saveAllData() {
-    window.setCached('usuarioLogado', usuarioLogado);
-    window.setCached('notifications', notifications);
-    window.setCached('notificacoesSettings', notificacoesSettings);
-    window.setCached('appearanceSettings', appearanceSettings);
+    if (window.CacheManager) {
+        window.CacheManager.set('usuarioLogado', usuarioLogado, true);
+        window.CacheManager.set('notifications', notifications, true);
+        window.CacheManager.set('notificacoesSettings', notificacoesSettings, true);
+        window.CacheManager.set('appearanceSettings', appearanceSettings, true);
+    }
     
     if (userPhotoURL) {
         localStorage.setItem('userPhotoURL', userPhotoURL);
@@ -78,16 +80,40 @@ function saveAllData() {
 }
 
 function loadAllData() {
-    usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
+    // ✅ Usar CacheManager primeiro
+    if (window.CacheManager) {
+        const cachedUser = window.CacheManager.get('usuarioLogado', null);
+        if (cachedUser && cachedUser.id) {
+            usuarioLogado = cachedUser;
+        }
+    }
     
-    if (!usuarioLogado || !usuarioLogado.email) {
+    // Fallback para localStorage
+    if (!usuarioLogado) {
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        if (usuarioSalvo) {
+            usuarioLogado = JSON.parse(usuarioSalvo);
+        }
+    }
+    
+    if (!usuarioLogado || !usuarioLogado.id) {
         window.location.href = '../../login/index.html';
         return;
     }
     
-    notifications = window.getCached('notifications', window.getDefaultNotifications());
-    notificacoesSettings = window.getCached('notificacoesSettings', window.getDefaultNotificacoesSettings());
-    appearanceSettings = window.getCached('appearanceSettings', window.getDefaultAppearanceSettings());
+    console.log('[Perfil Mobile] Usuário logado (UUID):', usuarioLogado.id);
+    
+    // Carregar configurações
+    if (window.CacheManager) {
+        notifications = window.CacheManager.get('notifications', []);
+        notificacoesSettings = window.CacheManager.get('notificacoesSettings', { push: true, email: false, aulas: true, tarefas: true });
+        appearanceSettings = window.CacheManager.get('appearanceSettings', { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
+    } else {
+        notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+        notificacoesSettings = JSON.parse(localStorage.getItem('notificacoesSettings') || '{"push":true,"email":false,"aulas":true,"tarefas":true}');
+        appearanceSettings = JSON.parse(localStorage.getItem('appearanceSettings') || '{"theme":"dark","accent":"#8b5cf6","fontSize":14}');
+    }
+    
     userPhotoURL = localStorage.getItem('userPhotoURL');
     
     if (appearanceSettings.accent) {
@@ -150,7 +176,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
-    window.setCached('notifications', notifications);
+    if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
     showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
@@ -160,7 +186,7 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
-            window.setCached('notifications', notifications);
+            if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
             showToast('Notificações limpas!', 'success');
         }
     });
@@ -180,8 +206,6 @@ function loadProfileData() {
             if (avatarPreview) {
                 avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
                 avatarPreview.style.display = 'flex';
-                avatarPreview.style.alignItems = 'center';
-                avatarPreview.style.justifyContent = 'center';
             }
             if (profileAvatar) {
                 profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
@@ -196,7 +220,7 @@ function loadProfileData() {
     }
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL COM BASE64 ==========
+// ========== FUNÇÕES DE FOTO DE PERFIL COM SUPABASE ==========
 
 async function carregarFotoPerfil() {
     if (!usuarioLogado) return;
@@ -220,44 +244,18 @@ async function carregarFotoPerfil() {
             if (avatarPreview) {
                 avatarPreview.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
                 avatarPreview.style.display = 'flex';
-                avatarPreview.style.alignItems = 'center';
-                avatarPreview.style.justifyContent = 'center';
             }
-        } else if (userPhotoURL && userPhotoURL.startsWith('data:')) {
-            if (profileAvatar) {
-                profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-            }
-            if (avatarPreview) {
-                avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                avatarPreview.style.display = 'flex';
-            }
-        } else {
-            const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
-            if (profileAvatar) {
-                profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
-            }
-            if (avatarPreview) {
-                avatarPreview.textContent = initial;
-            }
+            return;
         }
-    } else {
-        if (userPhotoURL && userPhotoURL.startsWith('data:')) {
-            if (profileAvatar) {
-                profileAvatar.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-            }
-            if (avatarPreview) {
-                avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                avatarPreview.style.display = 'flex';
-            }
-        } else {
-            const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
-            if (profileAvatar) {
-                profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
-            }
-            if (avatarPreview) {
-                avatarPreview.textContent = initial;
-            }
-        }
+    }
+    
+    // Fallback para avatar padrão
+    const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+    if (profileAvatar) {
+        profileAvatar.innerHTML = `<span id="profile-initial">${initial}</span>`;
+    }
+    if (avatarPreview) {
+        avatarPreview.textContent = initial;
     }
 }
 
@@ -274,6 +272,7 @@ async function uploadProfilePhoto(file) {
         return null;
     }
     
+    // Preview imediato
     const reader = new FileReader();
     reader.onload = function(e) {
         const profileAvatar = document.querySelector('.profile-avatar');
@@ -346,42 +345,6 @@ async function deleteProfilePhoto() {
     return false;
 }
 
-function iniciarEscutaFotoMobile() {
-    if (!usuarioLogado) return;
-    
-    const userId = usuarioLogado.uid || usuarioLogado.email;
-    
-    if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
-        profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
-            if (photoUrl && photoUrl.startsWith('data:')) {
-                console.log('[Mobile Perfil] Foto atualizada em tempo real!');
-                userPhotoURL = photoUrl;
-                usuarioLogado.profilePhotoUrl = photoUrl;
-                localStorage.setItem('userPhotoURL', photoUrl);
-                localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
-                
-                const profileAvatar = document.querySelector('.profile-avatar');
-                const avatarPreview = document.getElementById('avatar-preview');
-                
-                if (profileAvatar) {
-                    profileAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                }
-                if (avatarPreview) {
-                    avatarPreview.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                    avatarPreview.style.display = 'flex';
-                }
-            }
-        });
-    }
-}
-
-function pararEscutaFotoMobile() {
-    if (profilePhotoUnsubscribe) {
-        profilePhotoUnsubscribe();
-        profilePhotoUnsubscribe = null;
-    }
-}
-
 function loadNotificacoes() {
     const push = document.getElementById('toggle-push');
     const email = document.getElementById('toggle-email');
@@ -428,36 +391,28 @@ function switchView(viewName) {
 }
 
 async function syncToCloud() {
-    if (!usuarioLogado || !usuarioLogado.uid) {
+    if (!usuarioLogado) {
         showToast('Faça login primeiro!', 'error');
+        return;
+    }
+    
+    if (!window.CacheManager) {
+        showToast('Sistema de sincronização não disponível', 'error');
         return;
     }
     
     try {
         showToast('Sincronizando dados...', 'info');
         
-        const allData = {
-            usuarioLogado: usuarioLogado,
-            notifications: notifications,
-            notificacoesSettings: notificacoesSettings,
-            appearanceSettings: appearanceSettings,
-            userPhotoURL: userPhotoURL,
-            weeklySchedule: window.weeklySchedule || {},
-            timeSlots: window.timeSlots || [],
-            calendarEvents: window.calendarEvents || [],
-            tasks: window.tasks || [],
-            notes: window.notes || []
-        };
+        // Forçar sincronização manual
+        const result = await window.CacheManager.forceSync();
         
-        if (window.FirebaseSync) {
-            const result = await window.FirebaseSync.syncAllDataToCloud(usuarioLogado.uid, allData);
-            if (result) {
-                showToast('Dados sincronizados com sucesso!', 'success');
-            } else {
-                showToast('Erro ao sincronizar dados', 'error');
-            }
+        if (result) {
+            // Recarregar dados após sync
+            await carregarFotoPerfil();
+            showToast('Dados sincronizados com sucesso!', 'success');
         } else {
-            showToast('Firebase não disponível', 'error');
+            showToast('Erro ao sincronizar dados', 'error');
         }
     } catch (error) {
         console.error('Erro na sincronização:', error);
@@ -465,9 +420,14 @@ async function syncToCloud() {
     }
 }
 
-// Inicialização
+// ========== INICIALIZAÇÃO PRINCIPAL ==========
 document.addEventListener('DOMContentLoaded', async () => {
-    if (window.CacheManager) window.CacheManager.init();
+    console.log('[Perfil Mobile] Inicializando...');
+    
+    if (window.CacheManager) {
+        window.CacheManager.init();
+    }
+    
     loadAllData();
     
     if (usuarioLogado) {
@@ -479,11 +439,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
         if (profileName) profileName.textContent = usuarioLogado.nome || nomeExibicao;
         if (profileEmail) profileEmail.textContent = usuarioLogado.email;
+        
+        // Inicializar sincronização
+        if (window.initSync) {
+            await window.initSync();
+        }
+        
+        await carregarFotoPerfil();
     }
     
     updateNotificationBadge();
-    await carregarFotoPerfil();
-    iniciarEscutaFotoMobile();
+    
+    // ========== EVENTOS DA UI ==========
     
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
@@ -573,9 +540,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (item.classList.contains('logout')) {
                 showConfirm('Deseja realmente sair da conta?', 'Sair', (confirmed) => {
                     if (confirmed) {
-                        pararEscutaFotoMobile();
                         localStorage.removeItem('usuarioLogado');
                         localStorage.removeItem('userPhotoURL');
+                        if (window.CacheManager) window.CacheManager.logout();
                         window.location.href = '../../login/index.html';
                     }
                 });
@@ -655,20 +622,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            if (currentPassword !== usuarioLogado.senha && usuarioLogado.senha !== '123456') {
-                showToast('Senha atual incorreta!', 'error');
-                return;
-            }
-            
-            usuarioLogado.senha = newPassword;
-            saveAllData();
+            // Nota: A senha é gerenciada pelo Supabase Auth
+            showToast('Para alterar a senha, use a opção "Esqueci minha senha" no login', 'info');
             
             closeModal('seguranca-modal');
-            showToast('Senha alterada!', 'success');
-            
-            document.getElementById('current-password').value = '';
-            document.getElementById('new-password').value = '';
-            document.getElementById('confirm-password').value = '';
         });
     }
     
@@ -745,7 +702,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const contatoBtn = document.getElementById('btn-contato');
     if (contatoBtn) contatoBtn.addEventListener('click', () => {
-        window.open('https://wa.me/nao disponivel', '_blank');
+        showToast('Suporte: suporte@painelaluno.com', 'info');
     });
     
     const termosBtn = document.getElementById('btn-termos');
@@ -769,6 +726,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             switchView(view);
         });
     });
+    
+    console.log('[Perfil Mobile] Inicializado com sucesso!');
 });
 
 // =====================================================
@@ -788,31 +747,35 @@ function sendNativeNotification(title, message, type) {
 }
 
 function checkPendingTasks() {
-    const tasks = window.getCached ? window.getCached('tasks', []) : [];
-    const today = new Date().toISOString().split('T')[0];
-    tasks.forEach(task => {
-        if (!task.completed && task.date === today) {
-            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
-        }
-    });
+    if (window.CacheManager) {
+        const tasks = window.CacheManager.get('tasks', []);
+        const today = new Date().toISOString().split('T')[0];
+        tasks.forEach(task => {
+            if (!task.completed && task.date === today) {
+                sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
+            }
+        });
+    }
 }
 
 function checkUpcomingClasses() {
-    const schedule = window.getCached ? window.getCached('weeklySchedule', {}) : {};
-    const now = new Date();
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const today = days[now.getDay()];
-    const currentTotal = now.getHours() * 60 + now.getMinutes();
-    
-    (schedule[today] || []).forEach(cls => {
-        if (cls.horaInicio) {
-            const [h, m] = cls.horaInicio.split(':').map(Number);
-            const minutesUntil = (h * 60 + m) - currentTotal;
-            if (minutesUntil <= 15 && minutesUntil > 0) {
-                sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+    if (window.CacheManager) {
+        const schedule = window.CacheManager.get('weeklySchedule', {});
+        const now = new Date();
+        const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const today = days[now.getDay()];
+        const currentTotal = now.getHours() * 60 + now.getMinutes();
+        
+        (schedule[today] || []).forEach(cls => {
+            if (cls.horaInicio) {
+                const [h, m] = cls.horaInicio.split(':').map(Number);
+                const minutesUntil = (h * 60 + m) - currentTotal;
+                if (minutesUntil <= 15 && minutesUntil > 0) {
+                    sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 if (document.readyState === 'loading') {
@@ -824,3 +787,5 @@ if (document.readyState === 'loading') {
     setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
     setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
 }
+
+console.log('%c👤 Perfil Mobile - Supabase Completo!', 'color: #8b5cf6; font-size: 16px; font-weight: bold;');
