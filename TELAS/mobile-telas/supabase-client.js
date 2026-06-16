@@ -1,4 +1,4 @@
-// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA E CORRIGIDA)
+// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA COM CONFIRMAÇÃO DE E-MAIL)
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -14,7 +14,7 @@ function initSupabase() {
 }
 
 // ============================================
-// SERVIÇO DE AUTENTICAÇÃO
+// SERVIÇO DE AUTENTICAÇÃO (COM CONFIRMAÇÃO)
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
@@ -22,7 +22,18 @@ const AuthService = {
         if (!client) throw new Error('Supabase não inicializado');
 
         const { data, error } = await client.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+            // Verificar se o erro é de e-mail não confirmado
+            if (error.message.includes('Email not confirmed') || error.message.includes('confirm')) {
+                throw new Error('Por favor, confirme seu e-mail antes de fazer login.');
+            }
+            throw error;
+        }
+
+        // Verificar se o e-mail foi confirmado
+        if (!data.user?.email_confirmed_at) {
+            throw new Error('E-mail não confirmado. Verifique sua caixa de entrada.');
+        }
 
         // Garantir que o perfil existe
         await this.ensureProfileExists(data.user);
@@ -41,12 +52,28 @@ const AuthService = {
                 data: {
                     full_name: nome || email.split('@')[0],
                     avatar_url: null
-                }
+                },
+                // O usuário será redirecionado para esta URL após confirmar o e-mail
+                emailRedirectTo: window.location.origin + window.location.pathname
             }
         });
         if (error) throw error;
 
-        // Criar perfil após cadastro
+        // Se o usuário foi criado mas precisa confirmar e-mail
+        if (data.user && !data.user.email_confirmed_at) {
+            console.log('[Auth] Usuário criado. Aguardando confirmação de e-mail.');
+
+            // Criar perfil apenas se já estiver confirmado (opcional)
+            // await this.createProfile(data.user.id, email, nome);
+
+            return {
+                user: data.user,
+                needsConfirmation: true,
+                message: 'E-mail de confirmação enviado! Verifique sua caixa de entrada.'
+            };
+        }
+
+        // Criar perfil após cadastro (se já confirmado)
         if (data.user) {
             await this.createProfile(data.user.id, email, nome);
         }
@@ -54,11 +81,76 @@ const AuthService = {
         return { user: data.user };
     },
 
+    // ============================================
+    // REENVIAR E-MAIL DE CONFIRMAÇÃO
+    // ============================================
+    async resendConfirmationEmail(email) {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase não inicializado');
+
+        try {
+            const { error } = await client.auth.resend({
+                type: 'signup',
+                email: email,
+                options: {
+                    emailRedirectTo: window.location.origin + window.location.pathname
+                }
+            });
+
+            if (error) throw error;
+
+            console.log('[Auth] E-mail de confirmação reenviado para:', email);
+            return true;
+
+        } catch (error) {
+            console.error('[Auth] Erro ao reenviar confirmação:', error);
+
+            // Se o usuário já estiver confirmado
+            if (error.message.includes('already confirmed')) {
+                throw new Error('Este e-mail já foi confirmado. Tente fazer login.');
+            }
+
+            throw error;
+        }
+    },
+
+    // ============================================
+    // CONFIRMAR E-MAIL (via token)
+    // ============================================
+    async confirmEmail(token) {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase não inicializado');
+
+        try {
+            const { data, error } = await client.auth.verifyOtp({
+                token_hash: token,
+                type: 'email'
+            });
+
+            if (error) throw error;
+
+            // Criar perfil após confirmação
+            if (data.user) {
+                await this.createProfile(
+                    data.user.id,
+                    data.user.email,
+                    data.user.user_metadata?.full_name
+                );
+            }
+
+            console.log('[Auth] E-mail confirmado com sucesso!');
+            return data;
+
+        } catch (error) {
+            console.error('[Auth] Erro ao confirmar e-mail:', error);
+            throw error;
+        }
+    },
+
     async loginWithGoogle() {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
 
-        // PEGAR A URL EXATA DA PÁGINA ATUAL
         const redirectUrl = window.location.origin + window.location.pathname;
         console.log('[Auth] Redirect URL Google:', redirectUrl);
 
@@ -105,7 +197,6 @@ const AuthService = {
 
             if (error) {
                 console.error('[Auth] Erro ao criar perfil:', error);
-                // Se erro for de duplicata, ignora
                 if (error.code !== '23505') throw error;
             } else {
                 console.log('[Auth] Perfil criado com sucesso');
@@ -118,11 +209,16 @@ const AuthService = {
     async ensureProfileExists(user) {
         if (!user) return;
 
+        // Só cria perfil se o e-mail estiver confirmado
+        if (!user.email_confirmed_at) {
+            console.log('[Auth] Usuário não confirmou e-mail ainda. Perfil não criado.');
+            return;
+        }
+
         const client = initSupabase();
         if (!client) return;
 
         try {
-            // Verificar se o perfil existe
             const { data, error } = await client
                 .from('profiles')
                 .select('*')
@@ -130,7 +226,6 @@ const AuthService = {
                 .single();
 
             if (error && error.code === 'PGRST116') {
-                // Perfil não existe, criar
                 console.log('[Auth] Criando perfil para:', user.email);
                 await this.createProfile(
                     user.id,
@@ -160,6 +255,19 @@ const AuthService = {
         }
     },
 
+    // Verificar status do usuário
+    async getUserStatus() {
+        const { data: { user } } = await this.getCurrentUser();
+        if (!user) return { loggedIn: false, confirmed: false };
+
+        return {
+            loggedIn: true,
+            confirmed: !!user.email_confirmed_at,
+            email: user.email,
+            id: user.id
+        };
+    },
+
     onAuthStateChange(callback) {
         const client = initSupabase();
         if (!client) {
@@ -187,7 +295,6 @@ const AuthService = {
         }
     },
 
-    // Método para obter a sessão atual
     async getSession() {
         const client = initSupabase();
         if (!client) return { data: { session: null } };
@@ -720,3 +827,4 @@ window.dispatchEvent(new CustomEvent('supabaseReady'));
 console.log('[Supabase] Serviços carregados com sucesso!');
 console.log('[Supabase] URL:', SUPABASE_URL);
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
+console.log('[Supabase] Confirmação de e-mail habilitada');
