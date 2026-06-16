@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
+            </div>
+            
+            <nav class="menu">
+                <a href="./index.html" class="menu-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="../dashboard/index.html" class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../calendario/index.html" class="menu-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="../tarefas/index.html" class="menu-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tarefas</span>
+                </a>
+                <a href="../anotacoes/index.html" class="menu-item">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Anotações</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Comunidade</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </a>
+            </nav>
+            
+            <div class="menu-bottom">
+                <div class="logout-section">
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sair da Conta</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="profile-quick-view">
+                    <div class="profile-card-mini">
+                        <div class="profile-header-mini">
+                            <div class="profile-avatar-mini">
+                                <img id="miniAvatar" src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=70" alt="Avatar">
+                                <div class="status-indicator online"></div>
+                            </div>
+                            <div class="profile-info-mini">
+                                <h3 id="miniName">Carregando...</h3>
+                                <p class="profile-email-mini" id="miniEmail">carregando@email.com</p>
+                                <div class="profile-badge-mini">
+                                    <i class="fas fa-crown"></i>
+                                    Aluno Premium
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-stats-mini">
+                            <div class="stat-mini">
+                                <i class="fas fa-tasks"></i>
+                                <div>
+                                    <span class="stat-value-mini" id="statTarefas">0</span>
+                                    <span class="stat-label-mini">Tarefas</span>
+                                </div>
+                            </div>
+                            <div class="stat-mini">
+                                <i class="fas fa-check-circle"></i>
+                                <div>
+                                    <span class="stat-value-mini" id="statConclusao">0%</span>
+                                    <span class="stat-label-mini">Conclusão</span>
+                                </div>
+                            </div>
+                            <div class="stat-mini">
+                                <i class="fas fa-clock"></i>
+                                <div>
+                                    <span class="stat-value-mini" id="statHoras">0h</span>
+                                    <span class="stat-label-mini">Estudo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="profile-progress-mini">
+                            <div class="progress-header">
+                                <span>Progresso Semanal</span>
+                                <span class="progress-value" id="progressValue">0%</span>
+                            </div>
+                            <div class="progress-bar-mini">
+                                <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <button class="btn-view-profile" onclick="window.location.href='../perfil/index.html'">
+                            <i class="fas fa-user"></i>
+                            Ver Perfil Completo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="calendar-widget">
+                    <div class="calendar-header">
+                        <button class="calendar-nav" id="prevMonth">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h3 id="currentMonth">Carregando...</h3>
+                        <button class="calendar-nav" id="nextMonth">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="calendar-days">
+                        <div class="day-label">Dom</div>
+                        <div class="day-label">Seg</div>
+                        <div class="day-label">Ter</div>
+                        <div class="day-label">Qua</div>
+                        <div class="day-label">Qui</div>
+                        <div class="day-label">Sex</div>
+                        <div class="day-label">Sáb</div>
+                    </div>
+                    <div class="calendar-dates" id="calendarDates"></div>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Next Class -->
+                <div class="task-cards">
+                    <div class="task-card purple">
+                        <div class="task-icon">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div class="task-info">
+                            <h3>Próxima Aula</h3>
+                            <p id="nextClassInfo">Nenhuma aula hoje</p>
+                        </div>
+                    </div>
+
+                    <div class="task-card blue">
+                        <div class="task-icon">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="task-info">
+                            <h3>Próxima Tarefa</h3>
+                            <p id="nextTaskInfo">Nenhuma tarefa pendente</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="notifications-panel">
+                    <h3><i class="fas fa-bell"></i> Notificações recentes</h3>
+                    <div class="notification-list">
+                        <div class="notification-item purple">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Bem-vindo ao Painel do Aluno!</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule -->
+                <div class="schedule-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Horário Semanal</h3>
+                        <button class="btn-edit-schedule" id="btnEditSchedule" title="Editar Horário">
+                            <i class="fas fa-edit"></i>
+                            Editar
+                        </button>
+                    </div>
+                    <table class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Segunda</th>
+                                <th>Terça</th>
+                                <th>Quarta</th>
+                                <th>Quinta</th>
+                                <th>Sexta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px;">Carregando horário...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Study Hours -->
+                <div class="study-hours-panel">
+                    <h3>Total de Horas de Estudo</h3>
+                    <div class="study-content">
+                        <div class="circular-progress">
+                            <svg class="progress-ring" width="150" height="150">
+                                <circle class="progress-ring-bg" cx="75" cy="75" r="65"></circle>
+                                <circle class="progress-ring-fill" cx="75" cy="75" r="65"></circle>
+                            </svg>
+                            <div class="progress-text">
+                                <span class="percentage">0%</span>
+                                <span class="label">Meta</span>
+                            </div>
+                        </div>
+                        <div class="study-stats">
+                            <div class="stat">
+                                <span class="stat-value" id="totalHours">0h</span>
+                                <span class="stat-label">Total este mês</span>
+                            </div>
+                            <div class="chart-placeholder" id="studyChart"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subjects -->
+                <div class="subjects-panel">
+                    <div class="subjects-panel-header">
+                        <h3><i class="fas fa-book" style="margin-right: 8px; color: var(--purple-primary);"></i>Minhas Disciplinas</h3>
+                        <button class="btn-gerenciar-disc" id="btnGerenciarDisciplinas" title="Gerenciar Disciplinas">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="subjects-grid" id="subjectsGrid">
+                        <p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina cadastrada</p>
+                    </div>
+                </div>
+
+                <!-- Focus -->
+                <div class="focus-panel">
+                    <h3>Frase do Dia</h3>
+                    <div class="focus-content">
+                        <div class="focus-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <p>Frase do dia...</p>
+                        <button class="btn-start" id="startStudy">
+                            <i class="fas fa-play"></i>
+                            Começar Sessão de Estudo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Edição de Horário -->
+    <div class="modal" id="editScheduleModal">
+        <div class="modal-content schedule-modal-content">
+            <div class="modal-header">
+                <h2>Editar Horário Semanal</h2>
+                <button class="modal-close" onclick="fecharModalHorario()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="edit-schedule-wrapper">
+                    <div class="edit-schedule-grid" id="editScheduleGrid">
+                        <!-- Grade gerada via JS -->
+                    </div>
+                </div>
+
+                <div class="add-time-section">
+                    <h3><i class="fas fa-plus-circle"></i> Adicionar Novo Horário à Grade</h3>
+                    <div class="add-time-controls">
+                        <input type="time" id="newTimeInput" value="11:00">
+                        <button class="btn-add-time" onclick="adicionarHorario()">
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>
+                        <button class="btn-cancel-time" onclick="document.getElementById('newTimeInput').value='11:00'">
+                            <i class="fas fa-undo"></i> Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="fecharModalHorario()">
+                    <i class="fas fa-times"></i> Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Adicionar/Editar Matéria -->
+    <div class="modal" id="subjectModal">
+        <div class="modal-content subject-modal-content">
+            <div class="modal-header">
+                <h2 id="subjectModalTitle">Adicionar Matéria</h2>
+                <button class="modal-close" onclick="fecharModalMateria()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="subjectForm" onsubmit="salvarMateria(event)">
+                <div class="form-group">
+                    <label>Nome da Matéria</label>
+                    <input type="text" id="subjectNameInput" placeholder="Ex: Matemática" required list="disciplinasList">
+                    <datalist id="disciplinasList">
+                        <!-- Preenchido via JS com disciplinas cadastradas -->
+                    </datalist>
+                </div>
+
+                <div class="form-group">
+                    <label>Professor (Opcional)</label>
+                    <input type="text" id="subjectTeacherInput" placeholder="Nome do professor">
+                </div>
+
+                <div class="form-row-two">
+                    <div class="form-group">
+                        <label>Início</label>
+                        <input type="time" id="subjectStartInput" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fim</label>
+                        <input type="time" id="subjectEndInput" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Dia da Semana</label>
+                    <select id="subjectDayInput" required>
+                        <option value="Seg">Segunda-feira</option>
+                        <option value="Ter">Terça-feira</option>
+                        <option value="Qua">Quarta-feira</option>
+                        <option value="Qui">Quinta-feira</option>
+                        <option value="Sex">Sexta-feira</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Cor</label>
+                    <div class="color-options">
+                        <div class="color-option active" data-color="#9333ea" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #9333ea;"></div>
+                        </div>
+                        <div class="color-option" data-color="#3b82f6" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #3b82f6;"></div>
+                        </div>
+                        <div class="color-option" data-color="#ef4444" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #ef4444;"></div>
+                        </div>
+                        <div class="color-option" data-color="#10b981" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #10b981;"></div>
+                        </div>
+                        <div class="color-option" data-color="#f59e0b" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #f59e0b;"></div>
+                        </div>
+                        <div class="color-option" data-color="#8b5cf6" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                        </div>
+                        <div class="color-option" data-color="#ec4899" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #ec4899;"></div>
+                        </div>
+                        <div class="color-option" data-color="#14b8a6" onclick="selecionarCor(this)">
+                            <div class="color-circle" style="background-color: #14b8a6;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="fecharModalMateria()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Gerenciar Disciplinas -->
+    <div class="modal" id="modalDisciplinas">
+        <div class="modal-content modal-disciplinas">
+            <div class="modal-header">
+                <h2><i class="fas fa-book" style="margin-right: 8px; color: var(--purple-primary);"></i>Gerenciar Minhas Disciplinas</h2>
+                <button class="modal-close" onclick="fecharModalDisciplinas()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-disc-body">
+                <div class="disc-form-section">
+                    <h3 id="modalDiscTitle">Nova Disciplina</h3>
+                    <form id="formDisciplina">
+                        <div class="form-group">
+                            <label>Nome da Disciplina</label>
+                            <input type="text" id="discNome" placeholder="Ex: Programação" required>
+                        </div>
+                        
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label>Cor</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="discCor" value="#9333ea">
+                                    <span class="color-hex" id="colorHexDisplay">#9333ea</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Ícone</label>
+                                <select id="discIcone">
+                                    <option value="fa-book"> Livro</option>
+                                    <option value="fa-square-root-variable">📐 Matemática</option>
+                                    <option value="fa-atom">️ Átomo</option>
+                                    <option value="fa-flask">🧪 Laboratório</option>
+                                    <option value="fa-dna">🧬 DNA</option>
+                                    <option value="fa-globe-americas">🌍 Globo</option>
+                                    <option value="fa-language">🌐 Idioma</option>
+                                    <option value="fa-landmark">🏛️ História</option>
+                                    <option value="fa-palette">🎨 Arte</option>
+                                    <option value="fa-music">🎵 Música</option>
+                                    <option value="fa-laptop-code">💻 Código</option>
+                                    <option value="fa-calculator">🧮 Calculadora</option>
+                                    <option value="fa-pen">✏️ Escrita</option>
+                                    <option value="fa-star">⭐ Estrela</option>
+                                    <option value="fa-heart">❤️ Coração</option>
+                                    <option value="fa-bolt">⚡ Energia</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn-create" id="btnSalvarDisc">Criar Disciplina</button>
+                        <button type="button" class="btn-cancel" onclick="limparFormDisciplina()" style="margin-top: 8px; width: 100%;">Limpar</button>
+                    </form>
+                </div>
+                
+                <div class="disc-list-section">
+                    <h3>Disciplinas Cadastradas</h3>
+                    <div class="disc-list" id="listaDisciplinas"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span>Operação realizada!</span>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

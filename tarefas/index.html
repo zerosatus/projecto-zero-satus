@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno - Tarefas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
+            </div>
+            
+            <nav class="menu">
+                <a href="../inicio/index.html" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="../dashboard/index.html" class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../calendario/index.html" class="menu-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="./index.html" class="menu-item active">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tarefas</span>
+                </a>
+                <a href="../anotacoes/index.html" class="menu-item">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Anotações</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Comunidade</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </a>
+            </nav>
+            
+            <div class="menu-bottom">
+                <div class="logout-section">
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sair da Conta</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
+                <div class="header-actions">
+                    <button class="icon-btn">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">U</div>
+                        <span id="userNameProfile">Carregando...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Stats Container -->
+            <div class="stats-container">
+                <div class="stat-card pending">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="pendingCount">0</span>
+                        <span class="stat-label">Pendentes</span>
+                    </div>
+                </div>
+                <div class="stat-card completed">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="completedTodayCount">0</span>
+                        <span class="stat-label">Concluídas hoje</span>
+                    </div>
+                </div>
+                <div class="stat-card overdue">
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="overdueCount">0</span>
+                        <span class="stat-label">Atrasadas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Left Panel -->
+                <div class="left-panel">
+                    <button class="btn-primary" onclick="abrirModal()">
+                        <i class="fas fa-plus"></i>
+                        Nova Tarefa
+                    </button>
+
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <div class="filter-item active-filter" data-filter="todas">
+                            <i class="fas fa-list"></i>
+                            <span>Todas as tarefas</span>
+                            <span class="badge" id="totalBadge">0</span>
+                        </div>
+                        <div class="filter-item" data-filter="pendentes">
+                            <i class="fas fa-clock"></i>
+                            <span>Pendentes</span>
+                            <span class="badge" id="pendingBadge">0</span>
+                        </div>
+                        <div class="filter-item" data-filter="concluidas">
+                            <i class="fas fa-check"></i>
+                            <span>Concluídas</span>
+                            <span class="badge" id="completedBadge">0</span>
+                        </div>
+                        <div class="filter-item" data-filter="favoritas">
+                            <i class="fas fa-star"></i>
+                            <span>Favoritas</span>
+                            <span class="badge" id="favoriteBadge">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Subjects Section -->
+                    <div class="subjects-section">
+                        <h3>DISCIPLINAS</h3>
+                        <div id="subjectsList">
+                            <p style="text-align: center; padding: 20px; color: #9ca3af;">Carregando disciplinas...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div class="right-panel">
+                    <div class="tasks-header">
+                        <h2>Tarefas</h2>
+                        <select class="filter-select" id="orderSelect">
+                            <option value="prazo">Por prazo</option>
+                            <option value="disciplina">Por disciplina</option>
+                            <option value="prioridade">Por prioridade</option>
+                        </select>
+                    </div>
+
+                    <!-- Search Box -->
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar tarefas...">
+                    </div>
+
+                    <!-- Task List -->
+                    <div class="task-list" id="taskList">
+                        <div class="empty-state" style="text-align: center; padding: 40px;">
+                            <i class="fas fa-tasks" style="font-size: 48px; color: var(--text-secondary); margin-bottom: 16px; display: block;"></i>
+                            <h3 style="color: var(--text-primary);">Nenhuma tarefa ainda</h3>
+                            <p style="color: var(--text-secondary);">Clique em "Nova Tarefa" para começar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nova Tarefa -->
+    <div class="modal" id="modalNovaTarefa">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Nova Tarefa</h2>
+                <button class="modal-close" onclick="fecharModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="formNovaTarefa">
+                <div class="form-group">
+                    <label>Nome da Tarefa</label>
+                    <input type="text" id="nomeTarefa" placeholder="Digite o nome da tarefa" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="descricaoTarefa" placeholder="Digite a descrição (opcional)"></textarea>
+                </div>
+
+                <div class="form-row-two">
+                    <div class="form-group">
+                        <label>Prioridade</label>
+                        <div class="priority-options">
+                            <button type="button" class="priority-btn" data-priority="alta">
+                                <i class="fas fa-flag"></i> Alta
+                            </button>
+                            <button type="button" class="priority-btn active" data-priority="media">
+                                <i class="fas fa-flag"></i> Média
+                            </button>
+                            <button type="button" class="priority-btn" data-priority="baixa">
+                                <i class="fas fa-flag"></i> Baixa
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prazo</label>
+                        <div class="input-with-icon">
+                            <input type="date" id="prazoTarefa">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Disciplina</label>
+                    <select id="disciplinaTarefa">
+                        <option value="matematica">Matemática</option>
+                        <option value="portugues">Português</option>
+                        <option value="historia">História</option>
+                        <option value="fisica">Física</option>
+                        <option value="quimica">Química</option>
+                        <option value="biologia">Biologia</option>
+                        <option value="geografia">Geografia</option>
+                        <option value="ingles">Inglês</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Subtarefas</label>
+                    <div class="subtasks-container" id="subtasksContainer"></div>
+                    <button type="button" class="btn-add-subtask" onclick="adicionarSubtarefa()">
+                        <i class="fas fa-plus"></i> Adicionar subtarefa
+                    </button>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+                    <button type="submit" class="btn-create">Criar Tarefa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span>Operação realizada!</span>
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
