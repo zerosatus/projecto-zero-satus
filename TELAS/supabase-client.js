@@ -1,4 +1,4 @@
-// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA COM CONFIRMAÇÃO DE E-MAIL E ANTI-AUTOCOMPLETE)
+// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA COM CONFIRMAÇÃO DE E-MAIL E ANTI-AUTOCOMPLETE + CORREÇÕES)
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -802,25 +802,83 @@ const DatabaseService = {
         }
     },
 
+    // ============================================
+    // 🔥 CORRIGIDO: updateUserProfile com verificação de campos
+    // ============================================
     async updateUserProfile(userId, profile) {
         const client = initSupabase();
         if (!client) return false;
 
         try {
+            // Verificar quais campos existem na tabela
+            let existingColumns = [];
+            try {
+                const { data: columns } = await client
+                    .from('profiles')
+                    .select('*')
+                    .limit(1);
+                if (columns && columns.length > 0) {
+                    existingColumns = Object.keys(columns[0]);
+                }
+            } catch (e) {
+                console.warn('[DB] Não foi possível verificar colunas, usando campos padrão');
+            }
+
+            // Campos permitidos
+            const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero'];
+            const updateData = {};
+
+            // Adicionar apenas campos que existem na tabela
+            for (const field of allowedFields) {
+                if (profile[field] !== undefined && profile[field] !== null) {
+                    if (existingColumns.length === 0 || existingColumns.includes(field)) {
+                        updateData[field] = profile[field];
+                    }
+                }
+            }
+
+            // Se não houver campos para atualizar, retorna
+            if (Object.keys(updateData).length === 0) {
+                console.log('[DB] Nenhum campo válido para atualizar');
+                return true;
+            }
+
+            updateData.updated_at = new Date().toISOString();
+
             const { error } = await client
                 .from('profiles')
-                .update({
-                    nome: profile.nome,
-                    telefone: profile.telefone,
-                    nascimento: profile.nascimento,
-                    genero: profile.genero,
-                    avatar_url: profile.avatar_url,
-                    updated_at: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', userId);
 
-            if (error) throw error;
-            console.log('[DB] Perfil atualizado');
+            if (error) {
+                // Se der erro de coluna, tentar apenas campos básicos
+                if (error.code === 'PGRST204' || error.message.includes('column')) {
+                    console.warn('[DB] Coluna não encontrada, tentando apenas campos básicos...');
+                    const basicData = {};
+                    if (profile.nome !== undefined) basicData.nome = profile.nome;
+                    if (profile.avatar_url !== undefined) basicData.avatar_url = profile.avatar_url;
+                    if (profile.email !== undefined) basicData.email = profile.email;
+                    basicData.updated_at = new Date().toISOString();
+
+                    if (Object.keys(basicData).length > 1) {
+                        const { error: retryError } = await client
+                            .from('profiles')
+                            .update(basicData)
+                            .eq('id', userId);
+
+                        if (retryError) {
+                            console.error('[DB] Erro na segunda tentativa:', retryError);
+                            throw retryError;
+                        }
+                        console.log('[DB] Perfil atualizado com campos básicos');
+                        return true;
+                    }
+                    return false;
+                }
+                throw error;
+            }
+
+            console.log('[DB] Perfil atualizado com sucesso');
             return true;
         } catch (error) {
             console.error('[DB] Erro ao atualizar perfil:', error);
@@ -1024,7 +1082,7 @@ const DatabaseService = {
 };
 
 // ============================================
-// SERVIÇO DE STORAGE
+// SERVIÇO DE STORAGE (CORRIGIDO COM FALLBACK)
 // ============================================
 const StorageService = {
     async uploadProfilePhoto(userId, file) {
@@ -1032,24 +1090,77 @@ const StorageService = {
         if (!client) return null;
 
         try {
-            const fileExt = file.name.split('.').pop();
+            // Validação do arquivo
+            if (!file || !file.type || !file.type.startsWith('image/')) {
+                console.error('[Storage] Arquivo inválido:', file);
+                return null;
+            }
+
+            const fileExt = file.name.split('.').pop() || 'png';
             const fileName = `${userId}_${Date.now()}.${fileExt}`;
             const filePath = `avatars/${fileName}`;
 
+            // Tentar fazer upload
             const { error: uploadError } = await client.storage
                 .from('user-content')
-                .upload(filePath, file);
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                console.error('[Storage] Erro no upload:', uploadError);
 
+                // Se o bucket não existir, criar
+                if (uploadError.message.includes('bucket not found')) {
+                    console.warn('[Storage] Bucket não encontrado, criando...');
+                    const { error: createError } = await client.storage.createBucket('user-content', {
+                        public: true
+                    });
+                    if (createError) {
+                        console.error('[Storage] Erro ao criar bucket:', createError);
+                        // Fallback: retornar base64
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                    // Tentar novamente
+                    const { error: retryError } = await client.storage
+                        .from('user-content')
+                        .upload(filePath, file);
+                    if (retryError) {
+                        console.error('[Storage] Erro no upload após criar bucket:', retryError);
+                        // Fallback: base64
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                } else {
+                    // Fallback: base64
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.readAsDataURL(file);
+                    });
+                }
+            }
+
+            // Obter URL pública
             const { data: { publicUrl } } = client.storage
                 .from('user-content')
                 .getPublicUrl(filePath);
 
             if (publicUrl) {
+                // Atualizar perfil com a URL
                 await DatabaseService.updateUserProfile(userId, { avatar_url: publicUrl });
+                return publicUrl;
             }
 
+            // Fallback: base64
             return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
@@ -1057,7 +1168,12 @@ const StorageService = {
             });
         } catch (error) {
             console.error('[Storage] Erro ao fazer upload:', error);
-            return null;
+            // Fallback: base64
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
         }
     },
 
@@ -1102,3 +1218,5 @@ console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService)
 console.log('[Supabase] StorageService disponível:', !!window.StorageService);
 console.log('[Supabase] ✅ Suporte a disciplinas adicionado!');
 console.log('[Supabase] ✅ Anti-autocomplete e confirmação de e-mail corrigidos!');
+console.log('[Supabase] ✅ updateUserProfile com verificação de campos!');
+console.log('[Supabase] ✅ StorageService com fallback para base64!');
