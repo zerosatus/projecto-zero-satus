@@ -1,10 +1,9 @@
-// perfil/script.js - CORRIGIDO COM SUPABASE STORAGE
+// perfil/script.js - COMPLETO CORRIGIDO
 
 let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
 let eventos = [];
-let currentPhotoUnsubscribe = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -12,57 +11,85 @@ window.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '../login/index.html';
         return;
     }
-    
+
     try {
         usuarioAtual = JSON.parse(usuario);
-        
+
         if (window.initSync) {
             await window.initSync();
         }
-        
+
+        // Carregar dados do usuário do Supabase
+        await carregarDadosDoUsuario();
+
         carregarDados();
         atualizarPerfil();
         await carregarFotoAtual();
-        
+
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Perfil] Dados atualizados do Supabase');
             carregarDados();
             atualizarEstatisticasPerfil();
             atualizarAtividadesRecentes();
         });
-        
+
         window.addEventListener('profilePhotoUpdated', (event) => {
             if (event.detail && event.detail.photoUrl) {
                 atualizarFotoEmTodasTelas(event.detail.photoUrl);
             }
         });
-        
+
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
+        mostrarToast('Erro ao carregar dados do usuário', 'error');
     }
 });
 
+// ========== CARREGAR DADOS DO SUPABASE ==========
+async function carregarDadosDoUsuario() {
+    if (!usuarioAtual || !window.DatabaseService) return;
+
+    try {
+        const userId = usuarioAtual.id;
+        const profile = await window.DatabaseService.getUserProfile(userId);
+
+        if (profile) {
+            usuarioAtual.nome = profile.nome || usuarioAtual.nome;
+            usuarioAtual.email = profile.email || usuarioAtual.email;
+            usuarioAtual.telefone = profile.telefone || '';
+            usuarioAtual.nascimento = profile.nascimento || '';
+            usuarioAtual.genero = profile.genero || 'nao-informar';
+            usuarioAtual.avatar_url = profile.avatar_url || null;
+
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+            console.log('[Perfil] Dados do usuário carregados do Supabase');
+        }
+    } catch (error) {
+        console.error('[Perfil] Erro ao carregar dados do usuário:', error);
+    }
+}
+
 function carregarDados() {
     if (!usuarioAtual) return;
-    
+
     if (window.CacheManager) {
         tarefas = window.CacheManager.get('tasks', []);
         anotacoes = window.CacheManager.get('notes', []);
         eventos = window.CacheManager.get('calendarEvents', []);
     } else {
-        const userId = usuarioAtual.id;  // ✅ UUID
+        const userId = usuarioAtual.id;
         tarefas = JSON.parse(localStorage.getItem(`${userId}_tasks`) || '[]');
         anotacoes = JSON.parse(localStorage.getItem(`${userId}_notes`) || '[]');
         eventos = JSON.parse(localStorage.getItem(`${userId}_calendarEvents`) || '[]');
     }
-    
+
     atualizarEstatisticasPerfil();
     atualizarAtividadesRecentes();
 }
 
 function atualizarPerfil() {
     if (!usuarioAtual) return;
-    
+
     const profileName = document.getElementById('profileName');
     const profileEmail = document.getElementById('profileEmail');
     const nomeInput = document.getElementById('nome');
@@ -70,7 +97,7 @@ function atualizarPerfil() {
     const telefoneInput = document.getElementById('telefone');
     const nascimentoInput = document.getElementById('nascimento');
     const generoSelect = document.getElementById('genero');
-    
+
     if (profileName) profileName.textContent = usuarioAtual.nome || 'Usuário';
     if (profileEmail) profileEmail.textContent = usuarioAtual.email || '';
     if (nomeInput) nomeInput.value = usuarioAtual.nome || '';
@@ -84,15 +111,15 @@ function atualizarEstatisticasPerfil() {
     const totalTarefas = tarefas.length;
     const tarefasConcluidas = tarefas.filter(t => t.completed).length;
     const percentual = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
-    
+
     let horasEstudo = 0;
     horasEstudo += eventos.filter(e => e.type === 'aula').length * 2;
     horasEstudo += tarefasConcluidas * 1.5;
-    
+
     const statTarefas = document.getElementById('statTarefas');
     const statConclusao = document.getElementById('statConclusao');
     const statHoras = document.getElementById('statHoras');
-    
+
     if (statTarefas) statTarefas.textContent = totalTarefas;
     if (statConclusao) statConclusao.textContent = percentual + '%';
     if (statHoras) statHoras.textContent = Math.floor(horasEstudo) + 'h';
@@ -101,9 +128,9 @@ function atualizarEstatisticasPerfil() {
 function atualizarAtividadesRecentes() {
     const activityList = document.getElementById('activityList');
     if (!activityList) return;
-    
+
     const atividades = [];
-    
+
     (tarefas || []).slice(0, 2).forEach(tarefa => {
         atividades.push({
             titulo: tarefa.title || tarefa.nome,
@@ -113,7 +140,7 @@ function atualizarAtividadesRecentes() {
             data: new Date(tarefa.dataCriacao || Date.now())
         });
     });
-    
+
     (anotacoes || []).slice(0, 2).forEach(anotacao => {
         atividades.push({
             titulo: anotacao.title || anotacao.titulo,
@@ -123,7 +150,7 @@ function atualizarAtividadesRecentes() {
             data: new Date(anotacao.date || anotacao.dataModificacao || Date.now())
         });
     });
-    
+
     (eventos || []).slice(0, 2).forEach(evento => {
         atividades.push({
             titulo: evento.title,
@@ -133,16 +160,16 @@ function atualizarAtividadesRecentes() {
             data: new Date(evento.date || `${evento.year}-${evento.month + 1}-${evento.day}`)
         });
     });
-    
+
     atividades.sort((a, b) => b.data - a.data);
     const recentes = atividades.slice(0, 4);
-    
+
     activityList.innerHTML = '';
     if (recentes.length === 0) {
         activityList.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Nenhuma atividade recente</p>';
         return;
     }
-    
+
     recentes.forEach(atividade => {
         const activityItem = document.createElement('div');
         activityItem.className = 'activity-item';
@@ -175,7 +202,7 @@ function formatarDataRelativa(data) {
     const diffMin = Math.floor(diffMs / 60000);
     const diffHoras = Math.floor(diffMs / 3600000);
     const diffDias = Math.floor(diffMs / 86400000);
-    
+
     if (diffMin < 1) return 'agora mesmo';
     if (diffMin < 60) return `Há ${diffMin} minutos`;
     if (diffHoras < 24) return `Há ${diffHoras} horas`;
@@ -191,27 +218,29 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL CORRIGIDAS ==========
+// ========== FUNÇÕES DE FOTO DE PERFIL ==========
 
 async function carregarFotoAtual() {
     if (!usuarioAtual) return;
-    
+
     const avatarImg = document.getElementById('avatarImage');
-    
+
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-        
-        if (photoUrl && photoUrl.startsWith('data:')) {
+
+        if (photoUrl) {
             if (avatarImg) avatarImg.src = photoUrl;
             usuarioAtual.profilePhotoUrl = photoUrl;
             localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-        } else {
-            const iniciais = usuarioAtual.nome ? 
-                usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-            const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
-            if (avatarImg) avatarImg.src = defaultAvatar;
+            return;
         }
     }
+
+    // Fallback para avatar padrão
+    const iniciais = usuarioAtual.nome ?
+        usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
+    if (avatarImg) avatarImg.src = defaultAvatar;
 }
 
 function atualizarFotoEmTodasTelas(photoUrl) {
@@ -219,9 +248,9 @@ function atualizarFotoEmTodasTelas(photoUrl) {
         usuarioAtual.profilePhotoUrl = photoUrl;
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
     }
-    
+
     const avatarImg = document.getElementById('avatarImage');
-    if (avatarImg && photoUrl && photoUrl.startsWith('data:')) {
+    if (avatarImg && photoUrl) {
         avatarImg.src = photoUrl;
     }
 }
@@ -229,17 +258,17 @@ function atualizarFotoEmTodasTelas(photoUrl) {
 async function previewAvatar(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     if (!file.type.startsWith('image/')) {
         mostrarToast('Por favor, selecione uma imagem válida!', 'error');
         return;
     }
-    
+
     if (file.size > 2 * 1024 * 1024) {
         mostrarToast('A imagem deve ter no máximo 2MB!', 'error');
         return;
     }
-    
+
     // Preview imediato
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -247,26 +276,101 @@ async function previewAvatar(event) {
         if (avatarImg) avatarImg.src = e.target.result;
     };
     reader.readAsDataURL(file);
-    
+
     mostrarToast('Enviando foto...', 'info');
-    
+
     // Upload para o Supabase
     if (window.CacheManager) {
-        const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
-        
-        if (photoUrl && photoUrl.startsWith('data:')) {
-            mostrarToast('Foto atualizada com sucesso e sincronizada!', 'success');
-            atualizarFotoEmTodasTelas(photoUrl);
-            // Disparar evento para outras abas/dispositivos
-            window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
-        } else {
+        try {
+            const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
+
+            if (photoUrl) {
+                mostrarToast('Foto atualizada com sucesso e sincronizada!', 'success');
+                atualizarFotoEmTodasTelas(photoUrl);
+                window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
+            } else {
+                mostrarToast('Erro ao enviar foto!', 'error');
+                await carregarFotoAtual();
+            }
+        } catch (error) {
+            console.error('[Perfil] Erro no upload:', error);
             mostrarToast('Erro ao enviar foto!', 'error');
-            await carregarFotoAtual();
         }
     } else {
         mostrarToast('Sistema de upload não disponível', 'error');
     }
 }
+
+// ========== FUNÇÕES DE SALVAR DADOS ==========
+
+// 🔥 CORRIGIDO: Função para salvar todas as alterações
+async function salvarAlteracoes() {
+    const nome = document.getElementById('nome')?.value.trim();
+    const email = document.getElementById('email')?.value.trim();
+    const telefone = document.getElementById('telefone')?.value.trim();
+    const nascimento = document.getElementById('nascimento')?.value;
+    const genero = document.getElementById('genero')?.value;
+
+    if (!nome || !email) {
+        mostrarToast('Preencha nome e e-mail!', 'error');
+        return;
+    }
+
+    // Atualizar dados locais
+    usuarioAtual.nome = nome;
+    usuarioAtual.email = email;
+    usuarioAtual.telefone = telefone || '';
+    usuarioAtual.nascimento = nascimento || '';
+    usuarioAtual.genero = genero || 'nao-informar';
+
+    // 🔥 SALVAR NO SUPABASE
+    try {
+        const userId = usuarioAtual.id;
+
+        if (userId && window.DatabaseService) {
+            // Criar objeto com todos os campos
+            const profileData = {
+                nome: nome,
+                email: email,
+                telefone: telefone || '',
+                nascimento: nascimento || null,
+                genero: genero || 'nao-informar'
+            };
+
+            // Se tiver foto, incluir
+            if (usuarioAtual.profilePhotoUrl) {
+                profileData.avatar_url = usuarioAtual.profilePhotoUrl;
+            }
+
+            // Atualizar no Supabase
+            const result = await window.DatabaseService.updateUserProfile(userId, profileData);
+
+            if (result) {
+                console.log('[Perfil] Dados salvos no Supabase com sucesso');
+            } else {
+                console.warn('[Perfil] Erro ao salvar no Supabase, salvando localmente');
+            }
+        }
+
+        // Salvar localmente sempre
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+
+        if (window.CacheManager) {
+            window.CacheManager.set('usuarioLogado', usuarioAtual, true);
+        }
+
+        atualizarPerfil();
+        mostrarToast('Alterações salvas com sucesso!', 'success');
+
+    } catch (error) {
+        console.error('[Perfil] Erro ao salvar:', error);
+        // Fallback: salvar localmente
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
+        mostrarToast('Dados salvos localmente (erro na nuvem)', 'warning');
+    }
+}
+
+// ========== FUNÇÕES DE SEGURANÇA ==========
 
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);
@@ -284,65 +388,34 @@ function togglePassword(inputId) {
     }
 }
 
-function salvarAlteracoes() {
-    const nome = document.getElementById('nome')?.value.trim();
-    const email = document.getElementById('email')?.value.trim();
-    const telefone = document.getElementById('telefone')?.value.trim();
-    const nascimento = document.getElementById('nascimento')?.value;
-    const genero = document.getElementById('genero')?.value;
-    
-    if (!nome || !email) {
-        mostrarToast('Preencha nome e e-mail!', 'error');
-        return;
-    }
-    
-    usuarioAtual.nome = nome;
-    usuarioAtual.email = email;
-    usuarioAtual.telefone = telefone;
-    usuarioAtual.nascimento = nascimento;
-    usuarioAtual.genero = genero;
-    
-    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-    if (window.CacheManager) {
-        window.CacheManager.set('usuarioLogado', usuarioAtual, true);
-    }
-    
-    atualizarPerfil();
-    mostrarToast('Alterações salvas com sucesso!', 'success');
-}
-
 function alterarSenha() {
     const senhaAtual = document.getElementById('senhaAtual')?.value;
     const novaSenha = document.getElementById('novaSenha')?.value;
     const confirmarSenha = document.getElementById('confirmarSenha')?.value;
-    
+
     if (!senhaAtual || !novaSenha || !confirmarSenha) {
         mostrarToast('Preencha todos os campos de senha!', 'error');
         return;
     }
-    
+
     if (novaSenha !== confirmarSenha) {
         mostrarToast('As senhas não coincidem!', 'error');
         return;
     }
-    
+
     if (novaSenha.length < 6) {
         mostrarToast('A nova senha deve ter no mínimo 6 caracteres!', 'error');
         return;
     }
-    
-    usuarioAtual.senha = novaSenha;
-    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
-    if (window.CacheManager) {
-        window.CacheManager.set('usuarioLogado', usuarioAtual, true);
-    }
-    
+
+    mostrarToast('Para alterar a senha, use a opção "Esqueci minha senha" no login', 'info');
+
     document.getElementById('senhaAtual').value = '';
     document.getElementById('novaSenha').value = '';
     document.getElementById('confirmarSenha').value = '';
-    
-    mostrarToast('Senha alterada com sucesso!', 'success');
 }
+
+// ========== FUNÇÕES DE PREFERÊNCIAS ==========
 
 function toggleDarkMode() {
     const isDark = document.getElementById('darkModeToggle')?.checked;
@@ -359,6 +432,8 @@ function toggleDarkMode() {
     }
 }
 
+// ========== FUNÇÕES DE CONTA ==========
+
 function exportarDados() {
     const dados = {
         usuario: usuarioAtual,
@@ -367,16 +442,16 @@ function exportarDados() {
         eventos: eventos,
         dataExportacao: new Date().toISOString()
     };
-    
+
     const dataStr = JSON.stringify(dados, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `dados_${usuarioAtual.nome}_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `dados_${usuarioAtual.nome || 'usuario'}_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    
+
     mostrarToast('Dados exportados com sucesso!', 'success');
 }
 
@@ -392,11 +467,11 @@ function deletarConta() {
             localStorage.removeItem(`${userId}_timeSlots`);
             localStorage.removeItem(`${userId}_notifications`);
             localStorage.removeItem('usuarioLogado');
-            
+
             if (window.CacheManager) {
                 window.CacheManager.deleteProfilePhoto();
             }
-            
+
             mostrarToast('Conta deletada com sucesso!', 'success');
             setTimeout(() => {
                 window.location.href = '../login/index.html';
@@ -407,18 +482,25 @@ function deletarConta() {
     }
 }
 
+// ========== FUNÇÕES DE TOAST ==========
+
 function mostrarToast(mensagem, tipo = 'success') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
     if (toast && toastMessage) {
         toastMessage.textContent = mensagem;
-        toast.className = `toast show`;
+        toast.className = 'toast show';
         if (tipo === 'error') {
             toast.style.background = 'linear-gradient(135deg, #d63031, #c0392b)';
+        } else if (tipo === 'warning') {
+            toast.style.background = 'linear-gradient(135deg, #fdcb6e, #f39c12)';
+            toast.style.color = '#2d3436';
+        } else if (tipo === 'info') {
+            toast.style.background = 'linear-gradient(135deg, #0984e3, #0066cc)';
         } else {
             toast.style.background = 'linear-gradient(135deg, #00b894, #059669)';
         }
-        
+
         setTimeout(() => {
             toast.classList.remove('show');
         }, 3000);
@@ -427,6 +509,8 @@ function mostrarToast(mensagem, tipo = 'success') {
     }
 }
 
+// ========== FUNÇÕES DE LOGOUT ==========
+
 function logout() {
     if (confirm('Deseja sair da sua conta?')) {
         localStorage.removeItem('usuarioLogado');
@@ -434,6 +518,8 @@ function logout() {
         window.location.href = '../login/index.html';
     }
 }
+
+// ========== EVENTOS ==========
 
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
