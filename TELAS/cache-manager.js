@@ -1,4 +1,4 @@
-// cache-manager.js - Versão Supabase COMPLETA E CORRIGIDA (COM _reloadFromStorage)
+// cache-manager.js - Versão Supabase COMPLETA COM PREVENÇÃO DE LOOP
 
 class SupabaseCacheManager {
     constructor() {
@@ -7,6 +7,9 @@ class SupabaseCacheManager {
         this._pendingSync = new Map();
         this.isLoading = false;
         this.isInitialized = false;
+        this._savingFlags = new Map(); // ← PREVENÇÃO DE LOOP
+        this._lastSyncTime = 0;
+        this._syncDebounce = 2000; // 2 segundos entre sincronizações
     }
 
     init() {
@@ -48,29 +51,99 @@ class SupabaseCacheManager {
     }
 
     set(key, value, notify = true) {
+        // ✅ PREVENÇÃO DE LOOP - Se já está salvando este key, ignora
+        const flagKey = `${this.getCurrentUserId()}_${key}`;
+        if (this._savingFlags.get(flagKey)) {
+            // console.log(`[CacheManager] Ignorando set ${key} (já em andamento)`);
+            return false;
+        }
+
         try {
             const userId = this.getCurrentUserId();
             if (!userId) return false;
 
             const storageKey = `${userId}_${key}`;
+
+            // Verificar se o valor realmente mudou
+            const currentData = localStorage.getItem(storageKey);
+            if (currentData !== null) {
+                try {
+                    const parsed = JSON.parse(currentData);
+                    if (JSON.stringify(parsed) === JSON.stringify(value)) {
+                        // Dados idênticos, não precisa salvar
+                        return true;
+                    }
+                } catch(e) {}
+            }
+
+            // ✅ MARCAR COMO SALVANDO
+            this._savingFlags.set(flagKey, true);
+
             localStorage.setItem(storageKey, JSON.stringify(value));
 
-            this.saveToCloud(key, value, userId);
+            // ✅ SALVAR NA NUVEM COM DEBOUNCE
+            this._scheduleCloudSave(key, value, userId);
 
             if (notify && this.listeners.has(key)) {
-                this.listeners.get(key).forEach(cb => cb(value));
+                this.listeners.get(key).forEach(cb => {
+                    try {
+                        cb(value);
+                    } catch(e) {
+                        console.warn('[CacheManager] Erro no listener:', e);
+                    }
+                });
             }
             return true;
         } catch (error) {
             console.error(`[CacheManager] Erro ao set ${key}:`, error);
             return false;
+        } finally {
+            // ✅ LIMPAR FLAG APÓS 1 SEGUNDO
+            setTimeout(() => {
+                this._savingFlags.delete(flagKey);
+            }, 1000);
         }
+    }
+
+    // ✅ DEBOUNCE PARA SALVAR NA NUVEM
+    _scheduleCloudSave(key, value, userId) {
+        const pendingKey = `${userId}_${key}`;
+
+        if (this._pendingSync.has(pendingKey)) {
+            clearTimeout(this._pendingSync.get(pendingKey));
+        }
+
+        const timeout = setTimeout(async () => {
+            this._pendingSync.delete(pendingKey);
+
+            // Verificar se o valor ainda é o mesmo
+            const currentValue = this.get(key, null);
+            if (currentValue === null) return;
+
+            if (JSON.stringify(currentValue) !== JSON.stringify(value)) {
+                // Valor mudou, salvar o atual
+                await this.saveToCloud(key, currentValue, userId);
+            } else {
+                await this.saveToCloud(key, value, userId);
+            }
+        }, 1500);
+
+        this._pendingSync.set(pendingKey, timeout);
     }
 
     async saveToCloud(key, value, userId) {
         if (!window.DatabaseService || !userId) return;
 
+        // ✅ PREVENIR SALVAMENTOS MÚLTIPLOS
+        const now = Date.now();
+        if (now - this._lastSyncTime < this._syncDebounce) {
+            // console.log(`[CacheManager] Debounce para ${key}`);
+            return;
+        }
+
         try {
+            this._lastSyncTime = now;
+
             switch(key) {
                 case 'tasks':
                     await window.DatabaseService.saveTasks(userId, value);
@@ -99,13 +172,12 @@ class SupabaseCacheManager {
                     }
                     break;
             }
-            console.log(`[CacheManager] Dados ${key} salvos na nuvem`);
+            // console.log(`[CacheManager] Dados ${key} salvos na nuvem`);
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
         }
     }
 
-    // ✅ CORRIGIDO: loadFromCloud com _reloadFromStorage
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
         if (!userId || !window.DatabaseService) {
@@ -188,11 +260,18 @@ class SupabaseCacheManager {
                 }
             }
 
-            // ✅ ATUALIZAR O CACHE DO CacheManager
             if (hasChanges) {
                 this._reloadFromStorage(userId);
                 console.log('[CacheManager] ✅ Dados carregados da nuvem e salvos localmente!');
-                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+
+                // ✅ DISPARAR EVENTO APENAS UMA VEZ
+                if (!this._eventTriggered) {
+                    this._eventTriggered = true;
+                    window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+                    setTimeout(() => {
+                        this._eventTriggered = false;
+                    }, 5000);
+                }
             } else {
                 console.log('[CacheManager] Nenhum dado novo encontrado na nuvem');
             }
@@ -206,7 +285,6 @@ class SupabaseCacheManager {
         }
     }
 
-    // ✅ NOVO MÉTODO: Recarregar do storage
     _reloadFromStorage(userId) {
         const dataTypes = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
         for (const type of dataTypes) {
@@ -222,7 +300,6 @@ class SupabaseCacheManager {
                 }
             }
         }
-        console.log('[CacheManager] Cache recarregado do localStorage');
     }
 
     async forceSync() {
@@ -247,6 +324,8 @@ class SupabaseCacheManager {
         }
         this.currentUserId = null;
         this.listeners.clear();
+        this._savingFlags.clear();
+        this._pendingSync.clear();
         console.log('[CacheManager] Logout realizado');
     }
 
@@ -340,4 +419,4 @@ window.setNotifications = (notifications, notify) => window.CacheManager.set('no
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] Supabase v2.1 carregado!');
+console.log('[CacheManager] Supabase v2.2 carregado! (com prevenção de loop)');
