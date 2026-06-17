@@ -1,4 +1,4 @@
-// login/script.js - Login com Supabase (COM CONFIRMAÇÃO DE E-MAIL)
+// login/script.js - Login com Supabase (COM CONFIRMAÇÃO DE E-MAIL - CORRIGIDO)
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -29,11 +29,42 @@ function setLoading(button, isLoading) {
     }
 }
 
+// ============================================
+// LIMPAR CAMPOS DO FORMULÁRIO
+// ============================================
+function limparCamposFormulario() {
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const nomeInput = document.getElementById('nome');
+
+    if (emailInput) {
+        emailInput.value = '';
+        emailInput.setAttribute('autocomplete', 'off');
+        emailInput.setAttribute('data-lpignore', 'true');
+        emailInput.setAttribute('data-1p-ignore', 'true');
+    }
+
+    if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.setAttribute('autocomplete', 'new-password');
+        passwordInput.setAttribute('data-lpignore', 'true');
+        passwordInput.setAttribute('data-1p-ignore', 'true');
+    }
+
+    if (nomeInput) {
+        nomeInput.value = '';
+        nomeInput.setAttribute('autocomplete', 'off');
+        nomeInput.setAttribute('data-lpignore', 'true');
+        nomeInput.setAttribute('data-1p-ignore', 'true');
+    }
+
+    console.log('[Login] Campos do formulário limpos');
+}
+
 async function processarLogin(user) {
     console.log('[Login] Processando login para:', user.email);
     console.log('[Login] User ID (UUID):', user.id);
 
-    // Verificar se o e-mail foi confirmado
     if (!user.email_confirmed_at) {
         console.warn('[Login] E-mail não confirmado!');
         showMessage('📧 Por favor, confirme seu e-mail antes de fazer login.', true);
@@ -63,7 +94,6 @@ async function processarLogin(user) {
 
     showMessage(`✅ Bem-vindo, ${usuario.nome}!`, false);
 
-    // Redirecionar após 1 segundo
     setTimeout(() => {
         const isMobile = ehCelular();
         const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
@@ -75,7 +105,7 @@ async function processarLogin(user) {
 }
 
 // ============================================
-// LOGIN COM E-MAIL (COM VERIFICAÇÃO)
+// LOGIN COM E-MAIL
 // ============================================
 async function loginWithEmail(email, password) {
     if (!window.AuthService) {
@@ -86,7 +116,6 @@ async function loginWithEmail(email, password) {
     try {
         const { user } = await window.AuthService.loginWithEmail(email, password);
 
-        // Verificar confirmação de e-mail
         if (!user.email_confirmed_at) {
             showMessage('📧 E-mail não confirmado! Verifique sua caixa de entrada.', true);
             showResendButton(email);
@@ -98,7 +127,6 @@ async function loginWithEmail(email, password) {
     } catch (error) {
         console.error('[Email] Erro:', error);
 
-        // Tratar erros específicos
         if (error.message.includes('Email not confirmed') || error.message.includes('confirm')) {
             showMessage('📧 Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.', true);
             showResendButton(email);
@@ -112,7 +140,7 @@ async function loginWithEmail(email, password) {
 }
 
 // ============================================
-// REGISTRO (COM CONFIRMAÇÃO DE E-MAIL)
+// REGISTRO
 // ============================================
 async function registerWithEmail(email, password, nome) {
     if (!window.AuthService) {
@@ -121,12 +149,10 @@ async function registerWithEmail(email, password, nome) {
     }
 
     try {
-        // Salvar email para reenvio
         pendingEmail = email;
 
         const result = await window.AuthService.registerWithEmail(email, password, nome);
 
-        // Verificar se precisa confirmar e-mail
         if (result.user && !result.user.email_confirmed_at) {
             showMessage(
                 '📧 E-mail de confirmação enviado! Verifique sua caixa de entrada (inclusive spam) e clique no link para ativar sua conta.',
@@ -134,19 +160,14 @@ async function registerWithEmail(email, password, nome) {
                 6000
             );
 
-            // Mostrar botão para reenviar
             showResendButton(email);
 
-            // Limpar campos
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
-            if (document.getElementById('nome')) {
-                document.getElementById('nome').value = '';
-            }
+            // ⚠️ IMPORTANTE: Limpar TODOS os campos e forçar logout se necessário
+            await window.AuthService.logout();
+            localStorage.removeItem('usuarioLogado');
+            limparCamposFormulario();
 
-            // Mudar para modo login
             if (isRegisterMode) toggleForm();
-
             return true;
         }
 
@@ -185,7 +206,6 @@ async function resendConfirmationEmail(email) {
 }
 
 function showResendButton(email) {
-    // Remover botão existente
     const existingBtn = document.getElementById('resend-container');
     if (existingBtn) existingBtn.remove();
 
@@ -227,61 +247,7 @@ function showResendButton(email) {
 }
 
 // ============================================
-// LIMPAR CAMPOS DO FORMULÁRIO (FUNÇÃO AUXILIAR)
-// ============================================
-function limparCamposFormulario() {
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const nomeInput = document.getElementById('nome');
-
-    // Limpar valores
-    if (emailInput) {
-        emailInput.value = '';
-        emailInput.setAttribute('autocomplete', 'off');
-        emailInput.setAttribute('autocorrect', 'off');
-        emailInput.setAttribute('autocapitalize', 'off');
-        emailInput.setAttribute('spellcheck', 'false');
-
-        // Remover qualquer preenchimento automático do navegador
-        emailInput.removeAttribute('data-form-type');
-        emailInput.removeAttribute('data-lpignore');
-    }
-
-    if (passwordInput) {
-        passwordInput.value = '';
-        // Usar 'new-password' para evitar autocomplete
-        passwordInput.setAttribute('autocomplete', 'new-password');
-        passwordInput.removeAttribute('data-form-type');
-        passwordInput.removeAttribute('data-lpignore');
-    }
-
-    if (nomeInput) {
-        nomeInput.value = '';
-        nomeInput.setAttribute('autocomplete', 'off');
-        nomeInput.setAttribute('autocorrect', 'off');
-        nomeInput.setAttribute('autocapitalize', 'off');
-        nomeInput.setAttribute('spellcheck', 'false');
-    }
-
-    // Adicionar atributos anti-autocomplete nos campos
-    if (emailInput) {
-        emailInput.setAttribute('data-lpignore', 'true');
-        emailInput.setAttribute('data-1p-ignore', 'true');
-    }
-    if (passwordInput) {
-        passwordInput.setAttribute('data-lpignore', 'true');
-        passwordInput.setAttribute('data-1p-ignore', 'true');
-    }
-    if (nomeInput) {
-        nomeInput.setAttribute('data-lpignore', 'true');
-        nomeInput.setAttribute('data-1p-ignore', 'true');
-    }
-
-    console.log('[Login] Campos do formulário limpos');
-}
-
-// ============================================
-// TOGGLE FORM (LOGIN / REGISTRO)
+// TOGGLE FORM
 // ============================================
 function toggleForm() {
     isRegisterMode = !isRegisterMode;
@@ -291,7 +257,6 @@ function toggleForm() {
     const mainTitle = document.getElementById('main-title');
     const mainSubtitle = document.getElementById('main-subtitle');
 
-    // Remover botão de reenviar
     const resendContainer = document.getElementById('resend-container');
     if (resendContainer) resendContainer.remove();
 
@@ -319,43 +284,91 @@ function toggleForm() {
         if (passwordInput) passwordInput.placeholder = 'Sua senha';
     }
 
-    // FORÇAR LIMPEZA DOS CAMPOS
     limparCamposFormulario();
 }
 
-async function checkSession() {
-    if (!window.AuthService) return false;
+// ============================================
+// ⭐ NOVA FUNÇÃO: VERIFICAR SE É CALLBACK DE CONFIRMAÇÃO
+// ============================================
+function isConfirmationCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
 
-    try {
-        const { data: { user } } = await window.AuthService.getCurrentUser();
-        if (user && !localStorage.getItem('usuarioLogado')) {
-            await processarLogin(user);
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.warn('[Login] Erro ao verificar sessão:', err);
-        return false;
-    }
+    // Verificar se há token de confirmação na URL
+    const hasToken = params.has('token') || params.has('confirmation_token') ||
+                     hash.includes('access_token') || hash.includes('confirmation');
+
+    // Verificar se é o callback do Google
+    const isGoogle = params.has('code') || hash.includes('access_token');
+
+    return hasToken && !isGoogle;
 }
 
-function waitForSupabase() {
-    return new Promise((resolve) => {
-        if (window.AuthService) {
-            resolve();
-            return;
+// ============================================
+// ⭐ NOVA FUNÇÃO: PROCESSAR CALLBACK DE CONFIRMAÇÃO
+// ============================================
+async function handleConfirmationCallback() {
+    console.log('[Confirmação] Processando callback de confirmação...');
+
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+
+    // Extrair token da URL
+    let token = params.get('token') || params.get('confirmation_token');
+
+    // Se não tiver token, verificar no hash
+    if (!token && hash) {
+        const hashParams = new URLSearchParams(hash.replace('#', '?'));
+        token = hashParams.get('access_token');
+    }
+
+    if (!token) {
+        console.log('[Confirmação] Nenhum token encontrado na URL');
+        return false;
+    }
+
+    console.log('[Confirmação] Token encontrado:', token.substring(0, 10) + '...');
+
+    try {
+        // ⚠️ IMPORTANTE: Verificar se o usuário atual corresponde ao e-mail confirmado
+        const { data: { user } } = await window.AuthService.getCurrentUser();
+
+        // Se já estiver logado com uma conta diferente, fazer logout primeiro
+        if (user && pendingEmail && user.email !== pendingEmail) {
+            console.log('[Confirmação] Usuário atual diferente do e-mail confirmado. Fazendo logout...');
+            await window.AuthService.logout();
+            localStorage.removeItem('usuarioLogado');
+            // Limpar campos e recarregar a página
+            limparCamposFormulario();
+            window.location.reload();
+            return true;
         }
 
-        window.addEventListener('supabaseReady', () => {
-            console.log('[Login] Evento supabaseReady recebido');
-            resolve();
-        });
+        // Tentar confirmar o e-mail
+        const result = await window.AuthService.confirmEmail(token);
 
-        setTimeout(() => {
-            console.warn('[Login] Timeout aguardando Supabase');
-            resolve();
-        }, 10000);
-    });
+        if (result.user) {
+            showMessage('✅ E-mail confirmado com sucesso! Faça login para continuar.', false, 5000);
+
+            // Limpar campos e redirecionar para login
+            limparCamposFormulario();
+
+            // Remover parâmetros da URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Se estava logado com conta diferente, garantir que fez logout
+            await window.AuthService.logout();
+            localStorage.removeItem('usuarioLogado');
+
+            return true;
+        }
+
+        return false;
+    } catch (error) {
+        console.error('[Confirmação] Erro ao confirmar e-mail:', error);
+        showMessage('❌ Erro ao confirmar e-mail: ' + error.message, true);
+        return false;
+    }
 }
 
 // ============================================
@@ -443,6 +456,41 @@ function isGoogleCallback() {
     return hasCode || hasAccessToken;
 }
 
+async function checkSession() {
+    if (!window.AuthService) return false;
+
+    try {
+        const { data: { user } } = await window.AuthService.getCurrentUser();
+        if (user && !localStorage.getItem('usuarioLogado')) {
+            await processarLogin(user);
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.warn('[Login] Erro ao verificar sessão:', err);
+        return false;
+    }
+}
+
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        if (window.AuthService) {
+            resolve();
+            return;
+        }
+
+        window.addEventListener('supabaseReady', () => {
+            console.log('[Login] Evento supabaseReady recebido');
+            resolve();
+        });
+
+        setTimeout(() => {
+            console.warn('[Login] Timeout aguardando Supabase');
+            resolve();
+        }, 10000);
+    });
+}
+
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
@@ -451,18 +499,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] URL atual:', window.location.href);
 
     // ============================================
-    // PASSO 1: LIMPAR CAMPOS DO FORMULÁRIO
+    // PASSO 1: VERIFICAR SE É CALLBACK DE CONFIRMAÇÃO
+    // ============================================
+    const isConfirmCallback = isConfirmationCallback();
+
+    // Aguardar Supabase
+    await waitForSupabase();
+
+    if (!window.AuthService) {
+        console.error('[Login] AuthService não disponível!');
+        showMessage('❌ Erro ao carregar sistema. Recarregue a página.', true);
+        return;
+    }
+
+    console.log('[Login] AuthService disponível!');
+
+    // ============================================
+    // PASSO 2: PROCESSAR CALLBACK DE CONFIRMAÇÃO PRIMEIRO
+    // ============================================
+    if (isConfirmCallback) {
+        console.log('[Login] 🔔 Detectado callback de confirmação de e-mail!');
+
+        // Limpar campos antes de processar
+        limparCamposFormulario();
+
+        // Processar confirmação
+        const processed = await handleConfirmationCallback();
+
+        if (processed) {
+            // Remover parâmetros da URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Aguardar um pouco e recarregar a página limpa
+            setTimeout(() => {
+                window.location.href = window.location.pathname;
+            }, 2000);
+            return;
+        }
+    }
+
+    // ============================================
+    // PASSO 3: VERIFICAR CALLBACK DO GOOGLE
+    // ============================================
+    const isCallback = isGoogleCallback();
+    if (isCallback) {
+        console.log('[Google] Detectado callback do Google!');
+        const processed = await handleGoogleCallback();
+        if (processed) return;
+    }
+
+    // ============================================
+    // PASSO 4: LIMPAR CAMPOS
     // ============================================
     limparCamposFormulario();
 
     // ============================================
-    // PASSO 2: ADICIONAR EVENTOS ANTI-AUTOCOMPLETE
+    // PASSO 5: EVENTOS ANTI-AUTOCOMPLETE
     // ============================================
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const nomeInput = document.getElementById('nome');
 
-    // Evento para limpar ao focar no campo
     if (emailInput) {
         emailInput.addEventListener('focus', function() {
             if (this.value && !this.dataset.manual) {
@@ -474,7 +571,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 this.dataset.manual = 'true';
             }
         });
-        // Limpar ao clicar
         emailInput.addEventListener('click', function() {
             if (this.value && !this.dataset.manual) {
                 this.value = '';
@@ -514,39 +610,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================
-    // PASSO 3: LIMPAR NOVAMENTE APÓS PEQUENO DELAY
+    // PASSO 6: LIMPAR APÓS DELAY
     // ============================================
-    setTimeout(() => {
-        limparCamposFormulario();
-    }, 100);
-
-    setTimeout(() => {
-        limparCamposFormulario();
-    }, 500);
-
-    // ============================================
-    // PASSO 4: VERIFICAR CALLBACK DO GOOGLE
-    // ============================================
-    const isCallback = isGoogleCallback();
-    if (isCallback) {
-        console.log('[Google] Detectado callback do Google!');
-        await waitForSupabase();
-        if (window.AuthService) {
-            const processed = await handleGoogleCallback();
-            if (processed) return;
-        }
-    }
-
-    // Aguardar Supabase
-    await waitForSupabase();
-
-    if (!window.AuthService) {
-        console.error('[Login] AuthService não disponível!');
-        showMessage('❌ Erro ao carregar sistema. Recarregue a página.', true);
-        return;
-    }
-
-    console.log('[Login] AuthService disponível!');
+    setTimeout(() => limparCamposFormulario(), 100);
+    setTimeout(() => limparCamposFormulario(), 500);
 
     // Listener de autenticação
     window.AuthService.onAuthStateChange(async (event, session) => {
@@ -579,7 +646,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // EVENTOS DA UI
     // ============================================
 
-    // Botão Google
     const googleBtn = document.getElementById('google-login-btn');
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
@@ -589,7 +655,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Formulário de e-mail
     const emailForm = document.getElementById('auth-form');
     if (emailForm) {
         emailForm.addEventListener('submit', async (e) => {
@@ -624,7 +689,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Link toggle
     const toggleLink = document.getElementById('toggle-mode-link');
     if (toggleLink) {
         toggleLink.addEventListener('click', (e) => {
@@ -633,20 +697,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Limpar parâmetros da URL
-    if (isCallback) {
+    if (isCallback || isConfirmCallback) {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // ============================================
-    // PASSO 5: LIMPAR A CADA 2 SEGUNDOS (para garantir)
-    // ============================================
+    // Limpeza periódica
     let limpezaInterval = setInterval(() => {
         const email = document.getElementById('email');
         const password = document.getElementById('password');
         const nome = document.getElementById('nome');
 
-        // Se algum campo está preenchido mas não foi manual
         if (email && email.value && !email.dataset.manual) {
             email.value = '';
         }
@@ -658,11 +718,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }, 2000);
 
-    // Limpar interval quando a página for descarregada
     window.addEventListener('beforeunload', () => {
         if (limpezaInterval) clearInterval(limpezaInterval);
     });
 
-    console.log('%c🔐 Painel Zero - Login com Supabase (Com confirmação de e-mail)', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Anti-autocomplete ativado!', 'color: #10b981; font-size: 14px;');
+    console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+    console.log('%c✅ Anti-autocomplete e confirmação de e-mail corrigidos!', 'color: #10b981; font-size: 14px;');
 });
