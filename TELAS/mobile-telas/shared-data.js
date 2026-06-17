@@ -1,136 +1,178 @@
-// Dados compartilhados entre as telas - COM SISTEMA DE RECARGA AUTOMÁTICA
+// shared-data.js - Compartilhamento de dados entre páginas
 
-// Usuário padrão (temporário, será substituído pelo login)
-let cachedUser = null;
+window.SharedData = {
+    // Dados
+    tasks: [],
+    notes: [],
+    calendarEvents: [],
+    weeklySchedule: {},
+    timeSlots: [],
+    disciplinas: [],
+    notifications: [],
+    user: null,
 
-function getDefaultUser() {
-    // Primeiro tenta do CacheManager
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('usuarioLogado', null);
-        if (cached && cached.email) return cached;
-    }
-    
-    // Depois tenta do localStorage direto
-    const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (usuarioSalvo) {
-        try {
-            return JSON.parse(usuarioSalvo);
-        } catch(e) {}
-    }
-    return null;
-}
+    // Listeners
+    listeners: new Map(),
 
-function getDefaultNotifications() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('notifications', null);
-        if (cached) return cached;
-    }
-    return [];
-}
+    // Inicialização
+    init() {
+        console.log('[SharedData] Inicializado');
+        this.carregarDoCache();
+        this.setupListeners();
+    },
 
-function getDefaultTasks() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('tasks', null);
-        if (cached) return cached;
-    }
-    return [];
-}
+    carregarDoCache() {
+        if (!window.CacheManager) return;
 
-function getDefaultNotes() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('notes', null);
-        if (cached) return cached;
-    }
-    return [];
-}
+        this.tasks = window.CacheManager.get('tasks', []);
+        this.notes = window.CacheManager.get('notes', []);
+        this.calendarEvents = window.CacheManager.get('calendarEvents', []);
+        this.weeklySchedule = window.CacheManager.get('weeklySchedule', {});
+        this.timeSlots = window.CacheManager.get('timeSlots', []);
+        this.disciplinas = window.CacheManager.get('disciplinas', []);
+        this.notifications = window.CacheManager.get('notifications', []);
 
-function getDefaultCalendarEvents() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('calendarEvents', null);
-        if (cached) return cached;
-    }
-    return [];
-}
-
-function getDefaultWeeklySchedule() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('weeklySchedule', null);
-        if (cached) return cached;
-    }
-    return {
-        'Seg': [],
-        'Ter': [],
-        'Qua': [],
-        'Qui': [],
-        'Sex': []
-    };
-}
-
-function getDefaultTimeSlots() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('timeSlots', null);
-        if (cached) return cached;
-    }
-    return ['08:00', '09:30', '11:00', '14:00', '15:30'];
-}
-
-function getDefaultNotificacoesSettings() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('notificacoesSettings', null);
-        if (cached) return cached;
-    }
-    return { push: true, email: false, aulas: true, tarefas: true };
-}
-
-function getDefaultAppearanceSettings() {
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('appearanceSettings', null);
-        if (cached) return cached;
-    }
-    return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
-}
-
-// Função para forçar recarregamento de dados da nuvem em todas as abas
-async function syncAllDataFromCloud() {
-    if (window.CacheManager) {
-        const result = await window.CacheManager.forceSync();
-        if (result) {
-            console.log('✅ Sincronização manual concluída');
-            // Disparar evento para recarregar UI
-            window.dispatchEvent(new CustomEvent('manualSyncComplete'));
+        const usuario = localStorage.getItem('usuarioLogado');
+        if (usuario) {
+            try {
+                this.user = JSON.parse(usuario);
+            } catch(e) {}
         }
-        return result;
+    },
+
+    setupListeners() {
+        if (!window.CacheManager) return;
+
+        window.CacheManager.addListener('tasks', (data) => {
+            this.tasks = data;
+            this.notify('tasks', data);
+        });
+
+        window.CacheManager.addListener('notes', (data) => {
+            this.notes = data;
+            this.notify('notes', data);
+        });
+
+        window.CacheManager.addListener('calendarEvents', (data) => {
+            this.calendarEvents = data;
+            this.notify('calendarEvents', data);
+        });
+
+        window.CacheManager.addListener('weeklySchedule', (data) => {
+            this.weeklySchedule = data;
+            this.notify('weeklySchedule', data);
+        });
+
+        window.CacheManager.addListener('timeSlots', (data) => {
+            this.timeSlots = data;
+            this.notify('timeSlots', data);
+        });
+
+        window.CacheManager.addListener('disciplinas', (data) => {
+            this.disciplinas = data;
+            this.notify('disciplinas', data);
+        });
+
+        window.CacheManager.addListener('notifications', (data) => {
+            this.notifications = data;
+            this.notify('notifications', data);
+        });
+    },
+
+    // Getters
+    getTasks() { return this.tasks; },
+    getNotes() { return this.notes; },
+    getCalendarEvents() { return this.calendarEvents; },
+    getWeeklySchedule() { return this.weeklySchedule; },
+    getTimeSlots() { return this.timeSlots; },
+    getDisciplinas() { return this.disciplinas; },
+    getNotifications() { return this.notifications; },
+    getUser() { return this.user; },
+
+    // Setters com notificação
+    setTasks(tasks, notify = true) {
+        this.tasks = tasks;
+        if (window.CacheManager) window.CacheManager.set('tasks', tasks, true);
+        if (notify) this.notify('tasks', tasks);
+    },
+
+    setNotes(notes, notify = true) {
+        this.notes = notes;
+        if (window.CacheManager) window.CacheManager.set('notes', notes, true);
+        if (notify) this.notify('notes', notes);
+    },
+
+    setCalendarEvents(events, notify = true) {
+        this.calendarEvents = events;
+        if (window.CacheManager) window.CacheManager.set('calendarEvents', events, true);
+        if (notify) this.notify('calendarEvents', events);
+    },
+
+    setWeeklySchedule(schedule, notify = true) {
+        this.weeklySchedule = schedule;
+        if (window.CacheManager) window.CacheManager.set('weeklySchedule', schedule, true);
+        if (notify) this.notify('weeklySchedule', schedule);
+    },
+
+    setTimeSlots(slots, notify = true) {
+        this.timeSlots = slots;
+        if (window.CacheManager) window.CacheManager.set('timeSlots', slots, true);
+        if (notify) this.notify('timeSlots', slots);
+    },
+
+    setDisciplinas(disciplinas, notify = true) {
+        this.disciplinas = disciplinas;
+        if (window.CacheManager) window.CacheManager.set('disciplinas', disciplinas, true);
+        if (notify) this.notify('disciplinas', disciplinas);
+    },
+
+    setNotifications(notifications, notify = true) {
+        this.notifications = notifications;
+        if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+        if (notify) this.notify('notifications', notifications);
+    },
+
+    // Sistema de eventos
+    addListener(key, callback) {
+        if (!this.listeners.has(key)) {
+            this.listeners.set(key, []);
+        }
+        this.listeners.get(key).push(callback);
+
+        // Retornar função para remover
+        return () => {
+            const callbacks = this.listeners.get(key);
+            if (callbacks) {
+                const index = callbacks.indexOf(callback);
+                if (index > -1) callbacks.splice(index, 1);
+            }
+        };
+    },
+
+    notify(key, data) {
+        if (this.listeners.has(key)) {
+            this.listeners.get(key).forEach(cb => cb(data));
+        }
+
+        // Disparar evento global
+        window.dispatchEvent(new CustomEvent(`shared:${key}`, { detail: data }));
+    },
+
+    // Limpar dados
+    clear() {
+        this.tasks = [];
+        this.notes = [];
+        this.calendarEvents = [];
+        this.weeklySchedule = {};
+        this.timeSlots = [];
+        this.disciplinas = [];
+        this.notifications = [];
+        this.user = null;
+        this.listeners.clear();
     }
-    return false;
-}
+};
 
-// Função para recarregar a página atual (útil para atualizações críticas)
-function reloadPageAfterSync() {
-    console.log('🔄 Recarregando página após sincronização...');
-    setTimeout(() => {
-        window.location.reload();
-    }, 500);
-}
-
-// Função para carregar dados da nuvem após login
-async function loadCloudDataAfterLogin() {
-    if (window.CacheManager) {
-        await window.CacheManager.afterLogin();
-    }
-}
-
-// Exportar para uso global
-window.getDefaultUser = getDefaultUser;
-window.getDefaultNotifications = getDefaultNotifications;
-window.getDefaultTasks = getDefaultTasks;
-window.getDefaultNotes = getDefaultNotes;
-window.getDefaultCalendarEvents = getDefaultCalendarEvents;
-window.getDefaultWeeklySchedule = getDefaultWeeklySchedule;
-window.getDefaultTimeSlots = getDefaultTimeSlots;
-window.getDefaultNotificacoesSettings = getDefaultNotificacoesSettings;
-window.getDefaultAppearanceSettings = getDefaultAppearanceSettings;
-window.syncAllDataFromCloud = syncAllDataFromCloud;
-window.reloadPageAfterSync = reloadPageAfterSync;
-window.loadCloudDataAfterLogin = loadCloudDataAfterLogin;
+// Inicializar
+window.SharedData.init();
 
 console.log('[SharedData] Módulo carregado');
