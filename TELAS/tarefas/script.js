@@ -60,7 +60,7 @@ function carregarHorario() {
             return;
         }
     }
-    
+
     const storageKey = `weeklySchedule_${usuarioAtual.email}`;
     const scheduleSalvo = localStorage.getItem(storageKey);
     weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
@@ -84,24 +84,23 @@ function configurarEventos() {
             filtroAtual = filtro;
             disciplinaAtual = null;
             renderizarTarefas();
-            
             document.querySelectorAll('.subject-item').forEach(s => s.classList.remove('active'));
         });
     });
-    
+
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.addEventListener('input', () => renderizarTarefas());
-    
+
     const orderSelect = document.getElementById('orderSelect');
     if (orderSelect) orderSelect.addEventListener('change', () => renderizarTarefas());
-    
+
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('task-checkbox')) {
             const taskItem = e.target.closest('.task-item');
             if (taskItem) alternarConclusaoTarefa(taskItem.dataset.id, e.target.checked);
         }
     });
-    
+
     document.addEventListener('click', function(e) {
         const favoriteBtn = e.target.closest('.task-btn.favorite');
         if (favoriteBtn) {
@@ -137,10 +136,10 @@ function carregarTarefas() {
             return;
         }
     }
-    
+
     const storageKey = `tarefas_${usuarioAtual.email}`;
     const tarefasSalvas = localStorage.getItem(storageKey);
-    
+
     if (tarefasSalvas) {
         tarefas = JSON.parse(tarefasSalvas);
     } else {
@@ -151,19 +150,22 @@ function carregarTarefas() {
 
 function salvarTarefas() {
     if (!usuarioAtual) return;
+    
     const storageKey = `tarefas_${usuarioAtual.email}`;
     localStorage.setItem(storageKey, JSON.stringify(tarefas));
     if (window.CacheManager) window.CacheManager.set('tasks', tarefas, true);
 }
 
-function gerarId() { return Date.now() + '-' + Math.random().toString(36).substr(2, 9); }
+function gerarId() { 
+    return Date.now() + '-' + Math.random().toString(36).substr(2, 9); 
+}
 
 function renderizarDisciplinas() {
     const subjectsList = document.getElementById('subjectsList');
     if (!subjectsList) return;
     
     const disciplinasMap = new Map();
-    
+
     tarefas.forEach(t => {
         const disc = t.disciplina || t.subject;
         if (disc) {
@@ -175,7 +177,7 @@ function renderizarDisciplinas() {
             }
         }
     });
-    
+
     if (weeklySchedule) {
         Object.values(weeklySchedule).forEach(day => {
             if (Array.isArray(day)) {
@@ -190,30 +192,30 @@ function renderizarDisciplinas() {
             }
         });
     }
-    
+
     if (disciplinasMap.size === 0) {
-        subjectsList.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Nenhuma disciplina</p>';
+        subjectsList.innerHTML = '<p style="text-align: center; padding: 20px; color: #9ca3af;">Nenhuma disciplina</p>';
         return;
     }
-    
+
     const cores = {
-        'matematica': '#9b59b6', 'portugues': '#3498db', 'historia': '#e74c3c',
-        'fisica': '#e67e22', 'quimica': '#2ecc71', 'biologia': '#f1c40f',
-        'geografia': '#1abc9c', 'ingles': '#34495e', 'outros': '#95a5a6'
+        'matematica': '#8b5cf6', 'portugues': '#3b82f6', 'historia': '#ef4444',
+        'fisica': '#f59e0b', 'quimica': '#10b981', 'biologia': '#eab308', 
+        'geografia': '#14b8a6', 'ingles': '#64748b', 'outros': '#9ca3af'
     };
-    
+
     let html = '';
     for (const [disciplina, count] of disciplinasMap) {
-        const cor = cores[disciplina] || '#95a5a6';
+        const cor = cores[disciplina] || '#9ca3af';
         html += `<div class="subject-item" data-subject="${disciplina}">
             <div class="subject-color" style="background-color: ${cor};"></div>
             <span>${getTextoDisciplina(disciplina)}</span>
             <span class="subject-count">${count}</span>
         </div>`;
     }
-    
+
     subjectsList.innerHTML = html;
-    
+
     document.querySelectorAll('.subject-item').forEach(item => {
         item.addEventListener('click', function() {
             const disciplina = this.dataset.subject;
@@ -241,11 +243,11 @@ function getTextoDisciplina(disciplina) {
 
 function getCorDisciplina(disciplina) {
     const cores = {
-        matematica: '#9b59b6', portugues: '#3498db', historia: '#e74c3c',
-        fisica: '#e67e22', quimica: '#2ecc71', biologia: '#f1c40f',
-        geografia: '#1abc9c', ingles: '#34495e', outros: '#95a5a6'
+        matematica: '#8b5cf6', portugues: '#3b82f6', historia: '#ef4444',
+        fisica: '#f59e0b', quimica: '#10b981', biologia: '#eab308',
+        geografia: '#14b8a6', ingles: '#64748b', outros: '#9ca3af'
     };
-    return cores[disciplina] || '#95a5a6';
+    return cores[disciplina] || '#9ca3af';
 }
 
 function getClassePrioridade(prioridade) {
@@ -277,7 +279,7 @@ function renderizarTarefas() {
     
     let tarefasFiltradas = filtrarTarefas();
     tarefasFiltradas = ordenarTarefas(tarefasFiltradas);
-    
+
     if (tarefasFiltradas.length === 0) {
         taskList.innerHTML = `<div class="empty-state" style="text-align: center; padding: 40px;">
             <i class="fas fa-tasks" style="font-size: 48px; color: var(--text-secondary); margin-bottom: 16px; display: block;"></i>
@@ -286,7 +288,7 @@ function renderizarTarefas() {
         </div>`;
         return;
     }
-    
+
     taskList.innerHTML = tarefasFiltradas.map(tarefa => criarHTMLTarefa(tarefa)).join('');
 }
 
@@ -300,18 +302,18 @@ function filtrarTarefas() {
             (t.descricao || '').toLowerCase().includes(searchTerm)
         );
     }
-    
+
     if (disciplinaAtual) {
         filtradas = filtradas.filter(t => (t.disciplina || t.subject) === disciplinaAtual);
     }
-    
+
     switch(filtroAtual) {
         case 'pendentes': filtradas = filtradas.filter(t => !t.completed); break;
         case 'concluidas': filtradas = filtradas.filter(t => t.completed); break;
         case 'favoritas': filtradas = filtradas.filter(t => t.favorita); break;
         default: break;
     }
-    
+
     return filtradas;
 }
 
@@ -346,7 +348,7 @@ function criarHTMLTarefa(tarefa) {
     const classePrioridade = getClassePrioridade(tarefa.prioridade);
     const textoPrioridade = getTextoPrioridade(tarefa.prioridade);
     const favoritaClass = tarefa.favorita ? 'active' : '';
-    const favoritaColor = tarefa.favorita ? '#fdcb6e' : '';
+    const favoritaColor = tarefa.favorita ? '#eab308' : '';
     const prazoFormatado = tarefa.prazo ? formatarDataParaString(tarefa.prazo) : 'Sem data';
     
     let subtasksHTML = '';
@@ -358,11 +360,11 @@ function criarHTMLTarefa(tarefa) {
             </ul>
         </div>`;
     }
-    
+
     return `<div class="task-item" data-id="${tarefa.id}">
         <input type="checkbox" class="task-checkbox" ${tarefa.completed ? 'checked' : ''}>
         <div class="task-content">
-            <h4 style="${tarefa.completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(tarefa.nome)}</h4>
+            <h4 style="${tarefa.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHtml(tarefa.nome)}</h4>
             <p>${escapeHtml(tarefa.descricao || 'Sem descrição')}</p>
             <div class="task-meta">
                 <span class="task-subject" style="color: ${corDisciplina}"><i class="fas fa-circle"></i> ${textoDisciplina}</span>
@@ -429,7 +431,7 @@ function atualizarEstatisticas() {
     const pendingBadge = document.getElementById('pendingBadge');
     const completedBadge = document.getElementById('completedBadge');
     const favoriteBadge = document.getElementById('favoriteBadge');
-    
+
     if (pendingCount) pendingCount.textContent = pendentes;
     if (completedTodayCount) completedTodayCount.textContent = concluidasHoje;
     if (overdueCount) overdueCount.textContent = atrasadas;
@@ -442,14 +444,18 @@ function atualizarEstatisticas() {
 function mostrarNotificacao(mensagem, tipo = 'success') {
     const toast = document.getElementById('toast');
     if (!toast) return;
+    
     const toastSpan = toast.querySelector('span');
     if (toastSpan) toastSpan.textContent = mensagem;
-    toast.style.background = tipo === 'success' ? 'linear-gradient(135deg, #00b894, #059669)' : 'linear-gradient(135deg, #d63031, #c0392b)';
+    
+    toast.style.background = tipo === 'success' ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)' : 'linear-gradient(135deg, #ef4444, #dc2626)';
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-function abrirModal() { abrirModalEdicao(null); }
+function abrirModal() { 
+    abrirModalEdicao(null); 
+}
 
 function abrirModalEdicao(id) {
     const tarefa = id ? tarefas.find(t => t.id == id) : null;
@@ -461,22 +467,22 @@ function abrirModalEdicao(id) {
     const descricaoTarefa = document.getElementById('descricaoTarefa');
     const prazoTarefa = document.getElementById('prazoTarefa');
     const disciplinaTarefa = document.getElementById('disciplinaTarefa');
-    
+
     if (modalTitle) modalTitle.textContent = tarefa ? 'Editar Tarefa' : 'Nova Tarefa';
     if (nomeTarefa) nomeTarefa.value = tarefa?.nome || '';
     if (descricaoTarefa) descricaoTarefa.value = tarefa?.descricao || '';
     if (prazoTarefa) prazoTarefa.value = tarefa?.prazo || '';
     if (disciplinaTarefa) disciplinaTarefa.value = tarefa?.disciplina || 'matematica';
-    
+
     selecionarPrioridade(tarefa?.prioridade || 'media');
-    
+
     const container = document.getElementById('subtasksContainer');
     if (container) {
         container.innerHTML = '';
         subtasks = tarefa?.subtasks || [];
         subtasks.forEach(st => adicionarSubtarefa(st.texto));
     }
-    
+
     const modal = document.getElementById('modalNovaTarefa');
     if (modal) {
         modal.classList.add('active');
@@ -522,17 +528,21 @@ function adicionarSubtarefa(texto = '') {
         <input type="text" placeholder="Nome da subtarefa..." value="${texto.replace(/"/g, '&quot;')}">
         <button type="button" class="remove-subtask"><i class="fas fa-times"></i></button>
     `;
+    
     subtaskDiv.querySelector('.remove-subtask').addEventListener('click', function() {
         this.closest('.subtask-item').remove();
     });
+    
     container.appendChild(subtaskDiv);
 }
 
 function limparFormulario() {
     const form = document.getElementById('formNovaTarefa');
     if (form) form.reset();
+    
     const container = document.getElementById('subtasksContainer');
     if (container) container.innerHTML = '';
+    
     subtasks = [];
     prioridadeSelecionada = 'media';
     selecionarPrioridade('media');
@@ -540,6 +550,7 @@ function limparFormulario() {
 
 document.getElementById('formNovaTarefa')?.addEventListener('submit', function(e) {
     e.preventDefault();
+    
     const nome = document.getElementById('nomeTarefa')?.value.trim();
     if (!nome) {
         mostrarNotificacao('Preencha o nome da tarefa!', 'error');
@@ -549,22 +560,41 @@ document.getElementById('formNovaTarefa')?.addEventListener('submit', function(e
     const descricao = document.getElementById('descricaoTarefa')?.value.trim();
     const prazo = document.getElementById('prazoTarefa')?.value;
     const disciplina = document.getElementById('disciplinaTarefa')?.value;
-    const subtasksElements = document.querySelectorAll('.subtask-item input');
-    const subtasksList = Array.from(subtasksElements).map(input => ({ texto: input.value.trim(), concluida: false })).filter(st => st.texto);
     
+    const subtasksElements = document.querySelectorAll('.subtask-item input');
+    const subtasksList = Array.from(subtasksElements)
+        .map(input => ({ texto: input.value.trim(), concluida: false }))
+        .filter(st => st.texto);
+
     if (tarefaEditando) {
         const index = tarefas.findIndex(t => t.id === tarefaEditando.id);
         if (index !== -1) {
-            tarefas[index] = { ...tarefas[index], nome, descricao: descricao || '', prioridade: prioridadeSelecionada, prazo: prazo || '', disciplina: disciplina || 'outros', subtasks: subtasksList };
+            tarefas[index] = { 
+                ...tarefas[index], 
+                nome, 
+                descricao: descricao || '', 
+                prioridade: prioridadeSelecionada, 
+                prazo: prazo || '', 
+                disciplina: disciplina || 'outros', 
+                subtasks: subtasksList 
+            };
         }
     } else {
         tarefas.push({
-            id: gerarId(), nome, descricao: descricao || '', prioridade: prioridadeSelecionada,
-            prazo: prazo || '', disciplina: disciplina || 'outros', subtasks: subtasksList,
-            favorita: false, completed: false, dataCriacao: new Date().toISOString(), dataConclusao: null
+            id: gerarId(), 
+            nome, 
+            descricao: descricao || '', 
+            prioridade: prioridadeSelecionada,
+            prazo: prazo || '', 
+            disciplina: disciplina || 'outros', 
+            subtasks: subtasksList,
+            favorita: false, 
+            completed: false, 
+            dataCriacao: new Date().toISOString(), 
+            dataConclusao: null
         });
     }
-    
+
     salvarTarefas();
     fecharModal();
     renderizarTarefas();
@@ -582,7 +612,6 @@ function logout() {
     }
 }
 
-// Registrar função global para sincronização de disciplinas (apenas uma vez)
 if (typeof window.renderizarDisciplinas === 'undefined') {
     window.renderizarDisciplinas = renderizarDisciplinas;
 }
@@ -596,4 +625,4 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-console.log('%c📚 Painel de Tarefas', 'color: #6c5ce7; font-size: 20px; font-weight: bold;');
+console.log('%c📚 Painel de Tarefas', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
