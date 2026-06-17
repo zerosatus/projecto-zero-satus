@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM PREVENÇÃO DE LOOP E CONGELAMENTO
+// mobile-telas/script.js - VERSÃO COMPLETA COM PREVENÇÃO DE LOOP E SINCRONIZAÇÃO CORRIGIDA
 
 let usuarioLogado = null;
 let notifications = [];
@@ -13,7 +13,6 @@ const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 let syncInProgress = false;
 let _isLoading = false;
 let _lastRenderTime = 0;
-let _isInitializing = false;
 
 // ============================================
 // TOAST & CONFIRM
@@ -158,7 +157,6 @@ async function carregarTodosDados() {
             await inicializarFirestore();
         }
 
-        // CARREGAR DO CACHE MANAGER
         if (window.CacheManager) {
             const cachedNotes = window.CacheManager.get('notes', null);
             const cachedTasks = window.CacheManager.get('tasks', null);
@@ -175,7 +173,6 @@ async function carregarTodosDados() {
             if (cachedNotif !== null && Array.isArray(cachedNotif)) notifications = cachedNotif;
         }
 
-        // FALLBACK usando localStorage
         if (notes.length === 0) {
             const notesSalvas = localStorage.getItem(`${userId}_notes`);
             if (notesSalvas) notes = JSON.parse(notesSalvas);
@@ -220,7 +217,7 @@ async function carregarTodosDados() {
 }
 
 // ============================================
-// SALVAR DADOS (COM PREVENÇÃO DE LOOP)
+// SALVAR DADOS
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || syncInProgress) return false;
@@ -261,7 +258,7 @@ async function salvarTodosDados() {
 }
 
 // ============================================
-// RENDERIZAR TUDO (COM PREVENÇÃO DE LOOP)
+// RENDERIZAR TUDO
 // ============================================
 function renderizarTudo() {
     const now = Date.now();
@@ -317,7 +314,6 @@ function renderizarHorario() {
 
     grid.innerHTML = html;
 
-    // Event listeners para células com aula
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -336,7 +332,6 @@ function renderizarHorario() {
         });
     });
 
-    // Event listeners para células vazias
     document.querySelectorAll('.class-cell .class-block.empty').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -899,7 +894,7 @@ function configurarEventos() {
 }
 
 // ============================================
-// CONFIGURAR SINCronização (COM PREVENÇÃO DE LOOP)
+// CONFIGURAR SINCRONIZAÇÃO
 // ============================================
 function configurarSincronizacao() {
     let cloudLoadTimeout = null;
@@ -920,7 +915,6 @@ function configurarSincronizacao() {
             await carregarTodosDados();
             renderizarTudo();
 
-            // Mostrar toast apenas se não for carregamento inicial
             if (document.querySelector('.toast') === null) {
                 showToast('🔄 Dados sincronizados!', 'success');
             }
@@ -934,7 +928,6 @@ function configurarSincronizacao() {
             if (storageTimeout) clearTimeout(storageTimeout);
             storageTimeout = setTimeout(() => {
                 console.log('[Mobile] Storage event detectado:', e.key);
-                // NÃO recarregar automaticamente - evitar loop entre abas
                 storageTimeout = null;
             }, 1000);
         }
@@ -971,6 +964,13 @@ function configurarSincronizacao() {
             renderizarTudo();
             forceRefreshTimeout = null;
         }, 300);
+    });
+
+    // ✅ LISTENER PARA QUANDO O SYNC FICAR PRONTO
+    window.addEventListener('syncReady', () => {
+        console.log('[Mobile] 📡 Sync pronto, recarregando dados...');
+        carregarTodosDados();
+        renderizarTudo();
     });
 }
 
@@ -1056,14 +1056,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('[Mobile] CacheManager inicializado');
     }
 
-    // INICIALIZAR SYNC (apenas uma vez)
-    if (window.initSync && !window._syncInitialized) {
-        window._syncInitialized = true;
-        console.log('[Mobile] Inicializando sync...');
+    // ✅ INICIALIZAR SYNC (APENAS UMA VEZ - AGUARDANDO)
+    if (window.initSync && !window._mobileSyncInit) {
+        window._mobileSyncInit = true;
+        console.log('[Mobile] 🔄 Inicializando sync...');
+
         try {
-            await window.initSync();
+            const result = await window.initSync({ force: false });
+            console.log('[Mobile] Sync inicializado:', result ? '✅' : '❌');
         } catch(e) {
-            console.warn('[Mobile] Erro ao inicializar sync:', e);
+            console.warn('[Mobile] Erro no sync:', e);
         }
     }
 

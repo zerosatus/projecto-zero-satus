@@ -1,36 +1,44 @@
-// sync-helper-fix.js - CORREÇÃO DE INICIALIZAÇÃO PARA MOBILE (COM PREVENÇÃO DE LOOP)
+// sync-helper-fix.js - CORREÇÃO DEFINITIVA PARA MOBILE
 
 (function() {
     'use strict';
 
     console.log('[SyncFix] 🔧 Aplicando correções de sincronização...');
 
+    // 🔥 FLAG GLOBAL PARA CONTROLAR INICIALIZAÇÃO
+    if (window._syncFixApplied) {
+        console.log('[SyncFix] ⏳ Correções já aplicadas, ignorando...');
+        return;
+    }
+    window._syncFixApplied = true;
+
     let _initializing = false;
     let _lastInitTime = 0;
+    const INIT_DEBOUNCE = 1000;
 
-    // ✅ Sobrescrever initSync com versão corrigida para mobile
+    // ✅ SOBRESCREVER initSync com versão CORRIGIDA
     window.initSync = async function(options = {}) {
-        // ✅ PREVENIR INICIALIZAÇÃO MÚLTIPLA
         if (_initializing) {
             console.log('[SyncFix] ⏳ Inicialização já em andamento...');
             return false;
         }
 
         const now = Date.now();
-        if (now - _lastInitTime < 5000) {
-            console.log('[SyncFix] ⏳ Aguardando debounce de inicialização...');
-            return false;
+        if (now - _lastInitTime < INIT_DEBOUNCE) {
+            console.log('[SyncFix] ⏳ Debounce de inicialização...');
+            await new Promise(r => setTimeout(r, INIT_DEBOUNCE));
+            return window.initSync(options);
         }
 
         _initializing = true;
         _lastInitTime = now;
 
-        console.log('[SyncFix] Inicializando sync (versão corrigida para mobile)...');
+        console.log('[SyncFix] 🚀 Inicializando sync...');
 
         try {
             // Aguardar CacheManager
             let attempts = 0;
-            while (!window.CacheManager && attempts < 30) {
+            while (!window.CacheManager && attempts < 20) {
                 await new Promise(r => setTimeout(r, 100));
                 attempts++;
             }
@@ -40,10 +48,10 @@
                 return false;
             }
 
-            // Inicializar CacheManager
-            window.CacheManager.init();
+            if (!window.CacheManager.isInitialized) {
+                window.CacheManager.init();
+            }
 
-            // Obter usuário
             const usuarioSalvo = localStorage.getItem('usuarioLogado');
             if (!usuarioSalvo) {
                 console.warn('[SyncFix] ⚠️ Nenhum usuário logado');
@@ -64,37 +72,51 @@
                 return false;
             }
 
-            // ✅ FORÇAR O USER ID NO CACHE MANAGER
-            window.CacheManager.currentUserId = userId;
-            console.log('[SyncFix] ✅ User ID definido:', userId);
+            if (window.CacheManager.currentUserId !== userId) {
+                window.CacheManager.currentUserId = userId;
+                console.log('[SyncFix] ✅ User ID definido:', userId);
+            }
 
-            // ✅ FORÇAR CARREGAMENTO DA NUVEM
-            console.log('[SyncFix] ☁️ Carregando dados da nuvem...');
-            const loaded = await window.CacheManager.loadFromCloud(true);
-            console.log('[SyncFix] ✅ Dados carregados:', loaded ? 'Sim' : 'Não');
+            const hasLocalData = localStorage.getItem(`${userId}_tasks`) !== null ||
+                                 localStorage.getItem(`${userId}_notes`) !== null;
 
-            // ✅ Forçar recarga da UI APENAS UMA VEZ
-            if (loaded && window.refreshAllData) {
+            if (!hasLocalData || options.force) {
+                console.log('[SyncFix] ☁️ Carregando dados da nuvem...');
+                await window.CacheManager.loadFromCloud(true);
+                console.log('[SyncFix] ✅ Dados carregados');
+            } else {
+                console.log('[SyncFix] 📦 Usando dados locais');
+            }
+
+            if (window.CacheManager.startRealtimeSync && !window._realtimeStarted) {
+                window._realtimeStarted = true;
                 setTimeout(() => {
-                    console.log('[SyncFix] 🔄 Recarregando UI...');
-                    window.refreshAllData();
+                    window.CacheManager.startRealtimeSync();
+                    console.log('[SyncFix] 📡 Realtime sync iniciado');
                 }, 500);
             }
 
-            return loaded;
+            setTimeout(() => {
+                if (window.refreshAllData) {
+                    console.log('[SyncFix] 🔄 Recarregando UI...');
+                    window.refreshAllData();
+                }
+                window.dispatchEvent(new CustomEvent('syncReady'));
+            }, 300);
+
+            return true;
+
         } catch (error) {
-            console.error('[SyncFix] ❌ Erro ao carregar dados:', error);
+            console.error('[SyncFix] ❌ Erro ao inicializar:', error);
             return false;
         } finally {
             _initializing = false;
         }
     };
 
-    // ✅ Função para forçar recarga de dados (com prevenção de loop)
     window.forceReloadMobile = async function() {
-        console.log('[SyncFix] 🔄 Forçando recarga de dados...');
+        console.log('[SyncFix] 🔄 Forçando recarga...');
 
-        // ✅ PREVENIR RECARGA MÚLTIPLA
         if (window._reloading) {
             console.log('[SyncFix] ⏳ Recarga já em andamento...');
             return false;
@@ -104,43 +126,32 @@
 
         try {
             const usuarioSalvo = localStorage.getItem('usuarioLogado');
-            if (!usuarioSalvo) {
-                console.warn('[SyncFix] ⚠️ Nenhum usuário logado');
-                return false;
-            }
+            if (!usuarioSalvo) return false;
 
-            let usuario;
-            try {
-                usuario = JSON.parse(usuarioSalvo);
-            } catch(e) {
-                console.error('[SyncFix] ❌ Erro ao parsear usuário:', e);
-                return false;
-            }
-
+            let usuario = JSON.parse(usuarioSalvo);
             const userId = usuario.id || usuario.uid;
-            if (!userId) {
-                console.error('[SyncFix] ❌ Usuário sem ID');
-                return false;
-            }
+            if (!userId) return false;
 
             if (window.CacheManager) {
                 window.CacheManager.currentUserId = userId;
                 const loaded = await window.CacheManager.loadFromCloud(true);
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
                 if (loaded && window.refreshAllData) {
-                    setTimeout(() => {
-                        window.refreshAllData();
-                    }, 300);
+                    setTimeout(() => window.refreshAllData(), 300);
                 }
                 return loaded;
             }
-
             return false;
         } finally {
-            setTimeout(() => {
-                window._reloading = false;
-            }, 3000);
+            setTimeout(() => { window._reloading = false; }, 2000);
         }
     };
 
-    console.log('[SyncFix] ✅ Correções aplicadas com sucesso!');
+    window.isSyncReady = function() {
+        return window.CacheManager &&
+               window.CacheManager.isInitialized &&
+               window.CacheManager.currentUserId !== null;
+    };
+
+    console.log('[SyncFix] ✅ Correções aplicadas!');
 })();

@@ -7,15 +7,25 @@ class SupabaseCacheManager {
         this._pendingSync = new Map();
         this.isLoading = false;
         this.isInitialized = false;
-        this._savingFlags = new Map(); // ← PREVENÇÃO DE LOOP
+        this._savingFlags = new Map();
         this._lastSyncTime = 0;
-        this._syncDebounce = 2000; // 2 segundos entre sincronizações
+        this._syncDebounce = 2000;
+        this._eventTriggered = false;
     }
 
     init() {
         if (this.isInitialized) return;
         console.log('[CacheManager] Inicializado');
         this.isInitialized = true;
+
+        // ✅ FORÇAR CARREGAMENTO DO USER ID
+        this.getCurrentUserId();
+
+        // ✅ DISPARAR EVENTO DE PRONTO
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('cacheReady'));
+            console.log('[CacheManager] 📡 Evento cacheReady disparado');
+        }, 100);
     }
 
     getCurrentUserId() {
@@ -51,10 +61,8 @@ class SupabaseCacheManager {
     }
 
     set(key, value, notify = true) {
-        // ✅ PREVENÇÃO DE LOOP - Se já está salvando este key, ignora
         const flagKey = `${this.getCurrentUserId()}_${key}`;
         if (this._savingFlags.get(flagKey)) {
-            // console.log(`[CacheManager] Ignorando set ${key} (já em andamento)`);
             return false;
         }
 
@@ -64,24 +72,20 @@ class SupabaseCacheManager {
 
             const storageKey = `${userId}_${key}`;
 
-            // Verificar se o valor realmente mudou
             const currentData = localStorage.getItem(storageKey);
             if (currentData !== null) {
                 try {
                     const parsed = JSON.parse(currentData);
                     if (JSON.stringify(parsed) === JSON.stringify(value)) {
-                        // Dados idênticos, não precisa salvar
                         return true;
                     }
                 } catch(e) {}
             }
 
-            // ✅ MARCAR COMO SALVANDO
             this._savingFlags.set(flagKey, true);
 
             localStorage.setItem(storageKey, JSON.stringify(value));
 
-            // ✅ SALVAR NA NUVEM COM DEBOUNCE
             this._scheduleCloudSave(key, value, userId);
 
             if (notify && this.listeners.has(key)) {
@@ -98,14 +102,12 @@ class SupabaseCacheManager {
             console.error(`[CacheManager] Erro ao set ${key}:`, error);
             return false;
         } finally {
-            // ✅ LIMPAR FLAG APÓS 1 SEGUNDO
             setTimeout(() => {
                 this._savingFlags.delete(flagKey);
             }, 1000);
         }
     }
 
-    // ✅ DEBOUNCE PARA SALVAR NA NUVEM
     _scheduleCloudSave(key, value, userId) {
         const pendingKey = `${userId}_${key}`;
 
@@ -116,12 +118,10 @@ class SupabaseCacheManager {
         const timeout = setTimeout(async () => {
             this._pendingSync.delete(pendingKey);
 
-            // Verificar se o valor ainda é o mesmo
             const currentValue = this.get(key, null);
             if (currentValue === null) return;
 
             if (JSON.stringify(currentValue) !== JSON.stringify(value)) {
-                // Valor mudou, salvar o atual
                 await this.saveToCloud(key, currentValue, userId);
             } else {
                 await this.saveToCloud(key, value, userId);
@@ -134,10 +134,8 @@ class SupabaseCacheManager {
     async saveToCloud(key, value, userId) {
         if (!window.DatabaseService || !userId) return;
 
-        // ✅ PREVENIR SALVAMENTOS MÚLTIPLOS
         const now = Date.now();
         if (now - this._lastSyncTime < this._syncDebounce) {
-            // console.log(`[CacheManager] Debounce para ${key}`);
             return;
         }
 
@@ -172,7 +170,6 @@ class SupabaseCacheManager {
                     }
                     break;
             }
-            // console.log(`[CacheManager] Dados ${key} salvos na nuvem`);
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
         }
@@ -264,7 +261,6 @@ class SupabaseCacheManager {
                 this._reloadFromStorage(userId);
                 console.log('[CacheManager] ✅ Dados carregados da nuvem e salvos localmente!');
 
-                // ✅ DISPARAR EVENTO APENAS UMA VEZ
                 if (!this._eventTriggered) {
                     this._eventTriggered = true;
                     window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
@@ -293,7 +289,6 @@ class SupabaseCacheManager {
             if (data) {
                 try {
                     const parsed = JSON.parse(data);
-                    // Salvar no cache interno sem notificar
                     this.set(type, parsed, false);
                 } catch(e) {
                     console.warn(`[CacheManager] Erro ao parsear ${type}:`, e);
