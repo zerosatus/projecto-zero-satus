@@ -828,6 +828,159 @@ const DatabaseService = {
         }
     },
 
+    // ============================================
+    // ⭐ NOVO: SERVIÇO DE DISCIPLINAS
+    // ============================================
+    async getDisciplinas(userId) {
+        const client = initSupabase();
+        if (!client) return [];
+
+        try {
+            console.log('[DB] Buscando disciplinas para:', userId);
+
+            const { data, error } = await client
+                .from('disciplinas')
+                .select('*')
+                .eq('user_id', userId)
+                .order('nome', { ascending: true });
+
+            if (error) {
+                console.error('[DB] Erro ao buscar disciplinas:', error);
+                return [];
+            }
+
+            return data || [];
+        } catch (error) {
+            console.error('[DB] Erro ao buscar disciplinas:', error);
+            return [];
+        }
+    },
+
+    async saveDisciplinas(userId, disciplinas) {
+        const client = initSupabase();
+        if (!client) return false;
+
+        try {
+            // Deletar todas as disciplinas existentes
+            await client.from('disciplinas').delete().eq('user_id', userId);
+
+            if (disciplinas.length === 0) {
+                console.log('[DB] Nenhuma disciplina para salvar');
+                return true;
+            }
+
+            // Inserir novas disciplinas
+            const disciplinasToInsert = disciplinas.map(d => ({
+                id: d.id,
+                user_id: userId,
+                nome: d.nome,
+                cor: d.cor || '#9333ea',
+                icone: d.icone || 'fa-book',
+                created_at: d.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }));
+
+            const { error } = await client.from('disciplinas').insert(disciplinasToInsert);
+            if (error) throw error;
+
+            console.log(`[DB] ${disciplinas.length} disciplinas salvas`);
+            return true;
+        } catch (error) {
+            console.error('[DB] Erro ao salvar disciplinas:', error);
+            return false;
+        }
+    },
+
+    // ============================================
+    // ⭐ NOVO: ADICIONAR UMA ÚNICA DISCIPLINA
+    // ============================================
+    async addDisciplina(userId, disciplina) {
+        const client = initSupabase();
+        if (!client) return null;
+
+        try {
+            const { data, error } = await client
+                .from('disciplinas')
+                .insert({
+                    id: disciplina.id,
+                    user_id: userId,
+                    nome: disciplina.nome,
+                    cor: disciplina.cor || '#9333ea',
+                    icone: disciplina.icone || 'fa-book',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[DB] Disciplina adicionada:', disciplina.nome);
+            return data;
+        } catch (error) {
+            console.error('[DB] Erro ao adicionar disciplina:', error);
+            return null;
+        }
+    },
+
+    // ============================================
+    // ⭐ NOVO: ATUALIZAR UMA DISCIPLINA
+    // ============================================
+    async updateDisciplina(userId, disciplinaId, updates) {
+        const client = initSupabase();
+        if (!client) return null;
+
+        try {
+            const { data, error } = await client
+                .from('disciplinas')
+                .update({
+                    nome: updates.nome,
+                    cor: updates.cor,
+                    icone: updates.icone,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', disciplinaId)
+                .eq('user_id', userId)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[DB] Disciplina atualizada:', updates.nome);
+            return data;
+        } catch (error) {
+            console.error('[DB] Erro ao atualizar disciplina:', error);
+            return null;
+        }
+    },
+
+    // ============================================
+    // ⭐ NOVO: DELETAR UMA DISCIPLINA
+    // ============================================
+    async deleteDisciplina(userId, disciplinaId) {
+        const client = initSupabase();
+        if (!client) return false;
+
+        try {
+            const { error } = await client
+                .from('disciplinas')
+                .delete()
+                .eq('id', disciplinaId)
+                .eq('user_id', userId);
+
+            if (error) throw error;
+
+            console.log('[DB] Disciplina deletada:', disciplinaId);
+            return true;
+        } catch (error) {
+            console.error('[DB] Erro ao deletar disciplina:', error);
+            return false;
+        }
+    },
+
+    // ============================================
+    // ⭐ MODIFICADO: ensureUserData com disciplinas
+    // ============================================
     async ensureUserData(userId, email, nome) {
         let profile = await this.getUserProfile(userId);
         if (!profile) {
@@ -856,6 +1009,13 @@ const DatabaseService = {
         let slots = await this.getTimeSlots(userId);
         if (!slots || slots.length === 0) {
             await this.saveTimeSlots(userId, ['08:00', '09:30', '11:00', '14:00', '15:30']);
+        }
+
+        // ⭐ NOVO: Verificar/criar disciplinas vazias
+        let disciplinas = await this.getDisciplinas(userId);
+        if (!disciplinas || disciplinas.length === 0) {
+            console.log('[DB] Nenhuma disciplina encontrada. O usuário deve criar suas próprias disciplinas.');
+            // Não criar disciplinas padrão - o usuário cria manualmente
         }
 
         console.log('[DB] Estrutura do usuário verificada');
@@ -938,5 +1098,7 @@ window.dispatchEvent(new CustomEvent('supabaseReady'));
 console.log('[Supabase] Serviços carregados com sucesso!');
 console.log('[Supabase] URL:', SUPABASE_URL);
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
-console.log('[Supabase] Confirmação de e-mail habilitada');
+console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService);
+console.log('[Supabase] StorageService disponível:', !!window.StorageService);
+console.log('[Supabase] ✅ Suporte a disciplinas adicionado!');
 console.log('[Supabase] ✅ Anti-autocomplete e confirmação de e-mail corrigidos!');
