@@ -1,4 +1,5 @@
 // inicio/script.js - COMPLETO COM SISTEMA DE DISCIPLINAS E HORÁRIO
+
 let usuarioAtual = null;
 let tarefas = [];
 let anotacoes = [];
@@ -11,45 +12,106 @@ let selectedSubjectColor = '#9333ea';
 let disciplinaEditando = null;
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 
-// ========== MÓDULO DE DISCIPLINAS ==========
+// ============================================
+// MÓDULO DE DISCIPLINAS - SEM DADOS PADRÃO
+// ============================================
 const DisciplinaManager = {
     disciplinas: [],
     storageKey: null,
-    
-    padrao: [
-        { id: 'matematica', nome: 'Matemática', cor: '#9b59b6', icone: 'fa-square-root-variable' },
-        { id: 'portugues', nome: 'Português', cor: '#3498db', icone: 'fa-book' },
-        { id: 'historia', nome: 'História', cor: '#e74c3c', icone: 'fa-landmark' },
-        { id: 'fisica', nome: 'Física', cor: '#e67e22', icone: 'fa-atom' },
-        { id: 'quimica', nome: 'Química', cor: '#2ecc71', icone: 'fa-flask' },
-        { id: 'biologia', nome: 'Biologia', cor: '#f1c40f', icone: 'fa-dna' },
-        { id: 'geografia', nome: 'Geografia', cor: '#1abc9c', icone: 'fa-globe-americas' },
-        { id: 'ingles', nome: 'Inglês', cor: '#34495e', icone: 'fa-language' },
-        { id: 'outros', nome: 'Outros', cor: '#95a5a6', icone: 'fa-folder' }
-    ],
+    _loading: false,
+    _saveTimeout: null,
+    _isInitialized: false,
 
     init(email) {
         this.storageKey = `disciplinas_${email}`;
-        this.carregar();
-    },
-
-    carregar() {
-        const salvas = localStorage.getItem(this.storageKey);
-        if (salvas) {
-            this.disciplinas = JSON.parse(salvas);
-        } else {
-            this.disciplinas = JSON.parse(JSON.stringify(this.padrao));
-            this.salvar();
-        }
-        if (window.CacheManager) {
-            window.CacheManager.set('disciplinas', this.disciplinas, true);
+        if (!this._isInitialized) {
+            this.carregar();
+            this._isInitialized = true;
         }
     },
 
-    salvar() {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.disciplinas));
+    async carregar() {
+        if (this._loading) return;
+        this._loading = true;
+
+        try {
+            // Tentar carregar do localStorage primeiro
+            const cached = localStorage.getItem(this.storageKey);
+            let dados = null;
+
+            if (cached) {
+                try {
+                    dados = JSON.parse(cached);
+                } catch(e) {
+                    console.warn('[Disciplinas] Cache corrompido');
+                }
+            }
+
+            // Se não tem cache, tentar do banco
+            if (!dados || dados.length === 0) {
+                const userId = window.CacheManager?.getCurrentUserId();
+                if (userId && window.DatabaseService) {
+                    const cloudData = await window.DatabaseService.getDisciplinas(userId);
+                    if (cloudData && cloudData.length > 0) {
+                        dados = cloudData;
+                        console.log('[Disciplinas] Carregadas da nuvem:', dados.length);
+                    }
+                }
+            }
+
+            // Se ainda não tem dados, inicia vazio
+            if (!dados) {
+                dados = [];
+                console.log('[Disciplinas] Nenhuma disciplina encontrada');
+            }
+
+            this.disciplinas = dados;
+            this.salvar(true);
+
+            if (window.CacheManager) {
+                window.CacheManager.set('disciplinas', dados, false);
+            }
+
+        } catch (error) {
+            console.error('[Disciplinas] Erro ao carregar:', error);
+            this.disciplinas = [];
+            this.salvar(true);
+        } finally {
+            this._loading = false;
+        }
+    },
+
+    salvar(skipCloud = false) {
+        // Salvar no localStorage
+        if (this.storageKey) {
+            localStorage.setItem(this.storageKey, JSON.stringify(this.disciplinas));
+        }
+
+        // Salvar no CacheManager
         if (window.CacheManager) {
-            window.CacheManager.set('disciplinas', this.disciplinas, true);
+            window.CacheManager.set('disciplinas', this.disciplinas, false);
+        }
+
+        // Salvar na nuvem com debounce
+        if (!skipCloud) {
+            if (this._saveTimeout) {
+                clearTimeout(this._saveTimeout);
+            }
+            this._saveTimeout = setTimeout(() => {
+                this._saveToCloud();
+            }, 500);
+        }
+    },
+
+    async _saveToCloud() {
+        const userId = window.CacheManager?.getCurrentUserId();
+        if (!userId || !window.DatabaseService) return;
+
+        try {
+            await window.DatabaseService.saveDisciplinas(userId, this.disciplinas);
+            console.log('[Disciplinas] Salvas na nuvem:', this.disciplinas.length);
+        } catch (error) {
+            console.error('[Disciplinas] Erro ao salvar na nuvem:', error);
         }
     },
 
@@ -61,8 +123,13 @@ const DisciplinaManager = {
         return this.disciplinas.find(d => d.id === id);
     },
 
+    getByNome(nome) {
+        const normalizado = this.normalizar(nome);
+        return this.disciplinas.find(d => this.normalizar(d.nome) === normalizado);
+    },
+
     add(nome, cor, icone = 'fa-book') {
-        const id = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_');
+        const id = this.normalizar(nome);
         if (this.disciplinas.find(d => d.id === id)) {
             return { success: false, message: 'Disciplina já existe!' };
         }
@@ -81,7 +148,6 @@ const DisciplinaManager = {
     },
 
     delete(id) {
-        if (id === 'outros') return { success: false, message: 'Não é possível excluir "Outros"!' };
         const index = this.disciplinas.findIndex(d => d.id === id);
         if (index === -1) return { success: false, message: 'Disciplina não encontrada!' };
         this.disciplinas.splice(index, 1);
@@ -90,12 +156,24 @@ const DisciplinaManager = {
     },
 
     estaEmUso(id) {
-        return tarefas.some(t => (t.disciplina || t.subject) === id);
+        return tarefas.some(t => (t.disciplina || t.subject) === id) ||
+               Object.values(weeklySchedule).some(day =>
+                   day.some(c => c.materia && this.normalizar(c.materia) === id)
+               );
     },
 
     renderSelect(selectElement, valorSelecionado = null) {
         if (!selectElement) return;
         selectElement.innerHTML = '';
+
+        if (this.disciplinas.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Nenhuma disciplina cadastrada';
+            selectElement.appendChild(option);
+            return;
+        }
+
         this.disciplinas.forEach(d => {
             const option = document.createElement('option');
             option.value = d.id;
@@ -106,52 +184,57 @@ const DisciplinaManager = {
     },
 
     normalizar(texto) {
-        return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return texto.toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '_');
     }
 };
 
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
     if (!usuario) {
         window.location.href = '../login/index.html';
         return;
     }
-    
+
     try {
         usuarioAtual = JSON.parse(usuario);
-        
+
         if (window.initSync) {
             console.log('[Inicio] Inicializando sync...');
             await window.initSync();
         }
-        
+
         // Inicializar DisciplinaManager
         DisciplinaManager.init(usuarioAtual.email);
-        
+
         carregarDadosDoCache();
-        
+
         if (tarefas.length === 0 && anotacoes.length === 0 && eventos.length === 0 && Object.keys(weeklySchedule).length === 0) {
             await criarDadosVazios();
         }
-        
+
         await carregarFotoPerfilDesktop();
         iniciarEscutaFotoDesktop();
-        
+
         atualizarMiniPerfil();
         atualizarEstatisticasMini();
         atualizarFraseDoDiaDesktop();
-        
+
         new Calendar();
         new CircularProgress();
         new StudyChart();
         new StudyTimer();
-        
-        // Configurar botões
+
         document.getElementById('btnEditSchedule')?.addEventListener('click', abrirModalHorario);
         document.getElementById('btnGerenciarDisciplinas')?.addEventListener('click', abrirModalDisciplinas);
-        
+
         configurarModalDisciplinas();
-        
+
         window.addEventListener('cloudDataLoaded', (event) => {
             console.log('[Inicio] Cloud data loaded');
             DisciplinaManager.carregar();
@@ -163,15 +246,15 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
             carregarFotoPerfilDesktop();
         });
-        
+
         window.addEventListener('profilePhotoUpdated', (event) => {
             if (event.detail && event.detail.photoUrl) {
                 atualizarAvatarDesktop(event.detail.photoUrl);
             }
         });
-        
+
         iniciarEscutaCacheDesktop();
-        
+
     } catch(e) {
         console.error('Erro ao carregar usuário:', e);
     }
@@ -183,13 +266,13 @@ function carregarDadosDoCache() {
         anotacoes = window.CacheManager.get('notes', []);
         eventos = window.CacheManager.get('calendarEvents', []);
         weeklySchedule = window.CacheManager.get('weeklySchedule', {});
-        timeSlots = window.CacheManager.get('timeSlots', ['08:00', '09:30', '11:00', '14:00', '15:30']);
-        
+        timeSlots = window.CacheManager.get('timeSlots', []);
+
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(dia => {
             if (!weeklySchedule[dia]) weeklySchedule[dia] = [];
         });
-        
+
         atualizarHorarioDesktop();
         atualizarProximasAulas();
         atualizarProximasTarefas();
@@ -199,24 +282,25 @@ function carregarDadosDoCache() {
 
 async function criarDadosVazios() {
     const weeklyScheduleVazio = { 'Seg': [], 'Ter': [], 'Qua': [], 'Qui': [], 'Sex': [] };
-    const timeSlotsPadrao = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    
+
     if (window.CacheManager) {
         window.CacheManager.set('tasks', [], true);
         window.CacheManager.set('notes', [], true);
         window.CacheManager.set('calendarEvents', [], true);
         window.CacheManager.set('weeklySchedule', weeklyScheduleVazio, true);
-        window.CacheManager.set('timeSlots', timeSlotsPadrao, true);
+        window.CacheManager.set('timeSlots', [], true);
     }
 
     tarefas = [];
     anotacoes = [];
     eventos = [];
     weeklySchedule = weeklyScheduleVazio;
-    timeSlots = timeSlotsPadrao;
+    timeSlots = [];
 }
 
-// ========== SISTEMA DE DISCIPLINAS ==========
+// ============================================
+// FUNÇÕES DE DISCIPLINAS
+// ============================================
 function configurarModalDisciplinas() {
     const formDisc = document.getElementById('formDisciplina');
     if (formDisc) {
@@ -225,14 +309,14 @@ function configurarModalDisciplinas() {
             salvarDisciplina();
         });
     }
-    
+
     const colorInput = document.getElementById('discCor');
     if (colorInput) {
         colorInput.addEventListener('input', function() {
             document.getElementById('colorHexDisplay').textContent = this.value;
         });
     }
-    
+
     const modalDisc = document.getElementById('modalDisciplinas');
     if (modalDisc) {
         modalDisc.addEventListener('click', function(e) {
@@ -264,18 +348,17 @@ function fecharModalDisciplinas() {
 function renderizarListaDisciplinas() {
     const container = document.getElementById('listaDisciplinas');
     if (!container) return;
-    
+
     const disciplinas = DisciplinaManager.getAll();
-    
+
     if (disciplinas.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary);">Nenhuma disciplina cadastrada</p>';
+        container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary);">Nenhuma disciplina cadastrada. Clique em "Nova Disciplina" para adicionar.</p>';
         return;
     }
-    
+
     let html = '';
     disciplinas.forEach(d => {
         const emUso = DisciplinaManager.estaEmUso(d.id);
-        const podeEditar = d.id !== 'outros';
         html += `
             <div class="disciplina-card" data-id="${d.id}">
                 <div class="disciplina-info">
@@ -289,26 +372,24 @@ function renderizarListaDisciplinas() {
                     </div>
                 </div>
                 <div class="disciplina-actions">
-                    ${podeEditar ? `
-                        <button class="btn-edit-disc" onclick="editarDisciplina('${d.id}')" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-delete-disc" onclick="confirmarExcluirDisciplina('${d.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    ` : ''}
+                    <button class="btn-edit-disc" onclick="editarDisciplina('${d.id}')" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-delete-disc" onclick="confirmarExcluirDisciplina('${d.id}')" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
 }
 
 function editarDisciplina(id) {
     const disc = DisciplinaManager.getById(id);
     if (!disc) return;
-    
+
     disciplinaEditando = disc;
     document.getElementById('modalDiscTitle').textContent = 'Editar Disciplina';
     document.getElementById('discNome').value = disc.nome;
@@ -316,20 +397,20 @@ function editarDisciplina(id) {
     document.getElementById('colorHexDisplay').textContent = disc.cor;
     document.getElementById('discIcone').value = disc.icone || 'fa-book';
     document.getElementById('btnSalvarDisc').textContent = 'Salvar Alterações';
-    
+
     window.scrollTo({ top: document.getElementById('formDisciplina').offsetTop, behavior: 'smooth' });
 }
 
 function confirmarExcluirDisciplina(id) {
     const disc = DisciplinaManager.getById(id);
     if (!disc) return;
-    
+
     const emUso = DisciplinaManager.estaEmUso(id);
     let msg = `Deseja excluir a disciplina "${disc.nome}"?`;
     if (emUso) {
-        msg += '\n\n⚠️ ATENÇÃO: Esta disciplina está sendo usada em tarefas existentes.';
+        msg += '\n\n⚠️ ATENÇÃO: Esta disciplina está sendo usada em tarefas ou horários.';
     }
-    
+
     if (confirm(msg)) {
         const resultado = DisciplinaManager.delete(id);
         if (resultado.success) {
@@ -356,19 +437,19 @@ function salvarDisciplina() {
     const nome = document.getElementById('discNome').value.trim();
     const cor = document.getElementById('discCor').value;
     const icone = document.getElementById('discIcone').value;
-    
+
     if (!nome) {
         mostrarToast('Preencha o nome da disciplina!', 'error');
         return;
     }
-    
+
     let resultado;
     if (disciplinaEditando) {
         resultado = DisciplinaManager.update(disciplinaEditando.id, nome, cor, icone);
     } else {
         resultado = DisciplinaManager.add(nome, cor, icone);
     }
-    
+
     if (resultado.success) {
         limparFormDisciplina();
         renderizarListaDisciplinas();
@@ -382,7 +463,7 @@ function salvarDisciplina() {
 function atualizarListaDisciplinas() {
     const subjectsGrid = document.getElementById('subjectsGrid');
     if (!subjectsGrid) return;
-    
+
     const disciplinasMap = new Map();
 
     // Coletar das tarefas
@@ -417,7 +498,7 @@ function atualizarListaDisciplinas() {
     const disciplinas = Array.from(disciplinasMap.entries());
 
     if (disciplinas.length === 0) {
-        subjectsGrid.innerHTML = '<p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina cadastrada</p>';
+        subjectsGrid.innerHTML = '<p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina em uso</p>';
         return;
     }
 
@@ -427,7 +508,7 @@ function atualizarListaDisciplinas() {
         const cor = disc ? disc.cor : '#9ca3af';
         const nome = disc ? disc.nome : discId;
         const icone = disc ? disc.icone : 'fa-book';
-        
+
         html += `<div class="subject-card" style="background: ${cor}20; border-left: 3px solid ${cor};">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <i class="fas ${icone}" style="color: ${cor}; font-size: 16px;"></i>
@@ -443,36 +524,18 @@ function atualizarListaDisciplinas() {
 function getCorDisciplina(disciplina) {
     const disc = DisciplinaManager.getById(disciplina);
     if (disc) return disc.cor;
-    
-    const cores = {
-        'matemática': '#9b59b6', 'matematica': '#9b59b6',
-        'português': '#3498db', 'portugues': '#3498db',
-        'história': '#e74c3c', 'historia': '#e74c3c',
-        'física': '#e67e22', 'fisica': '#e67e22',
-        'química': '#2ecc71', 'quimica': '#2ecc71',
-        'biologia': '#f1c40f', 'geografia': '#1abc9c',
-        'inglês': '#34495e', 'ingles': '#34495e'
-    };
-    return cores[disciplina] || '#95a5a6';
+    return '#95a5a6';
 }
 
 function getNomeDisciplina(disciplina) {
     const disc = DisciplinaManager.getById(disciplina);
     if (disc) return disc.nome;
-    
-    const nomes = {
-        'matemática': 'Matemática', 'matematica': 'Matemática',
-        'português': 'Português', 'portugues': 'Português',
-        'história': 'História', 'historia': 'História',
-        'física': 'Física', 'fisica': 'Física',
-        'química': 'Química', 'quimica': 'Química',
-        'biologia': 'Biologia', 'geografia': 'Geografia',
-        'inglês': 'Inglês', 'ingles': 'Inglês'
-    };
-    return nomes[disciplina] || disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
+    return disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
 }
 
-// ========== SISTEMA DE HORÁRIO ==========
+// ============================================
+// SISTEMA DE HORÁRIO
+// ============================================
 function abrirModalHorario() {
     renderizarGradeEdicao();
     atualizarDatalistDisciplinas();
@@ -488,11 +551,19 @@ function fecharModalHorario() {
 function renderizarGradeEdicao() {
     const grid = document.getElementById('editScheduleGrid');
     if (!grid) return;
-    
+
     let html = '<div class="day-header">Hora</div>';
     days.forEach(day => html += `<div class="day-header">${day}</div>`);
 
-    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    const slots = timeSlots.length ? timeSlots : [];
+
+    if (slots.length === 0) {
+        html += `<div class="edit-cell" style="grid-column: span 6; padding: 40px; text-align: center; color: var(--text-secondary);">
+            Nenhum horário cadastrado. Adicione um horário abaixo.
+        </div>`;
+        grid.innerHTML = html;
+        return;
+    }
 
     slots.forEach(time => {
         html += `<div class="time-slot-with-delete">
@@ -501,7 +572,7 @@ function renderizarGradeEdicao() {
                 <i class="fas fa-trash"></i>
             </button>
         </div>`;
-        
+
         days.forEach(day => {
             const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
             if (classItem && classItem.materia) {
@@ -529,9 +600,9 @@ function renderizarGradeEdicao() {
 function atualizarDatalistDisciplinas() {
     const datalist = document.getElementById('disciplinasList');
     if (!datalist) return;
-    
+
     datalist.innerHTML = '';
-    
+
     const disciplinas = DisciplinaManager.getAll();
     disciplinas.forEach(d => {
         const option = document.createElement('option');
@@ -543,38 +614,38 @@ function atualizarDatalistDisciplinas() {
 function abrirModalMateria(day, time) {
     editingSubject = null;
     selectedSubjectColor = '#9333ea';
-    
+
     document.getElementById('subjectModalTitle').textContent = 'Adicionar Matéria';
     document.getElementById('subjectNameInput').value = '';
     document.getElementById('subjectTeacherInput').value = '';
     document.getElementById('subjectStartInput').value = time;
     document.getElementById('subjectEndInput').value = '';
     document.getElementById('subjectDayInput').value = day;
-    
+
     document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
     document.querySelector('.color-option[data-color="#9333ea"]')?.classList.add('active');
-    
+
     document.getElementById('subjectModal').classList.add('active');
 }
 
 function editarMateria(day, time) {
     const aula = weeklySchedule[day]?.find(c => c.horaInicio === time);
     if (!aula) return;
-    
+
     editingSubject = { ...aula, day, time };
     selectedSubjectColor = aula.color || '#9333ea';
-    
+
     document.getElementById('subjectModalTitle').textContent = 'Editar Matéria';
     document.getElementById('subjectNameInput').value = aula.materia || '';
     document.getElementById('subjectTeacherInput').value = aula.professor || '';
     document.getElementById('subjectStartInput').value = aula.horaInicio || '';
     document.getElementById('subjectEndInput').value = aula.horaFim || '';
     document.getElementById('subjectDayInput').value = day;
-    
+
     document.querySelectorAll('.color-option').forEach(opt => {
         opt.classList.toggle('active', opt.dataset.color === selectedSubjectColor);
     });
-    
+
     document.getElementById('subjectModal').classList.add('active');
 }
 
@@ -591,12 +662,12 @@ function selecionarCor(element) {
 
 async function salvarMateria(event) {
     event.preventDefault();
-    
+
     const name = document.getElementById('subjectNameInput').value.trim();
     const startTime = document.getElementById('subjectStartInput').value;
     const endTime = document.getElementById('subjectEndInput').value;
     const day = document.getElementById('subjectDayInput').value;
-    
+
     if (!name) {
         mostrarToast('Preencha o nome da matéria!', 'error');
         return;
@@ -649,16 +720,16 @@ async function removerHorario(timeSlot) {
             break;
         }
     }
-    
+
     if (hasClasses) {
         if (!confirm(`O horário ${timeSlot} possui aulas. Remover mesmo assim?`)) {
             return;
         }
     }
-    
+
     const index = timeSlots.indexOf(timeSlot);
     if (index !== -1) timeSlots.splice(index, 1);
-    
+
     for (const day of days) {
         if (weeklySchedule[day]) {
             weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
@@ -666,7 +737,7 @@ async function removerHorario(timeSlot) {
     }
 
     timeSlots.sort();
-    
+
     if (window.CacheManager) {
         window.CacheManager.set('weeklySchedule', weeklySchedule, true);
         window.CacheManager.set('timeSlots', timeSlots, true);
@@ -681,14 +752,14 @@ async function removerAula(day, timeSlot) {
     if (!confirm(`Remover aula de ${day} às ${timeSlot}?`)) {
         return;
     }
-    
+
     if (weeklySchedule[day]) {
         weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
-        
+
         if (window.CacheManager) {
             window.CacheManager.set('weeklySchedule', weeklySchedule, true);
         }
-        
+
         renderizarGradeEdicao();
         atualizarHorarioDesktop();
         atualizarListaDisciplinas();
@@ -714,20 +785,22 @@ function adicionarHorario() {
     }
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL ==========
+// ============================================
+// FUNÇÕES DE FOTO DE PERFIL
+// ============================================
 async function carregarFotoPerfilDesktop() {
     if (!usuarioAtual) return;
     const miniAvatar = document.getElementById('miniAvatar');
 
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-        
+
         if (photoUrl && photoUrl.startsWith('data:')) {
             if (miniAvatar) miniAvatar.src = photoUrl;
             usuarioAtual.profilePhotoUrl = photoUrl;
             localStorage.setItem('usuarioLogado', JSON.stringify(usuarioAtual));
         } else {
-            const iniciais = usuarioAtual.nome ? 
+            const iniciais = usuarioAtual.nome ?
                 usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
             const defaultAvatar = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=70`;
             if (miniAvatar) miniAvatar.src = defaultAvatar;
@@ -747,7 +820,7 @@ function atualizarAvatarDesktop(photoUrl) {
 }
 
 function iniciarEscutaFotoDesktop() {
-    if (!usuarioAtual) return;
+    // Implementação vazia - mantida para compatibilidade
 }
 
 function pararEscutaFotoDesktop() {
@@ -757,7 +830,9 @@ function pararEscutaFotoDesktop() {
     }
 }
 
-// ========== FUNÇÕES DA UI ==========
+// ============================================
+// FUNÇÕES DA UI
+// ============================================
 function atualizarMiniPerfil() {
     if (!usuarioAtual) return;
     const miniName = document.getElementById('miniName');
@@ -806,7 +881,7 @@ function atualizarHorarioDesktop() {
     const scheduleTableBody = document.getElementById('scheduleTableBody');
     if (!scheduleTableBody) return;
     const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-    const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
+    const slots = timeSlots.length ? timeSlots : [];
 
     if (slots.length === 0 || diasSemana.every(day => !weeklySchedule[day] || weeklySchedule[day].length === 0)) {
         scheduleTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">Nenhum horário cadastrado</td></tr>';
@@ -900,16 +975,18 @@ function escapeHtml(text) {
 function mostrarToast(mensagem, tipo = 'success') {
     const toast = document.getElementById('toast');
     if (!toast) return;
-    
+
     const toastSpan = toast.querySelector('span');
     if (toastSpan) toastSpan.textContent = mensagem;
-    
+
     toast.style.background = tipo === 'success' ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #ef4444, #dc2626)';
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// ========== CLASSES ==========
+// ============================================
+// CLASSES
+// ============================================
 class Calendar {
     constructor() {
         this.currentDate = new Date();
@@ -917,7 +994,7 @@ class Calendar {
         window.calendarInstance = this;
         this.init();
     }
-    
+
     init() {
         this.renderCalendar();
         document.getElementById('prevMonth')?.addEventListener('click', () => this.changeMonth(-1));
@@ -933,32 +1010,32 @@ class Calendar {
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
         const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        
+
         const currentMonthEl = document.getElementById('currentMonth');
         if (currentMonthEl) currentMonthEl.textContent = `${monthNames[month]} ${year}`;
-        
+
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const calendarDates = document.getElementById('calendarDates');
         if (!calendarDates) return;
-        
+
         calendarDates.innerHTML = '';
-        
+
         for (let i = 0; i < firstDay; i++) {
             const emptyCell = document.createElement('div');
             emptyCell.className = 'date-cell empty';
             calendarDates.appendChild(emptyCell);
         }
-        
+
         for (let day = 1; day <= daysInMonth; day++) {
             const dateCell = document.createElement('div');
             dateCell.className = 'date-cell';
             dateCell.textContent = day;
-            
+
             if (year === this.today.getFullYear() && month === this.today.getMonth() && day === this.today.getDate()) {
                 dateCell.classList.add('today');
             }
-            
+
             calendarDates.appendChild(dateCell);
         }
     }
@@ -972,7 +1049,7 @@ class CircularProgress {
         this.circumference = 2 * Math.PI * this.radius;
         this.init();
     }
-    
+
     init() {
         this.circle.style.strokeDasharray = `${this.circumference} ${this.circumference}`;
         this.circle.style.strokeDashoffset = this.circumference;
@@ -985,7 +1062,7 @@ class StudyChart {
         if (!this.chartContainer) return;
         this.init();
     }
-    
+
     init() {
         this.chartContainer.innerHTML = '<canvas id="studyCanvas" width="200" height="80" style="width:100%;height:100%"></canvas>';
         this.drawChart();
@@ -995,22 +1072,22 @@ class StudyChart {
     drawChart() {
         const canvas = document.getElementById('studyCanvas');
         if (!canvas) return;
-        
+
         canvas.width = canvas.offsetWidth || 200;
         canvas.height = canvas.offsetHeight || 80;
         const ctx = canvas.getContext('2d');
-        
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         const dados = [2, 4, 3, 5, 4, 6, 3];
         const maxVal = Math.max(...dados, 5);
         const larguraBarra = (canvas.width - 40) / dados.length - 4;
-        
+
         for (let i = 0; i < dados.length; i++) {
             const altura = (dados[i] / maxVal) * (canvas.height - 40);
             const x = 20 + i * (larguraBarra + 4);
             const y = canvas.height - 20 - altura;
-            
+
             ctx.fillStyle = '#9333ea';
             ctx.fillRect(x, y, larguraBarra, altura);
         }
@@ -1028,7 +1105,7 @@ class StudyTimer {
             this.carregarTimerSalvo();
         }
     }
-    
+
     carregarTimerSalvo() {
         const timerKey = `timer_${usuarioAtual?.email}`;
         const timerSalvo = localStorage.getItem(timerKey);
@@ -1045,7 +1122,7 @@ class StudyTimer {
     salvarTimer() {
         if (!usuarioAtual) return;
         const timerKey = `timer_${usuarioAtual.email}`;
-        localStorage.setItem(timerKey, JSON.stringify({ 
+        localStorage.setItem(timerKey, JSON.stringify({
             segundos: this.seconds,
             data: new Date().toDateString(),
             ativo: this.isActive
@@ -1087,13 +1164,15 @@ class StudyTimer {
     }
 }
 
-// ========== ESCUTA DE CACHE ==========
+// ============================================
+// ESCUTA DE CACHE
+// ============================================
 function iniciarEscutaCacheDesktop() {
     if (!window.CacheManager) {
         setTimeout(iniciarEscutaCacheDesktop, 1000);
         return;
     }
-    
+
     window.CacheManager.addListener('weeklySchedule', (newSchedule) => {
         if (newSchedule && Object.keys(newSchedule).length > 0) {
             weeklySchedule = newSchedule;
@@ -1126,6 +1205,14 @@ function iniciarEscutaCacheDesktop() {
         if (newEvents) {
             eventos = newEvents;
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
+        }
+    });
+
+    window.CacheManager.addListener('disciplinas', (newDisciplinas) => {
+        if (newDisciplinas) {
+            DisciplinaManager.disciplinas = newDisciplinas;
+            DisciplinaManager.salvar(true);
+            atualizarListaDisciplinas();
         }
     });
 }
