@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM CHAVE UNIFICADA (CORRIGIDA)
+// mobile-telas/script.js - VERSÃO COMPLETA COM PREVENÇÃO DE LOOP E CONGELAMENTO
 
 let usuarioLogado = null;
 let notifications = [];
@@ -11,7 +11,68 @@ let editingSubject = null;
 let selectedSubjectColor = '#6366f1';
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 let syncInProgress = false;
+let _isLoading = false;
+let _lastRenderTime = 0;
+let _isInitializing = false;
 
+// ============================================
+// TOAST & CONFIRM
+// ============================================
+function showToast(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
+    toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('toast-hiding');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+function showConfirm(message, title, callback) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) { callback(false); return; }
+
+    document.getElementById('confirm-title').textContent = title || 'Confirmar';
+    document.getElementById('confirm-message').textContent = message;
+    modal.classList.add('active');
+
+    const handleConfirm = () => {
+        modal.classList.remove('active');
+        callback(true);
+        cleanup();
+    };
+
+    const handleCancel = () => {
+        modal.classList.remove('active');
+        callback(false);
+        cleanup();
+    };
+
+    const cleanup = () => {
+        document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
+        document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
+    };
+
+    document.getElementById('confirm-ok').onclick = handleConfirm;
+    document.getElementById('confirm-cancel').onclick = handleCancel;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ============================================
+// FRASE DO DIA
+// ============================================
 function atualizarFraseDoDiaMobile() {
     const fraseElement = document.getElementById('fraseDoDiaTextMobile');
     if (fraseElement && window.FrasesDoDia) {
@@ -22,6 +83,9 @@ function atualizarFraseDoDiaMobile() {
     }
 }
 
+// ============================================
+// AVATAR
+// ============================================
 async function atualizarAvatarMobile(photoUrl = null) {
     const profileIcon = document.getElementById('notification-bell');
     if (!profileIcon) return;
@@ -32,27 +96,41 @@ async function atualizarAvatarMobile(photoUrl = null) {
     }
 
     if (window.CacheManager && usuarioLogado) {
-        const cachedPhotoUrl = await window.CacheManager.getProfilePhotoUrl();
-        if (cachedPhotoUrl && cachedPhotoUrl.startsWith('data:')) {
-            profileIcon.innerHTML = `<img src="${cachedPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-        } else if (usuarioLogado.nome) {
-            const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
-            profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
+        try {
+            const cachedPhotoUrl = await window.CacheManager.getProfilePhotoUrl();
+            if (cachedPhotoUrl && cachedPhotoUrl.startsWith('data:')) {
+                profileIcon.innerHTML = `<img src="${cachedPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                return;
+            }
+        } catch(e) {
+            console.warn('[Mobile] Erro ao carregar foto:', e);
         }
+    }
+
+    if (usuarioLogado && usuarioLogado.nome) {
+        const iniciais = usuarioLogado.nome.charAt(0).toUpperCase();
+        profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
+    } else {
+        profileIcon.innerHTML = `<span style="font-weight:bold;">U</span>`;
     }
 }
 
+// ============================================
+// INICIALIZAÇÃO FIRESTORE
+// ============================================
 async function inicializarFirestore() {
     if (!usuarioLogado) return false;
-
     if (!window.CacheManager) return false;
 
     window.CacheManager.init();
-
     const userId = usuarioLogado.id;
     window.CacheManager.currentUserId = userId;
 
-    await window.CacheManager.loadFromCloud(true);
+    try {
+        await window.CacheManager.loadFromCloud(true);
+    } catch(e) {
+        console.warn('[Mobile] Erro ao carregar da nuvem:', e);
+    }
 
     if (window.CacheManager.startRealtimeSync) {
         window.CacheManager.startRealtimeSync();
@@ -61,16 +139,26 @@ async function inicializarFirestore() {
     return true;
 }
 
+// ============================================
+// CARREGAR DADOS (COM PREVENÇÃO DE LOOP)
+// ============================================
 async function carregarTodosDados() {
-    if (!usuarioLogado) return;
-
-    const userId = usuarioLogado.id;
-
-    if (window.CacheManager && window.CacheManager.currentUserId !== userId) {
-        await inicializarFirestore();
+    if (_isLoading) {
+        console.log('[Mobile] ⏳ Carregamento já em andamento...');
+        return;
     }
 
+    if (!usuarioLogado) return;
+
+    _isLoading = true;
+    const userId = usuarioLogado.id;
+
     try {
+        if (window.CacheManager && window.CacheManager.currentUserId !== userId) {
+            await inicializarFirestore();
+        }
+
+        // CARREGAR DO CACHE MANAGER
         if (window.CacheManager) {
             const cachedNotes = window.CacheManager.get('notes', null);
             const cachedTasks = window.CacheManager.get('tasks', null);
@@ -87,7 +175,7 @@ async function carregarTodosDados() {
             if (cachedNotif !== null && Array.isArray(cachedNotif)) notifications = cachedNotif;
         }
 
-        // FALLBACK usando a MESMA chave que o desktop
+        // FALLBACK usando localStorage
         if (notes.length === 0) {
             const notesSalvas = localStorage.getItem(`${userId}_notes`);
             if (notesSalvas) notes = JSON.parse(notesSalvas);
@@ -120,6 +208,8 @@ async function carregarTodosDados() {
 
     } catch (error) {
         console.error('[Mobile] Erro ao carregar dados:', error);
+    } finally {
+        _isLoading = false;
     }
 
     if (timeSlots.length === 0) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
@@ -129,6 +219,9 @@ async function carregarTodosDados() {
     });
 }
 
+// ============================================
+// SALVAR DADOS (COM PREVENÇÃO DE LOOP)
+// ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || syncInProgress) return false;
 
@@ -161,16 +254,43 @@ async function salvarTodosDados() {
         console.error('[Mobile] Erro ao salvar:', error);
         return false;
     } finally {
-        syncInProgress = false;
+        setTimeout(() => {
+            syncInProgress = false;
+        }, 500);
     }
 }
 
+// ============================================
+// RENDERIZAR TUDO (COM PREVENÇÃO DE LOOP)
+// ============================================
+function renderizarTudo() {
+    const now = Date.now();
+    if (now - _lastRenderTime < 500) {
+        console.log('[Mobile] ⏳ Debounce de renderização...');
+        return;
+    }
+    _lastRenderTime = now;
+
+    console.log('[Mobile] 🔄 Renderizando tudo...');
+
+    renderizarHorario();
+    renderizarProximoEvento();
+    renderizarProximasTarefas();
+    renderizarNotificacoes();
+    atualizarCards();
+    atualizarBadgeNotificacoes();
+    atualizarFraseDoDiaMobile();
+}
+
+// ============================================
+// HORÁRIO
+// ============================================
 function renderizarHorario() {
     const grid = document.getElementById('schedule-grid');
     if (!grid) return;
 
     if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
-        grid.innerHTML = '<div style="grid-column:span 6;text-align:center;padding:40px;">Carregando horário...</div>';
+        grid.innerHTML = '<div style="grid-column:span 6;text-align:center;padding:40px;color:var(--text-secondary);">Nenhum horário cadastrado</div>';
         return;
     }
 
@@ -197,6 +317,7 @@ function renderizarHorario() {
 
     grid.innerHTML = html;
 
+    // Event listeners para células com aula
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -215,6 +336,7 @@ function renderizarHorario() {
         });
     });
 
+    // Event listeners para células vazias
     document.querySelectorAll('.class-cell .class-block.empty').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -356,6 +478,9 @@ function removerAula(day, timeSlot) {
     });
 }
 
+// ============================================
+// PROXIMAS TAREFAS
+// ============================================
 function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
@@ -383,6 +508,9 @@ function renderizarProximasTarefas() {
     container.innerHTML = html;
 }
 
+// ============================================
+// PROXIMO EVENTO
+// ============================================
 function renderizarProximoEvento() {
     const container = document.getElementById('next-event-container');
     if (!container) return;
@@ -423,6 +551,9 @@ function renderizarProximoEvento() {
     container.innerHTML = html;
 }
 
+// ============================================
+// NOTIFICAÇÕES
+// ============================================
 function renderizarNotificacoes() {
     const container = document.getElementById('notifications-list');
     if (!container) return;
@@ -451,6 +582,74 @@ function renderizarNotificacoes() {
     container.innerHTML = html;
 }
 
+function renderizarNotificacoesModal(filter = 'all') {
+    const container = document.getElementById('notifications-list-modal');
+    if (!container) return;
+
+    let filtradas = [...notifications];
+    if (filter === 'unread') filtradas = notifications.filter(n => !n.read);
+    else if (filter === 'aulas') filtradas = notifications.filter(n => n.type === 'aula');
+    else if (filter === 'tarefas') filtradas = notifications.filter(n => n.type === 'tarefa');
+
+    if (filtradas.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
+        return;
+    }
+
+    let html = '';
+    filtradas.forEach(notif => {
+        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
+        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
+            <div class="notification-icon ${notif.type}">
+                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">${escapeHtml(notif.title)}</div>
+                <div class="notification-message">${escapeHtml(notif.message)}</div>
+                <div class="notification-time">${formatarTempoAtras(notif.time)}</div>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function formatarTempoAtras(timeString) {
+    if (!timeString) return '';
+    const now = new Date();
+    const notifTime = new Date(timeString);
+    const diffMins = Math.floor((now - notifTime) / 60000);
+
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `Há ${diffMins} min`;
+    if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
+    return notifTime.toLocaleDateString('pt-BR');
+}
+
+function marcarTodasComoLidas() {
+    notifications.forEach(n => n.read = true);
+    salvarTodosDados();
+    atualizarBadgeNotificacoes();
+    renderizarNotificacoes();
+    renderizarNotificacoesModal();
+    showToast('Todas notificações marcadas como lidas!', 'success');
+}
+
+function limparTodasNotificacoes() {
+    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
+        if (confirmed) {
+            notifications = [];
+            salvarTodosDados();
+            atualizarBadgeNotificacoes();
+            renderizarNotificacoes();
+            renderizarNotificacoesModal();
+            showToast('Notificações limpas!', 'success');
+        }
+    });
+}
+
+// ============================================
+// CARDS
+// ============================================
 function atualizarCards() {
     const materias = new Set();
     if (weeklySchedule) {
@@ -482,13 +681,9 @@ function atualizarBadgeNotificacoes() {
     }
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
+// ============================================
+// MODAL DE MATÉRIA
+// ============================================
 function openSubjectModal(subject, day, time) {
     editingSubject = subject;
     const modal = document.getElementById('subject-modal');
@@ -570,116 +765,9 @@ async function salvarMateria() {
     editingSubject = null;
 }
 
-function showToast(message, type = 'info', duration = 3000) {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
-    toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('toast-hiding');
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-}
-
-function showConfirm(message, title, callback) {
-    const modal = document.getElementById('confirm-modal');
-    if (!modal) { callback(false); return; }
-
-    document.getElementById('confirm-title').textContent = title || 'Confirmar';
-    document.getElementById('confirm-message').textContent = message;
-    modal.classList.add('active');
-
-    const handleConfirm = () => {
-        modal.classList.remove('active');
-        callback(true);
-        cleanup();
-    };
-
-    const handleCancel = () => {
-        modal.classList.remove('active');
-        callback(false);
-        cleanup();
-    };
-
-    const cleanup = () => {
-        document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
-        document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
-    };
-
-    document.getElementById('confirm-ok').onclick = handleConfirm;
-    document.getElementById('confirm-cancel').onclick = handleCancel;
-}
-
-function renderizarNotificacoesModal(filter = 'all') {
-    const container = document.getElementById('notifications-list-modal');
-    if (!container) return;
-
-    let filtradas = [...notifications];
-    if (filter === 'unread') filtradas = notifications.filter(n => !n.read);
-    else if (filter === 'aulas') filtradas = notifications.filter(n => n.type === 'aula');
-    else if (filter === 'tarefas') filtradas = notifications.filter(n => n.type === 'tarefa');
-
-    if (filtradas.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
-        return;
-    }
-
-    let html = '';
-    filtradas.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
-        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
-            <div class="notification-icon ${notif.type}">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
-            </div>
-            <div class="notification-content">
-                <div class="notification-title">${escapeHtml(notif.title)}</div>
-                <div class="notification-message">${escapeHtml(notif.message)}</div>
-                <div class="notification-time">${formatarTempoAtras(notif.time)}</div>
-            </div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function formatarTempoAtras(timeString) {
-    if (!timeString) return '';
-    const now = new Date();
-    const notifTime = new Date(timeString);
-    const diffMins = Math.floor((now - notifTime) / 60000);
-
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `Há ${diffMins} min`;
-    if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
-    return notifTime.toLocaleDateString('pt-BR');
-}
-
-function marcarTodasComoLidas() {
-    notifications.forEach(n => n.read = true);
-    salvarTodosDados();
-    atualizarBadgeNotificacoes();
-    renderizarNotificacoes();
-    renderizarNotificacoesModal();
-    showToast('Todas notificações marcadas como lidas!', 'success');
-}
-
-function limparTodasNotificacoes() {
-    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
-        if (confirmed) {
-            notifications = [];
-            salvarTodosDados();
-            atualizarBadgeNotificacoes();
-            renderizarNotificacoes();
-            renderizarNotificacoesModal();
-            showToast('Notificações limpas!', 'success');
-        }
-    });
-}
-
+// ============================================
+// CONFIGURAR EVENTOS
+// ============================================
 function configurarEventos() {
     const toggleEdit = document.getElementById('toggle-edit-mode');
     if (toggleEdit) {
@@ -801,7 +889,8 @@ function configurarEventos() {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
-            if (view === 'calendar') window.location.href = './calendario/index.html';
+            if (view === 'home') window.location.href = './index.html';
+            else if (view === 'calendar') window.location.href = './calendario/index.html';
             else if (view === 'tasks') window.location.href = './tarefas/index.html';
             else if (view === 'notes') window.location.href = './notas/index.html';
             else if (view === 'profile') window.location.href = './perfil/index.html';
@@ -809,33 +898,62 @@ function configurarEventos() {
     });
 }
 
+// ============================================
+// CONFIGURAR SINCronização (COM PREVENÇÃO DE LOOP)
+// ============================================
 function configurarSincronizacao() {
+    let cloudLoadTimeout = null;
+    let storageTimeout = null;
+    let notesUpdateTimeout = null;
+    let forceRefreshTimeout = null;
+
     window.addEventListener('cloudDataLoaded', async () => {
-        if (editingSubject && document.getElementById('subject-modal').classList.contains('active')) {
-            await salvarMateria();
+        if (cloudLoadTimeout) clearTimeout(cloudLoadTimeout);
+
+        cloudLoadTimeout = setTimeout(async () => {
+            console.log('[Mobile] 📡 cloudDataLoaded - Sincronizando...');
+
+            if (editingSubject && document.getElementById('subject-modal').classList.contains('active')) {
+                await salvarMateria();
+            }
+
+            await carregarTodosDados();
+            renderizarTudo();
+
+            // Mostrar toast apenas se não for carregamento inicial
+            if (document.querySelector('.toast') === null) {
+                showToast('🔄 Dados sincronizados!', 'success');
+            }
+
+            cloudLoadTimeout = null;
+        }, 500);
+    });
+
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('notes') || e.key.includes('tasks') || e.key.includes('_disciplinas'))) {
+            if (storageTimeout) clearTimeout(storageTimeout);
+            storageTimeout = setTimeout(() => {
+                console.log('[Mobile] Storage event detectado:', e.key);
+                // NÃO recarregar automaticamente - evitar loop entre abas
+                storageTimeout = null;
+            }, 1000);
         }
-
-        await carregarTodosDados();
-
-        renderizarHorario();
-        renderizarProximoEvento();
-        renderizarProximasTarefas();
-        renderizarNotificacoes();
-        atualizarCards();
-        atualizarBadgeNotificacoes();
-        atualizarFraseDoDiaMobile();
-
-        showToast('🔄 Dados sincronizados com o PC!', 'success');
     });
 
     window.addEventListener('notesUpdated', (event) => {
-        if (event.detail && event.detail.notes && !syncInProgress) {
-            const novasNotas = event.detail.notes;
-            if (JSON.stringify(notes) !== JSON.stringify(novasNotas)) {
-                notes = novasNotas;
-                showToast('📝 Anotações sincronizadas!', 'success');
+        if (notesUpdateTimeout) clearTimeout(notesUpdateTimeout);
+
+        notesUpdateTimeout = setTimeout(() => {
+            if (event.detail && event.detail.notes && !syncInProgress) {
+                const novasNotas = event.detail.notes;
+                if (JSON.stringify(notes) !== JSON.stringify(novasNotas)) {
+                    notes = novasNotas;
+                    renderizarTudo();
+                    showToast('📝 Anotações sincronizadas!', 'success');
+                }
             }
-        }
+            notesUpdateTimeout = null;
+        }, 300);
     });
 
     window.addEventListener('profilePhotoUpdated', async (event) => {
@@ -844,18 +962,21 @@ function configurarSincronizacao() {
         }
     });
 
-    window.addEventListener('forceRefresh', async () => {
-        await carregarTodosDados();
-        renderizarHorario();
-        renderizarProximoEvento();
-        renderizarProximasTarefas();
-        renderizarNotificacoes();
-        atualizarCards();
-        atualizarBadgeNotificacoes();
-        atualizarFraseDoDiaMobile();
+    window.addEventListener('forceRefresh', () => {
+        if (forceRefreshTimeout) clearTimeout(forceRefreshTimeout);
+
+        forceRefreshTimeout = setTimeout(async () => {
+            console.log('[Mobile] 🔄 ForceRefresh recebido');
+            await carregarTodosDados();
+            renderizarTudo();
+            forceRefreshTimeout = null;
+        }, 300);
     });
 }
 
+// ============================================
+// NOTIFICAÇÕES NATIVAS
+// ============================================
 function isAndroidApp() {
     return typeof Android !== 'undefined';
 }
@@ -864,7 +985,9 @@ function sendNativeNotification(title, message, type) {
     if (isAndroidApp()) {
         try {
             Android.showNotification(title, message, type);
-        } catch(e) {}
+        } catch(e) {
+            console.warn('[Mobile] Erro ao enviar notificação nativa:', e);
+        }
     }
 }
 
@@ -900,47 +1023,63 @@ function checkUpcomingClasses() {
 // INICIALIZAÇÃO PRINCIPAL (CORRIGIDA)
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('📱 Iniciando Mobile com sincronização corrigida...');
+    console.log('📱 Iniciando Mobile com prevenção de loop...');
 
+    // PREVENIR INICIALIZAÇÃO MÚLTIPLA
+    if (window._mobileInitialized) {
+        console.log('[Mobile] ⏳ Já inicializado, ignorando...');
+        return;
+    }
+    window._mobileInitialized = true;
+
+    // VERIFICAR USUÁRIO
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
         window.location.href = '../../login/index.html';
         return;
     }
 
-    usuarioLogado = JSON.parse(usuarioSalvo);
+    try {
+        usuarioLogado = JSON.parse(usuarioSalvo);
+    } catch(e) {
+        console.error('[Mobile] Erro ao parsear usuário:', e);
+        window.location.href = '../../login/index.html';
+        return;
+    }
+
     console.log('[Mobile] Usuário logado (UUID):', usuarioLogado.id);
 
-    // ✅ INICIALIZAR CACHE MANAGER PRIMEIRO
+    // INICIALIZAR CACHE MANAGER
     if (window.CacheManager) {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuarioLogado.id;
-        console.log('[Mobile] CacheManager inicializado com userId:', usuarioLogado.id);
+        console.log('[Mobile] CacheManager inicializado');
     }
 
-    // ✅ INICIALIZAR SYNC
-    if (window.initSync) {
+    // INICIALIZAR SYNC (apenas uma vez)
+    if (window.initSync && !window._syncInitialized) {
+        window._syncInitialized = true;
         console.log('[Mobile] Inicializando sync...');
-        await window.initSync();
+        try {
+            await window.initSync();
+        } catch(e) {
+            console.warn('[Mobile] Erro ao inicializar sync:', e);
+        }
     }
 
-    // ✅ CARREGAR DADOS
+    // CARREGAR DADOS
     await carregarTodosDados();
 
-    // ✅ ATUALIZAR UI
+    // ATUALIZAR UI
     const headerName = document.getElementById('header-name');
     if (headerName && usuarioLogado.nome) {
         headerName.textContent = usuarioLogado.nome.split(' ')[0];
+    } else if (headerName) {
+        headerName.textContent = 'Usuário';
     }
 
-    renderizarHorario();
-    renderizarProximoEvento();
-    renderizarProximasTarefas();
-    renderizarNotificacoes();
-    atualizarCards();
-    atualizarBadgeNotificacoes();
+    renderizarTudo();
     await atualizarAvatarMobile();
-    atualizarFraseDoDiaMobile();
 
     configurarSincronizacao();
     configurarEventos();
@@ -948,7 +1087,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ Mobile inicializado com sucesso!');
 });
 
-setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
-setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
+// ============================================
+// VERIFICAÇÕES PERIÓDICAS
+// ============================================
+setTimeout(() => {
+    checkPendingTasks();
+    checkUpcomingClasses();
+}, 3000);
+
+setInterval(() => {
+    checkPendingTasks();
+    checkUpcomingClasses();
+}, 15 * 60 * 1000);
 
 console.log('%c📱 Mobile Otimizado - Sincronização Completa!', 'color: #10b981; font-size: 16px; font-weight: bold;');
