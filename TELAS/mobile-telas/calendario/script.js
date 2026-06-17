@@ -1,4 +1,4 @@
-// Calendário - Gerenciamento de eventos
+// Calendário - Gerenciamento de eventos (COM INICIALIZAÇÃO CORRIGIDA)
 
 let notifications = [];
 let calendarEvents = [];
@@ -12,13 +12,13 @@ let editingEventId = null;
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
     toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
     container.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.classList.add('toast-hiding');
         setTimeout(() => toast.remove(), 300);
@@ -28,28 +28,28 @@ function showToast(message, type = 'info', duration = 3000) {
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
     if (!modal) { callback(false); return; }
-    
+
     document.getElementById('confirm-title').textContent = title || 'Confirmar';
     document.getElementById('confirm-message').textContent = message;
     modal.classList.add('active');
-    
+
     const handleConfirm = () => {
         modal.classList.remove('active');
         callback(true);
         cleanup();
     };
-    
+
     const handleCancel = () => {
         modal.classList.remove('active');
         callback(false);
         cleanup();
     };
-    
+
     const cleanup = () => {
         document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
-    
+
     document.getElementById('confirm-ok').onclick = handleConfirm;
     document.getElementById('confirm-cancel').onclick = handleCancel;
 }
@@ -69,7 +69,7 @@ function saveAllData() {
 
 function loadAllData() {
     usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
-    
+
     if (!usuarioLogado || !usuarioLogado.id) {
         window.location.href = '../../login/index.html';
         return;
@@ -296,10 +296,26 @@ function switchView(viewName) {
 // ============================================
 // INICIALIZAÇÃO PRINCIPAL (CORRIGIDA)
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('📅 Iniciando Calendário...');
 
-    // ✅ INICIALIZAR CACHE MANAGER COM USER ID
+    // ✅ AGUARDAR CACHE MANAGER FICAR PRONTO
+    if (!window.CacheManager || !window.CacheManager.isInitialized) {
+        console.log('[Calendario] Aguardando CacheManager...');
+        await new Promise(resolve => {
+            const checkReady = () => {
+                if (window.CacheManager && window.CacheManager.isInitialized) {
+                    resolve();
+                } else {
+                    setTimeout(checkReady, 100);
+                }
+            };
+            checkReady();
+            setTimeout(resolve, 5000);
+        });
+    }
+
+    // ✅ VERIFICAR USUÁRIO
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (usuarioSalvo) {
         try {
@@ -313,18 +329,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.CacheManager.init();
         if (usuarioLogado && usuarioLogado.id) {
             window.CacheManager.currentUserId = usuarioLogado.id;
-            console.log('[Calendario] CacheManager inicializado com userId:', usuarioLogado.id);
+            console.log('[Calendario] CacheManager com userId:', usuarioLogado.id);
         }
     }
 
-    // ✅ INICIALIZAR SYNC
+    // ✅ INICIALIZAR SYNC (APENAS UMA VEZ)
     if (window.initSync && !window._calendarSyncInit) {
         window._calendarSyncInit = true;
-        window.initSync().then(() => {
+        try {
+            await window.initSync({ force: false });
             console.log('[Calendario] Sync inicializado');
-        }).catch(e => {
+        } catch(e) {
             console.warn('[Calendario] Erro no sync:', e);
-        });
+        }
     }
 
     // ✅ CARREGAR DADOS
@@ -438,6 +455,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
+    });
+
+    // ✅ LISTENER PARA QUANDO O SYNC FICAR PRONTO
+    window.addEventListener('syncReady', () => {
+        console.log('[Calendario] 📡 Sync pronto, recarregando dados...');
+        loadAllData();
+        renderCalendar();
+        updateNotificationBadge();
     });
 
     console.log('✅ Calendário inicializado com sucesso!');
