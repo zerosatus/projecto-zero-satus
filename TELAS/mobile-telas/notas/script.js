@@ -57,50 +57,49 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// INICIALIZAÇÃO (CORRIGIDA - USANDO UUID)
+// INICIALIZAÇÃO FIRESTORE
 // ============================================
 async function inicializarFirestoreNotas() {
     if (!usuarioLogado) return false;
-    
+
     console.log('[Notas Mobile] 🔥 Inicializando Firestore...');
-    
+
     let tentativas = 0;
     while (!window.CacheManager && tentativas < 20) {
         console.log(`[Notas Mobile] Aguardando CacheManager... tentativa ${tentativas + 1}`);
         await new Promise(r => setTimeout(r, 100));
         tentativas++;
     }
-    
+
     if (!window.CacheManager) {
         console.error('[Notas Mobile] CacheManager não encontrado!');
         return false;
     }
-    
+
     window.CacheManager.init();
-    
-    // ✅ CORRIGIDO: Usar o UUID do Supabase, NÃO o email!
-    const userId = usuarioLogado.id;  // ← UUID correto!
+
+    const userId = usuarioLogado.id;
     window.CacheManager.currentUserId = userId;
     console.log('[Notas Mobile] User ID (UUID):', userId);
-    
+
     console.log('[Notas Mobile] ☁️ Carregando dados da nuvem...');
     const loaded = await window.CacheManager.loadFromCloud(true);
-    
+
     if (window.CacheManager.startRealtimeSync) {
         window.CacheManager.startRealtimeSync();
     }
-    
+
     console.log('[Notas Mobile] ✅ Firestore inicializado, loaded:', loaded);
     return loaded;
 }
 
 // ============================================
-// PERSISTÊNCIA (CORRIGIDA - USANDO UUID)
+// PERSISTÊNCIA
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || isSaving) return false;
     isSaving = true;
-    
+
     try {
         const notasNormalizadas = notes.map(n => ({
             id: n.id,
@@ -110,20 +109,19 @@ async function salvarTodosDados() {
             dataModificacao: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         }));
-        
+
         console.log('[Notas Mobile] 💾 Salvando anotações:', notasNormalizadas.length);
-        
-        // ✅ CORRIGIDO: Usar UUID
+
         const userId = usuarioLogado.id;
         localStorage.setItem(`${userId}_notes`, JSON.stringify(notasNormalizadas));
-        
+
         if (window.CacheManager) {
             if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId !== userId) {
                 window.CacheManager.currentUserId = userId;
             }
             window.CacheManager.set('notes', notasNormalizadas, true);
         }
-        
+
         return true;
     } catch (error) {
         console.error('[Notas Mobile] Erro ao salvar:', error);
@@ -135,9 +133,9 @@ async function salvarTodosDados() {
 
 function carregarDados() {
     if (!usuarioLogado) return;
-    
+
     let dadosCarregados = null;
-    
+
     if (window.CacheManager) {
         const cachedNotes = window.CacheManager.get('notes', null);
         if (cachedNotes !== null && Array.isArray(cachedNotes)) {
@@ -145,9 +143,8 @@ function carregarDados() {
             console.log('[Notas Mobile] Carregado do CacheManager:', dadosCarregados.length);
         }
     }
-    
+
     if (!dadosCarregados) {
-        // ✅ CORRIGIDO: Usar UUID
         const userId = usuarioLogado.id;
         const notesSalvas = localStorage.getItem(`${userId}_notes`);
         if (notesSalvas) {
@@ -155,7 +152,7 @@ function carregarDados() {
             console.log('[Notas Mobile] Carregado do localStorage:', dadosCarregados.length);
         }
     }
-    
+
     if (dadosCarregados && Array.isArray(dadosCarregados)) {
         notes = dadosCarregados.map(nota => ({
             id: nota.id || Date.now().toString(),
@@ -175,26 +172,26 @@ function carregarDados() {
         notes = [exemplo];
         salvarTodosDados();
     }
-    
+
     console.log('[Notas Mobile] Total de notas:', notes.length);
 }
 
 function loadAllData() {
     usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    
+
     if (!usuarioLogado || !usuarioLogado.id) {
         window.location.href = '../../login/index.html';
         return;
     }
-    
+
     console.log('[Notas Mobile] Usuário logado (UUID):', usuarioLogado.id);
-    
+
     if (window.getCached) {
         notifications = window.getCached('notifications', []);
     } else {
         notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
     }
-    
+
     carregarDados();
 }
 
@@ -204,7 +201,7 @@ function loadAllData() {
 function renderNotes(searchTerm = '') {
     const notesGrid = document.getElementById('notes-grid');
     if (!notesGrid) return;
-    
+
     let filteredNotes = [...notes];
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
@@ -227,14 +224,14 @@ function renderNotes(searchTerm = '') {
 
     let html = '';
     filteredNotes.forEach(note => {
-        const dateFormatted = note.date ? new Date(note.date).toLocaleDateString('pt-BR') : 
+        const dateFormatted = note.date ? new Date(note.date).toLocaleDateString('pt-BR') :
                               (note.dataModificacao ? new Date(note.dataModificacao).toLocaleDateString('pt-BR') : '');
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = note.content || '';
         const plainText = tempDiv.textContent || tempDiv.innerText || '';
         const preview = plainText.substring(0, 80).replace(/\n/g, ' ');
         const titulo = note.title || 'Sem título';
-        
+
         html += `<div class="note-card-minimal" data-id="${note.id}">
             <div class="note-title-minimal">${escapeHtml(titulo)}</div>
             <div class="note-preview-minimal">${escapeHtml(preview)}${preview.length >= 80 ? '...' : ''}</div>
@@ -295,7 +292,7 @@ function openNoteModal(note) {
     if (note) {
         if (titleInput) titleInput.value = note.title || '';
         if (contentInput) contentInput.innerHTML = note.content || '';
-        if (dateDisplay) dateDisplay.textContent = note.date ? new Date(note.date).toLocaleString('pt-BR') : 
+        if (dateDisplay) dateDisplay.textContent = note.date ? new Date(note.date).toLocaleString('pt-BR') :
                                               (note.dataModificacao ? new Date(note.dataModificacao).toLocaleString('pt-BR') : '');
     } else {
         if (titleInput) titleInput.value = '';
@@ -334,13 +331,13 @@ function formatText(command, value = null) {
 async function salvarAnotacaoAtual() {
     const title = document.getElementById('note-title-input')?.value.trim();
     const content = document.getElementById('note-content-input')?.innerHTML;
-    
+
     if (!editingNoteId) {
         if (!title && (!content || content === '<br>' || content === '<div><br></div>')) {
             closeNoteModal();
             return false;
         }
-        
+
         const now = new Date().toISOString();
         const novaNota = {
             id: Date.now().toString(),
@@ -349,7 +346,7 @@ async function salvarAnotacaoAtual() {
             date: now,
             dataModificacao: now
         };
-        
+
         notes.unshift(novaNota);
         editingNoteId = novaNota.id;
         await salvarTodosDados();
@@ -360,23 +357,23 @@ async function salvarAnotacaoAtual() {
     } else {
         const noteIndex = notes.findIndex(n => n.id == editingNoteId);
         if (noteIndex === -1) return false;
-        
+
         const oldNote = notes[noteIndex];
         const newTitle = title || oldNote.title || 'Sem título';
         const newContent = content || '';
-        
+
         if (oldNote.title === newTitle && oldNote.content === newContent) {
             closeNoteModal();
             return true;
         }
-        
+
         notes[noteIndex] = {
             ...notes[noteIndex],
             title: newTitle,
             content: newContent,
             dataModificacao: new Date().toISOString()
         };
-        
+
         await salvarTodosDados();
         renderNotes(document.getElementById('notes-search-input')?.value || '');
         showToast('Anotação salva!', 'success');
@@ -401,28 +398,28 @@ function switchView(viewName) {
 // ============================================
 async function carregarFotoPerfilMobile() {
     if (!usuarioLogado) return;
-    
+
     const profileIcon = document.getElementById('notification-bell');
     if (!profileIcon) return;
-    
+
     if (window.CacheManager) {
         const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-        
+
         if (photoUrl && photoUrl.startsWith('data:')) {
             profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
             return;
         }
     }
-    
+
     const iniciais = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
     profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
 }
 
 function iniciarEscutaFotoMobile() {
     if (!usuarioLogado) return;
-    
+
     const userId = usuarioLogado.id;
-    
+
     if (window.FirebaseStorage && window.FirebaseStorage.listenProfilePhoto) {
         profilePhotoUnsubscribe = window.FirebaseStorage.listenProfilePhoto(userId, (photoUrl) => {
             if (photoUrl && photoUrl.startsWith('data:')) {
@@ -448,16 +445,32 @@ function pararEscutaFotoMobile() {
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📝 Iniciando anotações mobile com Firestore...');
-    
+
+    // ✅ AGUARDAR CACHE MANAGER FICAR PRONTO
+    if (!window.CacheManager || !window.CacheManager.isInitialized) {
+        console.log('[Notas] Aguardando CacheManager...');
+        await new Promise(resolve => {
+            const checkReady = () => {
+                if (window.CacheManager && window.CacheManager.isInitialized) {
+                    resolve();
+                } else {
+                    setTimeout(checkReady, 100);
+                }
+            };
+            checkReady();
+            setTimeout(resolve, 5000);
+        });
+    }
+
     if (window.CacheManager) window.CacheManager.init();
-    
+
     loadAllData();
 
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        
+
         await inicializarFirestoreNotas();
         carregarDados();
         renderNotes();
@@ -465,20 +478,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Notas Mobile] 📡 cloudDataLoaded - Sincronizando...');
-        
+
         if (editingNoteId && document.getElementById('note-modal').classList.contains('active')) {
             await salvarAnotacaoAtual();
         }
-        
+
         carregarDados();
         renderNotes();
         showToast('📝 Anotações sincronizadas!', 'success');
     });
-    
+
     window.addEventListener('notesUpdated', (event) => {
         if (event.detail && event.detail.notes && !isSaving) {
             console.log('[Notas Mobile] 📝 notesUpdated recebido');
-            
+
             const novasNotas = event.detail.notes.map(n => ({
                 id: n.id,
                 title: n.title || n.titulo || 'Sem título',
@@ -486,29 +499,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 date: n.date || n.dataModificacao || new Date().toISOString(),
                 dataModificacao: n.dataModificacao || n.date || new Date().toISOString()
             }));
-            
+
             const notasAtuais = notes.map(n => n.id);
             const novasNotasIds = novasNotas.map(n => n.id);
-            
+
             const notasRemovidas = notasAtuais.filter(id => !novasNotasIds.includes(id));
-            
+
             if (notasRemovidas.length > 0) {
                 console.log('[Notas Mobile] Notas removidas detectadas:', notasRemovidas);
-                
+
                 if (editingNoteId && notasRemovidas.includes(editingNoteId)) {
                     closeNoteModal();
                     editingNoteId = null;
                     showToast('Esta anotação foi removida em outro dispositivo', 'info');
                 }
             }
-            
-            if (JSON.stringify(notes.map(n => ({ id: n.id, title: n.title, content: n.content }))) !== 
+
+            if (JSON.stringify(notes.map(n => ({ id: n.id, title: n.title, content: n.content }))) !==
                 JSON.stringify(novasNotas.map(n => ({ id: n.id, title: n.title, content: n.content })))) {
                 notes = novasNotas;
                 renderNotes();
                 showToast('📝 Atualizado do PC!', 'info');
             }
         }
+    });
+
+    // ✅ LISTENER PARA QUANDO O SYNC FICAR PRONTO
+    window.addEventListener('syncReady', () => {
+        console.log('[Notas] 📡 Sync pronto, recarregando dados...');
+        carregarDados();
+        renderNotes();
     });
     
     document.getElementById('notification-bell')?.addEventListener('click', () => {
