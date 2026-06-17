@@ -1,4 +1,4 @@
-// cache-manager.js - Versão Supabase COMPLETA E CORRIGIDA
+// cache-manager.js - Versão Supabase COMPLETA E CORRIGIDA (COM _reloadFromStorage)
 
 class SupabaseCacheManager {
     constructor() {
@@ -105,9 +105,13 @@ class SupabaseCacheManager {
         }
     }
 
+    // ✅ CORRIGIDO: loadFromCloud com _reloadFromStorage
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.DatabaseService) return false;
+        if (!userId || !window.DatabaseService) {
+            console.warn('[CacheManager] loadFromCloud: userId ou DatabaseService não disponível');
+            return false;
+        }
 
         if (this.isLoading && !force) {
             console.log('[CacheManager] Já carregando...');
@@ -119,52 +123,80 @@ class SupabaseCacheManager {
         let hasChanges = false;
 
         try {
-            const tasks = await window.DatabaseService.getTasks(userId);
-            if (tasks) {
-                localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
-                hasChanges = true;
+            const db = window.DatabaseService;
+
+            // TASKS
+            if (typeof db.getTasks === 'function') {
+                const tasks = await db.getTasks(userId);
+                if (tasks && tasks.length > 0) {
+                    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+                    hasChanges = true;
+                }
             }
 
-            const notes = await window.DatabaseService.getNotes(userId);
-            if (notes) {
-                localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-                hasChanges = true;
+            // NOTES
+            if (typeof db.getNotes === 'function') {
+                const notes = await db.getNotes(userId);
+                if (notes && notes.length > 0) {
+                    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+                    hasChanges = true;
+                }
             }
 
-            const events = await window.DatabaseService.getCalendarEvents(userId);
-            if (events) {
-                localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(events));
-                hasChanges = true;
+            // CALENDAR EVENTS
+            if (typeof db.getCalendarEvents === 'function') {
+                const events = await db.getCalendarEvents(userId);
+                if (events && events.length > 0) {
+                    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(events));
+                    hasChanges = true;
+                }
             }
 
-            const schedule = await window.DatabaseService.getWeeklySchedule(userId);
-            if (schedule) {
-                localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(schedule));
-                hasChanges = true;
+            // WEEKLY SCHEDULE
+            if (typeof db.getWeeklySchedule === 'function') {
+                const schedule = await db.getWeeklySchedule(userId);
+                if (schedule && Object.keys(schedule).length > 0) {
+                    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(schedule));
+                    hasChanges = true;
+                }
             }
 
-            const slots = await window.DatabaseService.getTimeSlots(userId);
-            if (slots) {
-                localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(slots));
-                hasChanges = true;
+            // TIME SLOTS
+            if (typeof db.getTimeSlots === 'function') {
+                const slots = await db.getTimeSlots(userId);
+                if (slots && slots.length > 0) {
+                    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(slots));
+                    hasChanges = true;
+                }
             }
 
-            const notif = await window.DatabaseService.getNotifications(userId);
-            if (notif) {
-                localStorage.setItem(`${userId}_notifications`, JSON.stringify(notif));
-                hasChanges = true;
+            // NOTIFICATIONS
+            if (typeof db.getNotifications === 'function') {
+                const notif = await db.getNotifications(userId);
+                if (notif && notif.length > 0) {
+                    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notif));
+                    hasChanges = true;
+                }
             }
 
-            const disciplinas = await window.DatabaseService.getDisciplinas(userId);
-            if (disciplinas) {
-                localStorage.setItem(`${userId}_disciplinas`, JSON.stringify(disciplinas));
-                hasChanges = true;
+            // DISCIPLINAS
+            if (typeof db.getDisciplinas === 'function') {
+                const disciplinas = await db.getDisciplinas(userId);
+                if (disciplinas && disciplinas.length > 0) {
+                    localStorage.setItem(`${userId}_disciplinas`, JSON.stringify(disciplinas));
+                    hasChanges = true;
+                }
             }
 
+            // ✅ ATUALIZAR O CACHE DO CacheManager
             if (hasChanges) {
-                console.log('[CacheManager] Dados carregados da nuvem!');
+                this._reloadFromStorage(userId);
+                console.log('[CacheManager] ✅ Dados carregados da nuvem e salvos localmente!');
                 window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+            } else {
+                console.log('[CacheManager] Nenhum dado novo encontrado na nuvem');
             }
+
             return true;
         } catch (error) {
             console.error('[CacheManager] Erro no loadFromCloud:', error);
@@ -172,6 +204,25 @@ class SupabaseCacheManager {
         } finally {
             this.isLoading = false;
         }
+    }
+
+    // ✅ NOVO MÉTODO: Recarregar do storage
+    _reloadFromStorage(userId) {
+        const dataTypes = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
+        for (const type of dataTypes) {
+            const key = `${userId}_${type}`;
+            const data = localStorage.getItem(key);
+            if (data) {
+                try {
+                    const parsed = JSON.parse(data);
+                    // Salvar no cache interno sem notificar
+                    this.set(type, parsed, false);
+                } catch(e) {
+                    console.warn(`[CacheManager] Erro ao parsear ${type}:`, e);
+                }
+            }
+        }
+        console.log('[CacheManager] Cache recarregado do localStorage');
     }
 
     async forceSync() {
@@ -207,7 +258,6 @@ class SupabaseCacheManager {
         return profile?.avatar_url || null;
     }
 
-    // 🔥 CORRIGIDO: uploadProfilePhoto com validação
     async uploadProfilePhoto(file) {
         const userId = this.getCurrentUserId();
         if (!userId || !window.StorageService) return null;
@@ -218,7 +268,6 @@ class SupabaseCacheManager {
         }
 
         try {
-            // Primeiro, converter para base64 localmente (fallback)
             const base64 = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
@@ -231,13 +280,9 @@ class SupabaseCacheManager {
                 return null;
             }
 
-            // Tenta fazer upload para o Storage
             const photoUrl = await window.StorageService.uploadProfilePhoto(userId, file);
-
-            // Se o upload falhar, usa o base64 local
             const finalUrl = photoUrl || base64;
 
-            // Salva no perfil
             const profile = await window.DatabaseService.getUserProfile(userId);
             if (profile) {
                 await window.DatabaseService.updateUserProfile(userId, {
@@ -246,7 +291,6 @@ class SupabaseCacheManager {
                 });
             }
 
-            // Disparar evento de atualização
             window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
                 detail: { photoUrl: finalUrl }
             }));
@@ -296,4 +340,4 @@ window.setNotifications = (notifications, notify) => window.CacheManager.set('no
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] Supabase v2 carregado!');
+console.log('[CacheManager] Supabase v2.1 carregado!');

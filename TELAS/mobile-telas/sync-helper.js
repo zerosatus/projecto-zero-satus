@@ -1,4 +1,4 @@
-// sync-helper.js - Helper de sincronização OTIMIZADO E COMPLETO
+// sync-helper.js - Helper de sincronização OTIMIZADO E COMPLETO (CORRIGIDO)
 
 (function() {
     'use strict';
@@ -47,7 +47,7 @@
     }
 
     // ============================================
-    // INICIALIZAÇÃO
+    // INICIALIZAÇÃO (CORRIGIDA)
     // ============================================
     window.initSync = async function(options = {}) {
         if (isInitialized) {
@@ -64,7 +64,6 @@
         if (!window.DatabaseService) {
             log('Aguardando DatabaseService...', 'warn');
             await new Promise(resolve => setTimeout(resolve, 1000));
-
             if (!window.DatabaseService) {
                 log('DatabaseService não encontrado!', 'error');
                 return false;
@@ -76,6 +75,7 @@
             return false;
         }
 
+        // ✅ FORÇAR inicialização do CacheManager
         window.CacheManager.init();
 
         const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -92,17 +92,19 @@
             return false;
         }
 
-        if (!usuario || !(usuario.id || usuario.email)) {
-            log('Usuário inválido');
+        // ✅ USAR O ID CORRETO (UUID)
+        const userId = usuario.id || usuario.uid;
+        if (!userId) {
+            log('Usuário sem ID válido', 'error');
             return false;
         }
 
-        const userId = usuario.id || usuario.email;
+        // ✅ FORÇAR o userId no CacheManager
         window.CacheManager.currentUserId = userId;
         log('Usuário identificado: ' + userId);
 
         try {
-            // Carregar dados da nuvem
+            // ✅ CARREGAR dados da nuvem COM FORCE
             const loaded = await window.CacheManager.loadFromCloud(true);
 
             if (loaded) {
@@ -470,6 +472,6 @@
     });
 
     log('Sync Helper carregado com sucesso!');
-    log('Versão: 2.0.0');
+    log('Versão: 2.0.1');
 
 })();

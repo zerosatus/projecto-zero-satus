@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO COMPLETA COM CHAVE UNIFICADA
+// mobile-telas/script.js - VERSÃO COMPLETA COM CHAVE UNIFICADA (CORRIGIDA)
 
 let usuarioLogado = null;
 let notifications = [];
@@ -25,12 +25,12 @@ function atualizarFraseDoDiaMobile() {
 async function atualizarAvatarMobile(photoUrl = null) {
     const profileIcon = document.getElementById('notification-bell');
     if (!profileIcon) return;
-    
+
     if (photoUrl && photoUrl.startsWith('data:')) {
         profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         return;
     }
-    
+
     if (window.CacheManager && usuarioLogado) {
         const cachedPhotoUrl = await window.CacheManager.getProfilePhotoUrl();
         if (cachedPhotoUrl && cachedPhotoUrl.startsWith('data:')) {
@@ -44,34 +44,32 @@ async function atualizarAvatarMobile(photoUrl = null) {
 
 async function inicializarFirestore() {
     if (!usuarioLogado) return false;
-    
+
     if (!window.CacheManager) return false;
-    
+
     window.CacheManager.init();
-    
-    // 🔥 USAR O UUID DO SUPABASE (NÃO O EMAIL!)
+
     const userId = usuarioLogado.id;
     window.CacheManager.currentUserId = userId;
-    
+
     await window.CacheManager.loadFromCloud(true);
-    
+
     if (window.CacheManager.startRealtimeSync) {
         window.CacheManager.startRealtimeSync();
     }
-    
+
     return true;
 }
 
 async function carregarTodosDados() {
     if (!usuarioLogado) return;
-    
-    // 🔥 USAR O MESMO IDENTIFICADOR QUE O DESKTOP
+
     const userId = usuarioLogado.id;
-    
+
     if (window.CacheManager && window.CacheManager.currentUserId !== userId) {
         await inicializarFirestore();
     }
-    
+
     try {
         if (window.CacheManager) {
             const cachedNotes = window.CacheManager.get('notes', null);
@@ -80,7 +78,7 @@ async function carregarTodosDados() {
             const cachedSchedule = window.CacheManager.get('weeklySchedule', null);
             const cachedSlots = window.CacheManager.get('timeSlots', null);
             const cachedNotif = window.CacheManager.get('notifications', null);
-            
+
             if (cachedNotes !== null && Array.isArray(cachedNotes)) notes = cachedNotes;
             if (cachedTasks !== null && Array.isArray(cachedTasks)) tasks = cachedTasks;
             if (cachedEvents !== null && Array.isArray(cachedEvents)) calendarEvents = cachedEvents;
@@ -88,44 +86,44 @@ async function carregarTodosDados() {
             if (cachedSlots !== null && Array.isArray(cachedSlots)) timeSlots = cachedSlots;
             if (cachedNotif !== null && Array.isArray(cachedNotif)) notifications = cachedNotif;
         }
-        
+
         // FALLBACK usando a MESMA chave que o desktop
         if (notes.length === 0) {
             const notesSalvas = localStorage.getItem(`${userId}_notes`);
             if (notesSalvas) notes = JSON.parse(notesSalvas);
         }
-        
+
         if (tasks.length === 0) {
             const tasksSalvas = localStorage.getItem(`${userId}_tasks`);
             if (tasksSalvas) tasks = JSON.parse(tasksSalvas);
         }
-        
+
         if (calendarEvents.length === 0) {
             const eventosSalvos = localStorage.getItem(`${userId}_calendarEvents`);
             if (eventosSalvos) calendarEvents = JSON.parse(eventosSalvos);
         }
-        
+
         if (Object.keys(weeklySchedule).length === 0) {
             const scheduleSalvo = localStorage.getItem(`${userId}_weeklySchedule`);
             if (scheduleSalvo) weeklySchedule = JSON.parse(scheduleSalvo);
         }
-        
+
         if (timeSlots.length === 0) {
             const slotsSalvos = localStorage.getItem(`${userId}_timeSlots`);
             if (slotsSalvos) timeSlots = JSON.parse(slotsSalvos);
         }
-        
+
         if (notifications.length === 0) {
             const notifSalvas = localStorage.getItem(`${userId}_notifications`);
             if (notifSalvas) notifications = JSON.parse(notifSalvas);
         }
-        
+
     } catch (error) {
         console.error('[Mobile] Erro ao carregar dados:', error);
     }
-    
+
     if (timeSlots.length === 0) timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    
+
     days.forEach(day => {
         if (!weeklySchedule[day]) weeklySchedule[day] = [];
     });
@@ -133,10 +131,10 @@ async function carregarTodosDados() {
 
 async function salvarTodosDados() {
     if (!usuarioLogado || syncInProgress) return false;
-    
+
     syncInProgress = true;
     const userId = usuarioLogado.id;
-    
+
     try {
         if (weeklySchedule) localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
         if (timeSlots) localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
@@ -144,12 +142,12 @@ async function salvarTodosDados() {
         if (notes) localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
         if (calendarEvents) localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
         if (notifications) localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-        
+
         if (window.CacheManager) {
             if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId !== userId) {
                 window.CacheManager.currentUserId = userId;
             }
-            
+
             if (weeklySchedule) window.CacheManager.set('weeklySchedule', weeklySchedule, true);
             if (timeSlots) window.CacheManager.set('timeSlots', timeSlots, true);
             if (tasks) window.CacheManager.set('tasks', tasks, true);
@@ -157,7 +155,7 @@ async function salvarTodosDados() {
             if (calendarEvents) window.CacheManager.set('calendarEvents', calendarEvents, true);
             if (notifications) window.CacheManager.set('notifications', notifications, true);
         }
-        
+
         return true;
     } catch (error) {
         console.error('[Mobile] Erro ao salvar:', error);
@@ -170,17 +168,17 @@ async function salvarTodosDados() {
 function renderizarHorario() {
     const grid = document.getElementById('schedule-grid');
     if (!grid) return;
-    
+
     if (!weeklySchedule || Object.keys(weeklySchedule).length === 0) {
         grid.innerHTML = '<div style="grid-column:span 6;text-align:center;padding:40px;">Carregando horário...</div>';
         return;
     }
-    
+
     let html = '<div class="day-header">Hora</div>';
     days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    
+
     const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    
+
     slots.forEach(time => {
         html += `<div class="time-slot">${time}</div>`;
         days.forEach(day => {
@@ -196,9 +194,9 @@ function renderizarHorario() {
             }
         });
     });
-    
+
     grid.innerHTML = html;
-    
+
     document.querySelectorAll('.class-cell .class-block:not(.empty)').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -207,7 +205,7 @@ function renderizarHorario() {
             const slotsList = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
             const timeIndex = Math.floor((rowIndex - 1) / 6);
             const dayIndex = (rowIndex - 1) % 6;
-            
+
             if (timeIndex >= 0 && dayIndex >= 0 && dayIndex < days.length) {
                 const timeSlot = slotsList[timeIndex];
                 const day = days[dayIndex];
@@ -216,7 +214,7 @@ function renderizarHorario() {
             }
         });
     });
-    
+
     document.querySelectorAll('.class-cell .class-block.empty').forEach(cell => {
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -225,7 +223,7 @@ function renderizarHorario() {
             const slotsList = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
             const timeIndex = Math.floor((rowIndex - 1) / 6);
             const dayIndex = (rowIndex - 1) % 6;
-            
+
             if (timeIndex >= 0 && dayIndex >= 0 && dayIndex < days.length) {
                 const timeSlot = slotsList[timeIndex];
                 const day = days[dayIndex];
@@ -238,12 +236,12 @@ function renderizarHorario() {
 function renderizarEditSchedule() {
     const grid = document.getElementById('edit-schedule-grid');
     if (!grid) return;
-    
+
     let html = '<div class="day-header">Hora</div>';
     days.forEach(day => html += `<div class="day-header">${day}</div>`);
-    
+
     const slots = timeSlots.length ? timeSlots : ['08:00', '09:30', '11:00', '14:00', '15:30'];
-    
+
     slots.forEach(time => {
         html += `<div class="time-slot-with-delete">
                     <span class="time-slot-text">${time}</span>
@@ -251,7 +249,7 @@ function renderizarEditSchedule() {
                         <ion-icon name="trash-outline"></ion-icon>
                     </button>
                 </div>`;
-        
+
         days.forEach(day => {
             const classItem = weeklySchedule[day]?.find(c => c.horaInicio === time);
             if (classItem && classItem.materia) {
@@ -270,9 +268,9 @@ function renderizarEditSchedule() {
             }
         });
     });
-    
+
     grid.innerHTML = html;
-    
+
     document.querySelectorAll('.btn-delete-time').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -280,7 +278,7 @@ function renderizarEditSchedule() {
             removerHorario(timeSlot);
         });
     });
-    
+
     document.querySelectorAll('.btn-delete-class').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -289,7 +287,7 @@ function renderizarEditSchedule() {
             removerAula(day, time);
         });
     });
-    
+
     document.querySelectorAll('.edit-cell .btn-add').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -308,7 +306,7 @@ function removerHorario(timeSlot) {
             break;
         }
     }
-    
+
     if (hasClasses) {
         showConfirm(`O horário ${timeSlot} possui aulas. Remover mesmo assim?`, 'Remover Horário', async (confirmed) => {
             if (confirmed) await executarRemocaoHorario(timeSlot);
@@ -321,22 +319,22 @@ function removerHorario(timeSlot) {
 async function executarRemocaoHorario(timeSlot) {
     const index = timeSlots.indexOf(timeSlot);
     if (index !== -1) timeSlots.splice(index, 1);
-    
+
     for (const day of days) {
         if (weeklySchedule[day]) {
             weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
         }
     }
-    
+
     timeSlots.sort();
     await salvarTodosDados();
-    
+
     if (document.getElementById('edit-modal').classList.contains('active')) {
         renderizarEditSchedule();
     } else {
         renderizarHorario();
     }
-    
+
     showToast(`Horário ${timeSlot} removido!`, 'success');
 }
 
@@ -346,7 +344,7 @@ function removerAula(day, timeSlot) {
             if (weeklySchedule[day]) {
                 weeklySchedule[day] = weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
                 await salvarTodosDados();
-                
+
                 if (document.getElementById('edit-modal').classList.contains('active')) {
                     renderizarEditSchedule();
                 } else {
@@ -361,14 +359,14 @@ function removerAula(day, timeSlot) {
 function renderizarProximasTarefas() {
     const container = document.getElementById('next-tasks-container');
     if (!container) return;
-    
+
     const tarefasPendentes = (tasks || []).filter(t => !t.completed).slice(0, 3);
-    
+
     if (tarefasPendentes.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma tarefa pendente ✨</div></div></div>';
         return;
     }
-    
+
     let html = '';
     tarefasPendentes.forEach(task => {
         html += `<div class="list-item" data-id="${task.id}" onclick="window.location.href='./tarefas/index.html'">
@@ -388,25 +386,25 @@ function renderizarProximasTarefas() {
 function renderizarProximoEvento() {
     const container = document.getElementById('next-event-container');
     if (!container) return;
-    
+
     if (!calendarEvents || calendarEvents.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos próximos</div><div class="item-subtitle">Adicione um evento no calendário 📅</div></div></div>';
         return;
     }
-    
+
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    
+
     const eventosFuturos = calendarEvents
         .filter(e => e.date && e.date >= todayStr)
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, 3);
-    
+
     if (eventosFuturos.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon"><ion-icon name="calendar-outline"></ion-icon></div><div class="item-info"><div class="item-title">Sem eventos futuros</div><div class="item-subtitle">Todos os eventos estão no passado</div></div></div>';
         return;
     }
-    
+
     let html = '';
     eventosFuturos.forEach(event => {
         const [year, month, day] = event.date.split('-');
@@ -428,14 +426,14 @@ function renderizarProximoEvento() {
 function renderizarNotificacoes() {
     const container = document.getElementById('notifications-list');
     if (!container) return;
-    
+
     const notificacoesNaoLidas = (notifications || []).filter(n => !n.read).slice(0, 3);
-    
+
     if (notificacoesNaoLidas.length === 0) {
         container.innerHTML = '<div class="list-item"><div class="item-icon notification"><ion-icon name="checkmark-circle-outline"></ion-icon></div><div class="item-info"><div class="item-title">Tudo em dia!</div><div class="item-subtitle">Nenhuma notificação pendente ✨</div></div></div>';
         return;
     }
-    
+
     let html = '';
     notificacoesNaoLidas.forEach(notif => {
         const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
@@ -462,14 +460,14 @@ function atualizarCards() {
             }
         });
     }
-    
+
     const concluidas = (tasks || []).filter(t => t.completed).length;
     const pendentes = (tasks || []).filter(t => !t.completed).length;
-    
+
     const cardDisciplinas = document.getElementById('card-disciplinas');
     const cardConcluidas = document.getElementById('card-concluidas');
     const cardPendentes = document.getElementById('card-pendentes');
-    
+
     if (cardDisciplinas) cardDisciplinas.textContent = materias.size || 0;
     if (cardConcluidas) cardConcluidas.textContent = concluidas;
     if (cardPendentes) cardPendentes.textContent = pendentes;
@@ -495,7 +493,7 @@ function openSubjectModal(subject, day, time) {
     editingSubject = subject;
     const modal = document.getElementById('subject-modal');
     if (!modal) return;
-    
+
     if (subject) {
         document.getElementById('subject-modal-title').textContent = 'Editar Matéria';
         document.getElementById('subject-name-input').value = subject.materia || '';
@@ -513,11 +511,11 @@ function openSubjectModal(subject, day, time) {
         document.getElementById('subject-day-input').value = day;
         selectedSubjectColor = '#6366f1';
     }
-    
+
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.classList.toggle('active', option.dataset.color === selectedSubjectColor);
     });
-    
+
     modal.classList.add('active');
 }
 
@@ -526,7 +524,7 @@ async function salvarMateria() {
     const startTime = document.getElementById('subject-start-input')?.value;
     const endTime = document.getElementById('subject-end-input')?.value;
     const day = document.getElementById('subject-day-input')?.value;
-    
+
     if (!name) {
         showToast('Preencha o nome da matéria!', 'error');
         return;
@@ -535,19 +533,19 @@ async function salvarMateria() {
         showToast('Defina início e término!', 'error');
         return;
     }
-    
+
     if (!weeklySchedule[day]) weeklySchedule[day] = [];
-    
+
     if (editingSubject) {
         const oldStart = editingSubject.horaInicio;
         weeklySchedule[day] = weeklySchedule[day].filter(c => !(c.materia === editingSubject.materia && c.horaInicio === oldStart));
     }
-    
+
     if (!timeSlots.includes(startTime)) {
         timeSlots.push(startTime);
         timeSlots.sort();
     }
-    
+
     weeklySchedule[day].push({
         materia: name,
         professor: document.getElementById('subject-teacher-input')?.value.trim() || '',
@@ -555,14 +553,14 @@ async function salvarMateria() {
         horaInicio: startTime,
         horaFim: endTime
     });
-    
+
     weeklySchedule[day].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
-    
+
     await salvarTodosDados();
-    
+
     document.getElementById('subject-modal').classList.remove('active');
     showToast(editingSubject ? 'Matéria atualizada!' : 'Matéria adicionada!', 'success');
-    
+
     if (document.getElementById('edit-modal').classList.contains('active')) {
         renderizarEditSchedule();
     } else {
@@ -575,13 +573,13 @@ async function salvarMateria() {
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
     toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
     container.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.classList.add('toast-hiding');
         setTimeout(() => toast.remove(), 300);
@@ -591,28 +589,28 @@ function showToast(message, type = 'info', duration = 3000) {
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
     if (!modal) { callback(false); return; }
-    
+
     document.getElementById('confirm-title').textContent = title || 'Confirmar';
     document.getElementById('confirm-message').textContent = message;
     modal.classList.add('active');
-    
+
     const handleConfirm = () => {
         modal.classList.remove('active');
         callback(true);
         cleanup();
     };
-    
+
     const handleCancel = () => {
         modal.classList.remove('active');
         callback(false);
         cleanup();
     };
-    
+
     const cleanup = () => {
         document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
-    
+
     document.getElementById('confirm-ok').onclick = handleConfirm;
     document.getElementById('confirm-cancel').onclick = handleCancel;
 }
@@ -620,17 +618,17 @@ function showConfirm(message, title, callback) {
 function renderizarNotificacoesModal(filter = 'all') {
     const container = document.getElementById('notifications-list-modal');
     if (!container) return;
-    
+
     let filtradas = [...notifications];
     if (filter === 'unread') filtradas = notifications.filter(n => !n.read);
     else if (filter === 'aulas') filtradas = notifications.filter(n => n.type === 'aula');
     else if (filter === 'tarefas') filtradas = notifications.filter(n => n.type === 'tarefa');
-    
+
     if (filtradas.length === 0) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
         return;
     }
-    
+
     let html = '';
     filtradas.forEach(notif => {
         const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
@@ -653,7 +651,7 @@ function formatarTempoAtras(timeString) {
     const now = new Date();
     const notifTime = new Date(timeString);
     const diffMins = Math.floor((now - notifTime) / 60000);
-    
+
     if (diffMins < 1) return 'Agora';
     if (diffMins < 60) return `Há ${diffMins} min`;
     if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
@@ -690,14 +688,14 @@ function configurarEventos() {
             renderizarEditSchedule();
         });
     }
-    
+
     const btnBack = document.getElementById('btn-back');
     if (btnBack) {
         btnBack.addEventListener('click', () => {
             document.getElementById('edit-modal').classList.remove('active');
         });
     }
-    
+
     const btnSave = document.getElementById('btn-save');
     if (btnSave) {
         btnSave.addEventListener('click', () => {
@@ -706,7 +704,7 @@ function configurarEventos() {
             salvarTodosDados();
         });
     }
-    
+
     const btnAddTime = document.getElementById('btn-add-time');
     if (btnAddTime) {
         btnAddTime.addEventListener('click', async () => {
@@ -724,19 +722,19 @@ function configurarEventos() {
             }
         });
     }
-    
+
     const btnCancelTime = document.getElementById('btn-cancel-time');
     if (btnCancelTime) {
         btnCancelTime.addEventListener('click', () => {
             document.getElementById('new-time-input').value = '11:00';
         });
     }
-    
+
     const btnSaveSubject = document.getElementById('btn-save-subject');
     if (btnSaveSubject) {
         btnSaveSubject.addEventListener('click', salvarMateria);
     }
-    
+
     const closeSubjectModal = document.querySelector('[data-modal="subject-modal"]');
     if (closeSubjectModal) {
         closeSubjectModal.addEventListener('click', () => {
@@ -744,7 +742,7 @@ function configurarEventos() {
             editingSubject = null;
         });
     }
-    
+
     document.querySelectorAll('#subject-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#subject-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -752,7 +750,7 @@ function configurarEventos() {
             selectedSubjectColor = option.dataset.color;
         });
     });
-    
+
     const notificationBell = document.getElementById('notification-bell');
     if (notificationBell) {
         notificationBell.addEventListener('click', () => {
@@ -763,7 +761,7 @@ function configurarEventos() {
             }
         });
     }
-    
+
     const notificationLink = document.getElementById('notification-bell-link');
     if (notificationLink) {
         notificationLink.addEventListener('click', () => {
@@ -774,24 +772,24 @@ function configurarEventos() {
             }
         });
     }
-    
+
     const closeNotifBtn = document.getElementById('btn-close-notifications');
     if (closeNotifBtn) {
         closeNotifBtn.addEventListener('click', () => {
             document.getElementById('notifications-modal').classList.remove('active');
         });
     }
-    
+
     const markReadBtn = document.getElementById('btn-mark-read');
     if (markReadBtn) {
         markReadBtn.addEventListener('click', marcarTodasComoLidas);
     }
-    
+
     const clearAllBtn = document.getElementById('btn-clear-all');
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', limparTodasNotificacoes);
     }
-    
+
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -799,7 +797,7 @@ function configurarEventos() {
             renderizarNotificacoesModal(tab.dataset.type);
         });
     });
-    
+
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
@@ -816,9 +814,9 @@ function configurarSincronizacao() {
         if (editingSubject && document.getElementById('subject-modal').classList.contains('active')) {
             await salvarMateria();
         }
-        
+
         await carregarTodosDados();
-        
+
         renderizarHorario();
         renderizarProximoEvento();
         renderizarProximasTarefas();
@@ -826,10 +824,10 @@ function configurarSincronizacao() {
         atualizarCards();
         atualizarBadgeNotificacoes();
         atualizarFraseDoDiaMobile();
-        
+
         showToast('🔄 Dados sincronizados com o PC!', 'success');
     });
-    
+
     window.addEventListener('notesUpdated', (event) => {
         if (event.detail && event.detail.notes && !syncInProgress) {
             const novasNotas = event.detail.notes;
@@ -839,13 +837,13 @@ function configurarSincronizacao() {
             }
         }
     });
-    
+
     window.addEventListener('profilePhotoUpdated', async (event) => {
         if (event.detail && event.detail.photoUrl) {
             await atualizarAvatarMobile(event.detail.photoUrl);
         }
     });
-    
+
     window.addEventListener('forceRefresh', async () => {
         await carregarTodosDados();
         renderizarHorario();
@@ -886,7 +884,7 @@ function checkUpcomingClasses() {
     const daysMap = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const today = daysMap[now.getDay()];
     const currentTotal = now.getHours() * 60 + now.getMinutes();
-    
+
     (schedule[today] || []).forEach(cls => {
         if (cls.horaInicio) {
             const [h, m] = cls.horaInicio.split(':').map(Number);
@@ -898,32 +896,43 @@ function checkUpcomingClasses() {
     });
 }
 
+// ============================================
+// INICIALIZAÇÃO PRINCIPAL (CORRIGIDA)
+// ============================================
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('📱 Iniciando Mobile com sincronização corrigida...');
+
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
         window.location.href = '../../login/index.html';
         return;
     }
-    
+
     usuarioLogado = JSON.parse(usuarioSalvo);
-    
-    // 🔥 INICIALIZAR SYNC ANTES DE TUDO
-    if (window.initSync) {
-        await window.initSync();
-    }
-    
+    console.log('[Mobile] Usuário logado (UUID):', usuarioLogado.id);
+
+    // ✅ INICIALIZAR CACHE MANAGER PRIMEIRO
     if (window.CacheManager) {
         window.CacheManager.init();
+        window.CacheManager.currentUserId = usuarioLogado.id;
+        console.log('[Mobile] CacheManager inicializado com userId:', usuarioLogado.id);
     }
-    
-    await inicializarFirestore();
+
+    // ✅ INICIALIZAR SYNC
+    if (window.initSync) {
+        console.log('[Mobile] Inicializando sync...');
+        await window.initSync();
+    }
+
+    // ✅ CARREGAR DADOS
     await carregarTodosDados();
-    
+
+    // ✅ ATUALIZAR UI
     const headerName = document.getElementById('header-name');
     if (headerName && usuarioLogado.nome) {
         headerName.textContent = usuarioLogado.nome.split(' ')[0];
     }
-    
+
     renderizarHorario();
     renderizarProximoEvento();
     renderizarProximasTarefas();
@@ -932,9 +941,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     atualizarBadgeNotificacoes();
     await atualizarAvatarMobile();
     atualizarFraseDoDiaMobile();
-    
+
     configurarSincronizacao();
     configurarEventos();
+
+    console.log('✅ Mobile inicializado com sucesso!');
 });
 
 setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 3000);
