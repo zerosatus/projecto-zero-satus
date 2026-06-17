@@ -69,11 +69,11 @@ function saveAllData() {
 function loadAllData() {
     usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
     
-    if (!usuarioLogado || !usuarioLogado.email) {
+    if (!usuarioLogado || !usuarioLogado.id) {
         window.location.href = '../../login/index.html';
         return;
     }
-    
+
     notifications = window.getCached('notifications', window.getDefaultNotifications());
     tasks = window.getCached('tasks', window.getDefaultTasks());
 }
@@ -101,17 +101,17 @@ function formatTimeAgo(timeString) {
 function renderNotificationsModal(filter = 'all') {
     const list = document.getElementById('notifications-list-modal');
     if (!list) return;
-    
+
     let filtered = [...notifications];
     if (filter === 'unread') filtered = notifications.filter(n => !n.read);
     else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
     else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-    
+
     if (filtered.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
         return;
     }
-    
+
     let html = '';
     filtered.forEach(notif => {
         const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
@@ -152,16 +152,16 @@ function clearAllNotifications() {
 function renderTasks() {
     const tasksList = document.getElementById('tasks-list');
     if (!tasksList) return;
-    
+
     let filteredTasks = [...tasks];
     if (currentTaskFilter === 'pendentes') filteredTasks = tasks.filter(t => !t.completed);
     else if (currentTaskFilter === 'concluidas') filteredTasks = tasks.filter(t => t.completed);
-    
+
     if (filteredTasks.length === 0) {
         tasksList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma tarefa encontrada</div>';
         return;
     }
-    
+
     let html = '';
     filteredTasks.forEach(task => {
         const priorityClass = task.priority || 'media';
@@ -177,7 +177,7 @@ function renderTasks() {
         </div>`;
     });
     tasksList.innerHTML = html;
-    
+
     document.querySelectorAll('.task-check').forEach(check => {
         check.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -191,7 +191,7 @@ function renderTasks() {
             }
         });
     });
-    
+
     document.querySelectorAll('.task-arrow').forEach(arrow => {
         arrow.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -205,9 +205,9 @@ function renderTasks() {
 function openTaskModal(task) {
     const modal = document.getElementById('task-modal');
     if (!modal) return;
-    
+
     editingTaskId = task ? task.id : null;
-    
+
     if (task) {
         document.getElementById('task-modal-title').textContent = 'Editar Tarefa';
         document.getElementById('task-title').value = task.title;
@@ -223,15 +223,15 @@ function openTaskModal(task) {
         selectedTaskPriority = 'media';
         selectedTaskColor = '#6366f1';
     }
-    
+
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.priority === selectedTaskPriority);
     });
-    
+
     document.querySelectorAll('#task-modal .color-option').forEach(option => {
         option.classList.toggle('active', option.dataset.color === selectedTaskColor);
     });
-    
+
     modal.classList.add('active');
 }
 
@@ -243,31 +243,65 @@ function switchView(viewName) {
     else if (viewName === 'profile') window.location.href = '../perfil/index.html';
 }
 
+// ============================================
+// INICIALIZAÇÃO PRINCIPAL (CORRIGIDA)
+// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.CacheManager) window.CacheManager.init();
+    console.log('📋 Iniciando Tarefas...');
+
+    // ✅ INICIALIZAR CACHE MANAGER COM USER ID
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo) {
+        try {
+            usuarioLogado = JSON.parse(usuarioSalvo);
+        } catch(e) {
+            console.error('[Tarefas] Erro ao parsear usuário:', e);
+        }
+    }
+
+    if (window.CacheManager) {
+        window.CacheManager.init();
+        if (usuarioLogado && usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
+            console.log('[Tarefas] CacheManager inicializado com userId:', usuarioLogado.id);
+        }
+    }
+
+    // ✅ INICIALIZAR SYNC
+    if (window.initSync && !window._tasksSyncInit) {
+        window._tasksSyncInit = true;
+        window.initSync().then(() => {
+            console.log('[Tarefas] Sync inicializado');
+        }).catch(e => {
+            console.warn('[Tarefas] Erro no sync:', e);
+        });
+    }
+
+    // ✅ CARREGAR DADOS
     loadAllData();
-    
+
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
     }
-    
+
     updateNotificationBadge();
     renderTasks();
-    
+
+    // Event listeners...
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
     });
-    
+
     document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.remove('active');
     });
-    
+
     document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
     document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
-    
+
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -275,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderNotificationsModal(tab.dataset.type);
         });
     });
-    
+
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -284,12 +318,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTasks();
         });
     });
-    
+
     document.getElementById('btn-add-task')?.addEventListener('click', () => openTaskModal(null));
     document.querySelector('[data-modal="task-modal"]')?.addEventListener('click', () => {
         document.getElementById('task-modal').classList.remove('active');
     });
-    
+
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
@@ -297,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedTaskPriority = btn.dataset.priority;
         });
     });
-    
+
     document.querySelectorAll('#task-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#task-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -305,17 +339,17 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedTaskColor = option.dataset.color;
         });
     });
-    
+
     document.getElementById('btn-save-task')?.addEventListener('click', () => {
         const title = document.getElementById('task-title')?.value.trim();
         const subject = document.getElementById('task-subject')?.value.trim();
         const date = document.getElementById('task-date')?.value;
-        
+
         if (!title) {
             showToast('Preencha o título!', 'error');
             return;
         }
-        
+
         if (editingTaskId) {
             const index = tasks.findIndex(t => t.id == editingTaskId);
             if (index > -1) {
@@ -339,22 +373,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 completed: false
             });
         }
-        
+
         saveAllData();
         showToast(editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
         document.getElementById('task-modal').classList.remove('active');
         renderTasks();
     });
-    
+
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchView(item.dataset.view));
     });
+
+    console.log('✅ Tarefas inicializado com sucesso!');
 });
 
-
-
 // =====================================================
-// NOTIFICAÇÕES NATIVAS PARA ANDROID (COMPARTILHADAS)
+// NOTIFICAÇÕES NATIVAS PARA ANDROID
 // =====================================================
 
 function isAndroidApp() {
