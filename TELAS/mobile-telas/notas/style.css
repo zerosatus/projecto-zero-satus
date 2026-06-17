@@ -239,14 +239,14 @@ header {
 .note-footer-info { padding: 12px 20px; border-top: 1px solid var(--border-color); text-align: center; background-color: var(--card-bg); flex-shrink: 0; }
 .note-footer-info span { font-size: 0.7rem; color: var(--text-secondary); }
 
-/* ==================== BARRA DE NAVEGAÇÃO (CORRIGIDA) ==================== */
+/* ==================== BARRA DE NAVEGAÇÃO (CORRIGIDA - IGUAL ÀS DEMAIS) ==================== */
 .bottom-nav {
     position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 40px);
-    max-width: 375px;
+    width: 375px;
+    max-width: calc(100% - 40px);
     height: 70px;
     background-color: var(--nav-bg);
     border: 1px solid var(--border-color);
@@ -268,10 +268,6 @@ header {
     padding: 5px 10px;
     border-radius: 10px;
     transition: all 0.2s;
-    text-decoration: none;
-    background: transparent;
-    border: none;
-    gap: 2px;
 }
 
 .nav-item ion-icon {
@@ -284,23 +280,14 @@ header {
     background-color: var(--accent-purple);
 }
 
-.nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.nav-item.active:hover {
-    background-color: var(--accent-purple);
-}
-
 /* ==================== RESPONSIVIDADE DA BARRA DE NAVEGAÇÃO ==================== */
 
 /* Tablets (768px a 1024px) */
 @media (max-width: 1024px) and (min-width: 768px) {
     .bottom-nav {
-        width: calc(100% - 40px);
-        max-width: 768px;
+        width: 768px;
+        max-width: calc(100% - 40px);
         height: 80px;
-        border-radius: 25px;
     }
 
     .nav-item {
@@ -335,7 +322,6 @@ header {
         bottom: 0;
         left: 0;
         transform: none;
-        padding: 0 5px;
     }
 
     .nav-item {
@@ -345,15 +331,14 @@ header {
 
     .nav-item ion-icon {
         font-size: 1.3rem;
-        margin-bottom: 1px;
     }
 }
 
-/* Desktop (acima de 1024px) - Mantém o mesmo estilo */
+/* Desktop - Mantém layout original */
 @media (min-width: 1025px) {
     .bottom-nav {
-        width: calc(100% - 40px);
-        max-width: 375px;
+        width: 375px;
+        max-width: calc(100% - 40px);
         height: 70px;
         border-radius: 20px;
         bottom: 20px;
