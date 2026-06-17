@@ -1,4 +1,4 @@
-// Calendário - Gerenciamento de eventos (COM INICIALIZAÇÃO CORRIGIDA)
+// calendario/script.js - VERSÃO CORRIGIDA COM INICIALIZAÇÃO SEGURA
 
 let notifications = [];
 let calendarEvents = [];
@@ -8,6 +8,7 @@ let selectedDay = currentDate.getDate();
 let selectedEventType = 'aula';
 let selectedEventColor = '#8b5cf6';
 let editingEventId = null;
+let _calendarioCarregando = false;
 
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -62,21 +63,60 @@ function escapeHtml(text) {
 }
 
 function saveAllData() {
-    window.setCached('usuarioLogado', usuarioLogado);
-    window.setCached('notifications', notifications);
-    window.setCached('calendarEvents', calendarEvents);
+    if (!usuarioLogado) return;
+
+    const userId = usuarioLogado.id;
+    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+
+    if (window.CacheManager) {
+        window.CacheManager.set('calendarEvents', calendarEvents, true);
+        window.CacheManager.set('notifications', notifications, true);
+    }
 }
 
 function loadAllData() {
-    usuarioLogado = window.getCached('usuarioLogado', window.getDefaultUser());
+    if (!usuarioLogado) return;
 
-    if (!usuarioLogado || !usuarioLogado.id) {
-        window.location.href = '../../login/index.html';
-        return;
+    const userId = usuarioLogado.id;
+
+    // Tentar carregar do CacheManager primeiro
+    if (window.CacheManager && window.CacheManager.currentUserId === userId) {
+        const cachedEvents = window.CacheManager.get('calendarEvents', null);
+        const cachedNotif = window.CacheManager.get('notifications', null);
+
+        if (cachedEvents !== null && Array.isArray(cachedEvents)) {
+            calendarEvents = cachedEvents;
+            console.log('[Calendario] Eventos carregados do CacheManager:', calendarEvents.length);
+        }
+        if (cachedNotif !== null && Array.isArray(cachedNotif)) {
+            notifications = cachedNotif;
+        }
     }
 
-    notifications = window.getCached('notifications', window.getDefaultNotifications());
-    calendarEvents = window.getCached('calendarEvents', window.getDefaultCalendarEvents());
+    // Fallback para localStorage se não tiver dados
+    if (calendarEvents.length === 0) {
+        const eventsSalvos = localStorage.getItem(`${userId}_calendarEvents`);
+        if (eventsSalvos) {
+            try {
+                calendarEvents = JSON.parse(eventsSalvos);
+                console.log('[Calendario] Eventos carregados do localStorage:', calendarEvents.length);
+            } catch(e) {
+                calendarEvents = [];
+            }
+        }
+    }
+
+    if (notifications.length === 0) {
+        const notifSalvas = localStorage.getItem(`${userId}_notifications`);
+        if (notifSalvas) {
+            try {
+                notifications = JSON.parse(notifSalvas);
+            } catch(e) {
+                notifications = [];
+            }
+        }
+    }
 }
 
 function updateNotificationBadge() {
@@ -134,7 +174,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
-    window.setCached('notifications', notifications);
+    if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
     showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
@@ -144,7 +184,7 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
-            window.setCached('notifications', notifications);
+            if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
             showToast('Notificações limpas!', 'success');
         }
     });
@@ -294,59 +334,57 @@ function switchView(viewName) {
 }
 
 // ============================================
-// INICIALIZAÇÃO PRINCIPAL (CORRIGIDA)
+// FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
 // ============================================
-document.addEventListener('DOMContentLoaded', async () => {
+async function inicializarCalendario() {
+    if (_calendarioCarregando) {
+        console.log('[Calendario] ⏳ Já está carregando...');
+        return;
+    }
+    _calendarioCarregando = true;
+
     console.log('📅 Iniciando Calendário...');
 
-    // ✅ AGUARDAR CACHE MANAGER FICAR PRONTO
-    if (!window.CacheManager || !window.CacheManager.isInitialized) {
-        console.log('[Calendario] Aguardando CacheManager...');
-        await new Promise(resolve => {
-            const checkReady = () => {
-                if (window.CacheManager && window.CacheManager.isInitialized) {
-                    resolve();
-                } else {
-                    setTimeout(checkReady, 100);
-                }
-            };
-            checkReady();
-            setTimeout(resolve, 5000);
-        });
-    }
-
-    // ✅ VERIFICAR USUÁRIO
+    // 1️⃣ VERIFICAR USUÁRIO
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (usuarioSalvo) {
-        try {
-            usuarioLogado = JSON.parse(usuarioSalvo);
-        } catch(e) {
-            console.error('[Calendario] Erro ao parsear usuário:', e);
-        }
+    if (!usuarioSalvo) {
+        window.location.href = '../../login/index.html';
+        return;
     }
 
+    try {
+        usuarioLogado = JSON.parse(usuarioSalvo);
+    } catch(e) {
+        console.error('[Calendario] Erro ao parsear usuário:', e);
+        window.location.href = '../../login/index.html';
+        return;
+    }
+
+    console.log('[Calendario] Usuário logado (UUID):', usuarioLogado.id);
+
+    // 2️⃣ INICIALIZAR CACHE MANAGER
     if (window.CacheManager) {
         window.CacheManager.init();
-        if (usuarioLogado && usuarioLogado.id) {
-            window.CacheManager.currentUserId = usuarioLogado.id;
-            console.log('[Calendario] CacheManager com userId:', usuarioLogado.id);
-        }
+        window.CacheManager.currentUserId = usuarioLogado.id;
+        console.log('[Calendario] CacheManager inicializado');
     }
 
-    // ✅ INICIALIZAR SYNC (APENAS UMA VEZ)
+    // 3️⃣ INICIALIZAR SYNC (AGUARDANDO)
     if (window.initSync && !window._calendarSyncInit) {
         window._calendarSyncInit = true;
+        console.log('[Calendario] 🔄 Inicializando sync...');
         try {
             await window.initSync({ force: false });
-            console.log('[Calendario] Sync inicializado');
+            console.log('[Calendario] Sync inicializado ✅');
         } catch(e) {
             console.warn('[Calendario] Erro no sync:', e);
         }
     }
 
-    // ✅ CARREGAR DADOS
+    // 4️⃣ CARREGAR DADOS
     loadAllData();
 
+    // 5️⃣ ATUALIZAR UI
     if (usuarioLogado) {
         const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
@@ -356,7 +394,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateNotificationBadge();
     renderCalendar();
 
-    // Event listeners...
+    _calendarioCarregando = false;
+    console.log('✅ Calendário inicializado com sucesso!');
+}
+
+// ============================================
+// INICIALIZAÇÃO PRINCIPAL
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    // PREVENIR INICIALIZAÇÃO MÚLTIPLA
+    if (window._calendarLoaded) {
+        console.log('[Calendario] ⏳ Já carregado, ignorando...');
+        return;
+    }
+    window._calendarLoaded = true;
+
+    // INICIALIZAR
+    inicializarCalendario();
+
+    // EVENT LISTENERS
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
@@ -465,7 +521,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateNotificationBadge();
     });
 
-    console.log('✅ Calendário inicializado com sucesso!');
+    // ✅ LISTENER PARA QUANDO OS DADOS DA NUVEM CHEGAREM
+    window.addEventListener('cloudDataLoaded', () => {
+        console.log('[Calendario] ☁️ Dados da nuvem carregados...');
+        loadAllData();
+        renderCalendar();
+        updateNotificationBadge();
+    });
 });
 
 // =====================================================
@@ -485,31 +547,35 @@ function sendNativeNotification(title, message, type) {
 }
 
 function checkPendingTasks() {
-    const tasks = window.getCached ? window.getCached('tasks', []) : [];
-    const today = new Date().toISOString().split('T')[0];
-    tasks.forEach(task => {
-        if (!task.completed && task.date === today) {
-            sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
-        }
-    });
+    if (window.CacheManager) {
+        const tasks = window.CacheManager.get('tasks', []);
+        const today = new Date().toISOString().split('T')[0];
+        tasks.forEach(task => {
+            if (!task.completed && task.date === today) {
+                sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
+            }
+        });
+    }
 }
 
 function checkUpcomingClasses() {
-    const schedule = window.getCached ? window.getCached('weeklySchedule', {}) : {};
-    const now = new Date();
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const today = days[now.getDay()];
-    const currentTotal = now.getHours() * 60 + now.getMinutes();
-    
-    (schedule[today] || []).forEach(cls => {
-        if (cls.horaInicio) {
-            const [h, m] = cls.horaInicio.split(':').map(Number);
-            const minutesUntil = (h * 60 + m) - currentTotal;
-            if (minutesUntil <= 15 && minutesUntil > 0) {
-                sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+    if (window.CacheManager) {
+        const schedule = window.CacheManager.get('weeklySchedule', {});
+        const now = new Date();
+        const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const today = days[now.getDay()];
+        const currentTotal = now.getHours() * 60 + now.getMinutes();
+
+        (schedule[today] || []).forEach(cls => {
+            if (cls.horaInicio) {
+                const [h, m] = cls.horaInicio.split(':').map(Number);
+                const minutesUntil = (h * 60 + m) - currentTotal;
+                if (minutesUntil <= 15 && minutesUntil > 0) {
+                    sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 // Executar verificações
