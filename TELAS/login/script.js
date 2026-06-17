@@ -227,6 +227,138 @@ function showResendButton(email) {
 }
 
 // ============================================
+// LIMPAR CAMPOS DO FORMULÁRIO (FUNÇÃO AUXILIAR)
+// ============================================
+function limparCamposFormulario() {
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const nomeInput = document.getElementById('nome');
+
+    // Limpar valores
+    if (emailInput) {
+        emailInput.value = '';
+        emailInput.setAttribute('autocomplete', 'off');
+        emailInput.setAttribute('autocorrect', 'off');
+        emailInput.setAttribute('autocapitalize', 'off');
+        emailInput.setAttribute('spellcheck', 'false');
+
+        // Remover qualquer preenchimento automático do navegador
+        emailInput.removeAttribute('data-form-type');
+        emailInput.removeAttribute('data-lpignore');
+    }
+
+    if (passwordInput) {
+        passwordInput.value = '';
+        // Usar 'new-password' para evitar autocomplete
+        passwordInput.setAttribute('autocomplete', 'new-password');
+        passwordInput.removeAttribute('data-form-type');
+        passwordInput.removeAttribute('data-lpignore');
+    }
+
+    if (nomeInput) {
+        nomeInput.value = '';
+        nomeInput.setAttribute('autocomplete', 'off');
+        nomeInput.setAttribute('autocorrect', 'off');
+        nomeInput.setAttribute('autocapitalize', 'off');
+        nomeInput.setAttribute('spellcheck', 'false');
+    }
+
+    // Adicionar atributos anti-autocomplete nos campos
+    if (emailInput) {
+        emailInput.setAttribute('data-lpignore', 'true');
+        emailInput.setAttribute('data-1p-ignore', 'true');
+    }
+    if (passwordInput) {
+        passwordInput.setAttribute('data-lpignore', 'true');
+        passwordInput.setAttribute('data-1p-ignore', 'true');
+    }
+    if (nomeInput) {
+        nomeInput.setAttribute('data-lpignore', 'true');
+        nomeInput.setAttribute('data-1p-ignore', 'true');
+    }
+
+    console.log('[Login] Campos do formulário limpos');
+}
+
+// ============================================
+// TOGGLE FORM (LOGIN / REGISTRO)
+// ============================================
+function toggleForm() {
+    isRegisterMode = !isRegisterMode;
+    const nomeField = document.getElementById('nome-field');
+    const submitBtn = document.getElementById('submit-btn');
+    const toggleLink = document.getElementById('toggle-mode-link');
+    const mainTitle = document.getElementById('main-title');
+    const mainSubtitle = document.getElementById('main-subtitle');
+
+    // Remover botão de reenviar
+    const resendContainer = document.getElementById('resend-container');
+    if (resendContainer) resendContainer.remove();
+
+    if (isRegisterMode) {
+        if (nomeField) nomeField.style.display = 'block';
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
+            submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        }
+        if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
+        if (mainTitle) mainTitle.textContent = 'Criar Conta';
+        if (mainSubtitle) mainSubtitle.textContent = 'CADASTRE-SE GRATUITAMENTE';
+        const passwordInput = document.getElementById('password');
+        if (passwordInput) passwordInput.placeholder = 'Senha (min 6 caracteres)';
+    } else {
+        if (nomeField) nomeField.style.display = 'none';
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+            submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
+        }
+        if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
+        if (mainTitle) mainTitle.textContent = 'Painel Zero';
+        if (mainSubtitle) mainSubtitle.textContent = 'PLATAFORMA ACADÊMICA';
+        const passwordInput = document.getElementById('password');
+        if (passwordInput) passwordInput.placeholder = 'Sua senha';
+    }
+
+    // FORÇAR LIMPEZA DOS CAMPOS
+    limparCamposFormulario();
+}
+
+async function checkSession() {
+    if (!window.AuthService) return false;
+
+    try {
+        const { data: { user } } = await window.AuthService.getCurrentUser();
+        if (user && !localStorage.getItem('usuarioLogado')) {
+            await processarLogin(user);
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.warn('[Login] Erro ao verificar sessão:', err);
+        return false;
+    }
+}
+
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        if (window.AuthService) {
+            resolve();
+            return;
+        }
+
+        window.addEventListener('supabaseReady', () => {
+            console.log('[Login] Evento supabaseReady recebido');
+            resolve();
+        });
+
+        setTimeout(() => {
+            console.warn('[Login] Timeout aguardando Supabase');
+            resolve();
+        }, 10000);
+    });
+}
+
+// ============================================
 // LOGIN COM GOOGLE
 // ============================================
 async function loginWithGoogle() {
@@ -312,95 +444,89 @@ function isGoogleCallback() {
 }
 
 // ============================================
-// TOGGLE FORM (LOGIN / REGISTRO)
-// ============================================
-function toggleForm() {
-    isRegisterMode = !isRegisterMode;
-    const nomeField = document.getElementById('nome-field');
-    const submitBtn = document.getElementById('submit-btn');
-    const toggleLink = document.getElementById('toggle-mode-link');
-    const mainTitle = document.getElementById('main-title');
-    const mainSubtitle = document.getElementById('main-subtitle');
-
-    // Remover botão de reenviar
-    const resendContainer = document.getElementById('resend-container');
-    if (resendContainer) resendContainer.remove();
-
-    if (isRegisterMode) {
-        if (nomeField) nomeField.style.display = 'block';
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
-            submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        }
-        if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
-        if (mainTitle) mainTitle.textContent = 'Criar Conta';
-        if (mainSubtitle) mainSubtitle.textContent = 'CADASTRE-SE GRATUITAMENTE';
-        const passwordInput = document.getElementById('password');
-        if (passwordInput) passwordInput.placeholder = 'Senha (min 6 caracteres)';
-    } else {
-        if (nomeField) nomeField.style.display = 'none';
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
-            submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
-        }
-        if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
-        if (mainTitle) mainTitle.textContent = 'Painel Zero';
-        if (mainSubtitle) mainSubtitle.textContent = 'PLATAFORMA ACADÊMICA';
-        const passwordInput = document.getElementById('password');
-        if (passwordInput) passwordInput.placeholder = 'Sua senha';
-    }
-
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const nomeInput = document.getElementById('nome');
-    if (emailInput) emailInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    if (nomeInput) nomeInput.value = '';
-}
-
-async function checkSession() {
-    if (!window.AuthService) return false;
-
-    try {
-        const { data: { user } } = await window.AuthService.getCurrentUser();
-        if (user && !localStorage.getItem('usuarioLogado')) {
-            await processarLogin(user);
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.warn('[Login] Erro ao verificar sessão:', err);
-        return false;
-    }
-}
-
-function waitForSupabase() {
-    return new Promise((resolve) => {
-        if (window.AuthService) {
-            resolve();
-            return;
-        }
-
-        window.addEventListener('supabaseReady', () => {
-            console.log('[Login] Evento supabaseReady recebido');
-            resolve();
-        });
-
-        setTimeout(() => {
-            console.warn('[Login] Timeout aguardando Supabase');
-            resolve();
-        }, 10000);
-    });
-}
-
-// ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     console.log('[Login] URL atual:', window.location.href);
 
-    // Verificar callback do Google
+    // ============================================
+    // PASSO 1: LIMPAR CAMPOS DO FORMULÁRIO
+    // ============================================
+    limparCamposFormulario();
+
+    // ============================================
+    // PASSO 2: ADICIONAR EVENTOS ANTI-AUTOCOMPLETE
+    // ============================================
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const nomeInput = document.getElementById('nome');
+
+    // Evento para limpar ao focar no campo
+    if (emailInput) {
+        emailInput.addEventListener('focus', function() {
+            if (this.value && !this.dataset.manual) {
+                this.value = '';
+            }
+        });
+        emailInput.addEventListener('input', function() {
+            if (this.value) {
+                this.dataset.manual = 'true';
+            }
+        });
+        // Limpar ao clicar
+        emailInput.addEventListener('click', function() {
+            if (this.value && !this.dataset.manual) {
+                this.value = '';
+            }
+        });
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener('focus', function() {
+            if (this.value) {
+                this.value = '';
+            }
+        });
+        passwordInput.addEventListener('input', function() {
+            if (this.value) {
+                this.dataset.manual = 'true';
+            }
+        });
+        passwordInput.addEventListener('click', function() {
+            if (this.value) {
+                this.value = '';
+            }
+        });
+    }
+
+    if (nomeInput) {
+        nomeInput.addEventListener('focus', function() {
+            if (this.value && !this.dataset.manual) {
+                this.value = '';
+            }
+        });
+        nomeInput.addEventListener('input', function() {
+            if (this.value) {
+                this.dataset.manual = 'true';
+            }
+        });
+    }
+
+    // ============================================
+    // PASSO 3: LIMPAR NOVAMENTE APÓS PEQUENO DELAY
+    // ============================================
+    setTimeout(() => {
+        limparCamposFormulario();
+    }, 100);
+
+    setTimeout(() => {
+        limparCamposFormulario();
+    }, 500);
+
+    // ============================================
+    // PASSO 4: VERIFICAR CALLBACK DO GOOGLE
+    // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
         console.log('[Google] Detectado callback do Google!');
@@ -512,5 +638,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+    // ============================================
+    // PASSO 5: LIMPAR A CADA 2 SEGUNDOS (para garantir)
+    // ============================================
+    let limpezaInterval = setInterval(() => {
+        const email = document.getElementById('email');
+        const password = document.getElementById('password');
+        const nome = document.getElementById('nome');
+
+        // Se algum campo está preenchido mas não foi manual
+        if (email && email.value && !email.dataset.manual) {
+            email.value = '';
+        }
+        if (password && password.value && !password.dataset.manual) {
+            password.value = '';
+        }
+        if (nome && nome.value && !nome.dataset.manual) {
+            nome.value = '';
+        }
+    }, 2000);
+
+    // Limpar interval quando a página for descarregada
+    window.addEventListener('beforeunload', () => {
+        if (limpezaInterval) clearInterval(limpezaInterval);
+    });
+
     console.log('%c🔐 Painel Zero - Login com Supabase (Com confirmação de e-mail)', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+    console.log('%c✅ Anti-autocomplete ativado!', 'color: #10b981; font-size: 14px;');
 });

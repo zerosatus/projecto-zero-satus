@@ -28,16 +28,44 @@
             <span>ou</span>
         </div>
 
-        <!-- FORMULÁRIO CORRIGIDO COM autocomplete="off" -->
-        <form id="auth-form">
+        <!-- FORMULÁRIO COM CAMPOS FALSOS PARA AUTOCMPLETE -->
+        <form id="auth-form" autocomplete="off">
+            <!-- Campos falsos para enganar autocomplete do navegador -->
+            <input type="text" style="display:none" aria-hidden="true" tabindex="-1">
+            <input type="password" style="display:none" aria-hidden="true" tabindex="-1">
+            <input type="email" style="display:none" aria-hidden="true" tabindex="-1">
+
+            <!-- Campo oculto anti-autocomplete -->
+            <div style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden;">
+                <input type="text" name="fakeusername" id="fakeusername" tabindex="-1" autocomplete="off">
+                <input type="password" name="fakepassword" id="fakepassword" tabindex="-1" autocomplete="off">
+            </div>
+
             <div id="nome-field" class="input-group" style="display: none;">
-                <input type="text" id="nome" placeholder="Seu nome completo" autocomplete="off">
+                <input type="text" id="nome" placeholder="Seu nome completo"
+                       autocomplete="off"
+                       autocorrect="off"
+                       autocapitalize="off"
+                       spellcheck="false"
+                       data-lpignore="true"
+                       data-1p-ignore="true">
             </div>
             <div class="input-group">
-                <input type="email" id="email" autocomplete="off" placeholder="seu@email.com" required>
+                <input type="email" id="email"
+                       autocomplete="off"
+                       autocorrect="off"
+                       autocapitalize="off"
+                       spellcheck="false"
+                       data-lpignore="true"
+                       data-1p-ignore="true"
+                       placeholder="seu@email.com" required>
             </div>
             <div class="input-group">
-                <input type="password" id="password" autocomplete="off" placeholder="Sua senha" required>
+                <input type="password" id="password"
+                       autocomplete="new-password"
+                       data-lpignore="true"
+                       data-1p-ignore="true"
+                       placeholder="Sua senha" required>
             </div>
             <button type="submit" class="btn-primary" id="submit-btn">
                 <i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL
