@@ -1,4 +1,4 @@
-// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA COM CONFIRMAÇÃO DE E-MAIL)
+// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA COM CONFIRMAÇÃO DE E-MAIL E ANTI-AUTOCOMPLETE)
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -63,9 +63,6 @@ const AuthService = {
         if (data.user && !data.user.email_confirmed_at) {
             console.log('[Auth] Usuário criado. Aguardando confirmação de e-mail.');
 
-            // Criar perfil apenas se já estiver confirmado (opcional)
-            // await this.createProfile(data.user.id, email, nome);
-
             return {
                 user: data.user,
                 needsConfirmation: true,
@@ -115,19 +112,26 @@ const AuthService = {
     },
 
     // ============================================
-    // CONFIRMAR E-MAIL (via token)
+    // ⭐ CONFIRMAR E-MAIL (via token) - NOVO
     // ============================================
     async confirmEmail(token) {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
 
         try {
+            console.log('[Auth] Tentando confirmar e-mail com token:', token.substring(0, 10) + '...');
+
             const { data, error } = await client.auth.verifyOtp({
                 token_hash: token,
                 type: 'email'
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error('[Auth] Erro ao verificar OTP:', error);
+                throw error;
+            }
+
+            console.log('[Auth] E-mail confirmado com sucesso!');
 
             // Criar perfil após confirmação
             if (data.user) {
@@ -136,13 +140,113 @@ const AuthService = {
                     data.user.email,
                     data.user.user_metadata?.full_name
                 );
+
+                // ⚠️ IMPORTANTE: Fazer logout para evitar conflito de contas
+                console.log('[Auth] Fazendo logout após confirmação para evitar conflito...');
+                await this.logout();
             }
 
-            console.log('[Auth] E-mail confirmado com sucesso!');
             return data;
 
         } catch (error) {
             console.error('[Auth] Erro ao confirmar e-mail:', error);
+            throw error;
+        }
+    },
+
+    // ============================================
+    // ⭐ VERIFICAR SE É CALLBACK DE CONFIRMAÇÃO
+    // ============================================
+    isConfirmationCallback() {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash;
+
+        // Verificar se há token de confirmação na URL
+        const hasToken = params.has('token') || params.has('confirmation_token') ||
+                         hash.includes('access_token') || hash.includes('confirmation');
+
+        // Verificar se é o callback do Google
+        const isGoogle = params.has('code') || hash.includes('access_token');
+
+        return hasToken && !isGoogle;
+    },
+
+    // ============================================
+    // ⭐ EXTRAIR TOKEN DA URL
+    // ============================================
+    extractConfirmationToken() {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash;
+
+        // Extrair token da URL
+        let token = params.get('token') || params.get('confirmation_token');
+
+        // Se não tiver token, verificar no hash
+        if (!token && hash) {
+            const hashParams = new URLSearchParams(hash.replace('#', '?'));
+            token = hashParams.get('access_token');
+            if (!token) {
+                token = hashParams.get('token');
+            }
+        }
+
+        return token;
+    },
+
+    // ============================================
+    // ⭐ PROCESSAR CALLBACK DE CONFIRMAÇÃO COMPLETO
+    // ============================================
+    async processConfirmationCallback() {
+        console.log('[Auth] Processando callback de confirmação...');
+
+        if (!this.isConfirmationCallback()) {
+            console.log('[Auth] Não é um callback de confirmação');
+            return null;
+        }
+
+        const token = this.extractConfirmationToken();
+
+        if (!token) {
+            console.log('[Auth] Nenhum token encontrado na URL');
+            return null;
+        }
+
+        console.log('[Auth] Token encontrado:', token.substring(0, 10) + '...');
+
+        try {
+            // Verificar se o usuário atual corresponde ao e-mail confirmado
+            const { data: { user } } = await this.getCurrentUser();
+
+            // Se já estiver logado, fazer logout primeiro para evitar conflitos
+            if (user) {
+                console.log('[Auth] Usuário logado. Fazendo logout antes de confirmar...');
+                await this.logout();
+                localStorage.removeItem('usuarioLogado');
+
+                // Aguardar um pouco para o logout ser processado
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            // Confirmar o e-mail
+            const result = await this.confirmEmail(token);
+
+            if (result.user) {
+                console.log('[Auth] ✅ E-mail confirmado com sucesso para:', result.user.email);
+
+                // Remover parâmetros da URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+
+                return {
+                    success: true,
+                    user: result.user,
+                    message: 'E-mail confirmado com sucesso! Faça login para continuar.'
+                };
+            }
+
+            return null;
+
+        } catch (error) {
+            console.error('[Auth] Erro ao processar confirmação:', error);
             throw error;
         }
     },
@@ -264,7 +368,8 @@ const AuthService = {
             loggedIn: true,
             confirmed: !!user.email_confirmed_at,
             email: user.email,
-            id: user.id
+            id: user.id,
+            nome: user.user_metadata?.full_name || user.email.split('@')[0]
         };
     },
 
@@ -290,6 +395,11 @@ const AuthService = {
         try {
             await client.auth.signOut();
             console.log('[Auth] Logout realizado');
+            // Limpar dados locais
+            localStorage.removeItem('usuarioLogado');
+            if (window.CacheManager) {
+                window.CacheManager.logout();
+            }
         } catch (error) {
             console.error('[Auth] Erro no logout:', error);
         }
@@ -731,6 +841,7 @@ const DatabaseService = {
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     });
+                    console.log('[DB] Perfil criado com sucesso');
                 } catch (error) {
                     console.error('[DB] Erro ao criar perfil:', error);
                 }
@@ -828,3 +939,4 @@ console.log('[Supabase] Serviços carregados com sucesso!');
 console.log('[Supabase] URL:', SUPABASE_URL);
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
 console.log('[Supabase] Confirmação de e-mail habilitada');
+console.log('[Supabase] ✅ Anti-autocomplete e confirmação de e-mail corrigidos!');
