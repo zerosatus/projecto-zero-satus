@@ -1,4 +1,4 @@
-// tarefas/script.js - VERSÃO DEFINITIVAMENTE CORRIGIDA
+// mobile-telas/tarefas/script.js - VERSÃO SUPABASE APENAS
 
 let notifications = [];
 let tasks = [];
@@ -7,8 +7,7 @@ let currentTaskFilter = 'todos';
 let editingTaskId = null;
 let selectedTaskPriority = 'media';
 let selectedTaskColor = '#6366f1';
-let _tarefasCarregando = false;
-let _tarefasInicializado = false;
+let isSaving = false;
 
 // ============================================
 // TOAST & CONFIRM
@@ -16,13 +15,13 @@ let _tarefasInicializado = false;
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-
+    
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
     toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
     container.appendChild(toast);
-
+    
     setTimeout(() => {
         toast.classList.add('toast-hiding');
         setTimeout(() => toast.remove(), 300);
@@ -32,28 +31,28 @@ function showToast(message, type = 'info', duration = 3000) {
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
     if (!modal) { callback(false); return; }
-
+    
     document.getElementById('confirm-title').textContent = title || 'Confirmar';
     document.getElementById('confirm-message').textContent = message;
     modal.classList.add('active');
-
+    
     const handleConfirm = () => {
         modal.classList.remove('active');
         callback(true);
         cleanup();
     };
-
+    
     const handleCancel = () => {
         modal.classList.remove('active');
         callback(false);
         cleanup();
     };
-
+    
     const cleanup = () => {
         document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
-
+    
     document.getElementById('confirm-ok').onclick = handleConfirm;
     document.getElementById('confirm-cancel').onclick = handleCancel;
 }
@@ -68,109 +67,66 @@ function escapeHtml(text) {
 // ============================================
 // SALVAR DADOS
 // ============================================
-function saveAllData() {
-    if (!usuarioLogado) return;
-
-    const userId = usuarioLogado.id;
-
+async function salvarTodosDados() {
+    if (!usuarioLogado || !window.CacheManager || isSaving) return false;
+    isSaving = true;
+    
     try {
+        window.CacheManager.set('tasks', tasks, true);
+        window.CacheManager.set('notifications', notifications, true);
+        
+        const userId = usuarioLogado.id;
         localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
         localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-
-        if (window.CacheManager) {
-            if (!window.CacheManager.currentUserId || window.CacheManager.currentUserId !== userId) {
-                window.CacheManager.currentUserId = userId;
-            }
-            window.CacheManager.set('tasks', tasks, true);
-            window.CacheManager.set('notifications', notifications, true);
-        }
-
-        console.log('[Tarefas] 💾 Dados salvos:', tasks.length, 'tarefas');
+        
+        console.log('[Tarefas Mobile] ✅ Dados salvos:', tasks.length);
+        return true;
     } catch (error) {
-        console.error('[Tarefas] Erro ao salvar:', error);
+        console.error('[Tarefas Mobile] Erro ao salvar:', error);
+        return false;
+    } finally {
+        setTimeout(() => { isSaving = false; }, 500);
     }
 }
 
 // ============================================
-// CARREGAR DADOS (CORRIGIDO)
+// CARREGAR DADOS
 // ============================================
-function loadAllData() {
-    if (!usuarioLogado) {
-        console.warn('[Tarefas] Usuário não logado');
-        return;
-    }
-
-    const userId = usuarioLogado.id;
-    console.log('[Tarefas] 📂 Carregando dados para:', userId);
-
-    let tasksCarregadas = null;
-    let notifCarregadas = null;
-
-    // ✅ TENTAR CARREGAR DO CACHE MANAGER PRIMEIRO
-    if (window.CacheManager) {
-        try {
-            // Garantir que o userId está correto no CacheManager
-            if (window.CacheManager.currentUserId !== userId) {
-                window.CacheManager.currentUserId = userId;
-            }
-
-            const cachedTasks = window.CacheManager.get('tasks', null);
-            const cachedNotif = window.CacheManager.get('notifications', null);
-
-            if (cachedTasks !== null && Array.isArray(cachedTasks)) {
-                tasksCarregadas = cachedTasks;
-                console.log('[Tarefas] ✅ Carregadas do CacheManager:', tasksCarregadas.length);
-            }
-            if (cachedNotif !== null && Array.isArray(cachedNotif)) {
-                notifCarregadas = cachedNotif;
-            }
-        } catch(e) {
-            console.warn('[Tarefas] Erro ao ler CacheManager:', e);
+async function carregarDados() {
+    if (!usuarioLogado || !window.CacheManager) return;
+    
+    try {
+        if (window.CacheManager.currentUserId !== usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
         }
-    }
-
-    // ✅ FALLBACK: localStorage
-    if (!tasksCarregadas || tasksCarregadas.length === 0) {
-        try {
+        
+        const cachedTasks = window.CacheManager.get('tasks', null);
+        const cachedNotif = window.CacheManager.get('notifications', null);
+        
+        if (cachedTasks !== null && Array.isArray(cachedTasks)) {
+            tasks = cachedTasks;
+            console.log('[Tarefas Mobile] Carregadas do CacheManager:', tasks.length);
+        } else {
+            const userId = usuarioLogado.id;
             const tasksSalvas = localStorage.getItem(`${userId}_tasks`);
             if (tasksSalvas) {
-                tasksCarregadas = JSON.parse(tasksSalvas);
-                console.log('[Tarefas] 📦 Carregadas do localStorage:', tasksCarregadas.length);
+                tasks = JSON.parse(tasksSalvas);
+                console.log('[Tarefas Mobile] Carregadas do localStorage:', tasks.length);
             }
-        } catch(e) {
-            console.warn('[Tarefas] Erro ao ler localStorage:', e);
         }
-    }
-
-    if (!notifCarregadas || notifCarregadas.length === 0) {
-        try {
+        
+        if (cachedNotif !== null && Array.isArray(cachedNotif)) {
+            notifications = cachedNotif;
+        } else {
+            const userId = usuarioLogado.id;
             const notifSalvas = localStorage.getItem(`${userId}_notifications`);
             if (notifSalvas) {
-                notifCarregadas = JSON.parse(notifSalvas);
+                notifications = JSON.parse(notifSalvas);
             }
-        } catch(e) {
-            console.warn('[Tarefas] Erro ao ler notificações:', e);
         }
-    }
-
-    // ✅ ATRIBUIR OS DADOS
-    if (tasksCarregadas && Array.isArray(tasksCarregadas)) {
-        tasks = tasksCarregadas;
-    } else {
-        tasks = [];
-    }
-
-    if (notifCarregadas && Array.isArray(notifCarregadas)) {
-        notifications = notifCarregadas;
-    } else {
-        notifications = [];
-    }
-
-    // ✅ SE NÃO TIVER DADOS, CRIAR EXEMPLO
-    if (tasks.length === 0) {
-        console.log('[Tarefas] Nenhuma tarefa encontrada, criando exemplo...');
-        tasks = [
-            {
+        
+        if (tasks.length === 0) {
+            tasks = [{
                 id: Date.now(),
                 title: 'Exemplo de Tarefa',
                 subject: 'Geral',
@@ -178,12 +134,16 @@ function loadAllData() {
                 color: '#8b5cf6',
                 priority: 'media',
                 completed: false
-            }
-        ];
-        saveAllData();
+            }];
+            await salvarTodosDados();
+        }
+        
+        renderTasks();
+        updateNotificationBadge();
+        
+    } catch (error) {
+        console.error('[Tarefas Mobile] Erro ao carregar dados:', error);
     }
-
-    console.log('[Tarefas] 📊 Total de tarefas carregadas:', tasks.length);
 }
 
 // ============================================
@@ -212,23 +172,22 @@ function formatTimeAgo(timeString) {
 function renderNotificationsModal(filter = 'all') {
     const list = document.getElementById('notifications-list-modal');
     if (!list) return;
-
+    
     let filtered = [...notifications];
     if (filter === 'unread') filtered = notifications.filter(n => !n.read);
     else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
     else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-
+    
     if (filtered.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
         return;
     }
-
+    
     let html = '';
     filtered.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
         html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
-            <div class="notification-icon ${notif.type}">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            <div class="notification-icon ${notif.type || 'info'}">
+                <ion-icon name="notifications-outline"></ion-icon>
             </div>
             <div class="notification-content">
                 <div class="notification-title">${escapeHtml(notif.title)}</div>
@@ -244,7 +203,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
-    if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+    salvarTodosDados();
     showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
@@ -254,7 +213,7 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
-            if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+            salvarTodosDados();
             showToast('Notificações limpas!', 'success');
         }
     });
@@ -266,16 +225,16 @@ function clearAllNotifications() {
 function renderTasks() {
     const tasksList = document.getElementById('tasks-list');
     if (!tasksList) return;
-
+    
     let filteredTasks = [...tasks];
     if (currentTaskFilter === 'pendentes') filteredTasks = tasks.filter(t => !t.completed);
     else if (currentTaskFilter === 'concluidas') filteredTasks = tasks.filter(t => t.completed);
-
+    
     if (filteredTasks.length === 0) {
         tasksList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma tarefa encontrada</div>';
         return;
     }
-
+    
     let html = '';
     filteredTasks.forEach(task => {
         const priorityClass = task.priority || 'media';
@@ -291,7 +250,7 @@ function renderTasks() {
         </div>`;
     });
     tasksList.innerHTML = html;
-
+    
     document.querySelectorAll('.task-check').forEach(check => {
         check.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -299,13 +258,13 @@ function renderTasks() {
             const task = tasks.find(t => t.id == taskId);
             if (task) {
                 task.completed = !task.completed;
-                saveAllData();
+                salvarTodosDados();
                 renderTasks();
                 showToast(task.completed ? 'Tarefa concluída!' : 'Tarefa reaberta!', 'success');
             }
         });
     });
-
+    
     document.querySelectorAll('.task-arrow').forEach(arrow => {
         arrow.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -322,9 +281,9 @@ function renderTasks() {
 function openTaskModal(task) {
     const modal = document.getElementById('task-modal');
     if (!modal) return;
-
+    
     editingTaskId = task ? task.id : null;
-
+    
     if (task) {
         document.getElementById('task-modal-title').textContent = 'Editar Tarefa';
         document.getElementById('task-title').value = task.title || '';
@@ -340,126 +299,108 @@ function openTaskModal(task) {
         selectedTaskPriority = 'media';
         selectedTaskColor = '#8b5cf6';
     }
-
+    
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.priority === selectedTaskPriority);
     });
-
+    
     document.querySelectorAll('#task-modal .color-option').forEach(option => {
         option.classList.toggle('active', option.dataset.color === selectedTaskColor);
     });
-
+    
     modal.classList.add('active');
 }
 
-function switchView(viewName) {
-    if (viewName === 'home') window.location.href = '../index.html';
-    else if (viewName === 'calendar') window.location.href = '../calendario/index.html';
-    else if (viewName === 'tasks') renderTasks();
-    else if (viewName === 'notes') window.location.href = '../notas/index.html';
-    else if (viewName === 'profile') window.location.href = '../perfil/index.html';
+function closeTaskModal() {
+    const modal = document.getElementById('task-modal');
+    if (modal) modal.classList.remove('active');
+    editingTaskId = null;
 }
 
 // ============================================
-// INICIALIZAR TAREFAS (FUNÇÃO PRINCIPAL)
+// AVATAR
 // ============================================
-async function inicializarTarefas() {
-    // PREVENIR CARREGAMENTO MÚLTIPLO
-    if (_tarefasCarregando) {
-        console.log('[Tarefas] ⏳ Já está carregando...');
+async function carregarFotoPerfilMobile() {
+    if (!usuarioLogado) return;
+    
+    const profileIcon = document.getElementById('notification-bell');
+    if (!profileIcon) return;
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            return;
+        }
+    }
+    
+    const iniciais = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+    profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
+}
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('📋 Iniciando tarefas mobile com Supabase...');
+    
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (!usuarioSalvo) {
+        window.location.href = '../../login/index.html';
         return;
     }
-    if (_tarefasInicializado) {
-        console.log('[Tarefas] ✅ Já inicializado');
-        return;
-    }
-
-    _tarefasCarregando = true;
-    console.log('[Tarefas] 🚀 Iniciando...');
-
+    
     try {
-        // 1️⃣ VERIFICAR USUÁRIO
-        const usuarioSalvo = localStorage.getItem('usuarioLogado');
-        if (!usuarioSalvo) {
-            console.error('[Tarefas] Usuário não logado');
-            window.location.href = '../../login/index.html';
-            return;
-        }
-
-        try {
-            usuarioLogado = JSON.parse(usuarioSalvo);
-        } catch(e) {
-            console.error('[Tarefas] Erro ao parsear usuário:', e);
-            window.location.href = '../../login/index.html';
-            return;
-        }
-
-        console.log('[Tarefas] 👤 Usuário:', usuarioLogado.id);
-
-        // 2️⃣ INICIALIZAR CACHE MANAGER
-        if (window.CacheManager) {
-            if (!window.CacheManager.isInitialized) {
-                window.CacheManager.init();
-            }
-            window.CacheManager.currentUserId = usuarioLogado.id;
-            console.log('[Tarefas] ✅ CacheManager inicializado');
-        } else {
-            console.warn('[Tarefas] ⚠️ CacheManager não disponível');
-        }
-
-        // 3️⃣ INICIALIZAR SYNC (AGUARDANDO)
-        if (window.initSync && !window._tasksSyncInit) {
-            window._tasksSyncInit = true;
-            console.log('[Tarefas] 🔄 Inicializando sync...');
-            try {
-                await window.initSync({ force: false });
-                console.log('[Tarefas] ✅ Sync inicializado');
-            } catch(e) {
-                console.warn('[Tarefas] ⚠️ Erro no sync:', e);
-            }
-        }
-
-        // 4️⃣ CARREGAR DADOS
-        loadAllData();
-
-        // 5️⃣ ATUALIZAR UI
-        if (usuarioLogado) {
-            const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
-            const headerName = document.getElementById('header-name');
-            if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        }
-
-        updateNotificationBadge();
-        renderTasks();
-
-        _tarefasInicializado = true;
-        console.log('[Tarefas] ✅ Inicializado com sucesso!');
-
-    } catch (error) {
-        console.error('[Tarefas] ❌ Erro ao inicializar:', error);
-        showToast('Erro ao carregar tarefas', 'error');
-    } finally {
-        _tarefasCarregando = false;
+        usuarioLogado = JSON.parse(usuarioSalvo);
+        console.log('[Tarefas Mobile] Usuário:', usuarioLogado.id);
+    } catch(e) {
+        console.error('[Tarefas Mobile] Erro ao parsear usuário:', e);
+        window.location.href = '../../login/index.html';
+        return;
     }
-}
-
-// ============================================
-// CONFIGURAR EVENTOS DA UI
-// ============================================
-function configurarEventosTarefas() {
-    // Notificações
+    
+    // Inicializar CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.init();
+        window.CacheManager.currentUserId = usuarioLogado.id;
+        console.log('[Tarefas Mobile] CacheManager inicializado');
+    }
+    
+    // Inicializar Sync
+    if (window.initSync && !window._tasksMobileSyncInit) {
+        window._tasksMobileSyncInit = true;
+        try {
+            await window.initSync({ force: false });
+            console.log('[Tarefas Mobile] Sync inicializado ✅');
+        } catch(e) {
+            console.warn('[Tarefas Mobile] Erro no sync:', e);
+        }
+    }
+    
+    // Carregar dados
+    await carregarDados();
+    
+    // Atualizar UI
+    const headerName = document.getElementById('header-name');
+    if (headerName && usuarioLogado.nome) {
+        headerName.textContent = usuarioLogado.nome.split(' ')[0];
+    }
+    
+    await carregarFotoPerfilMobile();
+    
+    // Configurar eventos
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
     });
-
+    
     document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.remove('active');
     });
-
+    
     document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
     document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
-
+    
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -467,8 +408,7 @@ function configurarEventosTarefas() {
             renderNotificationsModal(tab.dataset.type);
         });
     });
-
-    // Filtros
+    
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -477,14 +417,12 @@ function configurarEventosTarefas() {
             renderTasks();
         });
     });
-
-    // Adicionar tarefa
+    
     document.getElementById('btn-add-task')?.addEventListener('click', () => openTaskModal(null));
-    document.querySelector('[data-modal="task-modal"]')?.addEventListener('click', () => {
-        document.getElementById('task-modal').classList.remove('active');
+    document.querySelector('[data-modal="task-modal"]')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeTaskModal();
     });
-
-    // Prioridades
+    
     document.querySelectorAll('.priority-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
@@ -492,8 +430,7 @@ function configurarEventosTarefas() {
             selectedTaskPriority = btn.dataset.priority;
         });
     });
-
-    // Cores
+    
     document.querySelectorAll('#task-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#task-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -501,18 +438,17 @@ function configurarEventosTarefas() {
             selectedTaskColor = option.dataset.color;
         });
     });
-
-    // Salvar tarefa
-    document.getElementById('btn-save-task')?.addEventListener('click', () => {
+    
+    document.getElementById('btn-save-task')?.addEventListener('click', async () => {
         const title = document.getElementById('task-title')?.value.trim();
         const subject = document.getElementById('task-subject')?.value.trim();
         const date = document.getElementById('task-date')?.value;
-
+        
         if (!title) {
             showToast('Preencha o título!', 'error');
             return;
         }
-
+        
         if (editingTaskId) {
             const index = tasks.findIndex(t => t.id == editingTaskId);
             if (index > -1) {
@@ -536,146 +472,48 @@ function configurarEventosTarefas() {
                 completed: false
             });
         }
-
-        saveAllData();
+        
+        await salvarTodosDados();
         showToast(editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
-        document.getElementById('task-modal').classList.remove('active');
+        closeTaskModal();
         renderTasks();
     });
-
-    // Navegação
+    
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => switchView(item.dataset.view));
+        item.addEventListener('click', () => {
+            const view = item.dataset.view;
+            if (view === 'home') window.location.href = '../index.html';
+            else if (view === 'calendar') window.location.href = '../calendario/index.html';
+            else if (view === 'tasks') renderTasks();
+            else if (view === 'notes') window.location.href = '../notas/index.html';
+            else if (view === 'profile') window.location.href = '../perfil/index.html';
+        });
     });
-}
-
-// ============================================
-// LISTENERS GLOBAIS
-// ============================================
-function configurarListenersTarefas() {
-    // Quando o sync ficar pronto
+    
+    // Listeners globais
+    window.addEventListener('cloudDataLoaded', async () => {
+        console.log('[Tarefas Mobile] 📡 Dados da nuvem carregados!');
+        await carregarDados();
+        renderTasks();
+        showToast('🔄 Tarefas sincronizadas!', 'success');
+    });
+    
     window.addEventListener('syncReady', () => {
-        console.log('[Tarefas] 📡 Sync pronto, recarregando dados...');
-        if (usuarioLogado) {
-            loadAllData();
-            renderTasks();
-            updateNotificationBadge();
-            showToast('🔄 Dados sincronizados!', 'success');
+        console.log('[Tarefas Mobile] 📡 Sync pronto, recarregando dados...');
+        carregarDados();
+        renderTasks();
+    });
+    
+    window.addEventListener('profilePhotoUpdated', async (event) => {
+        if (event.detail && event.detail.photoUrl) {
+            const profileIcon = document.getElementById('notification-bell');
+            if (profileIcon) {
+                profileIcon.innerHTML = `<img src="${event.detail.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
         }
     });
-
-    // Quando dados da nuvem chegarem
-    window.addEventListener('cloudDataLoaded', () => {
-        console.log('[Tarefas] ☁️ Dados da nuvem carregados...');
-        if (usuarioLogado) {
-            loadAllData();
-            renderTasks();
-            updateNotificationBadge();
-        }
-    });
-
-    // Forçar refresh
-    window.addEventListener('forceRefresh', () => {
-        console.log('[Tarefas] 🔄 ForceRefresh recebido');
-        if (usuarioLogado) {
-            loadAllData();
-            renderTasks();
-            updateNotificationBadge();
-        }
-    });
-}
-
-// ============================================
-// INICIALIZAÇÃO PRINCIPAL
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    // PREVENIR INICIALIZAÇÃO MÚLTIPLA
-    if (window._tasksLoaded) {
-        console.log('[Tarefas] ⏳ Já carregado');
-        return;
-    }
-    window._tasksLoaded = true;
-
-    console.log('[Tarefas] 📋 DOM carregado, inicializando...');
-
-    // Inicializar
-    inicializarTarefas();
-    configurarEventosTarefas();
-    configurarListenersTarefas();
-
-    // Se o CacheManager já estiver pronto, carregar dados
-    if (window.CacheManager && window.CacheManager.isInitialized) {
-        const usuarioSalvo = localStorage.getItem('usuarioLogado');
-        if (usuarioSalvo) {
-            try {
-                usuarioLogado = JSON.parse(usuarioSalvo);
-                if (usuarioLogado && usuarioLogado.id) {
-                    loadAllData();
-                    renderTasks();
-                    updateNotificationBadge();
-                }
-            } catch(e) {}
-        }
-    }
+    
+    console.log('✅ Tarefas mobile com Supabase inicializadas!');
 });
 
-// =====================================================
-// NOTIFICAÇÕES NATIVAS PARA ANDROID
-// =====================================================
-
-function isAndroidApp() {
-    return typeof Android !== 'undefined';
-}
-
-function sendNativeNotification(title, message, type) {
-    if (isAndroidApp()) {
-        try {
-            Android.showNotification(title, message, type);
-        } catch(e) {}
-    }
-}
-
-function checkPendingTasks() {
-    if (tasks && tasks.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        const todayFormatted = new Date().toLocaleDateString('pt-BR');
-        tasks.forEach(task => {
-            if (!task.completed && (task.date === today || task.date === todayFormatted)) {
-                sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
-            }
-        });
-    }
-}
-
-function checkUpcomingClasses() {
-    if (window.CacheManager) {
-        const schedule = window.CacheManager.get('weeklySchedule', {});
-        const now = new Date();
-        const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        const today = days[now.getDay()];
-        const currentTotal = now.getHours() * 60 + now.getMinutes();
-
-        (schedule[today] || []).forEach(cls => {
-            if (cls.horaInicio) {
-                const [h, m] = cls.horaInicio.split(':').map(Number);
-                const minutesUntil = (h * 60 + m) - currentTotal;
-                if (minutesUntil <= 15 && minutesUntil > 0) {
-                    sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
-                }
-            }
-        });
-    }
-}
-
-// Executar verificações
-setTimeout(() => {
-    checkPendingTasks();
-    checkUpcomingClasses();
-}, 3000);
-
-setInterval(() => {
-    checkPendingTasks();
-    checkUpcomingClasses();
-}, 15 * 60 * 1000);
-
-console.log('%c📋 Tarefas - Versão Definitiva Corrigida!', 'color: #f59e0b; font-size: 16px; font-weight: bold;');
+console.log('%c📋 Tarefas Mobile - Supabase Apenas!', 'color: #f59e0b; font-size: 16px; font-weight: bold;');
