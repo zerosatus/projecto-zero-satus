@@ -1,4 +1,4 @@
-// cache-manager.js - Versão Supabase COMPLETA COM PREVENÇÃO DE LOOP
+// cache-manager.js - Versão Supabase COMPLETA COM PREVENÇÃO DE LOOP E FOTO CORRIGIDA
 
 class SupabaseCacheManager {
     constructor() {
@@ -11,6 +11,7 @@ class SupabaseCacheManager {
         this._lastSyncTime = 0;
         this._syncDebounce = 2000;
         this._eventTriggered = false;
+        this._profilePhotoCache = null; // 🔥 NOVO: Cache de foto em memória
     }
 
     init() {
@@ -321,20 +322,71 @@ class SupabaseCacheManager {
         this.listeners.clear();
         this._savingFlags.clear();
         this._pendingSync.clear();
+        this._profilePhotoCache = null; // 🔥 Limpar cache de foto
         console.log('[CacheManager] Logout realizado');
     }
 
+    // ============================================
+    // 🔥 CORRIGIDO: getProfilePhotoUrl com múltiplas fontes
+    // ============================================
     async getProfilePhotoUrl() {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.DatabaseService) return null;
+        if (!userId) return null;
 
-        const profile = await window.DatabaseService.getUserProfile(userId);
-        return profile?.avatar_url || null;
+        // Verificar cache em memória
+        if (this._profilePhotoCache) {
+            return this._profilePhotoCache;
+        }
+
+        // 🔥 PRIORIDADE 1: localStorage
+        const localPhoto = localStorage.getItem('userPhotoURL');
+        if (localPhoto && (localPhoto.startsWith('data:') || localPhoto.startsWith('http'))) {
+            this._profilePhotoCache = localPhoto;
+            return localPhoto;
+        }
+
+        // 🔥 PRIORIDADE 2: Perfil do usuário logado
+        const usuario = localStorage.getItem('usuarioLogado');
+        if (usuario) {
+            try {
+                const user = JSON.parse(usuario);
+                if (user.avatar_url || user.foto || user.profilePhotoUrl) {
+                    const photo = user.avatar_url || user.foto || user.profilePhotoUrl;
+                    if (photo && (photo.startsWith('data:') || photo.startsWith('http'))) {
+                        this._profilePhotoCache = photo;
+                        localStorage.setItem('userPhotoURL', photo);
+                        return photo;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 🔥 PRIORIDADE 3: Supabase Database
+        if (window.DatabaseService) {
+            try {
+                const profile = await window.DatabaseService.getUserProfile(userId);
+                if (profile?.avatar_url) {
+                    this._profilePhotoCache = profile.avatar_url;
+                    localStorage.setItem('userPhotoURL', profile.avatar_url);
+                    return profile.avatar_url;
+                }
+            } catch (error) {
+                console.error('[CacheManager] Erro ao buscar foto do perfil:', error);
+            }
+        }
+
+        return null;
     }
 
+    // ============================================
+    // 🔥 CORRIGIDO: uploadProfilePhoto com StorageService
+    // ============================================
     async uploadProfilePhoto(file) {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.StorageService) return null;
+        if (!userId || !window.StorageService) {
+            console.error('[CacheManager] uploadProfilePhoto: userId ou StorageService não disponível');
+            return null;
+        }
 
         if (!file || !file.type || !file.type.startsWith('image/')) {
             console.error('[CacheManager] Arquivo inválido:', file);
@@ -342,44 +394,80 @@ class SupabaseCacheManager {
         }
 
         try {
-            const base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-
-            if (!base64 || !base64.startsWith('data:')) {
-                console.error('[CacheManager] Falha ao converter para base64');
-                return null;
-            }
-
+            // Upload para o Supabase Storage
             const photoUrl = await window.StorageService.uploadProfilePhoto(userId, file);
-            const finalUrl = photoUrl || base64;
 
-            const profile = await window.DatabaseService.getUserProfile(userId);
-            if (profile) {
-                await window.DatabaseService.updateUserProfile(userId, {
-                    ...profile,
-                    avatar_url: finalUrl
-                });
+            if (photoUrl) {
+                // Atualizar cache em memória
+                this._profilePhotoCache = photoUrl;
+                localStorage.setItem('userPhotoURL', photoUrl);
+
+                // Atualizar perfil
+                const profile = await window.DatabaseService.getUserProfile(userId);
+                if (profile) {
+                    await window.DatabaseService.updateUserProfile(userId, {
+                        ...profile,
+                        avatar_url: photoUrl
+                    });
+                }
+
+                // Atualizar usuário logado
+                const usuario = localStorage.getItem('usuarioLogado');
+                if (usuario) {
+                    try {
+                        const user = JSON.parse(usuario);
+                        user.avatar_url = photoUrl;
+                        user.foto = photoUrl;
+                        user.profilePhotoUrl = photoUrl;
+                        localStorage.setItem('usuarioLogado', JSON.stringify(user));
+                    } catch(e) {}
+                }
+
+                window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+                    detail: { photoUrl: photoUrl }
+                }));
+
+                console.log('[CacheManager] ✅ Foto atualizada com sucesso:', photoUrl);
+                return photoUrl;
             }
 
-            window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
-                detail: { photoUrl: finalUrl }
-            }));
-
-            return finalUrl;
+            return null;
         } catch (error) {
             console.error('[CacheManager] Erro no upload:', error);
             return null;
         }
     }
 
+    // ============================================
+    // 🔥 CORRIGIDO: deleteProfilePhoto com StorageService
+    // ============================================
     async deleteProfilePhoto() {
         const userId = this.getCurrentUserId();
         if (!userId || !window.StorageService) return false;
-        return await window.StorageService.deleteProfilePhoto(userId);
+
+        const result = await window.StorageService.deleteProfilePhoto(userId);
+
+        if (result) {
+            // Limpar cache
+            this._profilePhotoCache = null;
+            localStorage.removeItem('userPhotoURL');
+
+            // Atualizar usuário logado
+            const usuario = localStorage.getItem('usuarioLogado');
+            if (usuario) {
+                try {
+                    const user = JSON.parse(usuario);
+                    delete user.avatar_url;
+                    delete user.foto;
+                    delete user.profilePhotoUrl;
+                    localStorage.setItem('usuarioLogado', JSON.stringify(user));
+                } catch(e) {}
+            }
+
+            console.log('[CacheManager] ✅ Foto removida com sucesso');
+        }
+
+        return result;
     }
 
     startRealtimeSync() {
@@ -414,4 +502,4 @@ window.setNotifications = (notifications, notify) => window.CacheManager.set('no
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] Supabase v2.2 carregado! (com prevenção de loop)');
+console.log('[CacheManager] Supabase v2.3 carregado! (com prevenção de loop e foto corrigida)');

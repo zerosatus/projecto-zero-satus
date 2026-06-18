@@ -1,4 +1,4 @@
-// supabase-client.js - Cliente Supabase unificado (VERSÃO COMPLETA COM CONFIRMAÇÃO DE E-MAIL E ANTI-AUTOCOMPLETE + CORREÇÕES)
+// supabase-client.js - Cliente Supabase COMPLETO CORRIGIDO
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -14,24 +14,74 @@ function initSupabase() {
 }
 
 // ============================================
-// SERVIÇO DE AUTENTICAÇÃO (COM CONFIRMAÇÃO)
+// FUNÇÃO PARA COMPACTAR IMAGEM
+// ============================================
+async function compressImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_SIZE = 500;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height = (height * MAX_SIZE) / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width = (width * MAX_SIZE) / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                }, 'image/jpeg', 0.8);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// ============================================
+// SERVIÇO DE AUTENTICAÇÃO (CORRIGIDO)
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
 
-        const { data, error } = await client.auth.signInWithPassword({ email, password });
+        console.log('[Auth] Tentando login com email:', email);
+
+        const { data, error } = await client.auth.signInWithPassword({
+            email,
+            password
+        });
+
         if (error) {
-            // Verificar se o erro é de e-mail não confirmado
+            console.error('[Auth] Erro no login:', error.message);
+
             if (error.message.includes('Email not confirmed') || error.message.includes('confirm')) {
                 throw new Error('Por favor, confirme seu e-mail antes de fazer login.');
             }
             throw error;
         }
 
-        // Verificar se o e-mail foi confirmado
+        console.log('[Auth] Login bem-sucedido para:', data.user?.email);
+
         if (!data.user?.email_confirmed_at) {
+            console.warn('[Auth] E-mail não confirmado!');
             throw new Error('E-mail não confirmado. Verifique sua caixa de entrada.');
         }
 
@@ -45,6 +95,8 @@ const AuthService = {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
 
+        console.log('[Auth] Tentando registrar:', email);
+
         const { data, error } = await client.auth.signUp({
             email,
             password,
@@ -53,16 +105,19 @@ const AuthService = {
                     full_name: nome || email.split('@')[0],
                     avatar_url: null
                 },
-                // O usuário será redirecionado para esta URL após confirmar o e-mail
                 emailRedirectTo: window.location.origin + window.location.pathname
             }
         });
-        if (error) throw error;
 
-        // Se o usuário foi criado mas precisa confirmar e-mail
+        if (error) {
+            console.error('[Auth] Erro no registro:', error.message);
+            throw error;
+        }
+
+        console.log('[Auth] Registro processado para:', email);
+
         if (data.user && !data.user.email_confirmed_at) {
-            console.log('[Auth] Usuário criado. Aguardando confirmação de e-mail.');
-
+            console.log('[Auth] Aguardando confirmação de e-mail.');
             return {
                 user: data.user,
                 needsConfirmation: true,
@@ -70,7 +125,6 @@ const AuthService = {
             };
         }
 
-        // Criar perfil após cadastro (se já confirmado)
         if (data.user) {
             await this.createProfile(data.user.id, email, nome);
         }
@@ -78,12 +132,11 @@ const AuthService = {
         return { user: data.user };
     },
 
-    // ============================================
-    // REENVIAR E-MAIL DE CONFIRMAÇÃO
-    // ============================================
     async resendConfirmationEmail(email) {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
+
+        console.log('[Auth] Reenviando confirmação para:', email);
 
         try {
             const { error } = await client.auth.resend({
@@ -94,33 +147,31 @@ const AuthService = {
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error('[Auth] Erro ao reenviar:', error.message);
+                throw error;
+            }
 
-            console.log('[Auth] E-mail de confirmação reenviado para:', email);
+            console.log('[Auth] E-mail de confirmação reenviado com sucesso');
             return true;
 
         } catch (error) {
             console.error('[Auth] Erro ao reenviar confirmação:', error);
 
-            // Se o usuário já estiver confirmado
             if (error.message.includes('already confirmed')) {
                 throw new Error('Este e-mail já foi confirmado. Tente fazer login.');
             }
-
             throw error;
         }
     },
 
-    // ============================================
-    // ⭐ CONFIRMAR E-MAIL (via token) - NOVO
-    // ============================================
     async confirmEmail(token) {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
 
-        try {
-            console.log('[Auth] Tentando confirmar e-mail com token:', token.substring(0, 10) + '...');
+        console.log('[Auth] Confirmando e-mail com token:', token.substring(0, 10) + '...');
 
+        try {
             const { data, error } = await client.auth.verifyOtp({
                 token_hash: token,
                 type: 'email'
@@ -131,19 +182,17 @@ const AuthService = {
                 throw error;
             }
 
-            console.log('[Auth] E-mail confirmado com sucesso!');
+            console.log('[Auth] E-mail confirmado com sucesso para:', data.user?.email);
 
-            // Criar perfil após confirmação
             if (data.user) {
                 await this.createProfile(
                     data.user.id,
                     data.user.email,
                     data.user.user_metadata?.full_name
                 );
-
-                // ⚠️ IMPORTANTE: Fazer logout para evitar conflito de contas
-                console.log('[Auth] Fazendo logout após confirmação para evitar conflito...');
+                console.log('[Auth] Perfil criado após confirmação');
                 await this.logout();
+                console.log('[Auth] Logout realizado após confirmação');
             }
 
             return data;
@@ -154,34 +203,24 @@ const AuthService = {
         }
     },
 
-    // ============================================
-    // ⭐ VERIFICAR SE É CALLBACK DE CONFIRMAÇÃO
-    // ============================================
     isConfirmationCallback() {
         const params = new URLSearchParams(window.location.search);
         const hash = window.location.hash;
 
-        // Verificar se há token de confirmação na URL
         const hasToken = params.has('token') || params.has('confirmation_token') ||
                          hash.includes('access_token') || hash.includes('confirmation');
 
-        // Verificar se é o callback do Google
         const isGoogle = params.has('code') || hash.includes('access_token');
 
         return hasToken && !isGoogle;
     },
 
-    // ============================================
-    // ⭐ EXTRAIR TOKEN DA URL
-    // ============================================
     extractConfirmationToken() {
         const params = new URLSearchParams(window.location.search);
         const hash = window.location.hash;
 
-        // Extrair token da URL
         let token = params.get('token') || params.get('confirmation_token');
 
-        // Se não tiver token, verificar no hash
         if (!token && hash) {
             const hashParams = new URLSearchParams(hash.replace('#', '?'));
             token = hashParams.get('access_token');
@@ -193,9 +232,7 @@ const AuthService = {
         return token;
     },
 
-    // ============================================
-    // ⭐ PROCESSAR CALLBACK DE CONFIRMAÇÃO COMPLETO
-    // ============================================
+    // 🔥 CORRIGIDO: Processar callback de confirmação com logout forçado
     async processConfirmationCallback() {
         console.log('[Auth] Processando callback de confirmação...');
 
@@ -214,20 +251,18 @@ const AuthService = {
         console.log('[Auth] Token encontrado:', token.substring(0, 10) + '...');
 
         try {
-            // Verificar se o usuário atual corresponde ao e-mail confirmado
+            // 🔥 FORÇAR LOGOUT de qualquer sessão existente
             const { data: { user } } = await this.getCurrentUser();
 
-            // Se já estiver logado, fazer logout primeiro para evitar conflitos
             if (user) {
-                console.log('[Auth] Usuário logado. Fazendo logout antes de confirmar...');
+                console.log('[Auth] ⚠️ Usuário logado detectado:', user.email);
+                console.log('[Auth] Forçando logout para evitar conflito...');
                 await this.logout();
                 localStorage.removeItem('usuarioLogado');
-
-                // Aguardar um pouco para o logout ser processado
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
-            // Confirmar o e-mail
+            // Confirmar o e-mail com o token
             const result = await this.confirmEmail(token);
 
             if (result.user) {
@@ -235,6 +270,11 @@ const AuthService = {
 
                 // Remover parâmetros da URL
                 window.history.replaceState({}, document.title, window.location.pathname);
+
+                // 🔥 FAZER LOGOUT NOVAMENTE após confirmação
+                console.log('[Auth] Fazendo logout novamente após confirmação...');
+                await this.logout();
+                localStorage.removeItem('usuarioLogado');
 
                 return {
                     success: true,
@@ -251,9 +291,17 @@ const AuthService = {
         }
     },
 
+    // 🔥 CORRIGIDO: Login com Google com logout forçado
     async loginWithGoogle() {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
+
+        console.log('[Auth] Iniciando login com Google...');
+
+        // 🔥 Forçar logout antes do Google para evitar conflitos
+        console.log('[Auth] Forçando logout antes do Google...');
+        await this.logout();
+        localStorage.removeItem('usuarioLogado');
 
         const redirectUrl = window.location.origin + window.location.pathname;
         console.log('[Auth] Redirect URL Google:', redirectUrl);
@@ -268,7 +316,11 @@ const AuthService = {
                 }
             }
         });
-        if (error) throw error;
+
+        if (error) {
+            console.error('[Auth] Erro no login com Google:', error);
+            throw error;
+        }
 
         console.log('[Auth] Redirecionando para Google...');
         return data;
@@ -276,25 +328,35 @@ const AuthService = {
 
     async createProfile(userId, email, nome) {
         const client = initSupabase();
-        if (!client) return;
+        if (!client) {
+            console.warn('[Auth] Cliente não disponível para criar perfil');
+            return;
+        }
+
+        console.log('[Auth] Criando perfil para:', email);
 
         try {
             // Verificar se já existe
-            const { data: existing } = await client
+            const { data: existing, error: checkError } = await client
                 .from('profiles')
                 .select('id')
                 .eq('id', userId)
                 .single();
 
             if (existing) {
-                console.log('[Auth] Perfil já existe');
+                console.log('[Auth] Perfil já existe para:', email);
                 return;
+            }
+
+            if (checkError && checkError.code !== 'PGRST116') {
+                console.warn('[Auth] Erro ao verificar perfil:', checkError);
             }
 
             const { error } = await client.from('profiles').insert({
                 id: userId,
                 email: email,
                 nome: nome || email.split('@')[0],
+                avatar_url: null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
@@ -303,7 +365,7 @@ const AuthService = {
                 console.error('[Auth] Erro ao criar perfil:', error);
                 if (error.code !== '23505') throw error;
             } else {
-                console.log('[Auth] Perfil criado com sucesso');
+                console.log('[Auth] Perfil criado com sucesso para:', email);
             }
         } catch (error) {
             console.error('[Auth] Erro ao criar perfil:', error);
@@ -311,16 +373,23 @@ const AuthService = {
     },
 
     async ensureProfileExists(user) {
-        if (!user) return;
+        if (!user) {
+            console.warn('[Auth] ensureProfileExists: usuário inválido');
+            return;
+        }
 
-        // Só cria perfil se o e-mail estiver confirmado
         if (!user.email_confirmed_at) {
             console.log('[Auth] Usuário não confirmou e-mail ainda. Perfil não criado.');
             return;
         }
 
         const client = initSupabase();
-        if (!client) return;
+        if (!client) {
+            console.warn('[Auth] Cliente não disponível para ensureProfileExists');
+            return;
+        }
+
+        console.log('[Auth] Verificando perfil para:', user.email);
 
         try {
             const { data, error } = await client
@@ -330,7 +399,7 @@ const AuthService = {
                 .single();
 
             if (error && error.code === 'PGRST116') {
-                console.log('[Auth] Criando perfil para:', user.email);
+                console.log('[Auth] Perfil não encontrado, criando para:', user.email);
                 await this.createProfile(
                     user.id,
                     user.email,
@@ -351,7 +420,11 @@ const AuthService = {
         if (!client) return { data: { user: null } };
 
         try {
-            const { data: { user } } = await client.auth.getUser();
+            const { data: { user }, error } = await client.auth.getUser();
+            if (error) {
+                console.warn('[Auth] Erro ao buscar usuário:', error);
+                return { data: { user: null } };
+            }
             return { data: { user } };
         } catch (error) {
             console.error('[Auth] Erro ao buscar usuário:', error);
@@ -359,7 +432,6 @@ const AuthService = {
         }
     },
 
-    // Verificar status do usuário
     async getUserStatus() {
         const { data: { user } } = await this.getCurrentUser();
         if (!user) return { loggedIn: false, confirmed: false };
@@ -376,6 +448,7 @@ const AuthService = {
     onAuthStateChange(callback) {
         const client = initSupabase();
         if (!client) {
+            console.warn('[Auth] Cliente não disponível para onAuthStateChange');
             return {
                 data: {
                     subscription: {
@@ -390,13 +463,20 @@ const AuthService = {
 
     async logout() {
         const client = initSupabase();
-        if (!client) return;
+        if (!client) {
+            console.warn('[Auth] Cliente não disponível para logout');
+            return;
+        }
 
         try {
+            console.log('[Auth] Realizando logout...');
             await client.auth.signOut();
-            console.log('[Auth] Logout realizado');
+            console.log('[Auth] Logout realizado com sucesso');
+
             // Limpar dados locais
             localStorage.removeItem('usuarioLogado');
+            localStorage.removeItem('userPhotoURL');
+
             if (window.CacheManager) {
                 window.CacheManager.logout();
             }
@@ -411,7 +491,10 @@ const AuthService = {
 
         try {
             const { data, error } = await client.auth.getSession();
-            if (error) throw error;
+            if (error) {
+                console.warn('[Auth] Erro ao buscar sessão:', error);
+                return { session: null };
+            }
             return data;
         } catch (error) {
             console.error('[Auth] Erro ao buscar sessão:', error);
@@ -421,7 +504,151 @@ const AuthService = {
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS
+// SERVIÇO DE STORAGE (CORRIGIDO)
+// ============================================
+const StorageService = {
+    // 🔥 CORRIGIDO: Upload de foto com compactação e URL pública
+    async uploadProfilePhoto(userId, file) {
+        const client = initSupabase();
+        if (!client) {
+            console.error('[Storage] Cliente não disponível');
+            return null;
+        }
+
+        try {
+            // Validação do arquivo
+            if (!file || !file.type || !file.type.startsWith('image/')) {
+                console.error('[Storage] Arquivo inválido:', file);
+                return null;
+            }
+
+            console.log('[Storage] Iniciando upload para:', userId);
+            console.log('[Storage] Arquivo:', file.name, file.size, file.type);
+
+            const fileExt = file.name.split('.').pop() || 'png';
+            const fileName = `${userId}_${Date.now()}.${fileExt}`;
+            const filePath = `avatars/${fileName}`;
+
+            // Compactar imagem se for muito grande
+            let fileToUpload = file;
+            if (file.size > 500 * 1024) {
+                console.log('[Storage] Compactando imagem (tamanho original:', file.size, 'bytes)');
+                fileToUpload = await compressImage(file);
+                console.log('[Storage] Imagem compactada para:', fileToUpload.size, 'bytes');
+            }
+
+            // Tentar fazer upload
+            console.log('[Storage] Fazendo upload para:', filePath);
+            const { error: uploadError } = await client.storage
+                .from('user-content')
+                .upload(filePath, fileToUpload, {
+                    cacheControl: '3600',
+                    upsert: true,
+                    contentType: file.type
+                });
+
+            if (uploadError) {
+                console.error('[Storage] Erro no upload:', uploadError);
+
+                // Se o bucket não existir, tentar criar
+                if (uploadError.message.includes('bucket not found')) {
+                    console.log('[Storage] Bucket não encontrado, criando...');
+
+                    try {
+                        const { error: createError } = await client.storage.createBucket('user-content', {
+                            public: true,
+                            fileSizeLimit: 5242880 // 5MB
+                        });
+
+                        if (createError) {
+                            console.error('[Storage] Erro ao criar bucket:', createError);
+                            return null;
+                        }
+
+                        console.log('[Storage] Bucket criado com sucesso');
+
+                        // Tentar novamente
+                        const { error: retryError } = await client.storage
+                            .from('user-content')
+                            .upload(filePath, fileToUpload, {
+                                cacheControl: '3600',
+                                upsert: true
+                            });
+
+                        if (retryError) {
+                            console.error('[Storage] Erro no upload após criar bucket:', retryError);
+                            return null;
+                        }
+                    } catch (createError) {
+                        console.error('[Storage] Exceção ao criar bucket:', createError);
+                        return null;
+                    }
+                } else {
+                    return null;
+                }
+            }
+
+            // Obter URL pública
+            console.log('[Storage] Obtendo URL pública para:', filePath);
+            const { data: { publicUrl } } = client.storage
+                .from('user-content')
+                .getPublicUrl(filePath);
+
+            console.log('[Storage] URL pública obtida:', publicUrl);
+
+            if (publicUrl) {
+                // Atualizar perfil com a URL
+                await DatabaseService.updateUserProfile(userId, { avatar_url: publicUrl });
+                console.log('[Storage] Perfil atualizado com a nova foto');
+                return publicUrl;
+            }
+
+            console.warn('[Storage] Não foi possível obter URL pública');
+            return null;
+
+        } catch (error) {
+            console.error('[Storage] Erro ao fazer upload:', error);
+            return null;
+        }
+    },
+
+    async deleteProfilePhoto(userId) {
+        const client = initSupabase();
+        if (!client) {
+            console.error('[Storage] Cliente não disponível');
+            return false;
+        }
+
+        try {
+            console.log('[Storage] Deletando foto para:', userId);
+
+            const profile = await DatabaseService.getUserProfile(userId);
+            if (profile?.avatar_url) {
+                const filePath = profile.avatar_url.split('/').pop();
+                console.log('[Storage] Removendo arquivo:', filePath);
+
+                const { error } = await client.storage
+                    .from('user-content')
+                    .remove([`avatars/${filePath}`]);
+
+                if (error) {
+                    console.error('[Storage] Erro ao deletar arquivo:', error);
+                }
+            }
+
+            await DatabaseService.updateUserProfile(userId, { avatar_url: null });
+            console.log('[Storage] Foto removida com sucesso');
+            return true;
+
+        } catch (error) {
+            console.error('[Storage] Erro ao deletar foto:', error);
+            return false;
+        }
+    }
+};
+
+// ============================================
+// SERVIÇO DE BANCO DE DADOS (COMPLETO)
 // ============================================
 const DatabaseService = {
     async getCurrentUserId() {
@@ -439,7 +666,8 @@ const DatabaseService = {
             const { data, error } = await client
                 .from('tasks')
                 .select('*')
-                .eq('user_id', userId);
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
 
             if (error) {
                 console.error('[DB] Erro ao buscar tasks:', error);
@@ -470,9 +698,14 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
+            console.log('[DB] Salvando tasks para:', userId, tasks.length);
+
             await client.from('tasks').delete().eq('user_id', userId);
 
-            if (tasks.length === 0) return true;
+            if (tasks.length === 0) {
+                console.log('[DB] Nenhuma task para salvar');
+                return true;
+            }
 
             const tasksToInsert = tasks.map(task => ({
                 id: task.id || crypto.randomUUID(),
@@ -584,11 +817,7 @@ const DatabaseService = {
                 type: event.type || 'aula',
                 color: event.color || '#8b5cf6',
                 repeat: event.repeat_type || 'nao',
-                reminder: event.reminder || false,
-                day: event.date ? new Date(event.date).getDate() : null,
-                month: event.date ? new Date(event.date).getMonth() : null,
-                year: event.date ? new Date(event.date).getFullYear() : null,
-                time: event.start_time
+                reminder: event.reminder || false
             }));
         } catch (error) {
             console.error('[DB] Erro ao buscar eventos:', error);
@@ -802,14 +1031,13 @@ const DatabaseService = {
         }
     },
 
-    // ============================================
-    // 🔥 CORRIGIDO: updateUserProfile com verificação de campos
-    // ============================================
     async updateUserProfile(userId, profile) {
         const client = initSupabase();
         if (!client) return false;
 
         try {
+            console.log('[DB] Atualizando perfil para:', userId);
+
             // Verificar quais campos existem na tabela
             let existingColumns = [];
             try {
@@ -851,31 +1079,8 @@ const DatabaseService = {
                 .eq('id', userId);
 
             if (error) {
-                // Se der erro de coluna, tentar apenas campos básicos
-                if (error.code === 'PGRST204' || error.message.includes('column')) {
-                    console.warn('[DB] Coluna não encontrada, tentando apenas campos básicos...');
-                    const basicData = {};
-                    if (profile.nome !== undefined) basicData.nome = profile.nome;
-                    if (profile.avatar_url !== undefined) basicData.avatar_url = profile.avatar_url;
-                    if (profile.email !== undefined) basicData.email = profile.email;
-                    basicData.updated_at = new Date().toISOString();
-
-                    if (Object.keys(basicData).length > 1) {
-                        const { error: retryError } = await client
-                            .from('profiles')
-                            .update(basicData)
-                            .eq('id', userId);
-
-                        if (retryError) {
-                            console.error('[DB] Erro na segunda tentativa:', retryError);
-                            throw retryError;
-                        }
-                        console.log('[DB] Perfil atualizado com campos básicos');
-                        return true;
-                    }
-                    return false;
-                }
-                throw error;
+                console.error('[DB] Erro ao atualizar perfil:', error);
+                return false;
             }
 
             console.log('[DB] Perfil atualizado com sucesso');
@@ -886,16 +1091,11 @@ const DatabaseService = {
         }
     },
 
-    // ============================================
-    // ⭐ NOVO: SERVIÇO DE DISCIPLINAS
-    // ============================================
     async getDisciplinas(userId) {
         const client = initSupabase();
         if (!client) return [];
 
         try {
-            console.log('[DB] Buscando disciplinas para:', userId);
-
             const { data, error } = await client
                 .from('disciplinas')
                 .select('*')
@@ -919,7 +1119,6 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
-            // Deletar todas as disciplinas existentes
             await client.from('disciplinas').delete().eq('user_id', userId);
 
             if (disciplinas.length === 0) {
@@ -927,7 +1126,6 @@ const DatabaseService = {
                 return true;
             }
 
-            // Inserir novas disciplinas
             const disciplinasToInsert = disciplinas.map(d => ({
                 id: d.id,
                 user_id: userId,
@@ -949,99 +1147,13 @@ const DatabaseService = {
         }
     },
 
-    // ============================================
-    // ⭐ NOVO: ADICIONAR UMA ÚNICA DISCIPLINA
-    // ============================================
-    async addDisciplina(userId, disciplina) {
-        const client = initSupabase();
-        if (!client) return null;
-
-        try {
-            const { data, error } = await client
-                .from('disciplinas')
-                .insert({
-                    id: disciplina.id,
-                    user_id: userId,
-                    nome: disciplina.nome,
-                    cor: disciplina.cor || '#9333ea',
-                    icone: disciplina.icone || 'fa-book',
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            console.log('[DB] Disciplina adicionada:', disciplina.nome);
-            return data;
-        } catch (error) {
-            console.error('[DB] Erro ao adicionar disciplina:', error);
-            return null;
-        }
-    },
-
-    // ============================================
-    // ⭐ NOVO: ATUALIZAR UMA DISCIPLINA
-    // ============================================
-    async updateDisciplina(userId, disciplinaId, updates) {
-        const client = initSupabase();
-        if (!client) return null;
-
-        try {
-            const { data, error } = await client
-                .from('disciplinas')
-                .update({
-                    nome: updates.nome,
-                    cor: updates.cor,
-                    icone: updates.icone,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', disciplinaId)
-                .eq('user_id', userId)
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            console.log('[DB] Disciplina atualizada:', updates.nome);
-            return data;
-        } catch (error) {
-            console.error('[DB] Erro ao atualizar disciplina:', error);
-            return null;
-        }
-    },
-
-    // ============================================
-    // ⭐ NOVO: DELETAR UMA DISCIPLINA
-    // ============================================
-    async deleteDisciplina(userId, disciplinaId) {
-        const client = initSupabase();
-        if (!client) return false;
-
-        try {
-            const { error } = await client
-                .from('disciplinas')
-                .delete()
-                .eq('id', disciplinaId)
-                .eq('user_id', userId);
-
-            if (error) throw error;
-
-            console.log('[DB] Disciplina deletada:', disciplinaId);
-            return true;
-        } catch (error) {
-            console.error('[DB] Erro ao deletar disciplina:', error);
-            return false;
-        }
-    },
-
-    // ============================================
-    // ⭐ MODIFICADO: ensureUserData com disciplinas
-    // ============================================
     async ensureUserData(userId, email, nome) {
+        console.log('[DB] Verificando estrutura do usuário:', userId);
+
+        // Verificar/criar perfil
         let profile = await this.getUserProfile(userId);
         if (!profile) {
+            console.log('[DB] Criando perfil para:', email);
             const client = initSupabase();
             if (client) {
                 try {
@@ -1059,21 +1171,18 @@ const DatabaseService = {
             }
         }
 
+        // Verificar/criar weekly_schedule
         let schedule = await this.getWeeklySchedule(userId);
         if (!schedule || Object.keys(schedule).length === 0) {
+            console.log('[DB] Criando horário padrão');
             await this.saveWeeklySchedule(userId, { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
         }
 
+        // Verificar/criar time_slots
         let slots = await this.getTimeSlots(userId);
         if (!slots || slots.length === 0) {
+            console.log('[DB] Criando time slots padrão');
             await this.saveTimeSlots(userId, ['08:00', '09:30', '11:00', '14:00', '15:30']);
-        }
-
-        // ⭐ NOVO: Verificar/criar disciplinas vazias
-        let disciplinas = await this.getDisciplinas(userId);
-        if (!disciplinas || disciplinas.length === 0) {
-            console.log('[DB] Nenhuma disciplina encontrada. O usuário deve criar suas próprias disciplinas.');
-            // Não criar disciplinas padrão - o usuário cria manualmente
         }
 
         console.log('[DB] Estrutura do usuário verificada');
@@ -1082,126 +1191,10 @@ const DatabaseService = {
 };
 
 // ============================================
-// SERVIÇO DE STORAGE (CORRIGIDO COM FALLBACK)
-// ============================================
-const StorageService = {
-    async uploadProfilePhoto(userId, file) {
-        const client = initSupabase();
-        if (!client) return null;
-
-        try {
-            // Validação do arquivo
-            if (!file || !file.type || !file.type.startsWith('image/')) {
-                console.error('[Storage] Arquivo inválido:', file);
-                return null;
-            }
-
-            const fileExt = file.name.split('.').pop() || 'png';
-            const fileName = `${userId}_${Date.now()}.${fileExt}`;
-            const filePath = `avatars/${fileName}`;
-
-            // Tentar fazer upload
-            const { error: uploadError } = await client.storage
-                .from('user-content')
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: true
-                });
-
-            if (uploadError) {
-                console.error('[Storage] Erro no upload:', uploadError);
-
-                // Se o bucket não existir, criar
-                if (uploadError.message.includes('bucket not found')) {
-                    console.warn('[Storage] Bucket não encontrado, criando...');
-                    const { error: createError } = await client.storage.createBucket('user-content', {
-                        public: true
-                    });
-                    if (createError) {
-                        console.error('[Storage] Erro ao criar bucket:', createError);
-                        // Fallback: retornar base64
-                        return new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.readAsDataURL(file);
-                        });
-                    }
-                    // Tentar novamente
-                    const { error: retryError } = await client.storage
-                        .from('user-content')
-                        .upload(filePath, file);
-                    if (retryError) {
-                        console.error('[Storage] Erro no upload após criar bucket:', retryError);
-                        // Fallback: base64
-                        return new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.readAsDataURL(file);
-                        });
-                    }
-                } else {
-                    // Fallback: base64
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.readAsDataURL(file);
-                    });
-                }
-            }
-
-            // Obter URL pública
-            const { data: { publicUrl } } = client.storage
-                .from('user-content')
-                .getPublicUrl(filePath);
-
-            if (publicUrl) {
-                // Atualizar perfil com a URL
-                await DatabaseService.updateUserProfile(userId, { avatar_url: publicUrl });
-                return publicUrl;
-            }
-
-            // Fallback: base64
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(file);
-            });
-        } catch (error) {
-            console.error('[Storage] Erro ao fazer upload:', error);
-            // Fallback: base64
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(file);
-            });
-        }
-    },
-
-    async deleteProfilePhoto(userId) {
-        const client = initSupabase();
-        if (!client) return false;
-
-        try {
-            const profile = await DatabaseService.getUserProfile(userId);
-            if (profile?.avatar_url) {
-                const filePath = profile.avatar_url.split('/').pop();
-                await client.storage.from('user-content').remove([`avatars/${filePath}`]);
-            }
-
-            await DatabaseService.updateUserProfile(userId, { avatar_url: null });
-            return true;
-        } catch (error) {
-            console.error('[Storage] Erro ao deletar foto:', error);
-            return false;
-        }
-    }
-};
-
-// ============================================
-// EXPORTAR (TUDO DISPONÍVEL GLOBALMENTE)
+// EXPORTAR PARA USO GLOBAL
 // ============================================
 window.SupabaseClient = {
-    initSupabase,
+    initSupabase: initSupabase,
     getClient: initSupabase
 };
 window.AuthService = AuthService;
@@ -1216,7 +1209,6 @@ console.log('[Supabase] URL:', SUPABASE_URL);
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
 console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService);
 console.log('[Supabase] StorageService disponível:', !!window.StorageService);
-console.log('[Supabase] ✅ Suporte a disciplinas adicionado!');
-console.log('[Supabase] ✅ Anti-autocomplete e confirmação de e-mail corrigidos!');
-console.log('[Supabase] ✅ updateUserProfile com verificação de campos!');
-console.log('[Supabase] ✅ StorageService com fallback para base64!');
+console.log('[Supabase] ✅ Storage com upload e compactação!');
+console.log('[Supabase] ✅ Confirmação de e-mail corrigida!');
+console.log('[Supabase] ✅ Google login com logout forçado!');
