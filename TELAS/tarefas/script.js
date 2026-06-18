@@ -1,3 +1,5 @@
+// tarefas/script.js - COMPLETO CORRIGIDO COM CACHEMANAGER
+
 let tarefas = [];
 let filtroAtual = 'todas';
 let disciplinaAtual = null;
@@ -35,13 +37,42 @@ window.addEventListener('DOMContentLoaded', async () => {
         carregarHorario();
         inicializarTarefas();
         
+        // ✅ ESCUTAR EVENTOS DE SINCRONIZAÇÃO
         window.addEventListener('cloudDataLoaded', () => {
-            console.log('[Tarefas] Dados atualizados do Firebase');
+            console.log('[Tarefas] Dados atualizados da nuvem');
             carregarHorario();
             carregarTarefas();
             renderizarTarefas();
             atualizarEstatisticas();
             renderizarDisciplinas();
+        });
+        
+        window.addEventListener('tasksUpdated', (event) => {
+            if (event.detail) {
+                console.log('[Tarefas] Evento tasksUpdated recebido');
+                carregarTarefas();
+                renderizarTarefas();
+                atualizarEstatisticas();
+                renderizarDisciplinas();
+            }
+        });
+        
+        window.addEventListener('forceRefresh', () => {
+            carregarTarefas();
+            renderizarTarefas();
+            atualizarEstatisticas();
+            renderizarDisciplinas();
+        });
+
+        // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+        window.addEventListener('storage', (e) => {
+            if (e.key && (e.key.includes('_tasks') || e.key.includes('tarefas_'))) {
+                console.log('[Tarefas] Mudança detectada em outra aba:', e.key);
+                carregarTarefas();
+                renderizarTarefas();
+                atualizarEstatisticas();
+                renderizarDisciplinas();
+            }
         });
         
     } catch(e) {
@@ -61,7 +92,8 @@ function carregarHorario() {
         }
     }
 
-    const storageKey = `weeklySchedule_${usuarioAtual.email}`;
+    const userId = usuarioAtual.id;
+    const storageKey = `${userId}_weeklySchedule`;
     const scheduleSalvo = localStorage.getItem(storageKey);
     weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
 }
@@ -125,35 +157,76 @@ function configurarEventos() {
     });
 }
 
+// ============================================
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR TAREFAS
+// ============================================
 function carregarTarefas() {
     if (!usuarioAtual) return;
     
+    // ✅ PRIORIDADE 1: CacheManager (JÁ ENVIA PARA SUPABASE)
     if (window.CacheManager) {
         const cached = window.CacheManager.get('tasks', null);
         if (cached !== null) {
             tarefas = cached;
             console.log('[Tarefas] Carregado do CacheManager:', tarefas.length);
+            
+            // ✅ GARANTIR QUE LOCALSTORAGE TAMBÉM ESTÁ ATUALIZADO
+            const userId = usuarioAtual.id;
+            localStorage.setItem(`${userId}_tasks`, JSON.stringify(tarefas));
             return;
         }
     }
 
-    const storageKey = `tarefas_${usuarioAtual.email}`;
+    // ✅ PRIORIDADE 2: localStorage com UUID
+    const userId = usuarioAtual.id;
+    const storageKey = `${userId}_tasks`;
     const tarefasSalvas = localStorage.getItem(storageKey);
 
     if (tarefasSalvas) {
         tarefas = JSON.parse(tarefasSalvas);
+        console.log('[Tarefas] Carregado do localStorage:', tarefas.length);
     } else {
-        tarefas = [];
-        salvarTarefas();
+        // Tentar migrar dados antigos (se existirem com email)
+        const oldStorageKey = `tarefas_${usuarioAtual.email}`;
+        const oldTarefas = localStorage.getItem(oldStorageKey);
+        if (oldTarefas) {
+            tarefas = JSON.parse(oldTarefas);
+            console.log('[Tarefas] Migrado do formato antigo:', tarefas.length);
+            localStorage.setItem(storageKey, oldTarefas);
+            localStorage.removeItem(oldStorageKey);
+        } else {
+            tarefas = [];
+        }
+    }
+    
+    // ✅ SALVAR NO CACHEMANAGER (para enviar para nuvem)
+    if (window.CacheManager && tarefas.length > 0) {
+        window.CacheManager.set('tasks', tarefas, true);
     }
 }
 
+// ============================================
+// ✅ FUNÇÃO CORRIGIDA: SALVAR TAREFAS
+// ============================================
 function salvarTarefas() {
     if (!usuarioAtual) return;
     
-    const storageKey = `tarefas_${usuarioAtual.email}`;
+    // ✅ 1. Salvar no CacheManager (ENVIA PARA SUPABASE)
+    if (window.CacheManager) {
+        window.CacheManager.set('tasks', tarefas, true);
+        console.log('[Tarefas] ✅ Salvo no CacheManager (nuvem):', tarefas.length);
+    }
+    
+    // ✅ 2. Backup no localStorage com UUID
+    const userId = usuarioAtual.id;
+    const storageKey = `${userId}_tasks`;
     localStorage.setItem(storageKey, JSON.stringify(tarefas));
-    if (window.CacheManager) window.CacheManager.set('tasks', tarefas, true);
+    
+    // ✅ 3. Backup com email (compatibilidade)
+    localStorage.setItem(`tarefas_${usuarioAtual.email}`, JSON.stringify(tarefas));
+    
+    // ✅ 4. Disparar evento para outras abas
+    window.dispatchEvent(new CustomEvent('tasksUpdated', { detail: tarefas }));
 }
 
 function gerarId() { 
@@ -625,4 +698,4 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-console.log('%c📚 Painel de Tarefas', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
+console.log('%c📚 Painel de Tarefas com CacheManager', 'color: #8b5cf6; font-size: 20px; font-weight: bold;');
