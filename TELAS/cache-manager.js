@@ -1,4 +1,4 @@
-// cache-manager.js - Versão Supabase COMPLETA COM PREVENÇÃO DE LOOP
+// cache-manager.js - Versão Supabase COMPLETA COM FOTO CORRIGIDA
 
 class SupabaseCacheManager {
     constructor() {
@@ -7,9 +7,11 @@ class SupabaseCacheManager {
         this._pendingSync = new Map();
         this.isLoading = false;
         this.isInitialized = false;
-        this._savingFlags = new Map(); // ← PREVENÇÃO DE LOOP
+        this._savingFlags = new Map();
         this._lastSyncTime = 0;
-        this._syncDebounce = 2000; // 2 segundos entre sincronizações
+        this._syncDebounce = 2000;
+        this._profilePhotoCache = null;
+        this._eventTriggered = false;
     }
 
     init() {
@@ -26,7 +28,6 @@ class SupabaseCacheManager {
             try {
                 const user = JSON.parse(usuario);
                 this.currentUserId = user.id || user.uid;
-                console.log('[CacheManager] User ID:', this.currentUserId);
                 return this.currentUserId;
             } catch(e) {
                 console.error('[CacheManager] Erro ao parsear usuário:', e);
@@ -51,10 +52,8 @@ class SupabaseCacheManager {
     }
 
     set(key, value, notify = true) {
-        // ✅ PREVENÇÃO DE LOOP - Se já está salvando este key, ignora
         const flagKey = `${this.getCurrentUserId()}_${key}`;
         if (this._savingFlags.get(flagKey)) {
-            // console.log(`[CacheManager] Ignorando set ${key} (já em andamento)`);
             return false;
         }
 
@@ -64,24 +63,19 @@ class SupabaseCacheManager {
 
             const storageKey = `${userId}_${key}`;
 
-            // Verificar se o valor realmente mudou
             const currentData = localStorage.getItem(storageKey);
             if (currentData !== null) {
                 try {
                     const parsed = JSON.parse(currentData);
                     if (JSON.stringify(parsed) === JSON.stringify(value)) {
-                        // Dados idênticos, não precisa salvar
                         return true;
                     }
                 } catch(e) {}
             }
 
-            // ✅ MARCAR COMO SALVANDO
             this._savingFlags.set(flagKey, true);
-
             localStorage.setItem(storageKey, JSON.stringify(value));
 
-            // ✅ SALVAR NA NUVEM COM DEBOUNCE
             this._scheduleCloudSave(key, value, userId);
 
             if (notify && this.listeners.has(key)) {
@@ -98,14 +92,12 @@ class SupabaseCacheManager {
             console.error(`[CacheManager] Erro ao set ${key}:`, error);
             return false;
         } finally {
-            // ✅ LIMPAR FLAG APÓS 1 SEGUNDO
             setTimeout(() => {
                 this._savingFlags.delete(flagKey);
             }, 1000);
         }
     }
 
-    // ✅ DEBOUNCE PARA SALVAR NA NUVEM
     _scheduleCloudSave(key, value, userId) {
         const pendingKey = `${userId}_${key}`;
 
@@ -116,12 +108,10 @@ class SupabaseCacheManager {
         const timeout = setTimeout(async () => {
             this._pendingSync.delete(pendingKey);
 
-            // Verificar se o valor ainda é o mesmo
             const currentValue = this.get(key, null);
             if (currentValue === null) return;
 
             if (JSON.stringify(currentValue) !== JSON.stringify(value)) {
-                // Valor mudou, salvar o atual
                 await this.saveToCloud(key, currentValue, userId);
             } else {
                 await this.saveToCloud(key, value, userId);
@@ -134,10 +124,8 @@ class SupabaseCacheManager {
     async saveToCloud(key, value, userId) {
         if (!window.DatabaseService || !userId) return;
 
-        // ✅ PREVENIR SALVAMENTOS MÚLTIPLOS
         const now = Date.now();
         if (now - this._lastSyncTime < this._syncDebounce) {
-            // console.log(`[CacheManager] Debounce para ${key}`);
             return;
         }
 
@@ -172,7 +160,6 @@ class SupabaseCacheManager {
                     }
                     break;
             }
-            // console.log(`[CacheManager] Dados ${key} salvos na nuvem`);
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
         }
@@ -251,8 +238,7 @@ class SupabaseCacheManager {
                 }
             }
 
-            // DISCIPLINAS
-            if (typeof db.getDisciplinas === 'function') {
+            // DISCIPLINAS            if (typeof db.getDisciplinas === 'function') {
                 const disciplinas = await db.getDisciplinas(userId);
                 if (disciplinas && disciplinas.length > 0) {
                     localStorage.setItem(`${userId}_disciplinas`, JSON.stringify(disciplinas));
@@ -262,9 +248,8 @@ class SupabaseCacheManager {
 
             if (hasChanges) {
                 this._reloadFromStorage(userId);
-                console.log('[CacheManager] ✅ Dados carregados da nuvem e salvos localmente!');
+                console.log('[CacheManager] ✅ Dados carregados da nuvem!');
 
-                // ✅ DISPARAR EVENTO APENAS UMA VEZ
                 if (!this._eventTriggered) {
                     this._eventTriggered = true;
                     window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
@@ -273,7 +258,7 @@ class SupabaseCacheManager {
                     }, 5000);
                 }
             } else {
-                console.log('[CacheManager] Nenhum dado novo encontrado na nuvem');
+                console.log('[CacheManager] Nenhum dado novo encontrado');
             }
 
             return true;
@@ -293,7 +278,6 @@ class SupabaseCacheManager {
             if (data) {
                 try {
                     const parsed = JSON.parse(data);
-                    // Salvar no cache interno sem notificar
                     this.set(type, parsed, false);
                 } catch(e) {
                     console.warn(`[CacheManager] Erro ao parsear ${type}:`, e);
@@ -326,20 +310,67 @@ class SupabaseCacheManager {
         this.listeners.clear();
         this._savingFlags.clear();
         this._pendingSync.clear();
+        this._profilePhotoCache = null;
         console.log('[CacheManager] Logout realizado');
     }
 
+    // 🔥 CORRIGIDO: getProfilePhotoUrl com múltiplas fontes
     async getProfilePhotoUrl() {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.DatabaseService) return null;
+        if (!userId) return null;
 
-        const profile = await window.DatabaseService.getUserProfile(userId);
-        return profile?.avatar_url || null;
+        // Verificar cache em memória
+        if (this._profilePhotoCache) {
+            return this._profilePhotoCache;
+        }
+
+        // 🔥 PRIORIDADE 1: localStorage
+        const localPhoto = localStorage.getItem('userPhotoURL');
+        if (localPhoto && (localPhoto.startsWith('data:') || localPhoto.startsWith('http'))) {
+            this._profilePhotoCache = localPhoto;
+            return localPhoto;
+        }
+
+        // 🔥 PRIORIDADE 2: Perfil do usuário logado
+        const usuario = localStorage.getItem('usuarioLogado');
+        if (usuario) {
+            try {
+                const user = JSON.parse(usuario);
+                if (user.avatar_url || user.foto || user.profilePhotoUrl) {
+                    const photo = user.avatar_url || user.foto || user.profilePhotoUrl;
+                    if (photo && (photo.startsWith('data:') || photo.startsWith('http'))) {
+                        this._profilePhotoCache = photo;
+                        localStorage.setItem('userPhotoURL', photo);
+                        return photo;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 🔥 PRIORIDADE 3: Supabase Database
+        if (window.DatabaseService) {
+            try {
+                const profile = await window.DatabaseService.getUserProfile(userId);
+                if (profile?.avatar_url) {
+                    this._profilePhotoCache = profile.avatar_url;
+                    localStorage.setItem('userPhotoURL', profile.avatar_url);
+                    return profile.avatar_url;
+                }
+            } catch (error) {
+                console.error('[CacheManager] Erro ao buscar foto do perfil:', error);
+            }
+        }
+
+        return null;
     }
 
+    // 🔥 CORRIGIDO: uploadProfilePhoto com StorageService
     async uploadProfilePhoto(file) {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.StorageService) return null;
+        if (!userId || !window.StorageService) {
+            console.error('[CacheManager] uploadProfilePhoto: userId ou StorageService não disponível');
+            return null;
+        }
 
         if (!file || !file.type || !file.type.startsWith('image/')) {
             console.error('[CacheManager] Arquivo inválido:', file);
@@ -347,34 +378,43 @@ class SupabaseCacheManager {
         }
 
         try {
-            const base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-
-            if (!base64 || !base64.startsWith('data:')) {
-                console.error('[CacheManager] Falha ao converter para base64');
-                return null;
-            }
-
+            // Upload para o Supabase Storage
             const photoUrl = await window.StorageService.uploadProfilePhoto(userId, file);
-            const finalUrl = photoUrl || base64;
 
-            const profile = await window.DatabaseService.getUserProfile(userId);
-            if (profile) {
-                await window.DatabaseService.updateUserProfile(userId, {
-                    ...profile,
-                    avatar_url: finalUrl
-                });
+            if (photoUrl) {
+                // Atualizar cache
+                this._profilePhotoCache = photoUrl;
+                localStorage.setItem('userPhotoURL', photoUrl);
+
+                // Atualizar perfil
+                const profile = await window.DatabaseService.getUserProfile(userId);
+                if (profile) {
+                    await window.DatabaseService.updateUserProfile(userId, {
+                        ...profile,
+                        avatar_url: photoUrl
+                    });
+                }
+
+                // Atualizar usuário logado
+                const usuario = localStorage.getItem('usuarioLogado');
+                if (usuario) {
+                    try {
+                        const user = JSON.parse(usuario);
+                        user.avatar_url = photoUrl;
+                        user.foto = photoUrl;
+                        user.profilePhotoUrl = photoUrl;
+                        localStorage.setItem('usuarioLogado', JSON.stringify(user));
+                    } catch(e) {}
+                }
+
+                window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+                    detail: { photoUrl: photoUrl }
+                }));
+
+                return photoUrl;
             }
 
-            window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
-                detail: { photoUrl: finalUrl }
-            }));
-
-            return finalUrl;
+            return null;
         } catch (error) {
             console.error('[CacheManager] Erro no upload:', error);
             return null;
@@ -384,7 +424,24 @@ class SupabaseCacheManager {
     async deleteProfilePhoto() {
         const userId = this.getCurrentUserId();
         if (!userId || !window.StorageService) return false;
-        return await window.StorageService.deleteProfilePhoto(userId);
+
+        const result = await window.StorageService.deleteProfilePhoto(userId);
+        if (result) {
+            this._profilePhotoCache = null;
+            localStorage.removeItem('userPhotoURL');
+
+            const usuario = localStorage.getItem('usuarioLogado');
+            if (usuario) {
+                try {
+                    const user = JSON.parse(usuario);
+                    delete user.avatar_url;
+                    delete user.foto;
+                    delete user.profilePhotoUrl;
+                    localStorage.setItem('usuarioLogado', JSON.stringify(user));
+                } catch(e) {}
+            }
+        }
+        return result;
     }
 
     startRealtimeSync() {
@@ -419,4 +476,4 @@ window.setNotifications = (notifications, notify) => window.CacheManager.set('no
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] Supabase v2.2 carregado! (com prevenção de loop)');
+console.log('[CacheManager] v2.3 carregado com foto corrigida!');
