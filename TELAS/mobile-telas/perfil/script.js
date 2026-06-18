@@ -1,4 +1,4 @@
-// mobile-telas/perfil/script.js - VERSÃO SUPABASE APENAS
+// mobile-telas/perfil/script.js - VERSÃO CORRIGIDA COM CACHEMANAGER
 
 let notifications = [];
 let usuarioLogado = null;
@@ -69,18 +69,28 @@ function closeModal(modalId) {
 }
 
 // ============================================
-// SALVAR DADOS
+// ✅ FUNÇÃO CORRIGIDA: SALVAR DADOS
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || !window.CacheManager) return false;
     
     try {
+        if (window.CacheManager.currentUserId !== usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
+        }
+        
         window.CacheManager.set('notifications', notifications, true);
         window.CacheManager.set('notificacoesSettings', notificacoesSettings, true);
         window.CacheManager.set('appearanceSettings', appearanceSettings, true);
         window.CacheManager.set('usuarioLogado', usuarioLogado, true);
         
         if (userPhotoURL) localStorage.setItem('userPhotoURL', userPhotoURL);
+        
+        // ✅ Backup local com UUID
+        const userId = usuarioLogado.id;
+        localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+        localStorage.setItem(`notificacoesSettings_${userId}`, JSON.stringify(notificacoesSettings));
+        localStorage.setItem(`appearanceSettings_${userId}`, JSON.stringify(appearanceSettings));
         
         console.log('[Perfil Mobile] ✅ Dados salvos');
         return true;
@@ -91,7 +101,7 @@ async function salvarTodosDados() {
 }
 
 // ============================================
-// CARREGAR DADOS
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
 // ============================================
 function loadAllData() {
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -107,14 +117,16 @@ function loadAllData() {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuarioLogado.id;
         
+        // ✅ PRIORIDADE: CacheManager
         notifications = window.CacheManager.get('notifications', []);
         notificacoesSettings = window.CacheManager.get('notificacoesSettings', { push: true, email: false, aulas: true, tarefas: true });
         appearanceSettings = window.CacheManager.get('appearanceSettings', { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
     } else {
+        // Fallback para localStorage com UUID
         const userId = usuarioLogado.id;
         notifications = JSON.parse(localStorage.getItem(`${userId}_notifications`) || '[]');
-        notificacoesSettings = JSON.parse(localStorage.getItem('notificacoesSettings') || '{"push":true,"email":false,"aulas":true,"tarefas":true}');
-        appearanceSettings = JSON.parse(localStorage.getItem('appearanceSettings') || '{"theme":"dark","accent":"#8b5cf6","fontSize":14}');
+        notificacoesSettings = JSON.parse(localStorage.getItem(`notificacoesSettings_${userId}`) || '{"push":true,"email":false,"aulas":true,"tarefas":true}');
+        appearanceSettings = JSON.parse(localStorage.getItem(`appearanceSettings_${userId}`) || '{"theme":"dark","accent":"#8b5cf6","fontSize":14}');
     }
     
     userPhotoURL = localStorage.getItem('userPhotoURL');
@@ -637,7 +649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Listeners globais
+    // ✅ LISTENERS GLOBAIS
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Perfil Mobile] 📡 Dados da nuvem carregados!');
         loadAllData();
@@ -658,6 +670,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (avatarPreview) {
                 avatarPreview.innerHTML = `<img src="${event.detail.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
             }
+        }
+    });
+    
+    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('_notifications') || 
+            e.key.includes('_usuarioLogado') || 
+            e.key.includes('_appearanceSettings'))) {
+            console.log('[Perfil Mobile] Mudança detectada em outra aba:', e.key);
+            loadAllData();
+            loadProfileData();
+            carregarFotoPerfil();
+            updateNotificationBadge();
         }
     });
     
