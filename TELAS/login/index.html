@@ -12,7 +12,7 @@
 <div class="container">
     <div class="logo-section">
         <div class="logo">
-            <i class="fas fa-graduation-cap"></i>
+            <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
         </div>
         <h1 id="main-title">Zero Satus</h1>
         <p class="subtitle" id="main-subtitle">PLATAFORMA ACADÊMICA</p>
@@ -58,14 +58,14 @@
                        spellcheck="false"
                        data-lpignore="true"
                        data-1p-ignore="true"
-                       placeholder="seu@email.com" required>
+                       placeholder="bomba teu@email.com" required>
             </div>
             <div class="input-group">
                 <input type="password" id="password"
                        autocomplete="new-password"
                        data-lpignore="true"
                        data-1p-ignore="true"
-                       placeholder="Sua senha" required>
+                       placeholder="bomba tua senha" required>
             </div>
             <button type="submit" class="btn-primary" id="submit-btn">
                 <i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL
@@ -73,12 +73,36 @@
         </form>
 
         <div class="register-link">
-            <a href="#" id="toggle-mode-link">Não tem conta? Cadastre-se</a>
+            <a href="#" id="toggle-mode-link">Não tem conta? Cria uma</a>
         </div>
 
         <div class="info-text">
             <i class="fas fa-shield-alt"></i>
             Login seguro e sincronização em nuvem
+        </div>
+
+        <!-- 🔥 BOTÃO DE SAIR DA CONTA ATUAL -->
+        <div class="logout-section" style="margin-top: 20px; text-align: center; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <button onclick="forcarLogout()" style="
+                background: none;
+                border: none;
+                color: #ef4444;
+                cursor: pointer;
+                font-size: 13px;
+                padding: 8px 16px;
+                border-radius: 8px;
+                transition: all 0.3s;
+                font-weight: 500;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            "
+                    onmouseover="this.style.background='rgba(239,68,68,0.1)'"
+                    onmouseout="this.style.background='transparent'">
+                <i class="fas fa-sign-out-alt"></i> Tô bizz em sair dessa conta
+            </button>
         </div>
     </div>
 </div>
