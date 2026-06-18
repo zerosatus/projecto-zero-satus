@@ -1,4 +1,4 @@
-// mobile-telas/notas/script.js - VERSÃO SUPABASE APENAS
+// mobile-telas/notas/script.js - VERSÃO CORRIGIDA COM CACHEMANAGER
 
 let notifications = [];
 let notes = [];
@@ -55,18 +55,56 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// CARREGAR DADOS
+// ✅ FUNÇÃO CORRIGIDA: SALVAR DADOS
+// ============================================
+async function salvarTodosDados() {
+    if (!usuarioLogado || !window.CacheManager || isSaving) return false;
+    isSaving = true;
+    
+    try {
+        // ✅ SALVAR NO CACHEMANAGER (ENVIA PARA SUPABASE)
+        if (window.CacheManager.currentUserId !== usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
+        }
+        
+        window.CacheManager.set('notes', notes, true);
+        window.CacheManager.set('notifications', notifications, true);
+        
+        console.log('[Notas Mobile] ✅ Salvo no CacheManager:', notes.length);
+        
+        // ✅ Backup local com UUID
+        const userId = usuarioLogado.id;
+        localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+        localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+        
+        // ✅ Disparar eventos para outras abas
+        window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: notes } }));
+        window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key: 'notes', value: notes } }));
+        
+        return true;
+    } catch (error) {
+        console.error('[Notas Mobile] Erro ao salvar:', error);
+        return false;
+    } finally {
+        setTimeout(() => { isSaving = false; }, 500);
+    }
+}
+
+// ============================================
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
 // ============================================
 async function carregarDados() {
     if (!usuarioLogado || !window.CacheManager) return;
     
     try {
-        // Garantir que o CacheManager está com o userId correto
         if (window.CacheManager.currentUserId !== usuarioLogado.id) {
             window.CacheManager.currentUserId = usuarioLogado.id;
         }
         
+        // ✅ PRIORIDADE: CacheManager
         const cachedNotes = window.CacheManager.get('notes', null);
+        const cachedNotif = window.CacheManager.get('notifications', null);
+        
         if (cachedNotes !== null && Array.isArray(cachedNotes)) {
             notes = cachedNotes.map(nota => ({
                 id: nota.id,
@@ -75,9 +113,9 @@ async function carregarDados() {
                 date: nota.date || nota.dataModificacao || new Date().toISOString(),
                 dataModificacao: nota.dataModificacao || nota.date || new Date().toISOString()
             }));
-            console.log('[Notas Mobile] Carregadas do CacheManager:', notes.length);
+            console.log('[Notas Mobile] Carregado do CacheManager:', notes.length);
         } else {
-            // Fallback para localStorage
+            // Fallback para localStorage com UUID
             const userId = usuarioLogado.id;
             const notesSalvas = localStorage.getItem(`${userId}_notes`);
             if (notesSalvas) {
@@ -89,11 +127,21 @@ async function carregarDados() {
                     date: nota.date || nota.dataModificacao || new Date().toISOString(),
                     dataModificacao: nota.dataModificacao || nota.date || new Date().toISOString()
                 }));
-                console.log('[Notas Mobile] Carregadas do localStorage:', notes.length);
+                console.log('[Notas Mobile] Carregado do localStorage:', notes.length);
             }
         }
         
-        // Se não houver notas, criar uma de exemplo
+        if (cachedNotif !== null && Array.isArray(cachedNotif)) {
+            notifications = cachedNotif;
+        } else {
+            const userId = usuarioLogado.id;
+            const notifSalvas = localStorage.getItem(`${userId}_notifications`);
+            if (notifSalvas) {
+                notifications = JSON.parse(notifSalvas);
+            }
+        }
+        
+        // ✅ Se não houver notas, criar uma de exemplo
         if (notes.length === 0) {
             const exemplo = {
                 id: Date.now().toString(),
@@ -107,6 +155,7 @@ async function carregarDados() {
         }
         
         renderNotes();
+        updateNotificationBadge();
         
     } catch (error) {
         console.error('[Notas Mobile] Erro ao carregar dados:', error);
@@ -114,28 +163,76 @@ async function carregarDados() {
 }
 
 // ============================================
-// SALVAR DADOS
+// NOTIFICAÇÕES
 // ============================================
-async function salvarTodosDados() {
-    if (!usuarioLogado || !window.CacheManager || isSaving) return false;
-    isSaving = true;
-    
-    try {
-        // Salvar no CacheManager (sincroniza com Supabase)
-        window.CacheManager.set('notes', notes, true);
-        
-        // Backup no localStorage
-        const userId = usuarioLogado.id;
-        localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-        
-        console.log('[Notas Mobile] ✅ Dados salvos:', notes.length);
-        return true;
-    } catch (error) {
-        console.error('[Notas Mobile] Erro ao salvar:', error);
-        return false;
-    } finally {
-        setTimeout(() => { isSaving = false; }, 500);
+function updateNotificationBadge() {
+    const badge = document.getElementById('notification-badge');
+    const unreadCount = notifications.filter(n => !n.read).length;
+    if (badge) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.style.display = unreadCount > 0 ? 'flex' : 'none';
     }
+}
+
+function formatTimeAgo(timeString) {
+    if (!timeString) return '';
+    const now = new Date();
+    const notifTime = new Date(timeString);
+    const diffMins = Math.floor((now - notifTime) / 60000);
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `Há ${diffMins} min`;
+    if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
+    return notifTime.toLocaleDateString('pt-BR');
+}
+
+function renderNotificationsModal(filter = 'all') {
+    const list = document.getElementById('notifications-list-modal');
+    if (!list) return;
+    
+    let filtered = [...notifications];
+    if (filter === 'unread') filtered = notifications.filter(n => !n.read);
+    else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
+    else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
+    
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
+        return;
+    }
+    
+    let html = '';
+    filtered.forEach(notif => {
+        html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
+            <div class="notification-icon ${notif.type || 'info'}">
+                <ion-icon name="notifications-outline"></ion-icon>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">${escapeHtml(notif.title)}</div>
+                <div class="notification-message">${escapeHtml(notif.message)}</div>
+                <div class="notification-time">${formatTimeAgo(notif.time)}</div>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function markAllAsRead() {
+    notifications.forEach(n => n.read = true);
+    updateNotificationBadge();
+    renderNotificationsModal();
+    salvarTodosDados();
+    showToast('Todas notificações marcadas como lidas!', 'success');
+}
+
+function clearAllNotifications() {
+    showConfirm('Limpar todas as notificações?', 'Atenção', (confirmed) => {
+        if (confirmed) {
+            notifications = [];
+            updateNotificationBadge();
+            renderNotificationsModal();
+            salvarTodosDados();
+            showToast('Notificações limpas!', 'success');
+        }
+    });
 }
 
 // ============================================
@@ -361,14 +458,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // Inicializar CacheManager
     if (window.CacheManager) {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuarioLogado.id;
         console.log('[Notas Mobile] CacheManager inicializado');
     }
     
-    // Inicializar Sync
     if (window.initSync && !window._notesMobileSyncInit) {
         window._notesMobileSyncInit = true;
         try {
@@ -379,10 +474,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // Carregar dados
     await carregarDados();
     
-    // Atualizar UI
     const headerName = document.getElementById('header-name');
     if (headerName && usuarioLogado.nome) {
         headerName.textContent = usuarioLogado.nome.split(' ')[0];
@@ -393,10 +486,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Configurar eventos
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
+        renderNotificationsModal();
     });
     
     document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.remove('active');
+    });
+    
+    document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
+    document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
+    
+    document.querySelectorAll('.notification-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderNotificationsModal(tab.dataset.type);
+        });
     });
     
     document.getElementById('notes-search-input')?.addEventListener('input', (e) => renderNotes(e.target.value));
@@ -426,7 +531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Listeners globais
+    // ✅ LISTENERS GLOBAIS
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Notas Mobile] 📡 Dados da nuvem carregados!');
         await carregarDados();
@@ -463,6 +568,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
+    window.addEventListener('dataUpdated', (event) => {
+        if (event.detail && event.detail.key === 'notes' && !isSaving) {
+            console.log('[Notas Mobile] DataUpdated recebido para notes');
+            const novasNotas = event.detail.value.map(n => ({
+                id: n.id,
+                title: n.title || n.titulo || 'Sem título',
+                content: n.content || n.conteudo || '',
+                date: n.date || n.dataModificacao || new Date().toISOString(),
+                dataModificacao: n.dataModificacao || n.date || new Date().toISOString()
+            }));
+            notes = novasNotas;
+            renderNotes();
+            updateNotificationBadge();
+        }
+    });
+    
     window.addEventListener('syncReady', () => {
         console.log('[Notas Mobile] 📡 Sync pronto, recarregando dados...');
         carregarDados();
@@ -475,6 +596,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (profileIcon) {
                 profileIcon.innerHTML = `<img src="${event.detail.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
             }
+        }
+    });
+    
+    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+    window.addEventListener('storage', (e) => {
+        if (e.key && e.key.includes('_notes')) {
+            console.log('[Notas Mobile] Mudança detectada em outra aba:', e.key);
+            carregarDados();
+            renderNotes();
+            updateNotificationBadge();
         }
     });
     
