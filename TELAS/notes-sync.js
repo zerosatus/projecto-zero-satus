@@ -1,13 +1,12 @@
-// notes-sync.js - Sincronização dedicada para anotações (VERSÃO OTIMIZADA)
-
+// notes-sync.js - Sincronização dedicada para anotações (VERSÃO CORRIGIDA)
 (function() {
     console.log('[NotesSync] Iniciando módulo de sincronização de anotações...');
     
     let ultimaSincronizacao = 0;
     let syncInProgress = false;
-    const INTERVALO_SINCRONIZACAO = 5000; // 5 segundos (aumentado para reduzir notificações)
+    const INTERVALO_SINCRONIZACAO = 3000;
+    let _lastNotes = [];
     
-    // Função para sincronizar anotações entre abas (apenas se necessário)
     function sincronizarAnotacoes() {
         if (syncInProgress) return;
         if (!window.CacheManager) return;
@@ -17,27 +16,52 @@
         
         syncInProgress = true;
         
-        const notes = window.CacheManager.get('notes', null);
-        if (notes !== null && Array.isArray(notes) && notes.length > 0) {
-            // Verificar se realmente mudou antes de disparar evento
-            const storedNotes = window._lastSyncedNotes || [];
-            if (JSON.stringify(storedNotes) !== JSON.stringify(notes)) {
-                window._lastSyncedNotes = notes;
-                ultimaSincronizacao = agora;
+        try {
+            const notes = window.CacheManager.get('notes', null);
+            if (notes !== null && Array.isArray(notes)) {
+                // Verificar se realmente mudou
+                const currentNotesStr = JSON.stringify(notes);
+                const lastNotesStr = JSON.stringify(_lastNotes);
                 
-                // Disparar evento apenas se houve mudança real
-                window.dispatchEvent(new CustomEvent('notesUpdated', { 
-                    detail: { notes: notes, source: 'periodic' } 
-                }));
-                console.log('[NotesSync] Mudança detectada, sincronizando...');
+                if (currentNotesStr !== lastNotesStr) {
+                    _lastNotes = notes;
+                    ultimaSincronizacao = agora;
+                    
+                    // Salvar no localStorage com a chave correta
+                    const userId = window.CacheManager.getCurrentUserId();
+                    if (userId) {
+                        const storageKey = `${userId}_notes`;
+                        localStorage.setItem(storageKey, JSON.stringify(notes));
+                        
+                        // Salvar também com a chave antiga para compatibilidade
+                        const usuario = localStorage.getItem('usuarioLogado');
+                        if (usuario) {
+                            try {
+                                const user = JSON.parse(usuario);
+                                if (user.email) {
+                                    localStorage.setItem(`notes_${user.email}`, JSON.stringify(notes));
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                    
+                    // Disparar evento para todas as abas
+                    window.dispatchEvent(new CustomEvent('notesUpdated', { 
+                        detail: { notes: notes, source: 'periodic' } 
+                    }));
+                    window.dispatchEvent(new CustomEvent('dataUpdated', { 
+                        detail: { key: 'notes', value: notes } 
+                    }));
+                    
+                    console.log(`[NotesSync] ✅ Sincronizado: ${notes.length} anotações`);
+                }
             }
+        } catch (error) {
+            console.error('[NotesSync] Erro na sincronização:', error);
         }
         
         setTimeout(() => { syncInProgress = false; }, 100);
     }
-    
-    // Executar sincronização periódica (menos frequente)
-    setInterval(sincronizarAnotacoes, INTERVALO_SINCRONIZACAO);
     
     // Sincronizar quando a página ganhar foco
     window.addEventListener('focus', () => {
@@ -45,20 +69,30 @@
         setTimeout(sincronizarAnotacoes, 500);
     });
     
-    // Sincronização inicial única
-    setTimeout(sincronizarAnotacoes, 2000);
-    
-    // Escutar mudanças no localStorage (apenas para abas)
-    let storageSyncTimeout = null;
-    window.addEventListener('storage', (e) => {
-        if (e.key && (e.key.includes('notes') || e.key.includes('_notes'))) {
-            if (storageSyncTimeout) clearTimeout(storageSyncTimeout);
-            storageSyncTimeout = setTimeout(() => {
-                console.log('[NotesSync] Storage event detectado:', e.key);
+    // Escutar evento do CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.addListener('notes', (data) => {
+            console.log('[NotesSync] CacheManager notificou mudança nas notas');
+            if (data && Array.isArray(data)) {
+                _lastNotes = data;
                 sincronizarAnotacoes();
-            }, 300);
+            }
+        });
+    }
+    
+    // Escutar eventos de outras abas
+    window.addEventListener('notesUpdated', (event) => {
+        if (event.detail && event.detail.notes) {
+            console.log('[NotesSync] Evento notesUpdated recebido');
+            _lastNotes = event.detail.notes;
         }
     });
     
-    console.log('[NotesSync] Módulo carregado (modo otimizado)');
+    // Sincronização inicial
+    setTimeout(sincronizarAnotacoes, 1000);
+    
+    // Sincronização periódica (menos frequente)
+    setInterval(sincronizarAnotacoes, INTERVALO_SINCRONIZACAO);
+    
+    console.log('[NotesSync] Módulo carregado (versão corrigida)');
 })();

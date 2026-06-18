@@ -47,7 +47,7 @@
     }
 
     // ============================================
-    // INICIALIZAÇÃO (CORRIGIDA)
+    // INICIALIZAÇÃO
     // ============================================
     window.initSync = async function(options = {}) {
         if (isInitialized) {
@@ -75,7 +75,7 @@
             return false;
         }
 
-        // ✅ FORÇAR inicialização do CacheManager
+        // FORÇAR inicialização do CacheManager
         window.CacheManager.init();
 
         const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -92,19 +92,19 @@
             return false;
         }
 
-        // ✅ USAR O ID CORRETO (UUID)
+        // USAR O ID CORRETO (UUID)
         const userId = usuario.id || usuario.uid;
         if (!userId) {
             log('Usuário sem ID válido', 'error');
             return false;
         }
 
-        // ✅ FORÇAR o userId no CacheManager
+        // FORÇAR o userId no CacheManager
         window.CacheManager.currentUserId = userId;
         log('Usuário identificado: ' + userId);
 
         try {
-            // ✅ CARREGAR dados da nuvem COM FORCE
+            // CARREGAR dados da nuvem COM FORCE
             const loaded = await window.CacheManager.loadFromCloud(true);
 
             if (loaded) {
@@ -379,13 +379,25 @@
 
     // Detectar mudanças nos dados locais
     window.addEventListener('storage', (event) => {
-        if (event.key && event.key.includes('_tasks') ||
+        if (event.key && (event.key.includes('_tasks') ||
             event.key.includes('_notes') ||
-            event.key.includes('_disciplinas')) {
+            event.key.includes('_disciplinas') ||
+            event.key.includes('_calendarEvents') ||
+            event.key.includes('_weeklySchedule'))) {
             log('Dados locais alterados: ' + event.key);
             // Agendar sync
             if (config.autoSync && !isSyncing) {
                 setTimeout(performSync, 1000);
+            }
+        }
+    });
+
+    // Escutar eventos de dados atualizados
+    window.addEventListener('dataUpdated', (event) => {
+        if (event.detail && event.detail.key) {
+            log(`Dados ${event.detail.key} atualizados via evento`);
+            if (config.autoSync && !isSyncing) {
+                setTimeout(performSync, 500);
             }
         }
     });
@@ -413,18 +425,6 @@
             stopPeriodicSync();
 
             localStorage.removeItem('usuarioLogado');
-
-            // Limpar dados do usuário
-            const usuario = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-            if (usuario && usuario.email) {
-                const keys = Object.keys(localStorage);
-                const prefix = usuario.email + '_';
-                keys.forEach(key => {
-                    if (key.startsWith(prefix)) {
-                        localStorage.removeItem(key);
-                    }
-                });
-            }
 
             isInitialized = false;
             log('Logout realizado com sucesso', 'success');
@@ -472,6 +472,6 @@
     });
 
     log('Sync Helper carregado com sucesso!');
-    log('Versão: 2.0.1');
+    log('Versão: 2.1.0');
 
 })();
