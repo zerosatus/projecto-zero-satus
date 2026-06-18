@@ -1,4 +1,4 @@
-// cache-manager.js - Versão Supabase COMPLETA COM FOTO CORRIGIDA
+// cache-manager.js - Versão Supabase COMPLETA CORRIGIDA
 
 class SupabaseCacheManager {
     constructor() {
@@ -18,6 +18,15 @@ class SupabaseCacheManager {
         if (this.isInitialized) return;
         console.log('[CacheManager] Inicializado');
         this.isInitialized = true;
+
+        // ✅ FORÇAR CARREGAMENTO DO USER ID
+        this.getCurrentUserId();
+
+        // ✅ DISPARAR EVENTO DE PRONTO PARA O SYNC-HELPER
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('cacheReady'));
+            console.log('[CacheManager] 📡 Evento cacheReady disparado');
+        }, 100);
     }
 
     getCurrentUserId() {
@@ -28,6 +37,7 @@ class SupabaseCacheManager {
             try {
                 const user = JSON.parse(usuario);
                 this.currentUserId = user.id || user.uid;
+                console.log('[CacheManager] User ID:', this.currentUserId);
                 return this.currentUserId;
             } catch(e) {
                 console.error('[CacheManager] Erro ao parsear usuário:', e);
@@ -238,7 +248,8 @@ class SupabaseCacheManager {
                 }
             }
 
-            // DISCIPLINAS            if (typeof db.getDisciplinas === 'function') {
+            // ✅ CORRIGIDO: DISCIPLINAS
+            if (typeof db.getDisciplinas === 'function') {
                 const disciplinas = await db.getDisciplinas(userId);
                 if (disciplinas && disciplinas.length > 0) {
                     localStorage.setItem(`${userId}_disciplinas`, JSON.stringify(disciplinas));
@@ -314,24 +325,20 @@ class SupabaseCacheManager {
         console.log('[CacheManager] Logout realizado');
     }
 
-    // 🔥 CORRIGIDO: getProfilePhotoUrl com múltiplas fontes
     async getProfilePhotoUrl() {
         const userId = this.getCurrentUserId();
         if (!userId) return null;
 
-        // Verificar cache em memória
         if (this._profilePhotoCache) {
             return this._profilePhotoCache;
         }
 
-        // 🔥 PRIORIDADE 1: localStorage
         const localPhoto = localStorage.getItem('userPhotoURL');
         if (localPhoto && (localPhoto.startsWith('data:') || localPhoto.startsWith('http'))) {
             this._profilePhotoCache = localPhoto;
             return localPhoto;
         }
 
-        // 🔥 PRIORIDADE 2: Perfil do usuário logado
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {
             try {
@@ -347,7 +354,6 @@ class SupabaseCacheManager {
             } catch(e) {}
         }
 
-        // 🔥 PRIORIDADE 3: Supabase Database
         if (window.DatabaseService) {
             try {
                 const profile = await window.DatabaseService.getUserProfile(userId);
@@ -364,7 +370,6 @@ class SupabaseCacheManager {
         return null;
     }
 
-    // 🔥 CORRIGIDO: uploadProfilePhoto com StorageService
     async uploadProfilePhoto(file) {
         const userId = this.getCurrentUserId();
         if (!userId || !window.StorageService) {
@@ -378,15 +383,12 @@ class SupabaseCacheManager {
         }
 
         try {
-            // Upload para o Supabase Storage
             const photoUrl = await window.StorageService.uploadProfilePhoto(userId, file);
 
             if (photoUrl) {
-                // Atualizar cache
                 this._profilePhotoCache = photoUrl;
                 localStorage.setItem('userPhotoURL', photoUrl);
 
-                // Atualizar perfil
                 const profile = await window.DatabaseService.getUserProfile(userId);
                 if (profile) {
                     await window.DatabaseService.updateUserProfile(userId, {
@@ -395,7 +397,6 @@ class SupabaseCacheManager {
                     });
                 }
 
-                // Atualizar usuário logado
                 const usuario = localStorage.getItem('usuarioLogado');
                 if (usuario) {
                     try {
@@ -476,4 +477,4 @@ window.setNotifications = (notifications, notify) => window.CacheManager.set('no
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] v2.3 carregado com foto corrigida!');
+console.log('[CacheManager] v2.4 carregado com foto corrigida e evento cacheReady!');
