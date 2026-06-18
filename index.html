@@ -433,16 +433,31 @@
             </div>
         </div>
     </footer>
-
+<!-- Service Worker Registration -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('Service Worker registrado com sucesso:', registration);
+                })
+                .catch(error => {
+                    console.error('Erro ao registrar Service Worker:', error);
+                });
+        });
+    }
+</script>
     <script src="script.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
-    <!-- Sincronização -->
-    <script src="TELAS/cache-manager.js"></script>
-    <script src="TELAS/shared-data.js"></script>
-    <script src="TELAS/sync-helper.js"></script>
-    <script src="TELAS/firebase-config.js"></script>
+<!-- PWA Manifest -->
+<link rel="manifest" href="/manifest.json">
+
+<!-- Apple Touch Icon (iOS) -->
+<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+<!-- Meta tags para PWA -->
+<meta name="theme-color" content="#9333ea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zero">
 </body>
 </html>

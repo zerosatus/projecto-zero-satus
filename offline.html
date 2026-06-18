@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Zero</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b2e 50%, #0f172a 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .offline-container {
+            text-align: center;
+            max-width: 400px;
+        }
+        .offline-icon {
+            font-size: 80px;
+            color: #9333ea;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        p {
+            color: #94a3b8;
+            margin-bottom: 24px;
+            font-size: 16px;
+        }
+        .btn-retry {
+            background: linear-gradient(135deg, #9333ea, #7c3aed);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-retry:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
+        }
+        .emoji {
+            font-size: 60px;
+            display: block;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <span class="emoji">📡</span>
+        <h1>Você está offline</h1>
+        <p>Parece que você perdeu a conexão com a internet. Não se preocupe, seus dados estão seguros e serão sincronizados quando a conexão for restaurada.</p>
+        <button class="btn-retry" onclick="location.reload()">
+            🔄 Tentar novamente
+        </button>
+    </div>
+</body>
+</html>
