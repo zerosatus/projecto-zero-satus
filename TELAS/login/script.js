@@ -274,7 +274,7 @@ function showResendButton(email) {
         onmouseover="this.style.transform='scale(1.05)'"
         onmouseout="this.style.transform='scale(1)'">
             <i class="fas fa-redo"></i> Reenviar confirmação
-        </button>
+        </p>
         <p style="color: #666; font-size: 11px; margin-top: 8px;">
             Verifique também a pasta de <strong>spam</strong>
         </p>
@@ -434,7 +434,7 @@ function isGoogleCallback() {
 }
 
 // ============================================
-// 🔥 CORRIGIDO: checkSession - NÃO FAZ AUTO-LOGIN
+// 🔥 CORRIGIDO: checkSession - NUNCA FAZ AUTO-LOGIN
 // ============================================
 async function checkSession() {
     if (!window.AuthService) return false;
@@ -445,43 +445,56 @@ async function checkSession() {
         if (user) {
             console.log('[Login] Sessão existente para:', user.email);
 
-            // 🔥 NÃO FAZ LOGIN AUTOMÁTICO NA PÁGINA DE LOGIN
-            // Apenas verifica se já está logado e redireciona se necessário
+            // 🔥 NUNCA FAZ LOGIN AUTOMÁTICO NA PÁGINA DE LOGIN
+            // Apenas verifica se o usuário já está logado E se quer continuar
 
             const usuarioSalvo = localStorage.getItem('usuarioLogado');
+
             if (usuarioSalvo) {
                 try {
                     const parsed = JSON.parse(usuarioSalvo);
                     if (parsed.id === user.id) {
-                        console.log('[Login] Usuário já está logado. Redirecionando...');
+                        console.log('[Login] Usuário já está logado.');
 
-                        // 🔥 SÓ REDIRECIONA SE NÃO FOR A PÁGINA DE LOGIN
-                        const isLoginPage = window.location.pathname.includes('/login/');
-                        if (!isLoginPage) {
+                        // 🔥 SÓ REDIRECIONA SE O USUÁRIO CLICAR EM "CONTINUAR"
+                        // Mostra uma mensagem perguntando se quer continuar
+                        const continuar = confirm(`👋 Você já está logado como ${parsed.nome || 'Usuário'}.\n\nDeseja continuar na plataforma?`);
+
+                        if (continuar) {
                             const isMobile = ehCelular();
                             const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
                             window.location.href = destino;
                             return true;
+                        } else {
+                            // Usuário escolheu não continuar, faz logout
+                            console.log('[Login] Usuário optou por não continuar. Fazendo logout...');
+                            await window.AuthService.logout();
+                            localStorage.removeItem('usuarioLogado');
+                            limparCamposFormulario();
+                            showMessage('✅ Sessão encerrada. Faça login novamente.', false);
+                            return false;
                         }
-
-                        // Se estiver na página de login, mostra mensagem
-                        showMessage('👋 Você já está logado! Redirecionando...', false);
-                        setTimeout(() => {
-                            const isMobile = ehCelular();
-                            const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-                            window.location.href = destino;
-                        }, 1500);
-                        return true;
                     }
                 } catch(e) {
                     console.warn('[Login] Erro ao parsear usuário salvo:', e);
                 }
             }
 
-            // Se tem sessão mas não tem usuário salvo, processa login
-            console.log('[Login] Sessão encontrada mas sem dados locais. Processando...');
-            await processarLogin(user);
-            return true;
+            // Se tem sessão mas não tem usuário salvo, pergunta se quer continuar
+            const continuar = confirm(`👋 Você tem uma sessão ativa (${user.email}).\n\nDeseja continuar na plataforma?`);
+
+            if (continuar) {
+                console.log('[Login] Usuário optou por continuar. Processando login...');
+                await processarLogin(user);
+                return true;
+            } else {
+                console.log('[Login] Usuário optou por não continuar. Fazendo logout...');
+                await window.AuthService.logout();
+                localStorage.removeItem('usuarioLogado');
+                limparCamposFormulario();
+                showMessage('✅ Sessão encerrada. Faça login novamente.', false);
+                return false;
+            }
         }
         return false;
     } catch (err) {
@@ -587,12 +600,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================
-    // 🔥 VERIFICAR SESSÃO - SEM AUTO-LOGIN
+    // 🔥 VERIFICAR SESSÃO - AGORA PERGUNTA AO USUÁRIO
     // ============================================
     const hasSession = await checkSession();
     if (hasSession) {
         console.log('[Login] Sessão ativa encontrada - redirecionando...');
-        // O redirecionamento já é feito dentro do checkSession
         return;
     }
 
@@ -631,7 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => limparCamposFormulario(), 500);
 
     // ============================================
-    // 🔥 LISTENER DE AUTENTICAÇÃO (DESATIVADO NA PÁGINA DE LOGIN)
+    // LISTENER DE AUTENTICAÇÃO (DESATIVADO NA PÁGINA DE LOGIN)
     // ============================================
     // Só ativa o listener se NÃO for callback
     if (!isCallback && !isConfirmCallback) {
