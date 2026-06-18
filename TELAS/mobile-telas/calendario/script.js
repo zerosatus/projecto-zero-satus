@@ -1,4 +1,4 @@
-// calendario/script.js - VERSÃO CORRIGIDA COM INICIALIZAÇÃO SEGURA
+// mobile-telas/calendario/script.js - VERSÃO CORRIGIDA COM CACHEMANAGER
 
 let notifications = [];
 let calendarEvents = [];
@@ -8,18 +8,21 @@ let selectedDay = currentDate.getDate();
 let selectedEventType = 'aula';
 let selectedEventColor = '#8b5cf6';
 let editingEventId = null;
-let _calendarioCarregando = false;
+let isSaving = false;
 
+// ============================================
+// TOAST & CONFIRM
+// ============================================
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-
+    
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     const icons = { success: 'checkmark-circle', error: 'close-circle', info: 'information-circle' };
     toast.innerHTML = `<ion-icon name="${icons[type]}-outline"></ion-icon> <span>${message}</span>`;
     container.appendChild(toast);
-
+    
     setTimeout(() => {
         toast.classList.add('toast-hiding');
         setTimeout(() => toast.remove(), 300);
@@ -29,28 +32,28 @@ function showToast(message, type = 'info', duration = 3000) {
 function showConfirm(message, title, callback) {
     const modal = document.getElementById('confirm-modal');
     if (!modal) { callback(false); return; }
-
+    
     document.getElementById('confirm-title').textContent = title || 'Confirmar';
     document.getElementById('confirm-message').textContent = message;
     modal.classList.add('active');
-
+    
     const handleConfirm = () => {
         modal.classList.remove('active');
         callback(true);
         cleanup();
     };
-
+    
     const handleCancel = () => {
         modal.classList.remove('active');
         callback(false);
         cleanup();
     };
-
+    
     const cleanup = () => {
         document.getElementById('confirm-ok').removeEventListener('click', handleConfirm);
         document.getElementById('confirm-cancel').removeEventListener('click', handleCancel);
     };
-
+    
     document.getElementById('confirm-ok').onclick = handleConfirm;
     document.getElementById('confirm-cancel').onclick = handleCancel;
 }
@@ -62,63 +65,111 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function saveAllData() {
-    if (!usuarioLogado) return;
-
-    const userId = usuarioLogado.id;
-    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
-    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-
-    if (window.CacheManager) {
+// ============================================
+// ✅ FUNÇÃO CORRIGIDA: SALVAR DADOS
+// ============================================
+async function salvarTodosDados() {
+    if (!usuarioLogado || !window.CacheManager || isSaving) return false;
+    isSaving = true;
+    
+    try {
+        // ✅ SALVAR NO CACHEMANAGER (ENVIA PARA SUPABASE)
+        if (window.CacheManager.currentUserId !== usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
+        }
+        
         window.CacheManager.set('calendarEvents', calendarEvents, true);
         window.CacheManager.set('notifications', notifications, true);
+        
+        console.log('[Calendario Mobile] ✅ Salvo no CacheManager:', calendarEvents.length);
+        
+        // ✅ Backup local com UUID
+        const userId = usuarioLogado.id;
+        localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+        localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+        
+        // ✅ Disparar eventos para outras abas
+        window.dispatchEvent(new CustomEvent('calendarEventsUpdated', { detail: calendarEvents }));
+        window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key: 'calendarEvents', value: calendarEvents } }));
+        
+        return true;
+    } catch (error) {
+        console.error('[Calendario Mobile] Erro ao salvar:', error);
+        return false;
+    } finally {
+        setTimeout(() => { isSaving = false; }, 500);
     }
 }
 
-function loadAllData() {
-    if (!usuarioLogado) return;
-
-    const userId = usuarioLogado.id;
-
-    // Tentar carregar do CacheManager primeiro
-    if (window.CacheManager && window.CacheManager.currentUserId === userId) {
+// ============================================
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
+// ============================================
+async function carregarDados() {
+    if (!usuarioLogado || !window.CacheManager) return;
+    
+    try {
+        if (window.CacheManager.currentUserId !== usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
+        }
+        
+        // ✅ PRIORIDADE: CacheManager
         const cachedEvents = window.CacheManager.get('calendarEvents', null);
         const cachedNotif = window.CacheManager.get('notifications', null);
-
+        
         if (cachedEvents !== null && Array.isArray(cachedEvents)) {
             calendarEvents = cachedEvents;
-            console.log('[Calendario] Eventos carregados do CacheManager:', calendarEvents.length);
-        }
-        if (cachedNotif !== null && Array.isArray(cachedNotif)) {
-            notifications = cachedNotif;
-        }
-    }
-
-    // Fallback para localStorage se não tiver dados
-    if (calendarEvents.length === 0) {
-        const eventsSalvos = localStorage.getItem(`${userId}_calendarEvents`);
-        if (eventsSalvos) {
-            try {
+            console.log('[Calendario Mobile] Carregado do CacheManager:', calendarEvents.length);
+        } else {
+            // Fallback para localStorage com UUID
+            const userId = usuarioLogado.id;
+            const eventsSalvos = localStorage.getItem(`${userId}_calendarEvents`);
+            if (eventsSalvos) {
                 calendarEvents = JSON.parse(eventsSalvos);
-                console.log('[Calendario] Eventos carregados do localStorage:', calendarEvents.length);
-            } catch(e) {
+                console.log('[Calendario Mobile] Carregado do localStorage:', calendarEvents.length);
+            } else {
                 calendarEvents = [];
             }
         }
-    }
-
-    if (notifications.length === 0) {
-        const notifSalvas = localStorage.getItem(`${userId}_notifications`);
-        if (notifSalvas) {
-            try {
+        
+        if (cachedNotif !== null && Array.isArray(cachedNotif)) {
+            notifications = cachedNotif;
+        } else {
+            const userId = usuarioLogado.id;
+            const notifSalvas = localStorage.getItem(`${userId}_notifications`);
+            if (notifSalvas) {
                 notifications = JSON.parse(notifSalvas);
-            } catch(e) {
+            } else {
                 notifications = [];
             }
         }
+        
+        // ✅ Se não tiver eventos, criar um exemplo
+        if (calendarEvents.length === 0) {
+            const hoje = new Date();
+            const dataStr = hoje.toISOString().split('T')[0];
+            calendarEvents = [{
+                id: Date.now(),
+                title: 'Exemplo de Evento',
+                date: dataStr,
+                start: '08:00',
+                end: '09:00',
+                type: 'aula',
+                color: '#8b5cf6'
+            }];
+            await salvarTodosDados();
+        }
+        
+        renderCalendar();
+        updateNotificationBadge();
+        
+    } catch (error) {
+        console.error('[Calendario Mobile] Erro ao carregar dados:', error);
     }
 }
 
+// ============================================
+// NOTIFICAÇÕES
+// ============================================
 function updateNotificationBadge() {
     const badge = document.getElementById('notification-badge');
     const unreadCount = notifications.filter(n => !n.read).length;
@@ -142,23 +193,22 @@ function formatTimeAgo(timeString) {
 function renderNotificationsModal(filter = 'all') {
     const list = document.getElementById('notifications-list-modal');
     if (!list) return;
-
+    
     let filtered = [...notifications];
     if (filter === 'unread') filtered = notifications.filter(n => !n.read);
     else if (filter === 'aulas') filtered = notifications.filter(n => n.type === 'aula');
     else if (filter === 'tarefas') filtered = notifications.filter(n => n.type === 'tarefa');
-
+    
     if (filtered.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Nenhuma notificação</div>';
         return;
     }
-
+    
     let html = '';
     filtered.forEach(notif => {
-        const iconMap = { 'aula': 'book', 'tarefa': 'checkbox', 'lembrete': 'time' };
         html += `<div class="notification-item-modal ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}">
-            <div class="notification-icon ${notif.type}">
-                <ion-icon name="${iconMap[notif.type] || 'notifications'}-outline"></ion-icon>
+            <div class="notification-icon ${notif.type || 'info'}">
+                <ion-icon name="notifications-outline"></ion-icon>
             </div>
             <div class="notification-content">
                 <div class="notification-title">${escapeHtml(notif.title)}</div>
@@ -174,7 +224,7 @@ function markAllAsRead() {
     notifications.forEach(n => n.read = true);
     updateNotificationBadge();
     renderNotificationsModal();
-    if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+    salvarTodosDados();
     showToast('Todas notificações marcadas como lidas!', 'success');
 }
 
@@ -184,41 +234,44 @@ function clearAllNotifications() {
             notifications = [];
             updateNotificationBadge();
             renderNotificationsModal();
-            if (window.CacheManager) window.CacheManager.set('notifications', notifications, true);
+            salvarTodosDados();
             showToast('Notificações limpas!', 'success');
         }
     });
 }
 
+// ============================================
+// CALENDÁRIO
+// ============================================
 function renderCalendar() {
     const calendarDays = document.getElementById('calendar-days');
     const currentMonthYear = document.getElementById('current-month-year');
     if (!calendarDays) return;
-
+    
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     currentMonthYear.textContent = `${monthNames[month]} de ${year}`;
-
+    
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
     const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
     const currentDay = today.getDate();
-
+    
     let html = '';
     for (let i = 0; i < firstDay; i++) html += '<div class="calendar-day empty"></div>';
-
+    
     for (let day = 1; day <= daysInMonth; day++) {
         const isToday = isCurrentMonth && day === currentDay;
         const isSelected = day === selectedDay;
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const hasEvent = calendarEvents.some(e => e.date === dateStr);
-
+        
         html += `<div class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${hasEvent ? 'has-event' : ''}" data-day="${day}">${day}</div>`;
     }
     calendarDays.innerHTML = html;
-
+    
     document.querySelectorAll('.calendar-day:not(.empty)').forEach(day => {
         day.addEventListener('click', () => {
             selectedDay = parseInt(day.dataset.day);
@@ -227,25 +280,25 @@ function renderCalendar() {
             renderCalendar();
         });
     });
-
+    
     renderEvents();
 }
 
 function renderEvents() {
     const eventsList = document.getElementById('events-list');
     if (!eventsList) return;
-
+    
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const selectedDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
-
+    
     const dayEvents = calendarEvents.filter(e => e.date === selectedDateStr);
-
+    
     if (dayEvents.length === 0) {
         eventsList.innerHTML = '<div class="list-item" style="text-align:center;color:var(--text-secondary)">Nenhum evento neste dia</div>';
         return;
     }
-
+    
     let html = '';
     dayEvents.forEach(event => {
         const iconMap = { 'aula': 'book', 'prova': 'document', 'tarefa': 'checkbox', 'outro': 'calendar' };
@@ -264,7 +317,7 @@ function renderEvents() {
         </div>`;
     });
     eventsList.innerHTML = html;
-
+    
     document.querySelectorAll('.edit-event').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -272,14 +325,14 @@ function renderEvents() {
             if (event) openEventModal(event);
         });
     });
-
+    
     document.querySelectorAll('.delete-event').forEach(icon => {
         icon.addEventListener('click', (e) => {
             e.stopPropagation();
-            showConfirm('Excluir este evento?', 'Excluir Evento', (confirmed) => {
+            showConfirm('Excluir este evento?', 'Excluir Evento', async (confirmed) => {
                 if (confirmed) {
                     calendarEvents = calendarEvents.filter(ev => ev.id != icon.dataset.id);
-                    saveAllData();
+                    await salvarTodosDados();
                     renderEvents();
                     renderCalendar();
                     showToast('Evento excluído!', 'success');
@@ -292,12 +345,12 @@ function renderEvents() {
 function openEventModal(event) {
     const modal = document.getElementById('event-modal');
     if (!modal) return;
-
+    
     editingEventId = event ? event.id : null;
     const year = currentDate.getFullYear();
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
     const day = String(selectedDay).padStart(2, '0');
-
+    
     if (event) {
         document.getElementById('event-title').value = event.title;
         document.getElementById('event-date').value = event.date;
@@ -313,118 +366,99 @@ function openEventModal(event) {
         selectedEventType = 'aula';
         selectedEventColor = '#8b5cf6';
     }
-
+    
     document.querySelectorAll('.event-types .type-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.type === selectedEventType);
     });
-
+    
     document.querySelectorAll('#event-modal .color-option').forEach(option => {
         option.classList.toggle('active', option.dataset.color === selectedEventColor);
     });
-
+    
     modal.classList.add('active');
 }
 
-function switchView(viewName) {
-    if (viewName === 'home') window.location.href = '../index.html';
-    else if (viewName === 'calendar') renderCalendar();
-    else if (viewName === 'tasks') window.location.href = '../tarefas/index.html';
-    else if (viewName === 'notes') window.location.href = '../notas/index.html';
-    else if (viewName === 'profile') window.location.href = '../perfil/index.html';
+// ============================================
+// AVATAR
+// ============================================
+async function carregarFotoPerfilMobile() {
+    if (!usuarioLogado) return;
+    
+    const profileIcon = document.getElementById('notification-bell');
+    if (!profileIcon) return;
+    
+    if (window.CacheManager) {
+        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+        if (photoUrl && photoUrl.startsWith('data:')) {
+            profileIcon.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            return;
+        }
+    }
+    
+    const iniciais = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
+    profileIcon.innerHTML = `<span style="font-weight:bold;">${iniciais}</span>`;
 }
 
 // ============================================
-// FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
+// INICIALIZAÇÃO
 // ============================================
-async function inicializarCalendario() {
-    if (_calendarioCarregando) {
-        console.log('[Calendario] ⏳ Já está carregando...');
-        return;
-    }
-    _calendarioCarregando = true;
-
-    console.log('📅 Iniciando Calendário...');
-
-    // 1️⃣ VERIFICAR USUÁRIO
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('📅 Iniciando calendário mobile com Supabase...');
+    
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
     if (!usuarioSalvo) {
         window.location.href = '../../login/index.html';
         return;
     }
-
+    
     try {
         usuarioLogado = JSON.parse(usuarioSalvo);
+        console.log('[Calendario Mobile] Usuário:', usuarioLogado.id);
     } catch(e) {
-        console.error('[Calendario] Erro ao parsear usuário:', e);
+        console.error('[Calendario Mobile] Erro ao parsear usuário:', e);
         window.location.href = '../../login/index.html';
         return;
     }
-
-    console.log('[Calendario] Usuário logado (UUID):', usuarioLogado.id);
-
-    // 2️⃣ INICIALIZAR CACHE MANAGER
+    
     if (window.CacheManager) {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuarioLogado.id;
-        console.log('[Calendario] CacheManager inicializado');
+        console.log('[Calendario Mobile] CacheManager inicializado');
     }
-
-    // 3️⃣ INICIALIZAR SYNC (AGUARDANDO)
-    if (window.initSync && !window._calendarSyncInit) {
-        window._calendarSyncInit = true;
-        console.log('[Calendario] 🔄 Inicializando sync...');
+    
+    if (window.initSync && !window._calendarioMobileSyncInit) {
+        window._calendarioMobileSyncInit = true;
         try {
             await window.initSync({ force: false });
-            console.log('[Calendario] Sync inicializado ✅');
+            console.log('[Calendario Mobile] Sync inicializado ✅');
         } catch(e) {
-            console.warn('[Calendario] Erro no sync:', e);
+            console.warn('[Calendario Mobile] Erro no sync:', e);
         }
     }
-
-    // 4️⃣ CARREGAR DADOS
-    loadAllData();
-
-    // 5️⃣ ATUALIZAR UI
-    if (usuarioLogado) {
-        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
-        const headerName = document.getElementById('header-name');
-        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+    
+    await carregarDados();
+    
+    const headerName = document.getElementById('header-name');
+    if (headerName && usuarioLogado.nome) {
+        headerName.textContent = usuarioLogado.nome.split(' ')[0];
     }
-
+    
+    await carregarFotoPerfilMobile();
     updateNotificationBadge();
-    renderCalendar();
-
-    _calendarioCarregando = false;
-    console.log('✅ Calendário inicializado com sucesso!');
-}
-
-// ============================================
-// INICIALIZAÇÃO PRINCIPAL
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    // PREVENIR INICIALIZAÇÃO MÚLTIPLA
-    if (window._calendarLoaded) {
-        console.log('[Calendario] ⏳ Já carregado, ignorando...');
-        return;
-    }
-    window._calendarLoaded = true;
-
-    // INICIALIZAR
-    inicializarCalendario();
-
-    // EVENT LISTENERS
+    
+    // Eventos
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
     });
-
+    
     document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.remove('active');
     });
-
+    
     document.getElementById('btn-mark-read')?.addEventListener('click', markAllAsRead);
     document.getElementById('btn-clear-all')?.addEventListener('click', clearAllNotifications);
-
+    
     document.querySelectorAll('.notification-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -432,24 +466,26 @@ document.addEventListener('DOMContentLoaded', () => {
             renderNotificationsModal(tab.dataset.type);
         });
     });
-
+    
     document.getElementById('prev-month')?.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);
         selectedDay = 1;
         renderCalendar();
     });
-
+    
     document.getElementById('next-month')?.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() + 1);
         selectedDay = 1;
         renderCalendar();
     });
-
+    
     document.getElementById('btn-new-event')?.addEventListener('click', () => openEventModal(null));
-    document.querySelector('[data-modal="event-modal"]')?.addEventListener('click', () => {
-        document.getElementById('event-modal').classList.remove('active');
+    document.querySelector('[data-modal="event-modal"]')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget || e.target.closest('.btn-back, .btn-close')) {
+            document.getElementById('event-modal').classList.remove('active');
+        }
     });
-
+    
     document.querySelectorAll('.event-types .type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.event-types .type-btn').forEach(b => b.classList.remove('active'));
@@ -457,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedEventType = btn.dataset.type;
         });
     });
-
+    
     document.querySelectorAll('#event-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#event-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -465,18 +501,18 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedEventColor = option.dataset.color;
         });
     });
-
-    document.getElementById('btn-save-event')?.addEventListener('click', () => {
+    
+    document.getElementById('btn-save-event')?.addEventListener('click', async () => {
         const title = document.getElementById('event-title')?.value.trim();
         const date = document.getElementById('event-date')?.value;
         const start = document.getElementById('event-start')?.value;
         const end = document.getElementById('event-end')?.value;
-
+        
         if (!title || !date) {
             showToast('Preencha título e data!', 'error');
             return;
         }
-
+        
         if (editingEventId) {
             const index = calendarEvents.findIndex(e => e.id == editingEventId);
             if (index > -1) {
@@ -501,90 +537,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 color: selectedEventColor
             });
         }
-
-        saveAllData();
+        
+        await salvarTodosDados();
         showToast(editingEventId ? 'Evento atualizado!' : 'Evento criado!', 'success');
         document.getElementById('event-modal').classList.remove('active');
         renderEvents();
         renderCalendar();
     });
-
+    
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => switchView(item.dataset.view));
+        item.addEventListener('click', () => {
+            const view = item.dataset.view;
+            if (view === 'home') window.location.href = '../index.html';
+            else if (view === 'calendar') renderCalendar();
+            else if (view === 'tasks') window.location.href = '../tarefas/index.html';
+            else if (view === 'notes') window.location.href = '../notas/index.html';
+            else if (view === 'profile') window.location.href = '../perfil/index.html';
+        });
     });
-
-    // ✅ LISTENER PARA QUANDO O SYNC FICAR PRONTO
+    
+    // ✅ LISTENERS GLOBAIS
+    window.addEventListener('cloudDataLoaded', async () => {
+        console.log('[Calendario Mobile] 📡 Dados da nuvem carregados!');
+        await carregarDados();
+        renderCalendar();
+        updateNotificationBadge();
+        showToast('🔄 Calendário sincronizado!', 'success');
+    });
+    
+    window.addEventListener('calendarEventsUpdated', (event) => {
+        if (event.detail && !isSaving) {
+            console.log('[Calendario Mobile] Evento calendarEventsUpdated recebido');
+            calendarEvents = event.detail;
+            renderCalendar();
+            updateNotificationBadge();
+        }
+    });
+    
+    window.addEventListener('dataUpdated', (event) => {
+        if (event.detail && event.detail.key === 'calendarEvents' && !isSaving) {
+            console.log('[Calendario Mobile] DataUpdated recebido para calendarEvents');
+            calendarEvents = event.detail.value;
+            renderCalendar();
+            updateNotificationBadge();
+        }
+    });
+    
     window.addEventListener('syncReady', () => {
-        console.log('[Calendario] 📡 Sync pronto, recarregando dados...');
-        loadAllData();
+        console.log('[Calendario Mobile] 📡 Sync pronto, recarregando dados...');
+        carregarDados();
         renderCalendar();
         updateNotificationBadge();
     });
-
-    // ✅ LISTENER PARA QUANDO OS DADOS DA NUVEM CHEGAREM
-    window.addEventListener('cloudDataLoaded', () => {
-        console.log('[Calendario] ☁️ Dados da nuvem carregados...');
-        loadAllData();
-        renderCalendar();
-        updateNotificationBadge();
+    
+    window.addEventListener('profilePhotoUpdated', async (event) => {
+        if (event.detail && event.detail.photoUrl) {
+            const profileIcon = document.getElementById('notification-bell');
+            if (profileIcon) {
+                profileIcon.innerHTML = `<img src="${event.detail.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
+        }
     });
+    
+    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+    window.addEventListener('storage', (e) => {
+        if (e.key && e.key.includes('_calendarEvents')) {
+            console.log('[Calendario Mobile] Mudança detectada em outra aba:', e.key);
+            carregarDados();
+            renderCalendar();
+            updateNotificationBadge();
+        }
+    });
+    
+    console.log('✅ Calendário mobile com Supabase inicializado!');
 });
 
-// =====================================================
-// NOTIFICAÇÕES NATIVAS PARA ANDROID
-// =====================================================
-
-function isAndroidApp() {
-    return typeof Android !== 'undefined';
-}
-
-function sendNativeNotification(title, message, type) {
-    if (isAndroidApp()) {
-        try {
-            Android.showNotification(title, message, type);
-        } catch(e) {}
-    }
-}
-
-function checkPendingTasks() {
-    if (window.CacheManager) {
-        const tasks = window.CacheManager.get('tasks', []);
-        const today = new Date().toISOString().split('T')[0];
-        tasks.forEach(task => {
-            if (!task.completed && task.date === today) {
-                sendNativeNotification('📋 Tarefa Hoje', task.title, 'tarefa');
-            }
-        });
-    }
-}
-
-function checkUpcomingClasses() {
-    if (window.CacheManager) {
-        const schedule = window.CacheManager.get('weeklySchedule', {});
-        const now = new Date();
-        const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        const today = days[now.getDay()];
-        const currentTotal = now.getHours() * 60 + now.getMinutes();
-
-        (schedule[today] || []).forEach(cls => {
-            if (cls.horaInicio) {
-                const [h, m] = cls.horaInicio.split(':').map(Number);
-                const minutesUntil = (h * 60 + m) - currentTotal;
-                if (minutesUntil <= 15 && minutesUntil > 0) {
-                    sendNativeNotification('📚 Aula em Breve', cls.materia, 'aula');
-                }
-            }
-        });
-    }
-}
-
-// Executar verificações
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
-        setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
-    });
-} else {
-    setTimeout(() => { checkPendingTasks(); checkUpcomingClasses(); }, 2000);
-    setInterval(() => { checkPendingTasks(); checkUpcomingClasses(); }, 15 * 60 * 1000);
-}
+console.log('%c📅 Calendário Mobile - Supabase Apenas!', 'color: #6366f1; font-size: 16px; font-weight: bold;');
