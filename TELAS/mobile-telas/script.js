@@ -1,4 +1,4 @@
-// mobile-telas/script.js - VERSÃO CORRIGIDA (SÓ SINCRONIZAÇÃO)
+// mobile-telas/script.js - VERSÃO CORRIGIDA COM CACHEMANAGER
 
 let usuarioLogado = null;
 let notifications = [];
@@ -107,7 +107,7 @@ async function atualizarAvatarMobile(photoUrl = null) {
 }
 
 // ============================================
-// CARREGAR DADOS (com Supabase)
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
 // ============================================
 async function carregarTodosDados() {
     if (_isLoading) return;
@@ -117,10 +117,12 @@ async function carregarTodosDados() {
     console.log('[Mobile] 📂 Carregando dados...');
 
     try {
+        // Garantir que o CacheManager está com o userId correto
         if (window.CacheManager.currentUserId !== usuarioLogado.id) {
             window.CacheManager.currentUserId = usuarioLogado.id;
         }
 
+        // ✅ CARREGAR DO CACHEMANAGER (que já tem os dados da nuvem)
         notes = window.CacheManager.get('notes', []);
         tasks = window.CacheManager.get('tasks', []);
         calendarEvents = window.CacheManager.get('calendarEvents', []);
@@ -128,6 +130,7 @@ async function carregarTodosDados() {
         timeSlots = window.CacheManager.get('timeSlots', []);
         notifications = window.CacheManager.get('notifications', []);
 
+        // Garantir que todos os dias existem
         days.forEach(day => {
             if (!weeklySchedule[day]) weeklySchedule[day] = [];
         });
@@ -136,7 +139,21 @@ async function carregarTodosDados() {
             timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
         }
 
-        console.log('[Mobile] ✅ Dados carregados:', { notes: notes.length, tasks: tasks.length });
+        // ✅ ATUALIZAR LOCALSTORAGE COM OS DADOS DO CACHE
+        const userId = usuarioLogado.id;
+        if (notes.length > 0) localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
+        if (tasks.length > 0) localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
+        if (calendarEvents.length > 0) localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(calendarEvents));
+        if (Object.keys(weeklySchedule).length > 0) localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(weeklySchedule));
+        if (timeSlots.length > 0) localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
+        if (notifications.length > 0) localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+
+        console.log('[Mobile] ✅ Dados carregados:', { 
+            notes: notes.length, 
+            tasks: tasks.length,
+            events: calendarEvents.length
+        });
+        
         renderizarTudo();
 
     } catch (error) {
@@ -147,7 +164,7 @@ async function carregarTodosDados() {
 }
 
 // ============================================
-// SALVAR DADOS (com Supabase)
+// ✅ FUNÇÃO CORRIGIDA: SALVAR DADOS
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || !window.CacheManager || syncInProgress) return false;
@@ -160,15 +177,30 @@ async function salvarTodosDados() {
             window.CacheManager.currentUserId = usuarioLogado.id;
         }
 
-        // Salvar TUDO no CacheManager (que vai para o Supabase)
-        if (typeof notes !== 'undefined') window.CacheManager.set('notes', notes, true);
-        if (typeof tasks !== 'undefined') window.CacheManager.set('tasks', tasks, true);
-        if (typeof calendarEvents !== 'undefined') window.CacheManager.set('calendarEvents', calendarEvents, true);
-        if (typeof weeklySchedule !== 'undefined') window.CacheManager.set('weeklySchedule', weeklySchedule, true);
-        if (typeof timeSlots !== 'undefined') window.CacheManager.set('timeSlots', timeSlots, true);
-        if (typeof notifications !== 'undefined') window.CacheManager.set('notifications', notifications, true);
+        // ✅ SALVAR NO CACHEMANAGER (ENVIA PARA SUPABASE)
+        if (typeof notes !== 'undefined') {
+            window.CacheManager.set('notes', notes, true);
+            console.log('[Mobile] ✅ Notes salvo no CacheManager:', notes.length);
+        }
+        if (typeof tasks !== 'undefined') {
+            window.CacheManager.set('tasks', tasks, true);
+            console.log('[Mobile] ✅ Tasks salvo no CacheManager:', tasks.length);
+        }
+        if (typeof calendarEvents !== 'undefined') {
+            window.CacheManager.set('calendarEvents', calendarEvents, true);
+            console.log('[Mobile] ✅ CalendarEvents salvo no CacheManager:', calendarEvents.length);
+        }
+        if (typeof weeklySchedule !== 'undefined') {
+            window.CacheManager.set('weeklySchedule', weeklySchedule, true);
+        }
+        if (typeof timeSlots !== 'undefined') {
+            window.CacheManager.set('timeSlots', timeSlots, true);
+        }
+        if (typeof notifications !== 'undefined') {
+            window.CacheManager.set('notifications', notifications, true);
+        }
 
-        // Backup local também
+        // ✅ Backup local também (com UUID)
         const userId = usuarioLogado.id;
         if (typeof notes !== 'undefined') localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
         if (typeof tasks !== 'undefined') localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
@@ -177,7 +209,13 @@ async function salvarTodosDados() {
         if (typeof timeSlots !== 'undefined') localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(timeSlots));
         if (typeof notifications !== 'undefined') localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
 
-        console.log('[Mobile] ✅ Dados salvos!');
+        // ✅ Disparar eventos para outras abas
+        window.dispatchEvent(new CustomEvent('dataUpdated', { 
+            detail: { key: 'all', value: { notes, tasks, calendarEvents } } 
+        }));
+        window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+
+        console.log('[Mobile] ✅ Dados salvos com sucesso!');
         return true;
 
     } catch (error) {
@@ -469,7 +507,7 @@ function configurarEventos() {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            renderizarNotificacoesModal(tab.datatype);
+            renderizarNotificacoesModal(tab.dataset.type);
         });
     });
 
@@ -504,9 +542,43 @@ function configurarListeners() {
         renderizarTudo();
     });
 
+    // ✅ ESCUTAR EVENTOS DE DADOS ATUALIZADOS
+    window.addEventListener('tasksUpdated', (event) => {
+        if (event.detail && !syncInProgress) {
+            tasks = event.detail;
+            renderizarTudo();
+            console.log('[Mobile] Tasks atualizadas via evento');
+        }
+    });
+
     window.addEventListener('notesUpdated', (event) => {
         if (event.detail && event.detail.notes && !syncInProgress) {
             notes = event.detail.notes;
+            renderizarTudo();
+            console.log('[Mobile] Notes atualizadas via evento');
+        }
+    });
+
+    window.addEventListener('calendarEventsUpdated', (event) => {
+        if (event.detail && !syncInProgress) {
+            calendarEvents = event.detail;
+            renderizarTudo();
+            console.log('[Mobile] CalendarEvents atualizados via evento');
+        }
+    });
+
+    window.addEventListener('weeklyScheduleUpdated', (event) => {
+        if (event.detail && !syncInProgress) {
+            weeklySchedule = event.detail;
+            renderizarTudo();
+            console.log('[Mobile] WeeklySchedule atualizado via evento');
+        }
+    });
+
+    window.addEventListener('dataUpdated', (event) => {
+        if (event.detail && event.detail.key && !syncInProgress) {
+            console.log(`[Mobile] Dados ${event.detail.key} atualizados via evento`);
+            carregarTodosDados();
             renderizarTudo();
         }
     });
@@ -521,6 +593,18 @@ function configurarListeners() {
         console.log('[Mobile] 🔄 ForceRefresh recebido');
         carregarTodosDados();
         renderizarTudo();
+    });
+
+    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('_tasks') || 
+            e.key.includes('_notes') || 
+            e.key.includes('_calendarEvents') ||
+            e.key.includes('_weeklySchedule'))) {
+            console.log('[Mobile] Mudança detectada em outra aba:', e.key);
+            carregarTodosDados();
+            renderizarTudo();
+        }
     });
 }
 
