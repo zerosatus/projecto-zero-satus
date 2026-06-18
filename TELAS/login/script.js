@@ -1,7 +1,9 @@
-// login/script.js - Login com Supabase (COMPLETO CORRIGIDO)
+// login/script.js - Login com Supabase (CORRIGIDO - SEM AUTO-LOGIN)
 
 let isRegisterMode = false;
 let pendingEmail = '';
+let authListenerUnsubscribe = null;
+let isProcessingAuth = false;
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -58,8 +60,15 @@ function limparCamposFormulario() {
     console.log('[Login] Campos do formulário limpos');
 }
 
-// 🔥 CORRIGIDO: processarLogin com verificação de perfil
+// ============================================
+// PROCESSAR LOGIN
+// ============================================
 async function processarLogin(user) {
+    if (isProcessingAuth) {
+        console.log('[Login] Já processando autenticação...');
+        return false;
+    }
+
     console.log('[Login] Processando login para:', user.email);
 
     if (!user.email_confirmed_at) {
@@ -68,62 +77,76 @@ async function processarLogin(user) {
         return false;
     }
 
-    // 🔥 Garantir que o perfil existe
-    if (window.AuthService) {
-        await window.AuthService.ensureProfileExists(user);
-    }
+    isProcessingAuth = true;
 
-    // Buscar perfil para obter nome correto
-    let nome = user.user_metadata?.full_name || user.email.split('@')[0];
-    let foto = user.user_metadata?.avatar_url || null;
+    try {
+        // Garantir que o perfil existe
+        if (window.AuthService) {
+            await window.AuthService.ensureProfileExists(user);
+        }
 
-    if (window.DatabaseService) {
-        try {
-            const profile = await window.DatabaseService.getUserProfile(user.id);
-            if (profile) {
-                nome = profile.nome || nome;
-                foto = profile.avatar_url || foto;
-                console.log('[Login] Perfil encontrado:', nome);
+        // Buscar perfil para obter nome correto
+        let nome = user.user_metadata?.full_name || user.email.split('@')[0];
+        let foto = user.user_metadata?.avatar_url || null;
+
+        if (window.DatabaseService) {
+            try {
+                const profile = await window.DatabaseService.getUserProfile(user.id);
+                if (profile) {
+                    nome = profile.nome || nome;
+                    foto = profile.avatar_url || foto;
+                    console.log('[Login] Perfil encontrado:', nome);
+                }
+            } catch(e) {
+                console.warn('[Login] Erro ao buscar perfil:', e);
             }
-        } catch(e) {
-            console.warn('[Login] Erro ao buscar perfil:', e);
         }
-    }
 
-    const usuario = {
-        id: user.id,
-        email: user.email,
-        nome: nome,
-        foto: foto,
-        avatar_url: foto,
-        logado: true,
-        email_confirmado: true
-    };
+        const usuario = {
+            id: user.id,
+            email: user.email,
+            nome: nome,
+            foto: foto,
+            avatar_url: foto,
+            logado: true,
+            email_confirmado: true
+        };
 
-    localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
 
-    if (window.CacheManager) {
-        window.CacheManager.init();
-        window.CacheManager.currentUserId = usuario.id;
-        try {
-            await window.CacheManager.loadFromCloud();
-        } catch (e) {
-            console.warn('[Login] Erro ao carregar da nuvem:', e);
+        if (window.CacheManager) {
+            window.CacheManager.init();
+            window.CacheManager.currentUserId = usuario.id;
+            try {
+                await window.CacheManager.loadFromCloud();
+            } catch (e) {
+                console.warn('[Login] Erro ao carregar da nuvem:', e);
+            }
         }
+
+        showMessage(`✅ Bem-vindo, ${usuario.nome}!`, false);
+
+        setTimeout(() => {
+            const isMobile = ehCelular();
+            const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+            console.log('[Login] Redirecionando para:', destino);
+            window.location.href = destino;
+        }, 1000);
+
+        return true;
+    } catch (error) {
+        console.error('[Login] Erro ao processar login:', error);
+        return false;
+    } finally {
+        setTimeout(() => {
+            isProcessingAuth = false;
+        }, 2000);
     }
-
-    showMessage(`✅ Bem-vindo, ${usuario.nome}!`, false);
-
-    setTimeout(() => {
-        const isMobile = ehCelular();
-        const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-        console.log('[Login] Redirecionando para:', destino);
-        window.location.href = destino;
-    }, 1000);
-
-    return true;
 }
 
+// ============================================
+// LOGIN COM EMAIL
+// ============================================
 async function loginWithEmail(email, password) {
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
@@ -157,6 +180,9 @@ async function loginWithEmail(email, password) {
     }
 }
 
+// ============================================
+// REGISTRO
+// ============================================
 async function registerWithEmail(email, password, nome) {
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
@@ -201,6 +227,9 @@ async function registerWithEmail(email, password, nome) {
     }
 }
 
+// ============================================
+// REENVIAR CONFIRMAÇÃO
+// ============================================
 async function resendConfirmationEmail(email) {
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
@@ -257,6 +286,9 @@ function showResendButton(email) {
     });
 }
 
+// ============================================
+// TOGGLE FORM
+// ============================================
 function toggleForm() {
     isRegisterMode = !isRegisterMode;
     const nomeField = document.getElementById('nome-field');
@@ -295,7 +327,9 @@ function toggleForm() {
     limparCamposFormulario();
 }
 
-// 🔥 CORRIGIDO: handleConfirmationCallback com logout forçado
+// ============================================
+// HANDLE CONFIRMAÇÃO
+// ============================================
 async function handleConfirmationCallback() {
     console.log('[Confirmação] Processando callback de confirmação...');
 
@@ -314,7 +348,7 @@ async function handleConfirmationCallback() {
     }
 
     try {
-        // 🔥 FORÇAR LOGOUT antes de processar
+        // FORÇAR LOGOUT antes de processar
         console.log('[Confirmação] Forçando logout antes de processar...');
         await window.AuthService.logout();
         localStorage.removeItem('usuarioLogado');
@@ -344,7 +378,9 @@ async function handleConfirmationCallback() {
     }
 }
 
-// 🔥 CORRIGIDO: handleGoogleCallback com verificação de perfil
+// ============================================
+// HANDLE GOOGLE CALLBACK
+// ============================================
 async function handleGoogleCallback() {
     console.log('[Google] Verificando callback...');
 
@@ -397,7 +433,9 @@ function isGoogleCallback() {
     return hasCode || hasAccessToken;
 }
 
-// 🔥 CORRIGIDO: checkSession com verificação de perfil
+// ============================================
+// 🔥 CORRIGIDO: checkSession - NÃO FAZ AUTO-LOGIN
+// ============================================
 async function checkSession() {
     if (!window.AuthService) return false;
 
@@ -407,22 +445,41 @@ async function checkSession() {
         if (user) {
             console.log('[Login] Sessão existente para:', user.email);
 
-            await window.AuthService.ensureProfileExists(user);
+            // 🔥 NÃO FAZ LOGIN AUTOMÁTICO NA PÁGINA DE LOGIN
+            // Apenas verifica se já está logado e redireciona se necessário
 
             const usuarioSalvo = localStorage.getItem('usuarioLogado');
             if (usuarioSalvo) {
                 try {
                     const parsed = JSON.parse(usuarioSalvo);
                     if (parsed.id === user.id) {
-                        console.log('[Login] Usuário já logado, redirecionando...');
-                        const isMobile = ehCelular();
-                        const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-                        window.location.href = destino;
+                        console.log('[Login] Usuário já está logado. Redirecionando...');
+
+                        // 🔥 SÓ REDIRECIONA SE NÃO FOR A PÁGINA DE LOGIN
+                        const isLoginPage = window.location.pathname.includes('/login/');
+                        if (!isLoginPage) {
+                            const isMobile = ehCelular();
+                            const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                            window.location.href = destino;
+                            return true;
+                        }
+
+                        // Se estiver na página de login, mostra mensagem
+                        showMessage('👋 Você já está logado! Redirecionando...', false);
+                        setTimeout(() => {
+                            const isMobile = ehCelular();
+                            const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                            window.location.href = destino;
+                        }, 1500);
                         return true;
                     }
-                } catch(e) {}
+                } catch(e) {
+                    console.warn('[Login] Erro ao parsear usuário salvo:', e);
+                }
             }
 
+            // Se tem sessão mas não tem usuário salvo, processa login
+            console.log('[Login] Sessão encontrada mas sem dados locais. Processando...');
             await processarLogin(user);
             return true;
         }
@@ -433,6 +490,25 @@ async function checkSession() {
     }
 }
 
+// ============================================
+// FUNÇÃO PARA FORÇAR LOGOUT (BOTÃO NA TELA)
+// ============================================
+window.forcarLogout = async function() {
+    if (confirm('Deseja sair da conta atual?')) {
+        if (window.AuthService) {
+            await window.AuthService.logout();
+        }
+        localStorage.clear();
+        sessionStorage.clear();
+        limparCamposFormulario();
+        window.location.reload();
+        showMessage('✅ Sessão limpa! Faça login novamente.', false);
+    }
+};
+
+// ============================================
+// WAIT FOR SUPABASE
+// ============================================
 function waitForSupabase() {
     return new Promise((resolve) => {
         if (window.AuthService) {
@@ -453,6 +529,20 @@ function waitForSupabase() {
 }
 
 // ============================================
+// FUNÇÃO PARA LIMPAR SESSÃO (EXPOSTA GLOBALMENTE)
+// ============================================
+window.limparSessao = async function() {
+    console.log('[Login] Limpando sessão manualmente...');
+    if (window.AuthService) {
+        await window.AuthService.logout();
+    }
+    localStorage.removeItem('usuarioLogado');
+    localStorage.removeItem('userPhotoURL');
+    limparCamposFormulario();
+    showMessage('✅ Sessão limpa!', false);
+};
+
+// ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -470,7 +560,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('[Login] AuthService disponível!');
 
-    // Verificar se é callback de confirmação
+    // ============================================
+    // VERIFICAR CALLBACK DE CONFIRMAÇÃO
+    // ============================================
     const isConfirmCallback = window.AuthService.isConfirmationCallback();
     if (isConfirmCallback) {
         console.log('[Login] 🔔 Detectado callback de confirmação!');
@@ -484,7 +576,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Verificar callback do Google
+    // ============================================
+    // VERIFICAR CALLBACK DO GOOGLE
+    // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
         console.log('[Google] Detectado callback do Google!');
@@ -492,9 +586,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (processed) return;
     }
 
+    // ============================================
+    // 🔥 VERIFICAR SESSÃO - SEM AUTO-LOGIN
+    // ============================================
+    const hasSession = await checkSession();
+    if (hasSession) {
+        console.log('[Login] Sessão ativa encontrada - redirecionando...');
+        // O redirecionamento já é feito dentro do checkSession
+        return;
+    }
+
+    // ============================================
+    // LIMPAR CAMPOS
+    // ============================================
     limparCamposFormulario();
 
-    // Configurar eventos anti-autocomplete
+    // ============================================
+    // EVENTOS ANTI-AUTOCOMPLETE
+    // ============================================
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const nomeInput = document.getElementById('nome');
@@ -521,34 +630,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => limparCamposFormulario(), 100);
     setTimeout(() => limparCamposFormulario(), 500);
 
-    // Listener de autenticação
-    window.AuthService.onAuthStateChange(async (event, session) => {
-        console.log('[Login] Auth state change:', event);
+    // ============================================
+    // 🔥 LISTENER DE AUTENTICAÇÃO (DESATIVADO NA PÁGINA DE LOGIN)
+    // ============================================
+    // Só ativa o listener se NÃO for callback
+    if (!isCallback && !isConfirmCallback) {
+        authListenerUnsubscribe = window.AuthService.onAuthStateChange(async (event, session) => {
+            console.log('[Login] Auth state change:', event);
 
-        if (event === 'SIGNED_IN' && session?.user && !localStorage.getItem('usuarioLogado')) {
-            console.log('[Login] Usuário logou, processando...');
-            await processarLogin(session.user);
-        } else if (event === 'SIGNED_OUT') {
-            console.log('[Login] Usuário deslogou');
-            localStorage.removeItem('usuarioLogado');
-            if (window.CacheManager) window.CacheManager.logout();
-        }
-    });
+            if (event === 'SIGNED_IN' && session?.user) {
+                // 🔥 SÓ PROCESSA SE FOR CLIQUE DO USUÁRIO (não automático)
+                const isLoginPage = window.location.pathname.includes('/login/');
 
-    // Verificar sessão existente
-    const hasSession = await checkSession();
-    if (hasSession) {
-        console.log('[Login] Sessão ativa encontrada');
-        return;
+                if (isLoginPage && !localStorage.getItem('usuarioLogado')) {
+                    console.log('[Login] Login detectado, processando...');
+                    await processarLogin(session.user);
+                } else if (!isLoginPage) {
+                    console.log('[Login] Login detectado fora da página de login');
+                }
+            } else if (event === 'SIGNED_OUT') {
+                console.log('[Login] Usuário deslogou');
+                localStorage.removeItem('usuarioLogado');
+                if (window.CacheManager) window.CacheManager.logout();
+            }
+        });
     }
 
-    // Se for callback do Google que não processou
-    if (isCallback) {
-        const processed = await handleGoogleCallback();
-        if (processed) return;
-    }
-
+    // ============================================
     // EVENTOS DA UI
+    // ============================================
+
+    // Google Login
     const googleBtn = document.getElementById('google-login-btn');
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
@@ -558,6 +670,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Email Login Form
     const emailForm = document.getElementById('auth-form');
     if (emailForm) {
         emailForm.addEventListener('submit', async (e) => {
@@ -592,6 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Toggle Link
     const toggleLink = document.getElementById('toggle-mode-link');
     if (toggleLink) {
         toggleLink.addEventListener('click', (e) => {
@@ -600,7 +714,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Limpeza periódica
+    // ============================================
+    // LIMPEZA PERIÓDICA
+    // ============================================
     let limpezaInterval = setInterval(() => {
         const email = document.getElementById('email');
         const password = document.getElementById('password');
@@ -619,13 +735,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('beforeunload', () => {
         if (limpezaInterval) clearInterval(limpezaInterval);
+        if (authListenerUnsubscribe && typeof authListenerUnsubscribe === 'function') {
+            authListenerUnsubscribe();
+        }
     });
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Login completamente corrigido!', 'color: #10b981; font-size: 14px;');
+    console.log('%c✅ Login corrigido - SEM AUTO-LOGIN!', 'color: #10b981; font-size: 14px;');
+    console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
 
-// Função para login com Google (chamada do botão)
+// ============================================
+// LOGIN COM GOOGLE (chamado do botão)
+// ============================================
 async function loginWithGoogle() {
     console.log('[Google] Iniciando login com Google...');
 
