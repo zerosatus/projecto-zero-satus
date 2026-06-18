@@ -1,4 +1,4 @@
-// mobile-telas/tarefas/script.js - VERSÃO SUPABASE APENAS
+// mobile-telas/tarefas/script.js - VERSÃO CORRIGIDA COM CACHEMANAGER
 
 let notifications = [];
 let tasks = [];
@@ -65,21 +65,32 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// SALVAR DADOS
+// ✅ FUNÇÃO CORRIGIDA: SALVAR DADOS
 // ============================================
 async function salvarTodosDados() {
     if (!usuarioLogado || !window.CacheManager || isSaving) return false;
     isSaving = true;
     
     try {
+        // ✅ SALVAR NO CACHEMANAGER (ENVIA PARA SUPABASE)
+        if (window.CacheManager.currentUserId !== usuarioLogado.id) {
+            window.CacheManager.currentUserId = usuarioLogado.id;
+        }
+        
         window.CacheManager.set('tasks', tasks, true);
         window.CacheManager.set('notifications', notifications, true);
         
+        console.log('[Tarefas Mobile] ✅ Salvo no CacheManager:', tasks.length);
+        
+        // ✅ Backup local com UUID
         const userId = usuarioLogado.id;
         localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
         localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
         
-        console.log('[Tarefas Mobile] ✅ Dados salvos:', tasks.length);
+        // ✅ Disparar eventos para outras abas
+        window.dispatchEvent(new CustomEvent('tasksUpdated', { detail: tasks }));
+        window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key: 'tasks', value: tasks } }));
+        
         return true;
     } catch (error) {
         console.error('[Tarefas Mobile] Erro ao salvar:', error);
@@ -90,7 +101,7 @@ async function salvarTodosDados() {
 }
 
 // ============================================
-// CARREGAR DADOS
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
 // ============================================
 async function carregarDados() {
     if (!usuarioLogado || !window.CacheManager) return;
@@ -100,18 +111,22 @@ async function carregarDados() {
             window.CacheManager.currentUserId = usuarioLogado.id;
         }
         
+        // ✅ PRIORIDADE: CacheManager
         const cachedTasks = window.CacheManager.get('tasks', null);
         const cachedNotif = window.CacheManager.get('notifications', null);
         
         if (cachedTasks !== null && Array.isArray(cachedTasks)) {
             tasks = cachedTasks;
-            console.log('[Tarefas Mobile] Carregadas do CacheManager:', tasks.length);
+            console.log('[Tarefas Mobile] Carregado do CacheManager:', tasks.length);
         } else {
+            // Fallback para localStorage com UUID
             const userId = usuarioLogado.id;
             const tasksSalvas = localStorage.getItem(`${userId}_tasks`);
             if (tasksSalvas) {
                 tasks = JSON.parse(tasksSalvas);
-                console.log('[Tarefas Mobile] Carregadas do localStorage:', tasks.length);
+                console.log('[Tarefas Mobile] Carregado do localStorage:', tasks.length);
+            } else {
+                tasks = [];
             }
         }
         
@@ -122,9 +137,12 @@ async function carregarDados() {
             const notifSalvas = localStorage.getItem(`${userId}_notifications`);
             if (notifSalvas) {
                 notifications = JSON.parse(notifSalvas);
+            } else {
+                notifications = [];
             }
         }
         
+        // ✅ Se não tiver tarefas, criar um exemplo
         if (tasks.length === 0) {
             tasks = [{
                 id: Date.now(),
@@ -359,14 +377,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // Inicializar CacheManager
     if (window.CacheManager) {
         window.CacheManager.init();
         window.CacheManager.currentUserId = usuarioLogado.id;
         console.log('[Tarefas Mobile] CacheManager inicializado');
     }
     
-    // Inicializar Sync
     if (window.initSync && !window._tasksMobileSyncInit) {
         window._tasksMobileSyncInit = true;
         try {
@@ -377,10 +393,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // Carregar dados
     await carregarDados();
     
-    // Atualizar UI
     const headerName = document.getElementById('header-name');
     if (headerName && usuarioLogado.nome) {
         headerName.textContent = usuarioLogado.nome.split(' ')[0];
@@ -490,12 +504,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Listeners globais
+    // ✅ LISTENERS GLOBAIS
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Tarefas Mobile] 📡 Dados da nuvem carregados!');
         await carregarDados();
         renderTasks();
         showToast('🔄 Tarefas sincronizadas!', 'success');
+    });
+    
+    window.addEventListener('tasksUpdated', (event) => {
+        if (event.detail && !isSaving) {
+            console.log('[Tarefas Mobile] Evento tasksUpdated recebido');
+            tasks = event.detail;
+            renderTasks();
+            updateNotificationBadge();
+        }
+    });
+    
+    window.addEventListener('dataUpdated', (event) => {
+        if (event.detail && event.detail.key === 'tasks' && !isSaving) {
+            console.log('[Tarefas Mobile] DataUpdated recebido para tasks');
+            tasks = event.detail.value;
+            renderTasks();
+            updateNotificationBadge();
+        }
     });
     
     window.addEventListener('syncReady', () => {
@@ -510,6 +542,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (profileIcon) {
                 profileIcon.innerHTML = `<img src="${event.detail.photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
             }
+        }
+    });
+    
+    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+    window.addEventListener('storage', (e) => {
+        if (e.key && e.key.includes('_tasks')) {
+            console.log('[Tarefas Mobile] Mudança detectada em outra aba:', e.key);
+            carregarDados();
+            renderTasks();
+            updateNotificationBadge();
         }
     });
     
