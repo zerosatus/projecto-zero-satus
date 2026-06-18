@@ -1,4 +1,4 @@
-// login/script.js - Login com Supabase (COM CONFIRMAÇÃO DE E-MAIL - CORRIGIDO)
+// login/script.js - Login com Supabase (COMPLETO CORRIGIDO)
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -29,9 +29,6 @@ function setLoading(button, isLoading) {
     }
 }
 
-// ============================================
-// LIMPAR CAMPOS DO FORMULÁRIO
-// ============================================
 function limparCamposFormulario() {
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
@@ -61,9 +58,9 @@ function limparCamposFormulario() {
     console.log('[Login] Campos do formulário limpos');
 }
 
+// 🔥 CORRIGIDO: processarLogin com verificação de perfil
 async function processarLogin(user) {
     console.log('[Login] Processando login para:', user.email);
-    console.log('[Login] User ID (UUID):', user.id);
 
     if (!user.email_confirmed_at) {
         console.warn('[Login] E-mail não confirmado!');
@@ -71,11 +68,34 @@ async function processarLogin(user) {
         return false;
     }
 
+    // 🔥 Garantir que o perfil existe
+    if (window.AuthService) {
+        await window.AuthService.ensureProfileExists(user);
+    }
+
+    // Buscar perfil para obter nome correto
+    let nome = user.user_metadata?.full_name || user.email.split('@')[0];
+    let foto = user.user_metadata?.avatar_url || null;
+
+    if (window.DatabaseService) {
+        try {
+            const profile = await window.DatabaseService.getUserProfile(user.id);
+            if (profile) {
+                nome = profile.nome || nome;
+                foto = profile.avatar_url || foto;
+                console.log('[Login] Perfil encontrado:', nome);
+            }
+        } catch(e) {
+            console.warn('[Login] Erro ao buscar perfil:', e);
+        }
+    }
+
     const usuario = {
         id: user.id,
         email: user.email,
-        nome: user.user_metadata?.full_name || user.email.split('@')[0],
-        foto: user.user_metadata?.avatar_url || null,
+        nome: nome,
+        foto: foto,
+        avatar_url: foto,
         logado: true,
         email_confirmado: true
     };
@@ -104,9 +124,6 @@ async function processarLogin(user) {
     return true;
 }
 
-// ============================================
-// LOGIN COM E-MAIL
-// ============================================
 async function loginWithEmail(email, password) {
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
@@ -114,6 +131,7 @@ async function loginWithEmail(email, password) {
     }
 
     try {
+        console.log('[Login] Tentando login com email:', email);
         const { user } = await window.AuthService.loginWithEmail(email, password);
 
         if (!user.email_confirmed_at) {
@@ -139,9 +157,6 @@ async function loginWithEmail(email, password) {
     }
 }
 
-// ============================================
-// REGISTRO
-// ============================================
 async function registerWithEmail(email, password, nome) {
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
@@ -159,10 +174,9 @@ async function registerWithEmail(email, password, nome) {
                 false,
                 6000
             );
-
             showResendButton(email);
 
-            // ⚠️ IMPORTANTE: Limpar TODOS os campos e forçar logout se necessário
+            // Limpar estado
             await window.AuthService.logout();
             localStorage.removeItem('usuarioLogado');
             limparCamposFormulario();
@@ -187,9 +201,6 @@ async function registerWithEmail(email, password, nome) {
     }
 }
 
-// ============================================
-// REENVIAR E-MAIL DE CONFIRMAÇÃO
-// ============================================
 async function resendConfirmationEmail(email) {
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
@@ -246,9 +257,6 @@ function showResendButton(email) {
     });
 }
 
-// ============================================
-// TOGGLE FORM
-// ============================================
 function toggleForm() {
     isRegisterMode = !isRegisterMode;
     const nomeField = document.getElementById('nome-field');
@@ -287,149 +295,82 @@ function toggleForm() {
     limparCamposFormulario();
 }
 
-// ============================================
-// ⭐ NOVA FUNÇÃO: VERIFICAR SE É CALLBACK DE CONFIRMAÇÃO
-// ============================================
-function isConfirmationCallback() {
-    const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash;
-
-    // Verificar se há token de confirmação na URL
-    const hasToken = params.has('token') || params.has('confirmation_token') ||
-                     hash.includes('access_token') || hash.includes('confirmation');
-
-    // Verificar se é o callback do Google
-    const isGoogle = params.has('code') || hash.includes('access_token');
-
-    return hasToken && !isGoogle;
-}
-
-// ============================================
-// ⭐ NOVA FUNÇÃO: PROCESSAR CALLBACK DE CONFIRMAÇÃO
-// ============================================
+// 🔥 CORRIGIDO: handleConfirmationCallback com logout forçado
 async function handleConfirmationCallback() {
     console.log('[Confirmação] Processando callback de confirmação...');
 
     const params = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
 
-    // Extrair token da URL
     let token = params.get('token') || params.get('confirmation_token');
-
-    // Se não tiver token, verificar no hash
     if (!token && hash) {
         const hashParams = new URLSearchParams(hash.replace('#', '?'));
         token = hashParams.get('access_token');
     }
 
     if (!token) {
-        console.log('[Confirmação] Nenhum token encontrado na URL');
+        console.log('[Confirmação] Nenhum token encontrado');
         return false;
     }
 
-    console.log('[Confirmação] Token encontrado:', token.substring(0, 10) + '...');
-
     try {
-        // ⚠️ IMPORTANTE: Verificar se o usuário atual corresponde ao e-mail confirmado
-        const { data: { user } } = await window.AuthService.getCurrentUser();
+        // 🔥 FORÇAR LOGOUT antes de processar
+        console.log('[Confirmação] Forçando logout antes de processar...');
+        await window.AuthService.logout();
+        localStorage.removeItem('usuarioLogado');
+        limparCamposFormulario();
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Se já estiver logado com uma conta diferente, fazer logout primeiro
-        if (user && pendingEmail && user.email !== pendingEmail) {
-            console.log('[Confirmação] Usuário atual diferente do e-mail confirmado. Fazendo logout...');
-            await window.AuthService.logout();
-            localStorage.removeItem('usuarioLogado');
-            // Limpar campos e recarregar a página
+        const result = await window.AuthService.processConfirmationCallback();
+
+        if (result && result.success) {
+            showMessage('✅ ' + result.message, false, 5000);
+
             limparCamposFormulario();
-            window.location.reload();
-            return true;
-        }
-
-        // Tentar confirmar o e-mail
-        const result = await window.AuthService.confirmEmail(token);
-
-        if (result.user) {
-            showMessage('✅ E-mail confirmado com sucesso! Faça login para continuar.', false, 5000);
-
-            // Limpar campos e redirecionar para login
-            limparCamposFormulario();
-
-            // Remover parâmetros da URL
             window.history.replaceState({}, document.title, window.location.pathname);
 
-            // Se estava logado com conta diferente, garantir que fez logout
-            await window.AuthService.logout();
-            localStorage.removeItem('usuarioLogado');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
 
             return true;
         }
 
         return false;
     } catch (error) {
-        console.error('[Confirmação] Erro ao confirmar e-mail:', error);
+        console.error('[Confirmação] Erro:', error);
         showMessage('❌ Erro ao confirmar e-mail: ' + error.message, true);
         return false;
     }
 }
 
-// ============================================
-// LOGIN COM GOOGLE
-// ============================================
-async function loginWithGoogle() {
-    console.log('[Google] Iniciando login com Google...');
-
-    if (!window.AuthService) {
-        showMessage('Sistema offline. Tente novamente.', true);
-        return;
-    }
-
-    try {
-        const googleBtn = document.getElementById('google-login-btn');
-        if (googleBtn) {
-            googleBtn.disabled = true;
-            googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
-        }
-
-        await window.AuthService.loginWithGoogle();
-
-        if (googleBtn) {
-            googleBtn.disabled = false;
-            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
-        }
-
-    } catch (error) {
-        console.error('[Google] Erro:', error);
-        showMessage('❌ Erro ao fazer login com Google: ' + error.message, true);
-
-        const googleBtn = document.getElementById('google-login-btn');
-        if (googleBtn) {
-            googleBtn.disabled = false;
-            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
-        }
-    }
-}
-
-// ============================================
-// HANDLE CALLBACK DO GOOGLE
-// ============================================
+// 🔥 CORRIGIDO: handleGoogleCallback com verificação de perfil
 async function handleGoogleCallback() {
     console.log('[Google] Verificando callback...');
 
     if (!window.AuthService) return false;
 
     try {
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const { data: { user } } = await window.AuthService.getCurrentUser();
 
         if (user) {
-            console.log('[Google] Usuário autenticado via callback:', user.email);
+            console.log('[Google] Usuário autenticado:', user.email);
 
-            if (!localStorage.getItem('usuarioLogado')) {
-                await processarLogin(user);
-            } else {
-                const isMobile = ehCelular();
-                const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-                window.location.href = destino;
-            }
+            await window.AuthService.ensureProfileExists(user);
+            await processarLogin(user);
+
+            window.history.replaceState({}, document.title, window.location.pathname);
             return true;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('error')) {
+            const error = params.get('error');
+            const desc = params.get('error_description');
+            showMessage(`❌ Erro no Google: ${desc || error}`, true);
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
 
         return false;
@@ -456,12 +397,32 @@ function isGoogleCallback() {
     return hasCode || hasAccessToken;
 }
 
+// 🔥 CORRIGIDO: checkSession com verificação de perfil
 async function checkSession() {
     if (!window.AuthService) return false;
 
     try {
         const { data: { user } } = await window.AuthService.getCurrentUser();
-        if (user && !localStorage.getItem('usuarioLogado')) {
+
+        if (user) {
+            console.log('[Login] Sessão existente para:', user.email);
+
+            await window.AuthService.ensureProfileExists(user);
+
+            const usuarioSalvo = localStorage.getItem('usuarioLogado');
+            if (usuarioSalvo) {
+                try {
+                    const parsed = JSON.parse(usuarioSalvo);
+                    if (parsed.id === user.id) {
+                        console.log('[Login] Usuário já logado, redirecionando...');
+                        const isMobile = ehCelular();
+                        const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                        window.location.href = destino;
+                        return true;
+                    }
+                } catch(e) {}
+            }
+
             await processarLogin(user);
             return true;
         }
@@ -498,11 +459,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     console.log('[Login] URL atual:', window.location.href);
 
-    // ============================================
-    // PASSO 1: VERIFICAR SE É CALLBACK DE CONFIRMAÇÃO
-    // ============================================
-    const isConfirmCallback = isConfirmationCallback();
-
     // Aguardar Supabase
     await waitForSupabase();
 
@@ -514,23 +470,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('[Login] AuthService disponível!');
 
-    // ============================================
-    // PASSO 2: PROCESSAR CALLBACK DE CONFIRMAÇÃO PRIMEIRO
-    // ============================================
+    // Verificar se é callback de confirmação
+    const isConfirmCallback = window.AuthService.isConfirmationCallback();
     if (isConfirmCallback) {
-        console.log('[Login] 🔔 Detectado callback de confirmação de e-mail!');
-
-        // Limpar campos antes de processar
+        console.log('[Login] 🔔 Detectado callback de confirmação!');
         limparCamposFormulario();
-
-        // Processar confirmação
         const processed = await handleConfirmationCallback();
-
         if (processed) {
-            // Remover parâmetros da URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-
-            // Aguardar um pouco e recarregar a página limpa
             setTimeout(() => {
                 window.location.href = window.location.pathname;
             }, 2000);
@@ -538,9 +484,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ============================================
-    // PASSO 3: VERIFICAR CALLBACK DO GOOGLE
-    // ============================================
+    // Verificar callback do Google
     const isCallback = isGoogleCallback();
     if (isCallback) {
         console.log('[Google] Detectado callback do Google!');
@@ -548,70 +492,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (processed) return;
     }
 
-    // ============================================
-    // PASSO 4: LIMPAR CAMPOS
-    // ============================================
     limparCamposFormulario();
 
-    // ============================================
-    // PASSO 5: EVENTOS ANTI-AUTOCOMPLETE
-    // ============================================
+    // Configurar eventos anti-autocomplete
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const nomeInput = document.getElementById('nome');
 
-    if (emailInput) {
-        emailInput.addEventListener('focus', function() {
+    [emailInput, passwordInput, nomeInput].forEach(input => {
+        if (!input) return;
+        input.addEventListener('focus', function() {
             if (this.value && !this.dataset.manual) {
                 this.value = '';
             }
         });
-        emailInput.addEventListener('input', function() {
+        input.addEventListener('input', function() {
             if (this.value) {
                 this.dataset.manual = 'true';
             }
         });
-        emailInput.addEventListener('click', function() {
+        input.addEventListener('click', function() {
             if (this.value && !this.dataset.manual) {
                 this.value = '';
             }
         });
-    }
+    });
 
-    if (passwordInput) {
-        passwordInput.addEventListener('focus', function() {
-            if (this.value) {
-                this.value = '';
-            }
-        });
-        passwordInput.addEventListener('input', function() {
-            if (this.value) {
-                this.dataset.manual = 'true';
-            }
-        });
-        passwordInput.addEventListener('click', function() {
-            if (this.value) {
-                this.value = '';
-            }
-        });
-    }
-
-    if (nomeInput) {
-        nomeInput.addEventListener('focus', function() {
-            if (this.value && !this.dataset.manual) {
-                this.value = '';
-            }
-        });
-        nomeInput.addEventListener('input', function() {
-            if (this.value) {
-                this.dataset.manual = 'true';
-            }
-        });
-    }
-
-    // ============================================
-    // PASSO 6: LIMPAR APÓS DELAY
-    // ============================================
     setTimeout(() => limparCamposFormulario(), 100);
     setTimeout(() => limparCamposFormulario(), 500);
 
@@ -642,10 +548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (processed) return;
     }
 
-    // ============================================
     // EVENTOS DA UI
-    // ============================================
-
     const googleBtn = document.getElementById('google-login-btn');
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
@@ -697,10 +600,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (isCallback || isConfirmCallback) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
     // Limpeza periódica
     let limpezaInterval = setInterval(() => {
         const email = document.getElementById('email');
@@ -723,5 +622,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Anti-autocomplete e confirmação de e-mail corrigidos!', 'color: #10b981; font-size: 14px;');
+    console.log('%c✅ Login completamente corrigido!', 'color: #10b981; font-size: 14px;');
 });
+
+// Função para login com Google (chamada do botão)
+async function loginWithGoogle() {
+    console.log('[Google] Iniciando login com Google...');
+
+    if (!window.AuthService) {
+        showMessage('Sistema offline. Tente novamente.', true);
+        return;
+    }
+
+    try {
+        const googleBtn = document.getElementById('google-login-btn');
+        if (googleBtn) {
+            googleBtn.disabled = true;
+            googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
+        }
+
+        await window.AuthService.loginWithGoogle();
+
+        if (googleBtn) {
+            googleBtn.disabled = false;
+            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
+        }
+
+    } catch (error) {
+        console.error('[Google] Erro:', error);
+        showMessage('❌ Erro ao fazer login com Google: ' + error.message, true);
+
+        const googleBtn = document.getElementById('google-login-btn');
+        if (googleBtn) {
+            googleBtn.disabled = false;
+            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
+        }
+    }
+}
