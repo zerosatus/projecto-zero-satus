@@ -199,7 +199,7 @@ function loadProfileData() {
         if (nameInput) nameInput.value = usuarioLogado.nome || '';
         if (emailInput) emailInput.value = usuarioLogado.email || '';
 
-        if (userPhotoURL && userPhotoURL.startsWith('data:')) {
+        if (userPhotoURL && (userPhotoURL.startsWith('data:') || userPhotoURL.startsWith('http'))) {
             if (avatarPreview) {
                 avatarPreview.innerHTML = `<img src="${userPhotoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
                 avatarPreview.style.display = 'flex';
@@ -217,8 +217,7 @@ function loadProfileData() {
     }
 }
 
-// ========== FUNÇÕES DE FOTO DE PERFIL COM SUPABASE ==========
-
+// 🔥 CORRIGIDO: carregarFotoPerfil com múltiplas fontes
 async function carregarFotoPerfil() {
     if (!usuarioLogado) return;
 
@@ -226,24 +225,37 @@ async function carregarFotoPerfil() {
     const profileInitial = document.getElementById('profile-initial');
     const avatarPreview = document.getElementById('avatar-preview');
 
-    if (window.CacheManager) {
-        const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+    // 🔥 PRIORIDADE 1: Foto do localStorage
+    let photoUrl = localStorage.getItem('userPhotoURL');
 
-        if (photoUrl && (photoUrl.startsWith('data:') || photoUrl.startsWith('http'))) {
-            userPhotoURL = photoUrl;
+    // 🔥 PRIORIDADE 2: Foto do CacheManager
+    if (!photoUrl && window.CacheManager) {
+        photoUrl = await window.CacheManager.getProfilePhotoUrl();
+    }
+
+    // 🔥 PRIORIDADE 3: Foto do perfil do usuário
+    if (!photoUrl && usuarioLogado) {
+        photoUrl = usuarioLogado.avatar_url || usuarioLogado.profilePhotoUrl || usuarioLogado.foto;
+    }
+
+    if (photoUrl && (photoUrl.startsWith('data:') || photoUrl.startsWith('http'))) {
+        userPhotoURL = photoUrl;
+        localStorage.setItem('userPhotoURL', photoUrl);
+
+        if (usuarioLogado) {
             usuarioLogado.profilePhotoUrl = photoUrl;
-            localStorage.setItem('userPhotoURL', photoUrl);
+            usuarioLogado.avatar_url = photoUrl;
             localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
-
-            if (profileAvatar) {
-                profileAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-            }
-            if (avatarPreview) {
-                avatarPreview.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-                avatarPreview.style.display = 'flex';
-            }
-            return;
         }
+
+        if (profileAvatar) {
+            profileAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        }
+        if (avatarPreview) {
+            avatarPreview.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            avatarPreview.style.display = 'flex';
+        }
+        return;
     }
 
     // Fallback para avatar padrão
@@ -256,6 +268,7 @@ async function carregarFotoPerfil() {
     }
 }
 
+// 🔥 CORRIGIDO: uploadProfilePhoto com StorageService
 async function uploadProfilePhoto(file) {
     if (!usuarioLogado) return null;
 
@@ -291,14 +304,16 @@ async function uploadProfilePhoto(file) {
 
         if (photoUrl) {
             userPhotoURL = photoUrl;
-            usuarioLogado.profilePhotoUrl = photoUrl;
             localStorage.setItem('userPhotoURL', photoUrl);
-            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+
+            if (usuarioLogado) {
+                usuarioLogado.profilePhotoUrl = photoUrl;
+                usuarioLogado.avatar_url = photoUrl;
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+            }
 
             showToast('Foto atualizada e sincronizada!', 'success');
-
             window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
-
             return photoUrl;
         } else {
             showToast('Erro ao enviar foto!', 'error');
@@ -311,6 +326,7 @@ async function uploadProfilePhoto(file) {
     }
 }
 
+// 🔥 CORRIGIDO: deleteProfilePhoto
 async function deleteProfilePhoto() {
     if (!usuarioLogado) return false;
 
@@ -319,9 +335,14 @@ async function deleteProfilePhoto() {
 
         if (deleted) {
             userPhotoURL = null;
-            delete usuarioLogado.profilePhotoUrl;
             localStorage.removeItem('userPhotoURL');
-            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+
+            if (usuarioLogado) {
+                delete usuarioLogado.profilePhotoUrl;
+                delete usuarioLogado.avatar_url;
+                delete usuarioLogado.foto;
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+            }
 
             const initial = usuarioLogado.nome ? usuarioLogado.nome.charAt(0).toUpperCase() : 'U';
             const profileAvatar = document.querySelector('.profile-avatar');
@@ -415,7 +436,7 @@ async function syncToCloud() {
     }
 }
 
-// 🔥 CORRIGIDO: Função para salvar dados pessoais
+// 🔥 CORRIGIDO: salvarDadosPessoais com Supabase
 async function salvarDadosPessoais() {
     const nome = document.getElementById('profile-name-input')?.value.trim();
     const email = document.getElementById('profile-email-input')?.value.trim();
@@ -425,11 +446,9 @@ async function salvarDadosPessoais() {
         return;
     }
 
-    // Atualizar dados do usuário localmente
     usuarioLogado.nome = nome;
     usuarioLogado.email = email;
 
-    // 🔥 ATUALIZAR NO SUPABASE
     try {
         const userId = usuarioLogado.id;
         if (userId && window.DatabaseService) {
@@ -438,7 +457,6 @@ async function salvarDadosPessoais() {
                 email: email
             });
 
-            // Tentar atualizar email no Auth
             try {
                 const client = window.SupabaseClient?.initSupabase();
                 if (client) {
@@ -450,21 +468,18 @@ async function salvarDadosPessoais() {
         }
     } catch (dbError) {
         console.error('[Perfil] Erro ao atualizar no banco:', dbError);
-        // Fallback: salvar localmente
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
         showToast('Dados salvos localmente!', 'success');
         closeModal('dados-modal');
         return;
     }
 
-    // Salvar localmente
     localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
 
     if (window.CacheManager) {
         window.CacheManager.set('usuarioLogado', usuarioLogado, true);
     }
 
-    // Atualizar UI
     const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
     const headerName = document.querySelector('.greeting h1');
     const profileName = document.querySelector('.profile-name');
@@ -620,7 +635,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // 🔥 CORRIGIDO: Usar a função salvarDadosPessoais
     const saveDadosBtn = document.getElementById('btn-save-dados');
     if (saveDadosBtn) {
         saveDadosBtn.addEventListener('click', salvarDadosPessoais);
