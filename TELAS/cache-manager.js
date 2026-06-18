@@ -1,37 +1,32 @@
-// cache-manager.js - Versão Supabase COMPLETA CORRIGIDA
+// cache-manager.js - Versão Supabase COMPLETA E CORRIGIDA
 
 class SupabaseCacheManager {
     constructor() {
         this.listeners = new Map();
         this.currentUserId = null;
-        this._pendingSync = new Map();
-        this.isLoading = false;
         this.isInitialized = false;
-        this._savingFlags = new Map();
-        this._lastSyncTime = 0;
+        this._savingKeys = new Set();
+        this._lastSavedData = new Map();
+        this._pendingSync = new Map();
         this._syncDebounce = 2000;
-        this._profilePhotoCache = null;
-        this._eventTriggered = false;
+        this._lastSyncTime = 0;
     }
 
     init() {
         if (this.isInitialized) return;
         console.log('[CacheManager] Inicializado');
         this.isInitialized = true;
-
-        // ✅ FORÇAR CARREGAMENTO DO USER ID
+        
         this.getCurrentUserId();
-
-        // ✅ DISPARAR EVENTO DE PRONTO PARA O SYNC-HELPER
+        
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('cacheReady'));
-            console.log('[CacheManager] 📡 Evento cacheReady disparado');
         }, 100);
     }
 
     getCurrentUserId() {
         if (this.currentUserId) return this.currentUserId;
-
+        
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {
             try {
@@ -50,7 +45,7 @@ class SupabaseCacheManager {
         try {
             const userId = this.getCurrentUserId();
             if (!userId) return defaultValue;
-
+            
             const storageKey = `${userId}_${key}`;
             const data = localStorage.getItem(storageKey);
             if (data === null) return defaultValue;
@@ -62,17 +57,13 @@ class SupabaseCacheManager {
     }
 
     set(key, value, notify = true) {
-        const flagKey = `${this.getCurrentUserId()}_${key}`;
-        if (this._savingFlags.get(flagKey)) {
-            return false;
-        }
-
         try {
             const userId = this.getCurrentUserId();
             if (!userId) return false;
-
+            
             const storageKey = `${userId}_${key}`;
-
+            
+            // Verificar se mudou
             const currentData = localStorage.getItem(storageKey);
             if (currentData !== null) {
                 try {
@@ -82,66 +73,49 @@ class SupabaseCacheManager {
                     }
                 } catch(e) {}
             }
-
-            this._savingFlags.set(flagKey, true);
+            
+            // Salvar localmente
             localStorage.setItem(storageKey, JSON.stringify(value));
-
+            this._lastSavedData.set(storageKey, JSON.stringify(value));
+            
+            // Salvar na nuvem
             this._scheduleCloudSave(key, value, userId);
-
+            
+            // Notificar listeners
             if (notify && this.listeners.has(key)) {
                 this.listeners.get(key).forEach(cb => {
-                    try {
-                        cb(value);
-                    } catch(e) {
-                        console.warn('[CacheManager] Erro no listener:', e);
-                    }
+                    try { cb(value); } catch(e) {}
                 });
             }
             return true;
         } catch (error) {
             console.error(`[CacheManager] Erro ao set ${key}:`, error);
             return false;
-        } finally {
-            setTimeout(() => {
-                this._savingFlags.delete(flagKey);
-            }, 1000);
         }
     }
 
     _scheduleCloudSave(key, value, userId) {
         const pendingKey = `${userId}_${key}`;
-
+        
         if (this._pendingSync.has(pendingKey)) {
             clearTimeout(this._pendingSync.get(pendingKey));
         }
-
+        
         const timeout = setTimeout(async () => {
             this._pendingSync.delete(pendingKey);
-
-            const currentValue = this.get(key, null);
-            if (currentValue === null) return;
-
-            if (JSON.stringify(currentValue) !== JSON.stringify(value)) {
-                await this.saveToCloud(key, currentValue, userId);
-            } else {
-                await this.saveToCloud(key, value, userId);
-            }
+            await this.saveToCloud(key, value, userId);
         }, 1500);
-
+        
         this._pendingSync.set(pendingKey, timeout);
     }
 
     async saveToCloud(key, value, userId) {
         if (!window.DatabaseService || !userId) return;
-
-        const now = Date.now();
-        if (now - this._lastSyncTime < this._syncDebounce) {
-            return;
-        }
-
+        if (this._savingKeys.has(`${userId}_${key}`)) return;
+        
         try {
-            this._lastSyncTime = now;
-
+            this._savingKeys.add(`${userId}_${key}`);
+            
             switch(key) {
                 case 'tasks':
                     await window.DatabaseService.saveTasks(userId, value);
@@ -164,136 +138,73 @@ class SupabaseCacheManager {
                 case 'disciplinas':
                     await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
-                case 'usuarioLogado':
-                    if (value.id && value.email) {
-                        await window.DatabaseService.ensureUserData(value.id, value.email, value.nome);
-                    }
-                    break;
             }
+            
+            console.log(`[CacheManager] ✅ ${key} salvo na nuvem`);
         } catch (error) {
-            console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
+            console.error(`[CacheManager] Erro ao salvar ${key}:`, error);
+        } finally {
+            setTimeout(() => {
+                this._savingKeys.delete(`${userId}_${key}`);
+            }, 3000);
         }
     }
 
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.DatabaseService) {
-            console.warn('[CacheManager] loadFromCloud: userId ou DatabaseService não disponível');
+        if (!userId || !window.DatabaseService) return false;
+        
+        if (this._savingKeys.size > 0 && !force) {
+            console.log('[CacheManager] ⏳ Salvamento em andamento');
             return false;
         }
-
-        if (this.isLoading && !force) {
-            console.log('[CacheManager] Já carregando...');
-            return false;
-        }
-
-        this.isLoading = true;
-        console.log('[CacheManager] ☁️ Carregando dados da nuvem para:', userId);
+        
+        console.log('[CacheManager] ☁️ Carregando dados da nuvem...');
         let hasChanges = false;
-
+        
         try {
             const db = window.DatabaseService;
-
-            // TASKS
-            if (typeof db.getTasks === 'function') {
-                const tasks = await db.getTasks(userId);
-                if (tasks && tasks.length > 0) {
-                    localStorage.setItem(`${userId}_tasks`, JSON.stringify(tasks));
-                    hasChanges = true;
+            const dataTypes = {
+                tasks: db.getTasks,
+                notes: db.getNotes,
+                calendarEvents: db.getCalendarEvents,
+                weeklySchedule: db.getWeeklySchedule,
+                timeSlots: db.getTimeSlots,
+                notifications: db.getNotifications,
+                disciplinas: db.getDisciplinas
+            };
+            
+            for (const [key, getter] of Object.entries(dataTypes)) {
+                const data = await getter(userId);
+                if (data && (data.length > 0 || Object.keys(data).length > 0)) {
+                    const storageKey = `${userId}_${key}`;
+                    const newDataStr = JSON.stringify(data);
+                    const currentLocal = localStorage.getItem(storageKey);
+                    
+                    if (currentLocal !== newDataStr) {
+                        localStorage.setItem(storageKey, newDataStr);
+                        hasChanges = true;
+                        console.log(`[CacheManager] ${key} atualizado da nuvem`);
+                        
+                        // Notificar listeners
+                        if (this.listeners.has(key)) {
+                            this.listeners.get(key).forEach(cb => {
+                                try { cb(data); } catch(e) {}
+                            });
+                        }
+                    }
                 }
             }
-
-            // NOTES
-            if (typeof db.getNotes === 'function') {
-                const notes = await db.getNotes(userId);
-                if (notes && notes.length > 0) {
-                    localStorage.setItem(`${userId}_notes`, JSON.stringify(notes));
-                    hasChanges = true;
-                }
-            }
-
-            // CALENDAR EVENTS
-            if (typeof db.getCalendarEvents === 'function') {
-                const events = await db.getCalendarEvents(userId);
-                if (events && events.length > 0) {
-                    localStorage.setItem(`${userId}_calendarEvents`, JSON.stringify(events));
-                    hasChanges = true;
-                }
-            }
-
-            // WEEKLY SCHEDULE
-            if (typeof db.getWeeklySchedule === 'function') {
-                const schedule = await db.getWeeklySchedule(userId);
-                if (schedule && Object.keys(schedule).length > 0) {
-                    localStorage.setItem(`${userId}_weeklySchedule`, JSON.stringify(schedule));
-                    hasChanges = true;
-                }
-            }
-
-            // TIME SLOTS
-            if (typeof db.getTimeSlots === 'function') {
-                const slots = await db.getTimeSlots(userId);
-                if (slots && slots.length > 0) {
-                    localStorage.setItem(`${userId}_timeSlots`, JSON.stringify(slots));
-                    hasChanges = true;
-                }
-            }
-
-            // NOTIFICATIONS
-            if (typeof db.getNotifications === 'function') {
-                const notif = await db.getNotifications(userId);
-                if (notif && notif.length > 0) {
-                    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notif));
-                    hasChanges = true;
-                }
-            }
-
-            // ✅ CORRIGIDO: DISCIPLINAS
-            if (typeof db.getDisciplinas === 'function') {
-                const disciplinas = await db.getDisciplinas(userId);
-                if (disciplinas && disciplinas.length > 0) {
-                    localStorage.setItem(`${userId}_disciplinas`, JSON.stringify(disciplinas));
-                    hasChanges = true;
-                }
-            }
-
+            
             if (hasChanges) {
-                this._reloadFromStorage(userId);
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
                 console.log('[CacheManager] ✅ Dados carregados da nuvem!');
-
-                if (!this._eventTriggered) {
-                    this._eventTriggered = true;
-                    window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
-                    setTimeout(() => {
-                        this._eventTriggered = false;
-                    }, 5000);
-                }
-            } else {
-                console.log('[CacheManager] Nenhum dado novo encontrado');
             }
-
-            return true;
+            
+            return hasChanges;
         } catch (error) {
             console.error('[CacheManager] Erro no loadFromCloud:', error);
             return false;
-        } finally {
-            this.isLoading = false;
-        }
-    }
-
-    _reloadFromStorage(userId) {
-        const dataTypes = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
-        for (const type of dataTypes) {
-            const key = `${userId}_${type}`;
-            const data = localStorage.getItem(key);
-            if (data) {
-                try {
-                    const parsed = JSON.parse(data);
-                    this.set(type, parsed, false);
-                } catch(e) {
-                    console.warn(`[CacheManager] Erro ao parsear ${type}:`, e);
-                }
-            }
         }
     }
 
@@ -313,108 +224,42 @@ class SupabaseCacheManager {
         };
     }
 
-    async logout() {
-        if (window.RealtimeSyncManager) {
-            window.RealtimeSyncManager.disconnect();
-        }
-        this.currentUserId = null;
-        this.listeners.clear();
-        this._savingFlags.clear();
-        this._pendingSync.clear();
-        this._profilePhotoCache = null;
-        console.log('[CacheManager] Logout realizado');
-    }
-
     async getProfilePhotoUrl() {
         const userId = this.getCurrentUserId();
         if (!userId) return null;
-
-        if (this._profilePhotoCache) {
-            return this._profilePhotoCache;
-        }
-
+        
         const localPhoto = localStorage.getItem('userPhotoURL');
-        if (localPhoto && (localPhoto.startsWith('data:') || localPhoto.startsWith('http'))) {
-            this._profilePhotoCache = localPhoto;
+        if (localPhoto && localPhoto.startsWith('data:')) {
             return localPhoto;
         }
-
-        const usuario = localStorage.getItem('usuarioLogado');
-        if (usuario) {
-            try {
-                const user = JSON.parse(usuario);
-                if (user.avatar_url || user.foto || user.profilePhotoUrl) {
-                    const photo = user.avatar_url || user.foto || user.profilePhotoUrl;
-                    if (photo && (photo.startsWith('data:') || photo.startsWith('http'))) {
-                        this._profilePhotoCache = photo;
-                        localStorage.setItem('userPhotoURL', photo);
-                        return photo;
-                    }
-                }
-            } catch(e) {}
-        }
-
+        
         if (window.DatabaseService) {
             try {
                 const profile = await window.DatabaseService.getUserProfile(userId);
                 if (profile?.avatar_url) {
-                    this._profilePhotoCache = profile.avatar_url;
                     localStorage.setItem('userPhotoURL', profile.avatar_url);
                     return profile.avatar_url;
                 }
             } catch (error) {
-                console.error('[CacheManager] Erro ao buscar foto do perfil:', error);
+                console.error('[CacheManager] Erro ao buscar foto:', error);
             }
         }
-
         return null;
     }
 
     async uploadProfilePhoto(file) {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.StorageService) {
-            console.error('[CacheManager] uploadProfilePhoto: userId ou StorageService não disponível');
-            return null;
-        }
-
-        if (!file || !file.type || !file.type.startsWith('image/')) {
-            console.error('[CacheManager] Arquivo inválido:', file);
-            return null;
-        }
-
+        if (!userId || !window.StorageService) return null;
+        
         try {
             const photoUrl = await window.StorageService.uploadProfilePhoto(userId, file);
-
             if (photoUrl) {
-                this._profilePhotoCache = photoUrl;
                 localStorage.setItem('userPhotoURL', photoUrl);
-
-                const profile = await window.DatabaseService.getUserProfile(userId);
-                if (profile) {
-                    await window.DatabaseService.updateUserProfile(userId, {
-                        ...profile,
-                        avatar_url: photoUrl
-                    });
-                }
-
-                const usuario = localStorage.getItem('usuarioLogado');
-                if (usuario) {
-                    try {
-                        const user = JSON.parse(usuario);
-                        user.avatar_url = photoUrl;
-                        user.foto = photoUrl;
-                        user.profilePhotoUrl = photoUrl;
-                        localStorage.setItem('usuarioLogado', JSON.stringify(user));
-                    } catch(e) {}
-                }
-
                 window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
-                    detail: { photoUrl: photoUrl }
+                    detail: { photoUrl }
                 }));
-
                 return photoUrl;
             }
-
             return null;
         } catch (error) {
             console.error('[CacheManager] Erro no upload:', error);
@@ -425,22 +270,10 @@ class SupabaseCacheManager {
     async deleteProfilePhoto() {
         const userId = this.getCurrentUserId();
         if (!userId || !window.StorageService) return false;
-
+        
         const result = await window.StorageService.deleteProfilePhoto(userId);
         if (result) {
-            this._profilePhotoCache = null;
             localStorage.removeItem('userPhotoURL');
-
-            const usuario = localStorage.getItem('usuarioLogado');
-            if (usuario) {
-                try {
-                    const user = JSON.parse(usuario);
-                    delete user.avatar_url;
-                    delete user.foto;
-                    delete user.profilePhotoUrl;
-                    localStorage.setItem('usuarioLogado', JSON.stringify(user));
-                } catch(e) {}
-            }
         }
         return result;
     }
@@ -450,6 +283,18 @@ class SupabaseCacheManager {
         if (userId && window.RealtimeSyncManager) {
             window.RealtimeSyncManager.init(userId);
         }
+    }
+
+    logout() {
+        if (window.RealtimeSyncManager) {
+            window.RealtimeSyncManager.disconnect();
+        }
+        this.currentUserId = null;
+        this.listeners.clear();
+        this._savingKeys.clear();
+        this._lastSavedData.clear();
+        this._pendingSync.clear();
+        console.log('[CacheManager] Logout realizado');
     }
 }
 
@@ -462,19 +307,5 @@ if (typeof window.CacheManager === 'undefined') {
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
-window.getNotes = () => window.CacheManager.get('notes', []);
-window.setNotes = (notes, notify) => window.CacheManager.set('notes', notes, notify);
-window.getTasks = () => window.CacheManager.get('tasks', []);
-window.setTasks = (tasks, notify) => window.CacheManager.set('tasks', tasks, notify);
-window.getCalendarEvents = () => window.CacheManager.get('calendarEvents', []);
-window.setCalendarEvents = (events, notify) => window.CacheManager.set('calendarEvents', events, notify);
-window.getWeeklySchedule = () => window.CacheManager.get('weeklySchedule', {});
-window.setWeeklySchedule = (schedule, notify) => window.CacheManager.set('weeklySchedule', schedule, notify);
-window.getTimeSlots = () => window.CacheManager.get('timeSlots', []);
-window.setTimeSlots = (slots, notify) => window.CacheManager.set('timeSlots', slots, notify);
-window.getNotifications = () => window.CacheManager.get('notifications', []);
-window.setNotifications = (notifications, notify) => window.CacheManager.set('notifications', notifications, notify);
-window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
-window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] v2.4 carregado com foto corrigida e evento cacheReady!');
+console.log('[CacheManager] ✅ Versão Supabase carregada!');
