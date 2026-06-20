@@ -1,4 +1,4 @@
-// database-service.js - Serviço completo de banco de dados Supabase
+// database-service.js - Serviço completo de banco de dados Supabase (VERSÃO CORRIGIDA)
 
 const DatabaseService = (function() {
     let supabase = null;
@@ -39,7 +39,6 @@ const DatabaseService = (function() {
             return [];
         }
         
-        // Converter para o formato usado pela interface
         return (data || []).map(task => ({
             id: task.id,
             nome: task.title,
@@ -47,8 +46,8 @@ const DatabaseService = (function() {
             disciplina: task.subject,
             prioridade: task.priority,
             prazo: task.date,
-            completed: task.completed,
-            favorita: task.favorita,
+            completed: task.completed || false,
+            favorita: task.favorita || false,
             subtasks: task.subtasks || [],
             dataCriacao: task.created_at,
             dataConclusao: task.completed ? task.updated_at : null
@@ -60,14 +59,12 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            // Primeiro, deletar todas as tarefas existentes
             await client.from('tasks').delete().eq('user_id', userId);
             
-            if (tasks.length === 0) return true;
+            if (!tasks || tasks.length === 0) return true;
             
-            // Inserir novas tarefas
             const tasksToInsert = tasks.map(task => ({
-                id: task.id,
+                id: task.id || crypto.randomUUID(),
                 user_id: userId,
                 title: task.nome || task.title || 'Sem título',
                 description: task.descricao || '',
@@ -77,6 +74,7 @@ const DatabaseService = (function() {
                 completed: task.completed || false,
                 favorita: task.favorita || false,
                 subtasks: task.subtasks || [],
+                created_at: task.dataCriacao || new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }));
             
@@ -125,13 +123,14 @@ const DatabaseService = (function() {
         try {
             await client.from('notes').delete().eq('user_id', userId);
             
-            if (notes.length === 0) return true;
+            if (!notes || notes.length === 0) return true;
             
             const notesToInsert = notes.map(note => ({
-                id: note.id,
+                id: note.id || crypto.randomUUID(),
                 user_id: userId,
                 title: note.title || 'Sem título',
                 content: note.content || '',
+                created_at: note.date || new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }));
             
@@ -167,18 +166,14 @@ const DatabaseService = (function() {
         return (data || []).map(event => ({
             id: event.id,
             title: event.title,
-            description: event.description,
+            description: event.description || '',
             date: event.date,
             start: event.start_time,
             end: event.end_time,
-            type: event.type,
-            color: event.color,
-            repeat: event.repeat_type,
-            reminder: event.reminder,
-            day: event.date ? new Date(event.date).getDate() : null,
-            month: event.date ? new Date(event.date).getMonth() : null,
-            year: event.date ? new Date(event.date).getFullYear() : null,
-            time: event.start_time
+            type: event.type || 'aula',
+            color: event.color || '#8b5cf6',
+            repeat: event.repeat_type || 'nao',
+            reminder: event.reminder || false
         }));
     }
     
@@ -189,10 +184,10 @@ const DatabaseService = (function() {
         try {
             await client.from('calendar_events').delete().eq('user_id', userId);
             
-            if (events.length === 0) return true;
+            if (!events || events.length === 0) return true;
             
             const eventsToInsert = events.map(event => ({
-                id: event.id,
+                id: event.id || crypto.randomUUID(),
                 user_id: userId,
                 title: event.title,
                 description: event.description || '',
@@ -203,6 +198,7 @@ const DatabaseService = (function() {
                 color: event.color || '#8b5cf6',
                 repeat_type: event.repeat || 'nao',
                 reminder: event.reminder || false,
+                created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }));
             
@@ -236,7 +232,6 @@ const DatabaseService = (function() {
         
         const schedule = data?.schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
         
-        // Garantir que todos os dias existem
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(day => {
             if (!schedule[day]) schedule[day] = [];
@@ -256,7 +251,7 @@ const DatabaseService = (function() {
                     user_id: userId,
                     schedule: schedule,
                     updated_at: new Date().toISOString()
-                });
+                }, { onConflict: 'user_id' });
             
             if (error) throw error;
             console.log('[Database] Horário salvo');
@@ -298,7 +293,7 @@ const DatabaseService = (function() {
                     user_id: userId,
                     slots: slots,
                     updated_at: new Date().toISOString()
-                });
+                }, { onConflict: 'user_id' });
             
             if (error) throw error;
             console.log('[Database] Time slots salvos');
@@ -329,10 +324,10 @@ const DatabaseService = (function() {
         
         return (data || []).map(notif => ({
             id: notif.id,
-            title: notif.title,
-            message: notif.message,
-            type: notif.type,
-            read: notif.read,
+            title: notif.title || 'Notificação',
+            message: notif.message || '',
+            type: notif.type || 'info',
+            read: notif.read || false,
             time: notif.created_at
         }));
     }
@@ -344,12 +339,12 @@ const DatabaseService = (function() {
         try {
             await client.from('notifications').delete().eq('user_id', userId);
             
-            if (notifications.length === 0) return true;
+            if (!notifications || notifications.length === 0) return true;
             
             const notifToInsert = notifications.map(notif => ({
-                id: notif.id,
+                id: notif.id || crypto.randomUUID(),
                 user_id: userId,
-                title: notif.title,
+                title: notif.title || 'Notificação',
                 message: notif.message || '',
                 type: notif.type || 'info',
                 read: notif.read || false,
@@ -392,19 +387,29 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
+            const updateData = {};
+            const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero'];
+            
+            for (const field of allowedFields) {
+                if (profile[field] !== undefined && profile[field] !== null) {
+                    updateData[field] = profile[field];
+                }
+            }
+            
+            if (Object.keys(updateData).length === 0) {
+                console.log('[Database] Nenhum campo válido para atualizar');
+                return true;
+            }
+            
+            updateData.updated_at = new Date().toISOString();
+            
             const { error } = await client
                 .from('profiles')
-                .update({
-                    nome: profile.nome,
-                    telefone: profile.telefone,
-                    nascimento: profile.nascimento,
-                    genero: profile.genero,
-                    avatar_url: profile.avatar_url,
-                    updated_at: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', userId);
             
             if (error) throw error;
+            
             console.log('[Database] Perfil atualizado');
             return true;
         } catch (error) {
@@ -424,7 +429,8 @@ const DatabaseService = (function() {
                     id: userId,
                     email: email,
                     nome: nome || email.split('@')[0],
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 });
             
             if (error) throw error;
@@ -432,6 +438,65 @@ const DatabaseService = (function() {
             return true;
         } catch (error) {
             console.error('[Database] Erro ao criar perfil:', error);
+            return false;
+        }
+    }
+    
+    // ============================================
+    // ⭐ DISCIPLINAS (CORREÇÃO ADICIONADA)
+    // ============================================
+    async function getDisciplinas(userId) {
+        const client = init();
+        if (!client) return [];
+        
+        try {
+            const { data, error } = await client
+                .from('disciplinas')
+                .select('*')
+                .eq('user_id', userId)
+                .order('nome', { ascending: true });
+            
+            if (error) {
+                console.error('[Database] Erro ao buscar disciplinas:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('[Database] Erro ao buscar disciplinas:', error);
+            return [];
+        }
+    }
+    
+    async function saveDisciplinas(userId, disciplinas) {
+        const client = init();
+        if (!client) return false;
+        
+        try {
+            await client.from('disciplinas').delete().eq('user_id', userId);
+            
+            if (!disciplinas || disciplinas.length === 0) {
+                console.log('[Database] Nenhuma disciplina para salvar');
+                return true;
+            }
+            
+            const disciplinasToInsert = disciplinas.map(d => ({
+                id: d.id || crypto.randomUUID(),
+                user_id: userId,
+                nome: d.nome,
+                cor: d.cor || '#9333ea',
+                icone: d.icone || 'fa-book',
+                created_at: d.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }));
+            
+            const { error } = await client.from('disciplinas').insert(disciplinasToInsert);
+            if (error) throw error;
+            
+            console.log(`[Database] ${disciplinas.length} disciplinas salvas`);
+            return true;
+        } catch (error) {
+            console.error('[Database] Erro ao salvar disciplinas:', error);
             return false;
         }
     }
@@ -479,7 +544,7 @@ const DatabaseService = (function() {
                     font_size: settings.fontSize || 14,
                     notifications_settings: settings.notificationsSettings || {},
                     updated_at: new Date().toISOString()
-                });
+                }, { onConflict: 'user_id' });
             
             if (error) throw error;
             console.log('[Database] Settings salvos');
@@ -516,7 +581,6 @@ const DatabaseService = (function() {
                 await updateUserProfile(userId, { avatar_url: publicUrl });
             }
             
-            // Retornar como Base64 para compatibilidade com o sistema atual
             return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
@@ -548,28 +612,24 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // INITIALIZATION (Criar estrutura se não existir)
+    // INITIALIZATION
     // ============================================
     async function ensureUserData(userId, email, nome) {
-        // Verificar/criar perfil
         let profile = await getUserProfile(userId);
         if (!profile) {
             await createProfile(userId, email, nome);
         }
         
-        // Verificar/criar weekly_schedule
         let schedule = await getWeeklySchedule(userId);
         if (!schedule || Object.keys(schedule).length === 0) {
             await saveWeeklySchedule(userId, { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
         }
         
-        // Verificar/criar time_slots
         let slots = await getTimeSlots(userId);
         if (!slots || slots.length === 0) {
             await saveTimeSlots(userId, ['08:00', '09:30', '11:00', '14:00', '15:30']);
         }
         
-        // Verificar/criar settings
         let settings = await getUserSettings(userId);
         if (!settings || Object.keys(settings).length === 0) {
             await saveUserSettings(userId, { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
@@ -579,7 +639,9 @@ const DatabaseService = (function() {
         return true;
     }
     
-    // API pública
+    // ============================================
+    // API PÚBLICA
+    // ============================================
     return {
         init,
         getCurrentUserId,
@@ -598,6 +660,8 @@ const DatabaseService = (function() {
         getUserProfile,
         updateUserProfile,
         createProfile,
+        getDisciplinas,
+        saveDisciplinas,
         getUserSettings,
         saveUserSettings,
         uploadProfilePhoto,
@@ -606,7 +670,6 @@ const DatabaseService = (function() {
     };
 })();
 
-// Exportar para uso global
 window.DatabaseService = DatabaseService;
 
-console.log('[DatabaseService] Módulo carregado com sucesso!');
+console.log('[DatabaseService] Módulo carregado com sucesso! (VERSÃO CORRIGIDA)');
