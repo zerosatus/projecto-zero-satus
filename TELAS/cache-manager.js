@@ -13,17 +13,15 @@ class SupabaseCacheManager {
         this._profilePhotoCache = null;
         this._eventTriggered = false;
         this._dataCache = new Map();
+        this._saveTimeout = null;
     }
 
     init() {
         if (this.isInitialized) return;
         console.log('[CacheManager] Inicializado');
         this.isInitialized = true;
-
-        // FORÇAR CARREGAMENTO DO USER ID
         this.getCurrentUserId();
 
-        // DISPARAR EVENTO DE PRONTO
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('cacheReady'));
             console.log('[CacheManager] 📡 Evento cacheReady disparado');
@@ -49,7 +47,6 @@ class SupabaseCacheManager {
 
     get(key, defaultValue = null) {
         try {
-            // Verificar cache em memória primeiro
             if (this._dataCache.has(key)) {
                 return this._dataCache.get(key);
             }
@@ -61,7 +58,7 @@ class SupabaseCacheManager {
             const data = localStorage.getItem(storageKey);
             
             if (data === null) {
-                // Tentar com a chave antiga (email) para compatibilidade
+                // Tentar chave antiga para migração
                 const usuario = localStorage.getItem('usuarioLogado');
                 if (usuario) {
                     try {
@@ -70,7 +67,6 @@ class SupabaseCacheManager {
                             const oldKey = `${key}_${user.email}`;
                             const oldData = localStorage.getItem(oldKey);
                             if (oldData !== null) {
-                                // Migrar para o novo formato
                                 localStorage.setItem(storageKey, oldData);
                                 localStorage.removeItem(oldKey);
                                 const parsed = JSON.parse(oldData);
@@ -93,15 +89,15 @@ class SupabaseCacheManager {
     }
 
     set(key, value, notify = true) {
-        const flagKey = `${this.getCurrentUserId()}_${key}`;
+        const userId = this.getCurrentUserId();
+        if (!userId) return false;
+
+        const flagKey = `${userId}_${key}`;
         if (this._savingFlags.get(flagKey)) {
             return false;
         }
 
         try {
-            const userId = this.getCurrentUserId();
-            if (!userId) return false;
-
             const storageKey = `${userId}_${key}`;
 
             // Verificar se mudou
@@ -119,18 +115,15 @@ class SupabaseCacheManager {
             
             // Salvar no localStorage
             localStorage.setItem(storageKey, JSON.stringify(value));
-            
-            // Salvar no cache em memória
             this._dataCache.set(key, value);
 
-            // Salvar também com a chave antiga para compatibilidade
+            // Backup com chave antiga (compatibilidade)
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
                     const user = JSON.parse(usuario);
                     if (user.email) {
-                        const oldKey = `${key}_${user.email}`;
-                        localStorage.setItem(oldKey, JSON.stringify(value));
+                        localStorage.setItem(`${key}_${user.email}`, JSON.stringify(value));
                     }
                 } catch(e) {}
             }
@@ -146,7 +139,6 @@ class SupabaseCacheManager {
                     });
                 }
                 
-                // Disparar eventos globais
                 setTimeout(() => {
                     window.dispatchEvent(new CustomEvent(`${key}Updated`, { detail: value }));
                     window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key, value } }));
@@ -165,31 +157,20 @@ class SupabaseCacheManager {
     }
 
     _scheduleCloudSave(key, value, userId) {
-        const pendingKey = `${userId}_${key}`;
-
-        if (this._pendingSync.has(pendingKey)) {
-            clearTimeout(this._pendingSync.get(pendingKey));
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
         }
 
-        const timeout = setTimeout(async () => {
-            this._pendingSync.delete(pendingKey);
+        this._saveTimeout = setTimeout(async () => {
             await this.saveToCloud(key, value, userId);
+            this._saveTimeout = null;
         }, 1500);
-
-        this._pendingSync.set(pendingKey, timeout);
     }
 
     async saveToCloud(key, value, userId) {
         if (!window.DatabaseService || !userId) return;
 
-        const now = Date.now();
-        if (now - this._lastSyncTime < this._syncDebounce) {
-            return;
-        }
-
         try {
-            this._lastSyncTime = now;
-
             switch(key) {
                 case 'tasks':
                     await window.DatabaseService.saveTasks(userId, value);
@@ -269,27 +250,14 @@ class SupabaseCacheManager {
                             this._dataCache.set(key, data);
                             hasChanges = true;
                             
-                            // Salvar também com a chave antiga
-                            const usuario = localStorage.getItem('usuarioLogado');
-                            if (usuario) {
-                                try {
-                                    const user = JSON.parse(usuario);
-                                    if (user.email) {
-                                        localStorage.setItem(`${key}_${user.email}`, newDataStr);
-                                    }
-                                } catch(e) {}
-                            }
-                            
                             console.log(`[CacheManager] ${key} atualizado da nuvem: ${Array.isArray(data) ? data.length : Object.keys(data).length} itens`);
                             
-                            // Notificar listeners
                             if (this.listeners.has(key)) {
                                 this.listeners.get(key).forEach(cb => {
                                     try { cb(data); } catch(e) {}
                                 });
                             }
                             
-                            // Disparar eventos
                             setTimeout(() => {
                                 window.dispatchEvent(new CustomEvent(`${key}Updated`, { detail: data }));
                                 window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key, value: data } }));
@@ -349,6 +317,10 @@ class SupabaseCacheManager {
         this._pendingSync.clear();
         this._profilePhotoCache = null;
         this._dataCache.clear();
+        if (this._saveTimeout) {
+            clearTimeout(this._saveTimeout);
+            this._saveTimeout = null;
+        }
         console.log('[CacheManager] Logout realizado');
     }
 
@@ -504,4 +476,4 @@ window.setNotifications = (notifications, notify) => window.CacheManager.set('no
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
-console.log('[CacheManager] v2.5 carregado com correções de sincronização!');
+console.log('[CacheManager] v3.0 carregado com correções de sincronização!');
