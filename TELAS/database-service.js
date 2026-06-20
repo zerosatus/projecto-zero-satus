@@ -1,4 +1,4 @@
-// database-service.js - Serviço completo de banco de dados Supabase (VERSÃO CORRIGIDA)
+// database-service.js - Serviço completo de banco de dados Supabase (VERSÃO CORRIGIDA - ERRO 409 FIX)
 
 const DatabaseService = (function() {
     let supabase = null;
@@ -13,45 +13,67 @@ const DatabaseService = (function() {
         return supabase;
     }
     
+    // ============================================
+    // FUNÇÃO PARA GERAR ID ÚNICO
+    // ============================================
+    function generateId() {
+        return crypto.randomUUID ? crypto.randomUUID() : 
+            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+    }
+    
     async function getCurrentUserId() {
         const client = init();
         if (!client) return null;
         
-        const { data: { user } } = await client.auth.getUser();
-        return user?.id || null;
+        try {
+            const { data: { user } } = await client.auth.getUser();
+            return user?.id || null;
+        } catch (error) {
+            console.error('[Database] Erro ao buscar userId:', error);
+            return null;
+        }
     }
     
     // ============================================
-    // TASKS (Tarefas)
+    // TASKS (Tarefas) - CORRIGIDO
     // ============================================
     async function getTasks(userId) {
         const client = init();
         if (!client) return [];
         
-        const { data, error } = await client
-            .from('tasks')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-        
-        if (error) {
+        try {
+            const { data, error } = await client
+                .from('tasks')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.error('[Database] Erro ao buscar tasks:', error);
+                return [];
+            }
+            
+            return (data || []).map(task => ({
+                id: task.id,
+                nome: task.title,
+                descricao: task.description,
+                disciplina: task.subject,
+                prioridade: task.priority,
+                prazo: task.date,
+                completed: task.completed || false,
+                favorita: task.favorita || false,
+                subtasks: task.subtasks || [],
+                dataCriacao: task.created_at,
+                dataConclusao: task.completed ? task.updated_at : null
+            }));
+        } catch (error) {
             console.error('[Database] Erro ao buscar tasks:', error);
             return [];
         }
-        
-        return (data || []).map(task => ({
-            id: task.id,
-            nome: task.title,
-            descricao: task.description,
-            disciplina: task.subject,
-            prioridade: task.priority,
-            prazo: task.date,
-            completed: task.completed || false,
-            favorita: task.favorita || false,
-            subtasks: task.subtasks || [],
-            dataCriacao: task.created_at,
-            dataConclusao: task.completed ? task.updated_at : null
-        }));
     }
     
     async function saveTasks(userId, tasks) {
@@ -59,12 +81,25 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            await client.from('tasks').delete().eq('user_id', userId);
+            // Deletar todas as tarefas existentes
+            const { error: deleteError } = await client
+                .from('tasks')
+                .delete()
+                .eq('user_id', userId);
             
-            if (!tasks || tasks.length === 0) return true;
+            if (deleteError) {
+                console.error('[Database] Erro ao deletar tasks:', deleteError);
+                return false;
+            }
             
+            if (!tasks || tasks.length === 0) {
+                console.log('[Database] Nenhuma task para salvar');
+                return true;
+            }
+            
+            // Preparar dados com IDs novos (UUID)
             const tasksToInsert = tasks.map(task => ({
-                id: task.id || crypto.randomUUID(),
+                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
                 user_id: userId,
                 title: task.nome || task.title || 'Sem título',
                 description: task.descricao || '',
@@ -78,8 +113,13 @@ const DatabaseService = (function() {
                 updated_at: new Date().toISOString()
             }));
             
-            const { error } = await client.from('tasks').insert(tasksToInsert);
-            if (error) throw error;
+            // Inserir em lotes de 100 para evitar problemas
+            const batchSize = 100;
+            for (let i = 0; i < tasksToInsert.length; i += batchSize) {
+                const batch = tasksToInsert.slice(i, i + batchSize);
+                const { error } = await client.from('tasks').insert(batch);
+                if (error) throw error;
+            }
             
             console.log(`[Database] ${tasks.length} tarefas salvas`);
             return true;
@@ -90,30 +130,35 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // NOTES (Anotações)
+    // NOTES (Anotações) - CORRIGIDO
     // ============================================
     async function getNotes(userId) {
         const client = init();
         if (!client) return [];
         
-        const { data, error } = await client
-            .from('notes')
-            .select('*')
-            .eq('user_id', userId)
-            .order('updated_at', { ascending: false });
-        
-        if (error) {
+        try {
+            const { data, error } = await client
+                .from('notes')
+                .select('*')
+                .eq('user_id', userId)
+                .order('updated_at', { ascending: false });
+            
+            if (error) {
+                console.error('[Database] Erro ao buscar notes:', error);
+                return [];
+            }
+            
+            return (data || []).map(note => ({
+                id: note.id,
+                title: note.title || 'Sem título',
+                content: note.content || '',
+                date: note.created_at,
+                dataModificacao: note.updated_at
+            }));
+        } catch (error) {
             console.error('[Database] Erro ao buscar notes:', error);
             return [];
         }
-        
-        return (data || []).map(note => ({
-            id: note.id,
-            title: note.title || 'Sem título',
-            content: note.content || '',
-            date: note.created_at,
-            dataModificacao: note.updated_at
-        }));
     }
     
     async function saveNotes(userId, notes) {
@@ -121,12 +166,23 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            await client.from('notes').delete().eq('user_id', userId);
+            const { error: deleteError } = await client
+                .from('notes')
+                .delete()
+                .eq('user_id', userId);
             
-            if (!notes || notes.length === 0) return true;
+            if (deleteError) {
+                console.error('[Database] Erro ao deletar notes:', deleteError);
+                return false;
+            }
+            
+            if (!notes || notes.length === 0) {
+                console.log('[Database] Nenhuma anotação para salvar');
+                return true;
+            }
             
             const notesToInsert = notes.map(note => ({
-                id: note.id || crypto.randomUUID(),
+                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
                 user_id: userId,
                 title: note.title || 'Sem título',
                 content: note.content || '',
@@ -146,35 +202,40 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // CALENDAR EVENTS (Eventos)
+    // CALENDAR EVENTS (Eventos) - CORRIGIDO ⭐
     // ============================================
     async function getCalendarEvents(userId) {
         const client = init();
         if (!client) return [];
         
-        const { data, error } = await client
-            .from('calendar_events')
-            .select('*')
-            .eq('user_id', userId)
-            .order('date', { ascending: true });
-        
-        if (error) {
+        try {
+            const { data, error } = await client
+                .from('calendar_events')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: true });
+            
+            if (error) {
+                console.error('[Database] Erro ao buscar eventos:', error);
+                return [];
+            }
+            
+            return (data || []).map(event => ({
+                id: event.id,
+                title: event.title,
+                description: event.description || '',
+                date: event.date,
+                start: event.start_time,
+                end: event.end_time,
+                type: event.type || 'aula',
+                color: event.color || '#8b5cf6',
+                repeat: event.repeat_type || 'nao',
+                reminder: event.reminder || false
+            }));
+        } catch (error) {
             console.error('[Database] Erro ao buscar eventos:', error);
             return [];
         }
-        
-        return (data || []).map(event => ({
-            id: event.id,
-            title: event.title,
-            description: event.description || '',
-            date: event.date,
-            start: event.start_time,
-            end: event.end_time,
-            type: event.type || 'aula',
-            color: event.color || '#8b5cf6',
-            repeat: event.repeat_type || 'nao',
-            reminder: event.reminder || false
-        }));
     }
     
     async function saveCalendarEvents(userId, events) {
@@ -182,18 +243,33 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            await client.from('calendar_events').delete().eq('user_id', userId);
+            console.log(`[Database] Salvando ${events?.length || 0} eventos para ${userId}`);
             
-            if (!events || events.length === 0) return true;
+            // ✅ DELETAR TODOS OS EVENTOS EXISTENTES PRIMEIRO
+            const { error: deleteError } = await client
+                .from('calendar_events')
+                .delete()
+                .eq('user_id', userId);
             
+            if (deleteError) {
+                console.error('[Database] Erro ao deletar eventos:', deleteError);
+                return false;
+            }
+            
+            if (!events || events.length === 0) {
+                console.log('[Database] Nenhum evento para salvar');
+                return true;
+            }
+            
+            // ✅ GERAR NOVOS IDs PARA CADA EVENTO
             const eventsToInsert = events.map(event => ({
-                id: event.id || crypto.randomUUID(),
+                id: generateId(), // 🔥 CRUCIAL: SEMPRE GERAR NOVO ID
                 user_id: userId,
-                title: event.title,
+                title: event.title || 'Evento',
                 description: event.description || '',
-                date: event.date,
-                start_time: event.start || event.startTime,
-                end_time: event.end || event.endTime,
+                date: event.date || new Date().toISOString().split('T')[0],
+                start_time: event.start || event.startTime || '08:00',
+                end_time: event.end || event.endTime || '09:00',
                 type: event.type || 'aula',
                 color: event.color || '#8b5cf6',
                 repeat_type: event.repeat || 'nao',
@@ -202,10 +278,15 @@ const DatabaseService = (function() {
                 updated_at: new Date().toISOString()
             }));
             
+            // ✅ INSERIR EM LOTE
             const { error } = await client.from('calendar_events').insert(eventsToInsert);
-            if (error) throw error;
             
-            console.log(`[Database] ${events.length} eventos salvos`);
+            if (error) {
+                console.error('[Database] Erro ao inserir eventos:', error);
+                return false;
+            }
+            
+            console.log(`[Database] ${events.length} eventos salvos com sucesso`);
             return true;
         } catch (error) {
             console.error('[Database] Erro ao salvar eventos:', error);
@@ -220,24 +301,29 @@ const DatabaseService = (function() {
         const client = init();
         if (!client) return { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
         
-        const { data, error } = await client
-            .from('weekly_schedule')
-            .select('schedule')
-            .eq('user_id', userId)
-            .single();
-        
-        if (error && error.code !== 'PGRST116') {
+        try {
+            const { data, error } = await client
+                .from('weekly_schedule')
+                .select('schedule')
+                .eq('user_id', userId)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error('[Database] Erro ao buscar horário:', error);
+            }
+            
+            const schedule = data?.schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
+            
+            const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+            dias.forEach(day => {
+                if (!schedule[day]) schedule[day] = [];
+            });
+            
+            return schedule;
+        } catch (error) {
             console.error('[Database] Erro ao buscar horário:', error);
+            return { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
         }
-        
-        const schedule = data?.schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
-        
-        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-        dias.forEach(day => {
-            if (!schedule[day]) schedule[day] = [];
-        });
-        
-        return schedule;
     }
     
     async function saveWeeklySchedule(userId, schedule) {
@@ -249,7 +335,7 @@ const DatabaseService = (function() {
                 .from('weekly_schedule')
                 .upsert({
                     user_id: userId,
-                    schedule: schedule,
+                    schedule: schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] },
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id' });
             
@@ -269,17 +355,22 @@ const DatabaseService = (function() {
         const client = init();
         if (!client) return ['08:00', '09:30', '11:00', '14:00', '15:30'];
         
-        const { data, error } = await client
-            .from('time_slots')
-            .select('slots')
-            .eq('user_id', userId)
-            .single();
-        
-        if (error && error.code !== 'PGRST116') {
+        try {
+            const { data, error } = await client
+                .from('time_slots')
+                .select('slots')
+                .eq('user_id', userId)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error('[Database] Erro ao buscar time slots:', error);
+            }
+            
+            return data?.slots || ['08:00', '09:30', '11:00', '14:00', '15:30'];
+        } catch (error) {
             console.error('[Database] Erro ao buscar time slots:', error);
+            return ['08:00', '09:30', '11:00', '14:00', '15:30'];
         }
-        
-        return data?.slots || ['08:00', '09:30', '11:00', '14:00', '15:30'];
     }
     
     async function saveTimeSlots(userId, slots) {
@@ -291,7 +382,7 @@ const DatabaseService = (function() {
                 .from('time_slots')
                 .upsert({
                     user_id: userId,
-                    slots: slots,
+                    slots: slots || ['08:00', '09:30', '11:00', '14:00', '15:30'],
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id' });
             
@@ -311,25 +402,30 @@ const DatabaseService = (function() {
         const client = init();
         if (!client) return [];
         
-        const { data, error } = await client
-            .from('notifications')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-        
-        if (error) {
+        try {
+            const { data, error } = await client
+                .from('notifications')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.error('[Database] Erro ao buscar notificações:', error);
+                return [];
+            }
+            
+            return (data || []).map(notif => ({
+                id: notif.id,
+                title: notif.title || 'Notificação',
+                message: notif.message || '',
+                type: notif.type || 'info',
+                read: notif.read || false,
+                time: notif.created_at
+            }));
+        } catch (error) {
             console.error('[Database] Erro ao buscar notificações:', error);
             return [];
         }
-        
-        return (data || []).map(notif => ({
-            id: notif.id,
-            title: notif.title || 'Notificação',
-            message: notif.message || '',
-            type: notif.type || 'info',
-            read: notif.read || false,
-            time: notif.created_at
-        }));
     }
     
     async function saveNotifications(userId, notifications) {
@@ -337,12 +433,23 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            await client.from('notifications').delete().eq('user_id', userId);
+            const { error: deleteError } = await client
+                .from('notifications')
+                .delete()
+                .eq('user_id', userId);
             
-            if (!notifications || notifications.length === 0) return true;
+            if (deleteError) {
+                console.error('[Database] Erro ao deletar notificações:', deleteError);
+                return false;
+            }
+            
+            if (!notifications || notifications.length === 0) {
+                console.log('[Database] Nenhuma notificação para salvar');
+                return true;
+            }
             
             const notifToInsert = notifications.map(notif => ({
-                id: notif.id || crypto.randomUUID(),
+                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
                 user_id: userId,
                 title: notif.title || 'Notificação',
                 message: notif.message || '',
@@ -369,17 +476,22 @@ const DatabaseService = (function() {
         const client = init();
         if (!client) return null;
         
-        const { data, error } = await client
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-        
-        if (error && error.code !== 'PGRST116') {
+        try {
+            const { data, error } = await client
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error('[Database] Erro ao buscar perfil:', error);
+            }
+            
+            return data || null;
+        } catch (error) {
             console.error('[Database] Erro ao buscar perfil:', error);
+            return null;
         }
-        
-        return data || null;
     }
     
     async function updateUserProfile(userId, profile) {
@@ -387,7 +499,10 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            const updateData = {};
+            const updateData = {
+                updated_at: new Date().toISOString()
+            };
+            
             const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero'];
             
             for (const field of allowedFields) {
@@ -396,12 +511,10 @@ const DatabaseService = (function() {
                 }
             }
             
-            if (Object.keys(updateData).length === 0) {
+            if (Object.keys(updateData).length <= 1) {
                 console.log('[Database] Nenhum campo válido para atualizar');
                 return true;
             }
-            
-            updateData.updated_at = new Date().toISOString();
             
             const { error } = await client
                 .from('profiles')
@@ -443,7 +556,7 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // ⭐ DISCIPLINAS (CORREÇÃO ADICIONADA)
+    // DISCIPLINAS - CORRIGIDO
     // ============================================
     async function getDisciplinas(userId) {
         const client = init();
@@ -473,7 +586,15 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            await client.from('disciplinas').delete().eq('user_id', userId);
+            const { error: deleteError } = await client
+                .from('disciplinas')
+                .delete()
+                .eq('user_id', userId);
+            
+            if (deleteError) {
+                console.error('[Database] Erro ao deletar disciplinas:', deleteError);
+                return false;
+            }
             
             if (!disciplinas || disciplinas.length === 0) {
                 console.log('[Database] Nenhuma disciplina para salvar');
@@ -481,9 +602,9 @@ const DatabaseService = (function() {
             }
             
             const disciplinasToInsert = disciplinas.map(d => ({
-                id: d.id || crypto.randomUUID(),
+                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
                 user_id: userId,
-                nome: d.nome,
+                nome: d.nome || 'Disciplina',
                 cor: d.cor || '#9333ea',
                 icone: d.icone || 'fa-book',
                 created_at: d.created_at || new Date().toISOString(),
@@ -508,26 +629,31 @@ const DatabaseService = (function() {
         const client = init();
         if (!client) return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
         
-        const { data, error } = await client
-            .from('user_settings')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-        
-        if (error && error.code !== 'PGRST116') {
+        try {
+            const { data, error } = await client
+                .from('user_settings')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error('[Database] Erro ao buscar settings:', error);
+            }
+            
+            if (data) {
+                return {
+                    theme: data.theme || 'dark',
+                    accent: data.accent_color || '#8b5cf6',
+                    fontSize: data.font_size || 14,
+                    notificationsSettings: data.notifications_settings || {}
+                };
+            }
+            
+            return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
+        } catch (error) {
             console.error('[Database] Erro ao buscar settings:', error);
+            return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
         }
-        
-        if (data) {
-            return {
-                theme: data.theme,
-                accent: data.accent_color,
-                fontSize: data.font_size,
-                notificationsSettings: data.notifications_settings
-            };
-        }
-        
-        return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
     }
     
     async function saveUserSettings(userId, settings) {
@@ -563,7 +689,7 @@ const DatabaseService = (function() {
         if (!client) return null;
         
         try {
-            const fileExt = file.name.split('.').pop();
+            const fileExt = file.name.split('.').pop() || 'png';
             const fileName = `${userId}_${Date.now()}.${fileExt}`;
             const filePath = `avatars/${fileName}`;
             
@@ -579,13 +705,10 @@ const DatabaseService = (function() {
             
             if (publicUrl) {
                 await updateUserProfile(userId, { avatar_url: publicUrl });
+                return publicUrl;
             }
             
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(file);
-            });
+            return null;
         } catch (error) {
             console.error('[Database] Erro ao fazer upload:', error);
             return null;
@@ -615,28 +738,33 @@ const DatabaseService = (function() {
     // INITIALIZATION
     // ============================================
     async function ensureUserData(userId, email, nome) {
-        let profile = await getUserProfile(userId);
-        if (!profile) {
-            await createProfile(userId, email, nome);
-        }
+        console.log('[Database] Verificando estrutura do usuário:', userId);
         
-        let schedule = await getWeeklySchedule(userId);
-        if (!schedule || Object.keys(schedule).length === 0) {
-            await saveWeeklySchedule(userId, { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
+        try {
+            // Verificar/criar perfil
+            let profile = await getUserProfile(userId);
+            if (!profile) {
+                await createProfile(userId, email, nome);
+            }
+            
+            // Verificar/criar weekly_schedule
+            let schedule = await getWeeklySchedule(userId);
+            if (!schedule || Object.keys(schedule).length === 0) {
+                await saveWeeklySchedule(userId, { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
+            }
+            
+            // Verificar/criar time_slots
+            let slots = await getTimeSlots(userId);
+            if (!slots || slots.length === 0) {
+                await saveTimeSlots(userId, ['08:00', '09:30', '11:00', '14:00', '15:30']);
+            }
+            
+            console.log('[Database] Estrutura do usuário verificada');
+            return true;
+        } catch (error) {
+            console.error('[Database] Erro ao verificar estrutura:', error);
+            return false;
         }
-        
-        let slots = await getTimeSlots(userId);
-        if (!slots || slots.length === 0) {
-            await saveTimeSlots(userId, ['08:00', '09:30', '11:00', '14:00', '15:30']);
-        }
-        
-        let settings = await getUserSettings(userId);
-        if (!settings || Object.keys(settings).length === 0) {
-            await saveUserSettings(userId, { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
-        }
-        
-        console.log('[Database] Estrutura do usuário verificada');
-        return true;
     }
     
     // ============================================
@@ -670,6 +798,7 @@ const DatabaseService = (function() {
     };
 })();
 
+// Exportar para uso global
 window.DatabaseService = DatabaseService;
 
-console.log('[DatabaseService] Módulo carregado com sucesso! (VERSÃO CORRIGIDA)');
+console.log('[DatabaseService] Módulo carregado com sucesso! (VERSÃO CORRIGIDA - ERRO 409 FIX)');

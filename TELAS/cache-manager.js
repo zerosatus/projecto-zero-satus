@@ -14,6 +14,8 @@ class SupabaseCacheManager {
         this._eventTriggered = false;
         this._dataCache = new Map();
         this._saveTimeout = null;
+        this._saveQueue = [];
+        this._isSaving = false;
     }
 
     init() {
@@ -128,8 +130,8 @@ class SupabaseCacheManager {
                 } catch(e) {}
             }
 
-            // Agendar salvamento na nuvem
-            this._scheduleCloudSave(key, value, userId);
+            // Adicionar à fila de salvamento
+            this._addToSaveQueue(key, value, userId);
 
             // Notificar listeners
             if (notify) {
@@ -156,21 +158,43 @@ class SupabaseCacheManager {
         }
     }
 
-    _scheduleCloudSave(key, value, userId) {
-        if (this._saveTimeout) {
-            clearTimeout(this._saveTimeout);
-        }
+    _addToSaveQueue(key, value, userId) {
+        this._saveQueue.push({ key, value, userId });
+        this._processSaveQueue();
+    }
 
-        this._saveTimeout = setTimeout(async () => {
-            await this.saveToCloud(key, value, userId);
-            this._saveTimeout = null;
-        }, 1500);
+    async _processSaveQueue() {
+        if (this._isSaving || this._saveQueue.length === 0) return;
+        
+        this._isSaving = true;
+        
+        try {
+            // Processar todos os itens da fila
+            while (this._saveQueue.length > 0) {
+                const item = this._saveQueue.shift();
+                await this.saveToCloud(item.key, item.value, item.userId);
+            }
+        } catch (error) {
+            console.error('[CacheManager] Erro ao processar fila de salvamento:', error);
+        } finally {
+            this._isSaving = false;
+            
+            // Se mais itens foram adicionados durante o processamento
+            if (this._saveQueue.length > 0) {
+                setTimeout(() => this._processSaveQueue(), 500);
+            }
+        }
     }
 
     async saveToCloud(key, value, userId) {
-        if (!window.DatabaseService || !userId) return;
+        if (!window.DatabaseService || !userId) {
+            console.warn('[CacheManager] DatabaseService ou userId não disponível');
+            return;
+        }
 
         try {
+            console.log(`[CacheManager] 💾 Salvando ${key} na nuvem...`);
+            
             switch(key) {
                 case 'tasks':
                     await window.DatabaseService.saveTasks(userId, value);
@@ -206,6 +230,8 @@ class SupabaseCacheManager {
             console.log(`[CacheManager] ✅ ${key} salvo na nuvem (${Array.isArray(value) ? value.length : Object.keys(value).length} itens)`);
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
+            // Re-adicionar à fila para tentar novamente
+            this._addToSaveQueue(key, value, userId);
         }
     }
 
@@ -240,7 +266,7 @@ class SupabaseCacheManager {
             for (const [key, getter] of Object.entries(dataTypes)) {
                 try {
                     const data = await getter(userId);
-                    if (data && (data.length > 0 || Object.keys(data).length > 0)) {
+                    if (data) {
                         const storageKey = `${userId}_${key}`;
                         const newDataStr = JSON.stringify(data);
                         const currentLocal = localStorage.getItem(storageKey);
@@ -317,6 +343,7 @@ class SupabaseCacheManager {
         this._pendingSync.clear();
         this._profilePhotoCache = null;
         this._dataCache.clear();
+        this._saveQueue = [];
         if (this._saveTimeout) {
             clearTimeout(this._saveTimeout);
             this._saveTimeout = null;
