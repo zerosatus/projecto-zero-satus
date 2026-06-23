@@ -1,4 +1,4 @@
-// database-service.js - Serviço completo de banco de dados Supabase (VERSÃO CORRIGIDA - ERRO 409 FIX)
+// database-service.js - Serviço completo de banco de dados Supabase (VERSÃO CORRIGIDA)
 
 const DatabaseService = (function() {
     let supabase = null;
@@ -14,15 +14,19 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // FUNÇÃO PARA GERAR ID ÚNICO
+    // 🔥 FUNÇÃO CORRIGIDA: GERAR ID ÚNICO (UUID V4)
     // ============================================
     function generateId() {
-        return crypto.randomUUID ? crypto.randomUUID() : 
-            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
+        // Usar crypto.randomUUID() se disponível, senão gerar manualmente
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        // Fallback: UUID v4 manual
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
     
     async function getCurrentUserId() {
@@ -97,9 +101,9 @@ const DatabaseService = (function() {
                 return true;
             }
             
-            // Preparar dados com IDs novos (UUID)
+            // 🔥 GERAR IDs ÚNICOS (UUID)
             const tasksToInsert = tasks.map(task => ({
-                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
+                id: generateId(), // ✅ SEMPRE GERAR NOVO UUID
                 user_id: userId,
                 title: task.nome || task.title || 'Sem título',
                 description: task.descricao || '',
@@ -113,7 +117,7 @@ const DatabaseService = (function() {
                 updated_at: new Date().toISOString()
             }));
             
-            // Inserir em lotes de 100 para evitar problemas
+            // Inserir em lotes de 100
             const batchSize = 100;
             for (let i = 0; i < tasksToInsert.length; i += batchSize) {
                 const batch = tasksToInsert.slice(i, i + batchSize);
@@ -130,7 +134,7 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // NOTES (Anotações) - CORRIGIDO
+    // NOTES (Anotações) - 🔥 CORRIGIDO
     // ============================================
     async function getNotes(userId) {
         const client = init();
@@ -166,6 +170,7 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
+            // 🔥 DELETAR TODAS AS ANOTAÇÕES EXISTENTES PRIMEIRO
             const { error: deleteError } = await client
                 .from('notes')
                 .delete()
@@ -181,19 +186,24 @@ const DatabaseService = (function() {
                 return true;
             }
             
+            // 🔥 GERAR IDs ÚNICOS (UUID) PARA CADA ANOTAÇÃO
             const notesToInsert = notes.map(note => ({
-                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
+                id: generateId(), // ✅ SEMPRE GERAR NOVO UUID
                 user_id: userId,
-                title: note.title || 'Sem título',
-                content: note.content || '',
-                created_at: note.date || new Date().toISOString(),
+                title: note.title || note.titulo || 'Sem título',
+                content: note.content || note.conteudo || '',
+                created_at: note.date || note.dataCriacao || new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }));
             
+            // 🔥 INSERIR TODAS AS ANOTAÇÕES
             const { error } = await client.from('notes').insert(notesToInsert);
-            if (error) throw error;
+            if (error) {
+                console.error('[Database] Erro ao inserir notes:', error);
+                throw error;
+            }
             
-            console.log(`[Database] ${notes.length} anotações salvas`);
+            console.log(`[Database] ${notes.length} anotações salvas com sucesso`);
             return true;
         } catch (error) {
             console.error('[Database] Erro ao salvar notes:', error);
@@ -202,7 +212,7 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // CALENDAR EVENTS (Eventos) - CORRIGIDO ⭐
+    // CALENDAR EVENTS (Eventos) - CORRIGIDO
     // ============================================
     async function getCalendarEvents(userId) {
         const client = init();
@@ -243,9 +253,7 @@ const DatabaseService = (function() {
         if (!client) return false;
         
         try {
-            console.log(`[Database] Salvando ${events?.length || 0} eventos para ${userId}`);
-            
-            // ✅ DELETAR TODOS OS EVENTOS EXISTENTES PRIMEIRO
+            // 🔥 DELETAR TODOS OS EVENTOS EXISTENTES
             const { error: deleteError } = await client
                 .from('calendar_events')
                 .delete()
@@ -261,9 +269,9 @@ const DatabaseService = (function() {
                 return true;
             }
             
-            // ✅ GERAR NOVOS IDs PARA CADA EVENTO
+            // 🔥 GERAR IDs ÚNICOS (UUID)
             const eventsToInsert = events.map(event => ({
-                id: generateId(), // 🔥 CRUCIAL: SEMPRE GERAR NOVO ID
+                id: generateId(),
                 user_id: userId,
                 title: event.title || 'Evento',
                 description: event.description || '',
@@ -278,15 +286,10 @@ const DatabaseService = (function() {
                 updated_at: new Date().toISOString()
             }));
             
-            // ✅ INSERIR EM LOTE
             const { error } = await client.from('calendar_events').insert(eventsToInsert);
+            if (error) throw error;
             
-            if (error) {
-                console.error('[Database] Erro ao inserir eventos:', error);
-                return false;
-            }
-            
-            console.log(`[Database] ${events.length} eventos salvos com sucesso`);
+            console.log(`[Database] ${events.length} eventos salvos`);
             return true;
         } catch (error) {
             console.error('[Database] Erro ao salvar eventos:', error);
@@ -449,7 +452,7 @@ const DatabaseService = (function() {
             }
             
             const notifToInsert = notifications.map(notif => ({
-                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
+                id: generateId(),
                 user_id: userId,
                 title: notif.title || 'Notificação',
                 message: notif.message || '',
@@ -602,7 +605,7 @@ const DatabaseService = (function() {
             }
             
             const disciplinasToInsert = disciplinas.map(d => ({
-                id: generateId(), // ✅ SEMPRE GERAR NOVO ID
+                id: generateId(),
                 user_id: userId,
                 nome: d.nome || 'Disciplina',
                 cor: d.cor || '#9333ea',
@@ -682,7 +685,7 @@ const DatabaseService = (function() {
     }
     
     // ============================================
-    // STORAGE (Fotos)
+    // STORAGE (Fotos) - CORRIGIDO
     // ============================================
     async function uploadProfilePhoto(userId, file) {
         const client = init();
@@ -697,7 +700,10 @@ const DatabaseService = (function() {
                 .from('user-content')
                 .upload(filePath, file);
             
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                console.error('[Database] Erro no upload:', uploadError);
+                return null;
+            }
             
             const { data: { publicUrl } } = client.storage
                 .from('user-content')
@@ -801,4 +807,4 @@ const DatabaseService = (function() {
 // Exportar para uso global
 window.DatabaseService = DatabaseService;
 
-console.log('[DatabaseService] Módulo carregado com sucesso! (VERSÃO CORRIGIDA - ERRO 409 FIX)');
+console.log('[DatabaseService] Módulo carregado com sucesso! (VERSÃO CORRIGIDA - UUID FIX)');
