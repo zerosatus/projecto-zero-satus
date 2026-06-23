@@ -14,6 +14,20 @@ function initSupabase() {
 }
 
 // ============================================
+// 🔥 FUNÇÃO CORRIGIDA: GERAR ID ÚNICO (UUID V4)
+// ============================================
+function generateId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// ============================================
 // FUNÇÃO PARA COMPACTAR IMAGEM
 // ============================================
 async function compressImage(file) {
@@ -55,7 +69,7 @@ async function compressImage(file) {
 }
 
 // ============================================
-// SERVIÇO DE AUTENTICAÇÃO (CORRIGIDO)
+// SERVIÇO DE AUTENTICAÇÃO
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
@@ -71,7 +85,6 @@ const AuthService = {
 
         if (error) {
             console.error('[Auth] Erro no login:', error.message);
-
             if (error.message.includes('Email not confirmed') || error.message.includes('confirm')) {
                 throw new Error('Por favor, confirme seu e-mail antes de fazer login.');
             }
@@ -85,7 +98,6 @@ const AuthService = {
             throw new Error('E-mail não confirmado. Verifique sua caixa de entrada.');
         }
 
-        // Garantir que o perfil existe
         await this.ensureProfileExists(data.user);
 
         return { user: data.user };
@@ -157,7 +169,6 @@ const AuthService = {
 
         } catch (error) {
             console.error('[Auth] Erro ao reenviar confirmação:', error);
-
             if (error.message.includes('already confirmed')) {
                 throw new Error('Este e-mail já foi confirmado. Tente fazer login.');
             }
@@ -232,7 +243,6 @@ const AuthService = {
         return token;
     },
 
-    // 🔥 CORRIGIDO: Processar callback de confirmação com logout forçado
     async processConfirmationCallback() {
         console.log('[Auth] Processando callback de confirmação...');
 
@@ -251,7 +261,6 @@ const AuthService = {
         console.log('[Auth] Token encontrado:', token.substring(0, 10) + '...');
 
         try {
-            // 🔥 FORÇAR LOGOUT de qualquer sessão existente
             const { data: { user } } = await this.getCurrentUser();
 
             if (user) {
@@ -262,16 +271,12 @@ const AuthService = {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
-            // Confirmar o e-mail com o token
             const result = await this.confirmEmail(token);
 
             if (result.user) {
                 console.log('[Auth] ✅ E-mail confirmado com sucesso para:', result.user.email);
-
-                // Remover parâmetros da URL
                 window.history.replaceState({}, document.title, window.location.pathname);
 
-                // 🔥 FAZER LOGOUT NOVAMENTE após confirmação
                 console.log('[Auth] Fazendo logout novamente após confirmação...');
                 await this.logout();
                 localStorage.removeItem('usuarioLogado');
@@ -291,14 +296,12 @@ const AuthService = {
         }
     },
 
-    // 🔥 CORRIGIDO: Login com Google com logout forçado
     async loginWithGoogle() {
         const client = initSupabase();
         if (!client) throw new Error('Supabase não inicializado');
 
         console.log('[Auth] Iniciando login com Google...');
 
-        // 🔥 Forçar logout antes do Google para evitar conflitos
         console.log('[Auth] Forçando logout antes do Google...');
         await this.logout();
         localStorage.removeItem('usuarioLogado');
@@ -336,7 +339,6 @@ const AuthService = {
         console.log('[Auth] Criando perfil para:', email);
 
         try {
-            // Verificar se já existe
             const { data: existing, error: checkError } = await client
                 .from('profiles')
                 .select('id')
@@ -473,7 +475,6 @@ const AuthService = {
             await client.auth.signOut();
             console.log('[Auth] Logout realizado com sucesso');
 
-            // Limpar dados locais
             localStorage.removeItem('usuarioLogado');
             localStorage.removeItem('userPhotoURL');
 
@@ -504,10 +505,9 @@ const AuthService = {
 };
 
 // ============================================
-// SERVIÇO DE STORAGE (CORRIGIDO)
+// SERVIÇO DE STORAGE
 // ============================================
 const StorageService = {
-    // 🔥 CORRIGIDO: Upload de foto com compactação e URL pública
     async uploadProfilePhoto(userId, file) {
         const client = initSupabase();
         if (!client) {
@@ -516,7 +516,6 @@ const StorageService = {
         }
 
         try {
-            // Validação do arquivo
             if (!file || !file.type || !file.type.startsWith('image/')) {
                 console.error('[Storage] Arquivo inválido:', file);
                 return null;
@@ -529,7 +528,6 @@ const StorageService = {
             const fileName = `${userId}_${Date.now()}.${fileExt}`;
             const filePath = `avatars/${fileName}`;
 
-            // Compactar imagem se for muito grande
             let fileToUpload = file;
             if (file.size > 500 * 1024) {
                 console.log('[Storage] Compactando imagem (tamanho original:', file.size, 'bytes)');
@@ -537,7 +535,6 @@ const StorageService = {
                 console.log('[Storage] Imagem compactada para:', fileToUpload.size, 'bytes');
             }
 
-            // Tentar fazer upload
             console.log('[Storage] Fazendo upload para:', filePath);
             const { error: uploadError } = await client.storage
                 .from('user-content')
@@ -550,14 +547,13 @@ const StorageService = {
             if (uploadError) {
                 console.error('[Storage] Erro no upload:', uploadError);
 
-                // Se o bucket não existir, tentar criar
                 if (uploadError.message.includes('bucket not found')) {
                     console.log('[Storage] Bucket não encontrado, criando...');
 
                     try {
                         const { error: createError } = await client.storage.createBucket('user-content', {
                             public: true,
-                            fileSizeLimit: 5242880 // 5MB
+                            fileSizeLimit: 5242880
                         });
 
                         if (createError) {
@@ -567,7 +563,6 @@ const StorageService = {
 
                         console.log('[Storage] Bucket criado com sucesso');
 
-                        // Tentar novamente
                         const { error: retryError } = await client.storage
                             .from('user-content')
                             .upload(filePath, fileToUpload, {
@@ -588,7 +583,6 @@ const StorageService = {
                 }
             }
 
-            // Obter URL pública
             console.log('[Storage] Obtendo URL pública para:', filePath);
             const { data: { publicUrl } } = client.storage
                 .from('user-content')
@@ -597,7 +591,6 @@ const StorageService = {
             console.log('[Storage] URL pública obtida:', publicUrl);
 
             if (publicUrl) {
-                // Atualizar perfil com a URL
                 await DatabaseService.updateUserProfile(userId, { avatar_url: publicUrl });
                 console.log('[Storage] Perfil atualizado com a nova foto');
                 return publicUrl;
@@ -648,7 +641,7 @@ const StorageService = {
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS (COMPLETO)
+// SERVIÇO DE BANCO DE DADOS - 🔥 VERSÃO CORRIGIDA
 // ============================================
 const DatabaseService = {
     async getCurrentUserId() {
@@ -659,8 +652,6 @@ const DatabaseService = {
     async getTasks(userId) {
         const client = initSupabase();
         if (!client) return [];
-
-        console.log('[DB] Buscando tasks para:', userId);
 
         try {
             const { data, error } = await client
@@ -708,7 +699,7 @@ const DatabaseService = {
             }
 
             const tasksToInsert = tasks.map(task => ({
-                id: task.id || crypto.randomUUID(),
+                id: generateId(),
                 user_id: userId,
                 title: task.nome || task.title || 'Sem título',
                 description: task.descricao || '',
@@ -733,6 +724,7 @@ const DatabaseService = {
         }
     },
 
+    // 🔥 CORRIGIDO: NOTES
     async getNotes(userId) {
         const client = initSupabase();
         if (!client) return [];
@@ -762,28 +754,48 @@ const DatabaseService = {
         }
     },
 
+    // 🔥 CORRIGIDO: saveNotes com DELETE + INSERT e UUIDs novos
     async saveNotes(userId, notes) {
         const client = initSupabase();
         if (!client) return false;
 
         try {
-            await client.from('notes').delete().eq('user_id', userId);
+            console.log(`[DB] Salvando ${notes?.length || 0} anotações para ${userId}`);
 
-            if (notes.length === 0) return true;
+            // 🔥 DELETAR TODAS AS ANOTAÇÕES EXISTENTES
+            const { error: deleteError } = await client
+                .from('notes')
+                .delete()
+                .eq('user_id', userId);
 
+            if (deleteError) {
+                console.error('[DB] Erro ao deletar notes:', deleteError);
+                return false;
+            }
+
+            if (!notes || notes.length === 0) {
+                console.log('[DB] Nenhuma anotação para salvar');
+                return true;
+            }
+
+            // 🔥 GERAR NOVOS IDs (UUID) PARA CADA ANOTAÇÃO
             const notesToInsert = notes.map(note => ({
-                id: note.id || crypto.randomUUID(),
+                id: generateId(),
                 user_id: userId,
-                title: note.title || 'Sem título',
-                content: note.content || '',
-                created_at: note.date || new Date().toISOString(),
+                title: note.title || note.titulo || 'Sem título',
+                content: note.content || note.conteudo || '',
+                created_at: note.date || note.dataCriacao || new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }));
 
+            // 🔥 INSERIR TODAS AS ANOTAÇÕES
             const { error } = await client.from('notes').insert(notesToInsert);
-            if (error) throw error;
+            if (error) {
+                console.error('[DB] Erro ao inserir notes:', error);
+                throw error;
+            }
 
-            console.log(`[DB] ${notes.length} anotações salvas`);
+            console.log(`[DB] ${notes.length} anotações salvas com sucesso`);
             return true;
         } catch (error) {
             console.error('[DB] Erro ao salvar notes:', error);
@@ -791,6 +803,7 @@ const DatabaseService = {
         }
     },
 
+    // 🔥 CORRIGIDO: CALENDAR EVENTS
     async getCalendarEvents(userId) {
         const client = initSupabase();
         if (!client) return [];
@@ -830,18 +843,23 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
+            console.log(`[DB] Salvando ${events?.length || 0} eventos para ${userId}`);
+
             await client.from('calendar_events').delete().eq('user_id', userId);
 
-            if (events.length === 0) return true;
+            if (!events || events.length === 0) {
+                console.log('[DB] Nenhum evento para salvar');
+                return true;
+            }
 
             const eventsToInsert = events.map(event => ({
-                id: event.id || crypto.randomUUID(),
+                id: generateId(),
                 user_id: userId,
-                title: event.title,
+                title: event.title || 'Evento',
                 description: event.description || '',
-                date: event.date,
-                start_time: event.start || event.startTime,
-                end_time: event.end || event.endTime,
+                date: event.date || new Date().toISOString().split('T')[0],
+                start_time: event.start || event.startTime || '08:00',
+                end_time: event.end || event.endTime || '09:00',
                 type: event.type || 'aula',
                 color: event.color || '#8b5cf6',
                 repeat_type: event.repeat || 'nao',
@@ -989,7 +1007,7 @@ const DatabaseService = {
             if (notifications.length === 0) return true;
 
             const notifToInsert = notifications.map(notif => ({
-                id: notif.id || crypto.randomUUID(),
+                id: generateId(),
                 user_id: userId,
                 title: notif.title || 'Notificação',
                 message: notif.message || '',
@@ -1038,7 +1056,6 @@ const DatabaseService = {
         try {
             console.log('[DB] Atualizando perfil para:', userId);
 
-            // Verificar quais campos existem na tabela
             let existingColumns = [];
             try {
                 const { data: columns } = await client
@@ -1052,11 +1069,9 @@ const DatabaseService = {
                 console.warn('[DB] Não foi possível verificar colunas, usando campos padrão');
             }
 
-            // Campos permitidos
             const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero'];
             const updateData = {};
 
-            // Adicionar apenas campos que existem na tabela
             for (const field of allowedFields) {
                 if (profile[field] !== undefined && profile[field] !== null) {
                     if (existingColumns.length === 0 || existingColumns.includes(field)) {
@@ -1065,7 +1080,6 @@ const DatabaseService = {
                 }
             }
 
-            // Se não houver campos para atualizar, retorna
             if (Object.keys(updateData).length === 0) {
                 console.log('[DB] Nenhum campo válido para atualizar');
                 return true;
@@ -1127,7 +1141,7 @@ const DatabaseService = {
             }
 
             const disciplinasToInsert = disciplinas.map(d => ({
-                id: d.id,
+                id: generateId(),
                 user_id: userId,
                 nome: d.nome,
                 cor: d.cor || '#9333ea',
@@ -1150,7 +1164,6 @@ const DatabaseService = {
     async ensureUserData(userId, email, nome) {
         console.log('[DB] Verificando estrutura do usuário:', userId);
 
-        // Verificar/criar perfil
         let profile = await this.getUserProfile(userId);
         if (!profile) {
             console.log('[DB] Criando perfil para:', email);
@@ -1171,14 +1184,12 @@ const DatabaseService = {
             }
         }
 
-        // Verificar/criar weekly_schedule
         let schedule = await this.getWeeklySchedule(userId);
         if (!schedule || Object.keys(schedule).length === 0) {
             console.log('[DB] Criando horário padrão');
             await this.saveWeeklySchedule(userId, { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
         }
 
-        // Verificar/criar time_slots
         let slots = await this.getTimeSlots(userId);
         if (!slots || slots.length === 0) {
             console.log('[DB] Criando time slots padrão');
@@ -1204,11 +1215,8 @@ window.StorageService = StorageService;
 // Disparar evento para informar que o Supabase está pronto
 window.dispatchEvent(new CustomEvent('supabaseReady'));
 
-console.log('[Supabase] Serviços carregados com sucesso!');
+console.log('[Supabase] Serviços carregados com sucesso! (VERSÃO CORRIGIDA - UUID FIX)');
 console.log('[Supabase] URL:', SUPABASE_URL);
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
 console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService);
 console.log('[Supabase] StorageService disponível:', !!window.StorageService);
-console.log('[Supabase] ✅ Storage com upload e compactação!');
-console.log('[Supabase] ✅ Confirmação de e-mail corrigida!');
-console.log('[Supabase] ✅ Google login com logout forçado!');
