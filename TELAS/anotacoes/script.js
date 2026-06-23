@@ -1,4 +1,4 @@
-// anotacoes/script.js - COMPLETO CORRIGIDO COM CACHEMANAGER
+// anotacoes/script.js - COMPLETO CORRIGIDO (SEM RECURSÃO)
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -7,7 +7,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         return; 
     }
     
-    // Inicializar sincronização
     if (window.initSync) {
         await window.initSync();
     }
@@ -19,9 +18,10 @@ let anotacoes = [];
 let anotacaoAtualId = null;
 let autoSaveTimer = null;
 let isSaving = false;
+let _isLoading = false;
 
 function inicializarAnotacoes() {
-    carregarAnotacoes();
+    carregarAnotacoesInterno();
     configurarEventos();
     carregarPrimeiraAnotacao();
 }
@@ -43,7 +43,6 @@ function configurarEventos() {
         }
     });
     
-    // ✅ ESCUTAR EVENTOS DE SINCRONIZAÇÃO
     window.addEventListener('cloudDataLoaded', () => {
         carregarAnotacoesDoCacheSemPerderEditor();
     });
@@ -58,7 +57,6 @@ function configurarEventos() {
         carregarAnotacoesDoCacheSemPerderEditor();
     });
 
-    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
     window.addEventListener('storage', (e) => {
         if (e.key && e.key.includes('_notes')) {
             console.log('[Anotacoes] Mudança detectada em outra aba:', e.key);
@@ -68,55 +66,59 @@ function configurarEventos() {
 }
 
 // ============================================
-// ✅ FUNÇÃO CORRIGIDA: CARREGAR ANOTAÇÕES
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR ANOTAÇÕES (SEM RECURSÃO)
 // ============================================
-function carregarAnotacoes() {
-    const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-    if (!usuario) return;
+function carregarAnotacoesInterno() {
+    if (_isLoading) return;
+    _isLoading = true;
     
-    // ✅ PRIORIDADE 1: CacheManager (JÁ ENVIA PARA SUPABASE)
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('notes', null);
-        if (cached !== null && Array.isArray(cached)) {
-            anotacoes = cached;
-            console.log('[Anotacoes] Carregado do CacheManager:', anotacoes.length);
-            renderizarListaAnotacoes();
-            
-            // ✅ GARANTIR QUE LOCALSTORAGE TAMBÉM ESTÁ ATUALIZADO
-            const userId = usuario.id;
-            localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoes));
-            return;
+    try {
+        const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuario) return;
+        
+        if (window.CacheManager) {
+            const cached = window.CacheManager.get('notes', null);
+            if (cached !== null && Array.isArray(cached)) {
+                anotacoes = cached;
+                console.log('[Anotacoes] Carregado do CacheManager:', anotacoes.length);
+                renderizarListaAnotacoes();
+                
+                const userId = usuario.id;
+                localStorage.setItem(`${userId}_notes`, JSON.stringify(anotacoes));
+                return;
+            }
         }
-    }
-    
-    // ✅ PRIORIDADE 2: localStorage com UUID
-    const userId = usuario.id;
-    const storageKey = `${userId}_notes`;
-    const anotacoesSalvas = localStorage.getItem(storageKey);
-    
-    if (anotacoesSalvas) {
-        anotacoes = JSON.parse(anotacoesSalvas);
-        console.log('[Anotacoes] Carregado do localStorage:', anotacoes.length);
-    } else {
-        // Tentar migrar dados antigos (se existirem com email)
-        const oldStorageKey = `anotacoes_${usuario.email}`;
-        const oldAnotacoes = localStorage.getItem(oldStorageKey);
-        if (oldAnotacoes) {
-            anotacoes = JSON.parse(oldAnotacoes);
-            console.log('[Anotacoes] Migrado do formato antigo:', anotacoes.length);
-            localStorage.setItem(storageKey, oldAnotacoes);
-            localStorage.removeItem(oldStorageKey);
+        
+        const userId = usuario.id;
+        const storageKey = `${userId}_notes`;
+        const anotacoesSalvas = localStorage.getItem(storageKey);
+        
+        if (anotacoesSalvas) {
+            anotacoes = JSON.parse(anotacoesSalvas);
+            console.log('[Anotacoes] Carregado do localStorage:', anotacoes.length);
         } else {
-            anotacoes = [];
+            const oldStorageKey = `anotacoes_${usuario.email}`;
+            const oldAnotacoes = localStorage.getItem(oldStorageKey);
+            if (oldAnotacoes) {
+                anotacoes = JSON.parse(oldAnotacoes);
+                console.log('[Anotacoes] Migrado do formato antigo:', anotacoes.length);
+                localStorage.setItem(storageKey, oldAnotacoes);
+                localStorage.removeItem(oldStorageKey);
+            } else {
+                anotacoes = [];
+            }
         }
+        
+        if (window.CacheManager && anotacoes.length > 0) {
+            window.CacheManager.set('notes', anotacoes, true);
+        }
+        
+        renderizarListaAnotacoes();
+    } catch (error) {
+        console.error('[Anotacoes] Erro ao carregar:', error);
+    } finally {
+        _isLoading = false;
     }
-    
-    // ✅ SALVAR NO CACHEMANAGER (para enviar para nuvem)
-    if (window.CacheManager && anotacoes.length > 0) {
-        window.CacheManager.set('notes', anotacoes, true);
-    }
-    
-    renderizarListaAnotacoes();
 }
 
 // ============================================
@@ -126,21 +128,16 @@ function salvarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuario) return;
     
-    // ✅ 1. Salvar no CacheManager (ENVIA PARA SUPABASE)
     if (window.CacheManager) {
         window.CacheManager.set('notes', anotacoes, true);
         console.log('[Anotacoes] ✅ Salvo no CacheManager (nuvem):', anotacoes.length);
     }
     
-    // ✅ 2. Backup no localStorage com UUID
     const userId = usuario.id;
     const storageKey = `${userId}_notes`;
     localStorage.setItem(storageKey, JSON.stringify(anotacoes));
-    
-    // ✅ 3. Backup com email (compatibilidade)
     localStorage.setItem(`anotacoes_${usuario.email}`, JSON.stringify(anotacoes));
     
-    // ✅ 4. Disparar evento para outras abas
     window.dispatchEvent(new CustomEvent('notesUpdated', { detail: { notes: anotacoes } }));
 }
 
@@ -179,7 +176,6 @@ function salvarAnotacaoAtual() {
             updated_at: new Date().toISOString()
         };
         
-        // ✅ CHAMAR salvarAnotacoes() que usa CacheManager
         salvarAnotacoes();
         renderizarListaAnotacoes();
         atualizarUltimoSalvo(new Date().toISOString());
@@ -196,7 +192,6 @@ function salvarAnotacaoAtual() {
 // ✅ FUNÇÃO CORRIGIDA: CRIAR NOVA ANOTAÇÃO
 // ============================================
 function criarNovaAnotacao() {
-    // Salvar anotação atual antes de criar nova
     if (anotacaoAtualId) {
         salvarAnotacaoAtual();
     }
@@ -222,8 +217,6 @@ function criarNovaAnotacao() {
     if (editor) editor.innerHTML = '';
     
     renderizarListaAnotacoes();
-    
-    // ✅ SALVAR NO CACHEMANAGER
     salvarAnotacoes();
     
     if (titleInput) titleInput.focus();
@@ -234,9 +227,8 @@ function criarNovaAnotacao() {
 // FUNÇÃO: CARREGAR DO CACHE SEM PERDER O EDITOR
 // ============================================
 function carregarAnotacoesDoCacheSemPerderEditor() {
-    if (!window.CacheManager) return;
+    if (!window.CacheManager || _isLoading) return;
     
-    // Salvar anotação atual antes de recarregar
     if (anotacaoAtualId && !isSaving) {
         salvarAnotacaoAtual();
     }
@@ -244,14 +236,10 @@ function carregarAnotacoesDoCacheSemPerderEditor() {
     const cachedNotes = window.CacheManager.get('notes', null);
     if (cachedNotes !== null && Array.isArray(cachedNotes)) {
         const oldCount = anotacoes.length;
-        
-        // Verificar se a anotação atual ainda existe no cache
         const anotacaoAtualExistente = anotacaoAtualId ? cachedNotes.find(a => a.id === anotacaoAtualId) : null;
         
-        // ✅ ATUALIZAR O CACHE EM MEMÓRIA
         anotacoes = cachedNotes;
         
-        // ✅ ATUALIZAR LOCALSTORAGE
         const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
         if (usuario) {
             const userId = usuario.id;
@@ -260,7 +248,6 @@ function carregarAnotacoesDoCacheSemPerderEditor() {
         
         if (anotacaoAtualId) {
             if (anotacaoAtualExistente) {
-                // Atualizar o editor se o conteúdo mudou externamente
                 const titleInput = document.querySelector('.note-title');
                 const editor = document.getElementById('editor');
                 
@@ -277,7 +264,6 @@ function carregarAnotacoesDoCacheSemPerderEditor() {
                     atualizarUltimoSalvo(anotacaoAtualExistente.dataModificacao || anotacaoAtualExistente.updated_at);
                 }
             } else if (anotacoes.length > 0) {
-                // A anotação atual foi deletada em outro lugar, carregar a primeira
                 carregarAnotacao(anotacoes[0].id);
                 mostrarToast('Anotação atual foi removida em outro dispositivo', 'info');
             }
@@ -292,7 +278,7 @@ function carregarAnotacoesDoCacheSemPerderEditor() {
 }
 
 // ============================================
-// FUNÇÕES AUXILIARES (MANTER AS MESMAS)
+// FUNÇÕES AUXILIARES
 // ============================================
 
 function renderizarListaAnotacoes() {
@@ -454,11 +440,11 @@ function logout() {
 }
 
 // ============================================
-// FUNÇÕES GLOBAIS PARA SINCRONIZAÇÃO
+// FUNÇÕES GLOBAIS PARA SINCRONIZAÇÃO - CORRIGIDAS
 // ============================================
 
 window.carregarAnotacoes = function() {
-    carregarAnotacoes();
+    carregarAnotacoesInterno();
 };
 
 window.recarregarAnotacoesDaNuvem = carregarAnotacoesDoCacheSemPerderEditor;
@@ -482,7 +468,6 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-// Sincronização inicial atrasada
 setTimeout(() => {
     carregarAnotacoesDoCacheSemPerderEditor();
 }, 2000);
