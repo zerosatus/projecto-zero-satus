@@ -201,20 +201,15 @@
 <!-- Supabase CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
-<script src="../supabase-client.js"></script>     <!-- AuthService primeiro -->
-<script src="../database-service.js"></script>    <!-- DatabaseService -->
-<script src="../realtime-sync.js"></script>       <!-- Realtime -->
-<script src="../cache-manager.js"></script>       <!-- Cache -->
-<script src="../shared-data.js"></script>         <!-- Shared -->
-<script src="../sync-helper.js"></script> 
-<script src="../sync-helper-fix.js"></script> <!-- Sync -->
-
-<!-- FUNCIONALIDADES -->
-<script src="../daily-phrases.js"></script>
-<script src="../notes-sync.js"></script>
-
-<!-- PÁGINA -->
+<!-- ✅ Usar caminho relativo para a raiz -->
+<script src="../../supabase-client.js"></script>
+<script src="../../database-service.js"></script>
+<script src="../../realtime-sync.js"></script>
+<script src="../../cache-manager.js"></script>
+<script src="../../shared-data.js"></script>
+<script src="../../sync-helper.js"></script>
+<script src="../../daily-phrases.js"></script>
+<script src="../../notes-sync.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
