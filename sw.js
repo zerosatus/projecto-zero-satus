@@ -1,5 +1,6 @@
-// sw.js - Service Worker para PC/PWA
-const CACHE_NAME = 'zero-pwa-v2';
+// sw.js - Service Worker COMPLETO com suporte a notificações em background
+
+const CACHE_NAME = 'zero-pwa-v3';
 const OFFLINE_URL = '/offline.html';
 
 // URLs para cache
@@ -12,13 +13,16 @@ const PRECACHE_URLS = [
   '/pc-pwa/pwa-detector.js',
   '/pc-pwa/auto-session.js',
   '/pc-pwa/notification-pc.js',
+  '/pc-pwa/task-notifier.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js'
 ];
 
+// ============================================
 // INSTALAÇÃO
+// ============================================
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -30,7 +34,9 @@ self.addEventListener('install', event => {
   );
 });
 
+// ============================================
 // ATIVAÇÃO
+// ============================================
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -46,9 +52,10 @@ self.addEventListener('activate', event => {
   );
 });
 
-// FETCH - Estratégia Network First
+// ============================================
+// FETCH
+// ============================================
 self.addEventListener('fetch', event => {
-  // Ignora analytics e firestore
   if (event.request.url.includes('google-analytics') || 
       event.request.url.includes('firestore')) {
     event.respondWith(fetch(event.request));
@@ -85,10 +92,9 @@ self.addEventListener('fetch', event => {
 });
 
 // ============================================
-// 🔥 NOTIFICAÇÕES PUSH - PC
+// 🔥 NOTIFICAÇÕES PUSH
 // ============================================
 
-// RECEBER NOTIFICAÇÃO
 self.addEventListener('push', function(event) {
   let data = {};
   
@@ -125,7 +131,10 @@ self.addEventListener('push', function(event) {
   );
 });
 
-// CLIQUE NA NOTIFICAÇÃO
+// ============================================
+// 🔥 CLIQUE NA NOTIFICAÇÃO
+// ============================================
+
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
@@ -141,17 +150,14 @@ self.addEventListener('notificationclick', function(event) {
       type: 'window',
       includeUncontrolled: true 
     }).then(windowClients => {
-      // Procura uma janela já aberta
       for (const client of windowClients) {
         if (client.url === url && 'focus' in client) {
           return client.focus();
         }
-        // Tenta focar qualquer janela do mesmo app
         if (client.url.includes(window.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
-      // Abre nova janela
       if (clients.openWindow) {
         return clients.openWindow(url);
       }
@@ -159,9 +165,170 @@ self.addEventListener('notificationclick', function(event) {
   );
 });
 
-// NOTIFICAÇÃO FECHADA
+// ============================================
+// 🔥 NOTIFICAÇÃO FECHADA
+// ============================================
+
 self.addEventListener('notificationclose', function(event) {
   console.log('[SW] Notificação fechada pelo usuário');
 });
 
-console.log('🖥️ Service Worker PC/PWA carregado');
+// ============================================
+// 🔥 SINCRONIZAÇÃO EM BACKGROUND
+// ============================================
+
+self.addEventListener('sync', event => {
+  console.log('[SW] Evento de sincronização:', event.tag);
+  
+  if (event.tag === 'sync-tasks') {
+    event.waitUntil(sincronizarTarefas());
+  }
+  
+  if (event.tag === 'sync-calendar') {
+    event.waitUntil(sincronizarCalendario());
+  }
+  
+  if (event.tag === 'sync-notes') {
+    event.waitUntil(sincronizarAnotacoes());
+  }
+});
+
+// ============================================
+// 🔥 FUNÇÕES DE SINCRONIZAÇÃO
+// ============================================
+
+async function sincronizarTarefas() {
+  console.log('[SW] 🔄 Sincronizando tarefas em background...');
+  
+  try {
+    // Busca cliente ativo para obter dados
+    const clientList = await clients.matchAll({ type: 'window' });
+    let userId = null;
+    let tasks = [];
+    
+    for (const client of clientList) {
+      try {
+        // Tenta buscar dados via mensagem
+        const response = await new Promise((resolve) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = (e) => resolve(e.data);
+          client.postMessage({ type: 'GET_TASKS' }, [channel.port2]);
+        });
+        
+        if (response && response.userId) {
+          userId = response.userId;
+          tasks = response.tasks || [];
+          break;
+        }
+      } catch (e) {
+        console.warn('[SW] Erro ao obter dados do cliente:', e);
+      }
+    }
+    
+    if (!userId || tasks.length === 0) {
+      console.log('[SW] ⚠️ Nenhuma tarefa para sincronizar');
+      return;
+    }
+    
+    // Verifica tarefas urgentes
+    const agora = new Date();
+    const tarefasUrgentes = tasks.filter(t => {
+      if (t.completed) return false;
+      if (!t.prazo) return false;
+      
+      const prazo = new Date(t.prazo);
+      const diffHoras = (prazo - agora) / (1000 * 60 * 60);
+      return diffHoras > 0 && diffHoras <= 24;
+    });
+    
+    if (tarefasUrgentes.length > 0) {
+      console.log(`[SW] 📢 ${tarefasUrgentes.length} tarefas urgentes encontradas`);
+      
+      for (const tarefa of tarefasUrgentes) {
+        const prazo = new Date(tarefa.prazo);
+        const diffHoras = Math.ceil((prazo - agora) / (1000 * 60 * 60));
+        
+        await self.registration.showNotification(
+          '⏰ TAREFA URGENTE!',
+          {
+            body: `"${tarefa.nome}" vence em ${diffHoras}h! ⚠️`,
+            icon: '/icons/icon-192x192.png',
+            badge: '/icons/icon-72x72.png',
+            vibrate: [200, 100, 200],
+            data: { url: '/TELAS/login/index.html' },
+            requireInteraction: true
+          }
+        );
+      }
+    }
+    
+    console.log('[SW] ✅ Sincronização de tarefas concluída');
+    
+  } catch (error) {
+    console.error('[SW] Erro na sincronização de tarefas:', error);
+  }
+}
+
+async function sincronizarCalendario() {
+  console.log('[SW] 🔄 Sincronizando calendário em background...');
+  // Implementar verificação de eventos
+}
+
+async function sincronizarAnotacoes() {
+  console.log('[SW] 🔄 Sincronizando anotações em background...');
+  // Implementar verificação de anotações
+}
+
+// ============================================
+// 🔥 SINCRONIZAÇÃO PERIÓDICA
+// ============================================
+
+self.addEventListener('periodicsync', event => {
+  console.log('[SW] Sincronização periódica:', event.tag);
+  
+  if (event.tag === 'check-tasks') {
+    event.waitUntil(verificarTarefasPeriodicamente());
+  }
+  
+  if (event.tag === 'check-calendar') {
+    event.waitUntil(verificarCalendarioPeriodicamente());
+  }
+});
+
+async function verificarTarefasPeriodicamente() {
+  console.log('[SW] 🔍 Verificando tarefas periodicamente...');
+  await sincronizarTarefas();
+}
+
+async function verificarCalendarioPeriodicamente() {
+  console.log('[SW] 🔍 Verificando calendário periodicamente...');
+  await sincronizarCalendario();
+}
+
+// ============================================
+// 🔥 MENSAGENS DO CLIENTE
+// ============================================
+
+self.addEventListener('message', event => {
+  console.log('[SW] Mensagem recebida:', event.data);
+  
+  if (event.data.type === 'GET_USER_ID') {
+    // Responde com o userId se disponível
+    event.ports[0].postMessage({ 
+      userId: event.data.userId || null 
+    });
+  }
+  
+  if (event.data.type === 'GET_TASKS') {
+    event.ports[0].postMessage({
+      userId: event.data.userId || null,
+      tasks: event.data.tasks || []
+    });
+  }
+  
+  if (event.data.type === 'FORCE_SYNC') {
+    event.waitUntil(sincronizarTarefas());
+  }
+});
+
+console.log('🖥️ Service Worker PC/PWA COMPLETO carregado!');

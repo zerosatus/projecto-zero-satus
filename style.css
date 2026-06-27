@@ -92,6 +92,7 @@ header {
     font-size: 22px;
     font-weight: 700;
     background: linear-gradient(135deg, var(--accent), #a855f7);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.5px;
@@ -897,28 +898,3 @@ footer {
     }
 }
 
-/* Botão Ver Demo - visível apenas em mobile */
-.btn-demo-mobile {
-    display: flex !important;
-}
-
-/* Esconder em desktop (1024px ou mais) */
-@media (min-width: 1024px) {
-    .btn-demo-mobile {
-        display: none !important;
-    }
-}
-
-/* Em tablets (entre 640px e 1023px) - mostrar */
-@media (min-width: 640px) and (max-width: 1023px) {
-    .btn-demo-mobile {
-        display: flex !important;
-    }
-}
-
-/* Em mobile pequeno - mostrar */
-@media (max-width: 639px) {
-    .btn-demo-mobile {
-        display: flex !important;
-    }
-}

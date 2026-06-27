@@ -8,43 +8,792 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     
-    <!-- Garantia máxima - esconder em desktop, mostrar em mobile -->
+    <!-- PWA Manifest (otimizado para PC) -->
+    <link rel="manifest" href="/manifest-pc.json">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- Meta tags PWA -->
+    <meta name="theme-color" content="#9333ea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Zero">
+    
     <style>
-        /* Por padrão, o botão fica oculto */
+        /* ============================================ */
+        /* ESTILOS GLOBAIS */
+        /* ============================================ */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-hover: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #9333ea;
+            --accent-hover: #7c3aed;
+            --accent-light: rgba(147, 51, 234, 0.15);
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --header-height: 70px;
+            --container-padding: 16px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b2e 50%, #0f172a 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--container-padding);
+            width: 100%;
+        }
+
+        /* ============================================ */
+        /* HEADER */
+        /* ============================================ */
+        
+        header {
+            padding: 12px 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.3);
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .logo-text {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        /* Menu Desktop */
+        .desktop-menu {
+            display: none;
+        }
+
+        .desktop-menu ul {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .desktop-menu ul li a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .desktop-menu ul li a:hover {
+            color: var(--accent);
+        }
+
+        /* Botão Entrar */
+        .btn-login {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .btn-login:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* ============================================ */
+        /* 🔥 BOTÃO INSTALAR APP - SÓ PC */
+        /* ============================================ */
+        
+        #installAppBtn {
+            display: none !important;
+            background: linear-gradient(135deg, #9333ea, #7c3aed);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-left: 10px;
+            transition: all 0.3s;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);
+        }
+
+        #installAppBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(147, 51, 234, 0.5);
+        }
+
+        #installAppBtn i {
+            font-size: 1rem;
+        }
+
+        #installAppBtn.visible {
+            display: inline-flex !important;
+        }
+
+        /* ============================================ */
+        /* 🔥 BOTÃO VER DEMO - SÓ MOBILE */
+        /* ============================================ */
+        
         #btnDemo {
             display: none !important;
         }
         
-        /* Mostrar apenas em dispositivos móveis (telas menores que 1024px) */
         @media (max-width: 1023px) {
             #btnDemo {
                 display: inline-flex !important;
             }
         }
         
-        /* Garantir que em telas muito pequenas continue visível */
         @media (max-width: 640px) {
             #btnDemo {
                 display: inline-flex !important;
             }
         }
         
-        /* Garantir que em tablets também fique visível */
         @media (min-width: 641px) and (max-width: 1023px) {
             #btnDemo {
                 display: inline-flex !important;
             }
         }
         
-        /* Desktop - garantir que fique oculto */
         @media (min-width: 1024px) {
             #btnDemo {
                 display: none !important;
             }
         }
+
+        /* ============================================ */
+        /* HERO */
+        /* ============================================ */
+        
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding-top: var(--header-height);
+            position: relative;
+            overflow: hidden;
+            padding-bottom: 40px;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(147, 51, 234, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-content {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-text h1 {
+            font-size: clamp(28px, 6vw, 48px);
+            line-height: 1.2;
+            margin-bottom: 16px;
+        }
+
+        .hero-text h1 span {
+            color: var(--accent);
+            position: relative;
+            display: inline-block;
+        }
+
+        .hero-text h1 span::after {
+            content: '';
+            position: absolute;
+            bottom: 5px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: var(--accent-light);
+            z-index: -1;
+        }
+
+        .hero-text p {
+            font-size: clamp(14px, 4vw, 18px);
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: clamp(20px, 5vw, 32px);
+            font-weight: 700;
+            color: var(--accent);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hero-image {
+            position: relative;
+            margin-top: 20px;
+        }
+
+        .hero-image img {
+            width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        /* ============================================ */
+        /* FEATURES */
+        /* ============================================ */
+        
+        .features, .modules, .testimonials {
+            padding: 60px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .section-title h2 {
+            font-size: clamp(24px, 5vw, 36px);
+            margin-bottom: 12px;
+        }
+
+        .section-title h2 span {
+            color: var(--accent);
+        }
+
+        .section-title p {
+            color: var(--text-secondary);
+            font-size: clamp(14px, 3.5vw, 18px);
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 20px;
+            padding: 24px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px rgba(147, 51, 234, 0.2);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--accent-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+
+        /* ============================================ */
+        /* MODULES */
+        /* ============================================ */
+        
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .module-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 16px;
+            padding: 20px 16px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .module-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .module-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--accent-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--accent);
+            margin: 0 auto 12px;
+        }
+
+        .module-card h3 {
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+
+        .module-card p {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        /* ============================================ */
+        /* TESTIMONIALS */
+        /* ============================================ */
+        
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .testimonial-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .testimonial-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .testimonial-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .testimonial-info h4 {
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .testimonial-info p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .testimonial-text {
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .testimonial-rating {
+            color: var(--warning);
+            font-size: 0.8rem;
+        }
+
+        /* ============================================ */
+        /* CTA */
+        /* ============================================ */
+        
+        .cta {
+            padding: 60px 16px;
+            background: linear-gradient(135deg, var(--accent-light), transparent);
+            border-radius: 20px;
+            margin: 0 16px 60px;
+        }
+
+        .cta-content {
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .cta-content h2 {
+            font-size: clamp(20px, 5vw, 32px);
+            margin-bottom: 16px;
+        }
+
+        .cta-content p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* ============================================ */
+        /* FOOTER */
+        /* ============================================ */
+        
+        footer {
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid rgba(147, 51, 234, 0.3);
+            padding: 40px 0 20px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .footer-col h4 {
+            font-size: 1rem;
+            margin-bottom: 16px;
+            color: white;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col ul li {
+            margin-bottom: 8px;
+        }
+
+        .footer-col ul li a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-size: 0.85rem;
+        }
+
+        .footer-col ul li a:hover {
+            color: var(--accent);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .social-links a {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-tertiary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* ============================================ */
+        /* TOAST */
+        /* ============================================ */
+        
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 3000;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .toast.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        /* ============================================ */
+        /* RESPONSIVIDADE */
+        /* ============================================ */
+        
+        @media (min-width: 640px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .testimonials-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .desktop-menu {
+                display: block;
+            }
+            
+            .hero-content {
+                flex-direction: row;
+                align-items: center;
+                gap: 60px;
+            }
+            
+            .hero-text {
+                flex: 1;
+            }
+            
+            .hero-image {
+                flex: 1;
+            }
+            
+            .hero-buttons {
+                flex-direction: row;
+                justify-content: flex-start;
+            }
+            
+            .btn-primary, .btn-secondary {
+                width: auto;
+            }
+            
+            .features-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .modules-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .testimonials-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .footer-content {
+                grid-template-columns: 2fr repeat(3, 1fr);
+            }
+            
+            .cta-buttons {
+                flex-direction: row;
+                justify-content: center;
+            }
+            
+            #installAppBtn {
+                font-size: 0.9rem;
+                padding: 10px 20px;
+            }
+        }
+
+        @media (max-width: 1023px) {
+            #installAppBtn {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero-buttons {
+                flex-direction: column;
+            }
+            .btn-primary, .btn-secondary {
+                width: 100%;
+            }
+            .toast {
+                left: 16px;
+                right: 16px;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
+
+    <!-- ============================================ -->
+    <!-- HEADER -->
+    <!-- ============================================ -->
+    
     <header>
         <div class="container header-content">
             <div class="logo">
@@ -65,27 +814,21 @@
                 </ul>
             </nav>
 
-            <!-- Menu Mobile Button -->
-            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
-                <i class="fas fa-bars"></i>
+            <!-- 🔥 BOTÃO INSTALAR - SÓ PC -->
+            <button id="installAppBtn" class="install-btn">
+                <i class="fas fa-download"></i> Instalar App
             </button>
 
-            <button class="btn-login" onclick="window.location.href='TELAS/login/index.html'">Entrar</button>
+            <button class="btn-login" onclick="window.location.href='TELAS/login/index.html'">
+                <i class="fas fa-sign-in-alt"></i> Entrar
+            </button>
         </div>
-
-        <!-- Mobile Navigation -->
-        <nav class="mobile-nav" id="mobileNav">
-            <ul>
-                <li><a href="#home" class="mobile-link">Início</a></li>
-                <li><a href="#features" class="mobile-link">Funcionalidades</a></li>
-                <li><a href="#modules" class="mobile-link">Módulos</a></li>
-                <li><a href="#testimonials" class="mobile-link">Depoimentos</a></li>
-                <li><a href="#contact" class="mobile-link">Contato</a></li>
-                <li><a href="TELAS/login/index.html" class="mobile-link">Entrar</a></li>
-            </ul>
-        </nav>
     </header>
 
+    <!-- ============================================ -->
+    <!-- HERO SECTION -->
+    <!-- ============================================ -->
+    
     <section class="hero" id="home">
         <div class="container hero-content">
             <div class="hero-text">
@@ -100,6 +843,8 @@
                     <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
                         <i class="fas fa-rocket"></i> Começar Agora
                     </button>
+                    
+                    <!-- 🔥 BOTÃO VER DEMO - SÓ MOBILE -->
                     <button class="btn-secondary" id="btnDemo" onclick="window.location.href='TELAS/login/index.html'">
                         <i class="fas fa-play"></i> Ver Demo
                     </button>
@@ -121,24 +866,14 @@
             </div>
             <div class="hero-image">
                 <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80" alt="Dashboard Preview">
-                <div class="floating-card card-1">
-                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
-                    <div class="card-info">
-                        <h4>5 tarefas hoje</h4>
-                        <p>Matemática, Física...</p>
-                    </div>
-                </div>
-                <div class="floating-card card-2">
-                    <div class="card-icon"><i class="fas fa-calendar"></i></div>
-                    <div class="card-info">
-                        <h4>Próximo evento</h4>
-                        <p>Prova de História - 15/03</p>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
 
+    <!-- ============================================ -->
+    <!-- FEATURES -->
+    <!-- ============================================ -->
+    
     <section class="features" id="features">
         <div class="container">
             <div class="section-title">
@@ -150,154 +885,40 @@
                     <div class="feature-icon"><i class="fas fa-tasks"></i></div>
                     <h3>Gerenciamento de Tarefas</h3>
                     <p>Organize todas as suas atividades acadêmicas com prazos, prioridades e disciplinas.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Filtrar por disciplina</li>
-                        <li><i class="fas fa-check"></i> Prioridades (Alta, Média, Baixa)</li>
-                        <li><i class="fas fa-check"></i> Subtarefas e checklist</li>
-                        <li><i class="fas fa-check"></i> Tarefas favoritas</li>
-                    </ul>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-edit"></i></div>
                     <h3>Editor de Anotações</h3>
                     <p>Crie e edite anotações com formatação rica para todas as suas matérias.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Formatação de texto</li>
-                        <li><i class="fas fa-check"></i> Salvamento automático</li>
-                        <li><i class="fas fa-check"></i> Organização por tags</li>
-                        <li><i class="fas fa-check"></i> Busca avançada</li>
-                    </ul>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-calendar-alt"></i></div>
                     <h3>Calendário Acadêmico</h3>
                     <p>Visualize todos os seus compromissos em diferentes formatos.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Visualização mensal, semanal e diária</li>
-                        <li><i class="fas fa-check"></i> Eventos por tipo (prova, trabalho, aula)</li>
-                        <li><i class="fas fa-check"></i> Cores personalizadas</li>
-                        <li><i class="fas fa-check"></i> Lembretes automáticos</li>
-                    </ul>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-table"></i></div>
                     <h3>Horário de Aulas</h3>
                     <p>Monte e edite seu horário semanal de aulas de forma intuitiva.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Grade semanal personalizável</li>
-                        <li><i class="fas fa-check"></i> Cores por disciplina</li>
-                        <li><i class="fas fa-check"></i> Edição em tempo real</li>
-                        <li><i class="fas fa-check"></i> Modo de edição dedicado</li>
-                    </ul>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
                     <h3>Dashboard Inteligente</h3>
                     <p>Visão geral do seu progresso com estatísticas e gráficos.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Progresso semanal</li>
-                        <li><i class="fas fa-check"></i> Horas de estudo</li>
-                        <li><i class="fas fa-check"></i> Tarefas concluídas</li>
-                        <li><i class="fas fa-check"></i> Próximos eventos</li>
-                    </ul>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
                     <h3>Versão Mobile</h3>
                     <p>Acesse tudo de qualquer lugar com interface otimizada para celular.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Design responsivo</li>
-                        <li><i class="fas fa-check"></i> Navegação simplificada</li>
-                        <li><i class="fas fa-check"></i> Todas as funcionalidades</li>
-                        <li><i class="fas fa-check"></i> Experiência fluida</li>
-                    </ul>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="dashboard-preview">
-        <div class="container">
-            <div class="section-title">
-                <h2>Visão geral do seu <span>progresso</span></h2>
-                <p>Acompanhe tudo em um dashboard completo e intuitivo</p>
-            </div>
-            <div class="preview-container">
-                <div class="preview-header">
-                    <h3>Dashboard</h3>
-                    <span>Olá, Estudante! 👋</span>
-                </div>
-                <div class="preview-stats">
-                    <div class="preview-stat">
-                        <span class="stat-value">12</span>
-                        <span>Tarefas</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="stat-value">8</span>
-                        <span>Concluídas</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="stat-value">4</span>
-                        <span>Pendentes</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="stat-value">3</span>
-                        <span>Eventos</span>
-                    </div>
-                </div>
-                <div class="preview-grid">
-                    <div class="preview-tasks">
-                        <h4>Próximas tarefas</h4>
-                        <div class="preview-task-item">
-                            <div class="task-dot math"></div>
-                            <div style="flex: 1;">
-                                <strong>Lista de exercícios</strong>
-                                <div style="font-size: 12px; color: var(--text-secondary);">Matemática - Hoje</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="color: var(--text-secondary);"></i>
-                        </div>
-                        <div class="preview-task-item">
-                            <div class="task-dot port"></div>
-                            <div style="flex: 1;">
-                                <strong>Entregar redação</strong>
-                                <div style="font-size: 12px; color: var(--text-secondary);">Português - Amanhã</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="color: var(--text-secondary);"></i>
-                        </div>
-                        <div class="preview-task-item">
-                            <div class="task-dot hist"></div>
-                            <div style="flex: 1;">
-                                <strong>Resumo capítulo 5</strong>
-                                <div style="font-size: 12px; color: var(--text-secondary);">História - 15/03</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="color: var(--text-secondary);"></i>
-                        </div>
-                    </div>
-                    <div class="preview-calendar">
-                        <h4>Calendário</h4>
-                        <div style="font-size: 14px; color: var(--text-secondary); margin: 10px 0;">Março 2025</div>
-                        <div class="calendar-mini">
-                            <div class="calendar-day">D</div>
-                            <div class="calendar-day">S</div>
-                            <div class="calendar-day">T</div>
-                            <div class="calendar-day">Q</div>
-                            <div class="calendar-day">Q</div>
-                            <div class="calendar-day">S</div>
-                            <div class="calendar-day">S</div>
-                            <div class="calendar-day">1</div>
-                            <div class="calendar-day">2</div>
-                            <div class="calendar-day">3</div>
-                            <div class="calendar-day today">4</div>
-                            <div class="calendar-day">5</div>
-                            <div class="calendar-day">6</div>
-                            <div class="calendar-day">7</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
+    <!-- ============================================ -->
+    <!-- MODULES -->
+    <!-- ============================================ -->
+    
     <section class="modules" id="modules">
         <div class="container">
             <div class="section-title">
@@ -339,6 +960,10 @@
         </div>
     </section>
 
+    <!-- ============================================ -->
+    <!-- TESTIMONIALS -->
+    <!-- ============================================ -->
+    
     <section class="testimonials" id="testimonials">
         <div class="container">
             <div class="section-title">
@@ -401,6 +1026,10 @@
         </div>
     </section>
 
+    <!-- ============================================ -->
+    <!-- CTA -->
+    <!-- ============================================ -->
+    
     <section class="cta">
         <div class="container cta-content">
             <h2>Pronto para organizar sua vida acadêmica?</h2>
@@ -416,6 +1045,10 @@
         </div>
     </section>
 
+    <!-- ============================================ -->
+    <!-- FOOTER -->
+    <!-- ============================================ -->
+    
     <footer id="contact">
         <div class="container">
             <div class="footer-content">
@@ -470,79 +1103,375 @@
         </div>
     </footer>
 
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('Service Worker registrado com sucesso:', registration);
-                    })
-                    .catch(error => {
-                        console.error('Erro ao registrar Service Worker:', error);
-                    });
-            });
-        }
-    </script>
+    <!-- ============================================ -->
+    <!-- 🔥 TOAST NOTIFICATION -->
+    <!-- ============================================ -->
+    
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">Operação realizada!</span>
+    </div>
 
-    <!-- Script Principal -->
+    <!-- ============================================ -->
+    <!-- 🔥 SCRIPTS - ORDEM IMPORTANTE -->
+    <!-- ============================================ -->
+    
+    <!-- 1. Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 2. Serviços Mobile -->
+    <script src="mobile-telas/supabase-client.js"></script>
+    <script src="mobile-telas/database-service.js"></script>
+    <script src="mobile-telas/realtime-sync.js"></script>
+    <script src="mobile-telas/cache-manager.js"></script>
+    <script src="mobile-telas/shared-data.js"></script>
+    <script src="mobile-telas/sync-helper.js"></script>
+    
+    <!-- 3. Funcionalidades -->
+    <script src="mobile-telas/daily-phrases.js"></script>
+    <script src="mobile-telas/notes-sync.js"></script>
+    
+    <!-- 4. 🔥 PC/PWA -->
+    <script src="pc-pwa/pwa-detector.js"></script>
+    <script src="pc-pwa/auto-session.js"></script>
+    <script src="pc-pwa/notification-pc.js"></script>
+    <script src="pc-pwa/task-notifier.js"></script>
+    
+    <!-- 5. Script Principal -->
     <script src="script.js"></script>
 
-    <!-- Controle do Botão Ver Demo - APENAS MOBILE -->
+    <!-- ============================================ -->
+    <!-- 🔥 CONTROLADOR DO BOTÃO "VER DEMO" (SÓ MOBILE) -->
+    <!-- ============================================ -->
+    
     <script>
-        // FORÇA BRUTA - Garantir que o botão Ver Demo só aparece em mobile
-        (function() {
-            function forcarVisibilidadeBotaoDemo() {
-                const btn = document.getElementById('btnDemo');
-                if (!btn) return;
-                
-                const largura = window.innerWidth;
-                const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-                const isMobile = largura < 1024;
-                
-                // Mostrar apenas se for mobile OU touch
-                if (isMobile || isTouch) {
-                    btn.style.display = 'inline-flex';
-                    btn.style.visibility = 'visible';
-                    btn.style.opacity = '1';
-                    btn.style.setProperty('display', 'inline-flex', 'important');
-                } else {
-                    btn.style.display = 'none';
-                    btn.style.visibility = 'hidden';
-                    btn.style.opacity = '0';
-                    btn.style.setProperty('display', 'none', 'important');
-                }
+    (function() {
+        'use strict';
+        
+        function controlarBotaoDemo() {
+            const btn = document.getElementById('btnDemo');
+            if (!btn) return;
+            
+            const largura = window.innerWidth;
+            const isMobile = largura < 1024;
+            const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            if (isMobile || isTouch) {
+                btn.style.display = 'inline-flex';
+                btn.style.visibility = 'visible';
+                btn.style.opacity = '1';
+                btn.style.setProperty('display', 'inline-flex', 'important');
+            } else {
+                btn.style.display = 'none';
+                btn.style.visibility = 'hidden';
+                btn.style.opacity = '0';
+                btn.style.setProperty('display', 'none', 'important');
             }
-            
-            // Executar imediatamente
-            forcarVisibilidadeBotaoDemo();
-            
-            // Executar quando carregar
-            document.addEventListener('DOMContentLoaded', forcarVisibilidadeBotaoDemo);
-            
-            // Executar ao redimensionar
-            window.addEventListener('resize', forcarVisibilidadeBotaoDemo);
-            
-            // Executar ao orientar
-            window.addEventListener('orientationchange', function() {
-                setTimeout(forcarVisibilidadeBotaoDemo, 500);
-            });
-            
-            // Verificar a cada segundo (força bruta)
-            setInterval(forcarVisibilidadeBotaoDemo, 1000);
-        })();
+        }
+        
+        controlarBotaoDemo();
+        document.addEventListener('DOMContentLoaded', controlarBotaoDemo);
+        window.addEventListener('resize', controlarBotaoDemo);
+        window.addEventListener('orientationchange', function() {
+            setTimeout(controlarBotaoDemo, 500);
+        });
+        setInterval(controlarBotaoDemo, 2000);
+        
+        console.log('🔄 Controlador do botão "Ver Demo" ativo');
+    })();
     </script>
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
+    <!-- ============================================ -->
+    <!-- 🔥 CONTROLADOR DO BOTÃO "INSTALAR" (SÓ PC) -->
+    <!-- ============================================ -->
+    
+    <script>
+    (function() {
+        'use strict';
+        
+        const installBtn = document.getElementById('installAppBtn');
+        let deferredPrompt = null;
+        
+        function shouldShowInstallButton() {
+            const isDesktop = window.PwaDetector && window.PwaDetector.isDesktop();
+            const isInstalled = window.PwaDetector && window.PwaDetector.isPwaInstalled();
+            const supportsInstall = 'beforeinstallprompt' in window;
+            return isDesktop && !isInstalled && supportsInstall;
+        }
+        
+        function updateInstallButtonVisibility() {
+            if (!installBtn) return;
+            if (shouldShowInstallButton()) {
+                installBtn.classList.add('visible');
+                installBtn.style.display = 'inline-flex';
+            } else {
+                installBtn.classList.remove('visible');
+                installBtn.style.display = 'none';
+            }
+        }
+        
+        function setupInstallPrompt() {
+            if (!installBtn) return;
+            installBtn.addEventListener('click', async function() {
+                if (deferredPrompt) {
+                    try {
+                        deferredPrompt.prompt();
+                        const result = await deferredPrompt.userChoice;
+                        if (result.outcome === 'accepted') {
+                            sessionStorage.setItem('pwa_installed', 'true');
+                            installBtn.classList.remove('visible');
+                            installBtn.style.display = 'none';
+                            mostrarToast('✅ App instalado com sucesso!');
+                        }
+                        deferredPrompt = null;
+                    } catch (error) {
+                        console.error('[Instalador] Erro:', error);
+                    }
+                }
+            });
+        }
+        
+        function setupBeforeInstallPrompt() {
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                updateInstallButtonVisibility();
+            });
+            
+            window.addEventListener('appinstalled', () => {
+                sessionStorage.setItem('pwa_installed', 'true');
+                if (installBtn) {
+                    installBtn.classList.remove('visible');
+                    installBtn.style.display = 'none';
+                }
+            });
+        }
+        
+        function setupStateListeners() {
+            window.addEventListener('pwaInstalled', () => {
+                if (installBtn) {
+                    installBtn.classList.remove('visible');
+                    installBtn.style.display = 'none';
+                }
+            });
+            
+            window.addEventListener('pwaUninstalled', updateInstallButtonVisibility);
+            
+            setInterval(() => {
+                if (installBtn && !installBtn.classList.contains('visible')) {
+                    if (shouldShowInstallButton()) {
+                        updateInstallButtonVisibility();
+                    }
+                }
+            }, 5000);
+        }
+        
+        function init() {
+            if (!window.PwaDetector) {
+                setTimeout(init, 1000);
+                return;
+            }
+            setupBeforeInstallPrompt();
+            setupInstallPrompt();
+            setupStateListeners();
+            setTimeout(updateInstallButtonVisibility, 500);
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        
+        window.forceShowInstallButton = function() {
+            if (installBtn) {
+                installBtn.classList.add('visible');
+                installBtn.style.display = 'inline-flex';
+            }
+        };
+        
+        window.forceHideInstallButton = function() {
+            if (installBtn) {
+                installBtn.classList.remove('visible');
+                installBtn.style.display = 'none';
+            }
+        };
+        
+        window.checkInstallButton = function() {
+            return {
+                visible: installBtn?.classList.contains('visible'),
+                shouldShow: shouldShowInstallButton()
+            };
+        };
+    })();
+    </script>
 
-    <!-- Apple Touch Icon (iOS) -->
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <!-- ============================================ -->
+    <!-- 🔥 FUNÇÃO TOAST GLOBAL -->
+    <!-- ============================================ -->
+    
+    <script>
+    function mostrarToast(mensagem, tipo = 'success') {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        if (!toast || !toastMessage) return;
+        
+        toastMessage.textContent = mensagem;
+        toast.className = 'toast show';
+        
+        if (tipo === 'error') {
+            toast.classList.add('error');
+        } else if (tipo === 'warning') {
+            toast.classList.add('warning');
+        }
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.classList.remove('error', 'warning');
+        }, 4000);
+    }
+    
+    window.mostrarToast = mostrarToast;
+    console.log('📢 Toast disponível - use mostrarToast("mensagem", "tipo")');
+    </script>
 
-    <!-- Meta tags para PWA -->
-    <meta name="theme-color" content="#9333ea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Zero">
+    <!-- ============================================ -->
+    <!-- 🔥 REGISTRO DE SINCRONIZAÇÃO EM BACKGROUND -->
+    <!-- ============================================ -->
+    
+    <script>
+    (function() {
+        'use strict';
+        
+        async function registrarSincronizacaoBackground() {
+            if (!window.PwaDetector || !window.PwaDetector.canUsePwaFeatures()) {
+                console.log('[Background] ❌ Não é PC/PWA - sincronização desativada');
+                return;
+            }
+            
+            if (!('serviceWorker' in navigator)) {
+                console.log('[Background] ❌ Service Worker não suportado');
+                return;
+            }
+            
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                console.log('[Background] ✅ Service Worker pronto');
+                
+                if ('SyncManager' in window) {
+                    try {
+                        await registration.sync.register('sync-tasks');
+                        console.log('[Background] ✅ Sync "sync-tasks" registrado');
+                        await registration.sync.register('sync-calendar');
+                        console.log('[Background] ✅ Sync "sync-calendar" registrado');
+                        await registration.sync.register('sync-notes');
+                        console.log('[Background] ✅ Sync "sync-notes" registrado');
+                    } catch (error) {
+                        console.warn('[Background] ⚠️ Erro ao registrar SyncManager:', error);
+                    }
+                }
+                
+                if ('periodicSync' in registration) {
+                    try {
+                        const status = await navigator.permissions.query({
+                            name: 'periodic-background-sync'
+                        });
+                        
+                        if (status.state === 'granted') {
+                            await registration.periodicSync.register('check-tasks', {
+                                minInterval: 30 * 60 * 1000
+                            });
+                            console.log('[Background] ✅ PeriodicSync "check-tasks" registrado (30min)');
+                            
+                            await registration.periodicSync.register('check-calendar', {
+                                minInterval: 60 * 60 * 1000
+                            });
+                            console.log('[Background] ✅ PeriodicSync "check-calendar" registrado (1h)');
+                        }
+                    } catch (error) {
+                        console.warn('[Background] ⚠️ Erro ao registrar PeriodicSync:', error);
+                    }
+                }
+                
+                console.log('[Background] ✅ Sincronização em background configurada!');
+                
+            } catch (error) {
+                console.error('[Background] ❌ Erro ao configurar sincronização:', error);
+            }
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(registrarSincronizacaoBackground, 3000);
+            });
+        } else {
+            setTimeout(registrarSincronizacaoBackground, 3000);
+        }
+        
+        window.addEventListener('pwaInstalled', () => {
+            setTimeout(registrarSincronizacaoBackground, 2000);
+        });
+        
+        window.forceSyncNow = async function() {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.ready;
+                if (registration.sync) {
+                    await registration.sync.register('sync-tasks');
+                    mostrarToast('✅ Sincronização forçada!', 'success');
+                }
+            }
+        };
+        
+        window.getSyncStatus = async function() {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.ready;
+                return {
+                    sync: !!registration.sync,
+                    periodicSync: !!registration.periodicSync,
+                    active: !!registration.active
+                };
+            }
+            return null;
+        };
+        
+        console.log('🔄 Comandos: forceSyncNow() | getSyncStatus()');
+    })();
+    </script>
+
+    <!-- ============================================ -->
+    <!-- 🔥 SERVICE WORKER REGISTRATION -->
+    <!-- ============================================ -->
+    
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            const isPwa = window.PwaDetector && window.PwaDetector.isPwaInstalled();
+            const isDesktop = window.PwaDetector && window.PwaDetector.isDesktop();
+            
+            if (isDesktop && isPwa) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('[SW] ✅ Registrado com sucesso para PC/PWA');
+                        
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'activated') {
+                                    console.log('[SW] ✅ Nova versão ativada');
+                                    mostrarToast('🔄 App atualizado!', 'success');
+                                }
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('[SW] ❌ Erro ao registrar:', error);
+                    });
+            } else {
+                console.log('[SW] ⏭️ Pulando registro - não é PC/PWA instalado');
+            }
+        });
+    }
+    </script>
+
 </body>
 </html>
