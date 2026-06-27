@@ -896,3 +896,29 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+/* Botão Ver Demo - visível apenas em mobile */
+.btn-demo-mobile {
+    display: flex !important;
+}
+
+/* Esconder em desktop (1024px ou mais) */
+@media (min-width: 1024px) {
+    .btn-demo-mobile {
+        display: none !important;
+    }
+}
+
+/* Em tablets (entre 640px e 1023px) - mostrar */
+@media (min-width: 640px) and (max-width: 1023px) {
+    .btn-demo-mobile {
+        display: flex !important;
+    }
+}
+
+/* Em mobile pequeno - mostrar */
+@media (max-width: 639px) {
+    .btn-demo-mobile {
+        display: flex !important;
+    }
+}
