@@ -2,462 +2,214 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Zero  Satus · plataforma acadêmica</title>
-    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendário - Painel do Aluno</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <header>
-        <div class="container header-content">
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
             <div class="logo">
-                <div class="logo-icon">
-                    <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero logo" onerror="this.src='https://via.placeholder.com/40x40/9333ea/ffffff?text=Z'">
-                </div>
-                <span class="logo-text">Zero</span>
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
             </div>
             
-            <!-- Menu Desktop -->
-            <nav class="desktop-menu">
-                <ul>
-                    <li><a href="#home">Início</a></li>
-                    <li><a href="#features">Funcionalidades</a></li>
-                    <li><a href="#modules">Módulos</a></li>
-                    <li><a href="#testimonials">Depoimentos</a></li>
-                    <li><a href="#contact">Contato</a></li>
-                </ul>
+            <nav class="menu">
+                <a href="../inicio/index.html" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="../dashboard/index.html" class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="./index.html" class="menu-item active">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="../tarefas/index.html" class="menu-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tarefas</span>
+                </a>
+                <a href="../anotacoes/index.html" class="menu-item">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Anotações</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Comunidade</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </a>
             </nav>
-
-            <!-- Menu Mobile Button -->
-            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
-                <i class="fas fa-bars"></i>
-            </button>
-
-            <button class="btn-login" onclick="window.location.href='TELAS/login/index.html'">Entrar</button>
-        </div>
-
-        <!-- Mobile Navigation -->
-        <nav class="mobile-nav" id="mobileNav">
-            <ul>
-                <li><a href="#home" class="mobile-link">Início</a></li>
-                <li><a href="#features" class="mobile-link">Funcionalidades</a></li>
-                <li><a href="#modules" class="mobile-link">Módulos</a></li>
-                <li><a href="#testimonials" class="mobile-link">Depoimentos</a></li>
-                <li><a href="#contact" class="mobile-link">Contato</a></li>
-                <li><a href="TELAS/login/index.html" class="mobile-link">Entrar</a></li>
-            </ul>
-        </nav>
-    </header>
-
-    <section class="hero" id="home">
-        <div class="container hero-content">
-            <div class="hero-text">
-                <h1>
-                    Sua jornada acadêmica <span>organizada</span> em um só lugar
-                </h1>
-                <p>
-                    Gerencie suas tarefas, anotações, horários de aula e eventos acadêmicos 
-                    com a plataforma completa para estudantes.
-                </p>
-                <div class="hero-buttons">
-                    <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
-                        <i class="fas fa-rocket"></i> Começar Agora
-                    </button>
-                    <button class="btn-secondary" onclick="window.location.href='TELAS/login/index.html'">
-                        <i class="fas fa-play"></i> Ver Demo
+            
+            <div class="menu-bottom">
+                <div class="logout-section">
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sair</span>
                     </button>
                 </div>
-                <div class="hero-stats">
-                    <div class="stat-item">
-                        <span class="stat-number">10k+</span>
-                        <span class="stat-label">Usuários</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">50k+</span>
-                        <span class="stat-label">Tarefas</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number">4.8</span>
-                        <span class="stat-label">Avaliação</span>
-                    </div>
-                </div>
             </div>
-            <div class="hero-image">
-                <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80" alt="Dashboard Preview">
-                <div class="floating-card card-1">
-                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
-                    <div class="card-info">
-                        <h4>5 tarefas hoje</h4>
-                        <p>Matemática, Física...</p>
-                    </div>
-                </div>
-                <div class="floating-card card-2">
-                    <div class="card-icon"><i class="fas fa-calendar"></i></div>
-                    <div class="card-info">
-                        <h4>Próximo evento</h4>
-                        <p>Prova de História - 15/03</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        </aside>
 
-    <section class="features" id="features">
-        <div class="container">
-            <div class="section-title">
-                <h2>Tudo o que você <span>precisa</span></h2>
-                <p>Uma plataforma completa para organizar sua vida acadêmica</p>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-tasks"></i></div>
-                    <h3>Gerenciamento de Tarefas</h3>
-                    <p>Organize todas as suas atividades acadêmicas com prazos, prioridades e disciplinas.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Filtrar por disciplina</li>
-                        <li><i class="fas fa-check"></i> Prioridades (Alta, Média, Baixa)</li>
-                        <li><i class="fas fa-check"></i> Subtarefas e checklist</li>
-                        <li><i class="fas fa-check"></i> Tarefas favoritas</li>
-                    </ul>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1>Bem-vindo, <span id="userNameDisplay">Aluno</span>!</h1>
+                <div class="header-actions">
+                    <button class="icon-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge" style="display: none;">0</span>
+                    </button>
+                    <div class="user-profile">
+                        <img id="userAvatar" src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=32" alt="Avatar">
+                        <span id="userName">Aluno</span>
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-edit"></i></div>
-                    <h3>Editor de Anotações</h3>
-                    <p>Crie e edite anotações com formatação rica para todas as suas matérias.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Formatação de texto</li>
-                        <li><i class="fas fa-check"></i> Salvamento automático</li>
-                        <li><i class="fas fa-check"></i> Organização por tags</li>
-                        <li><i class="fas fa-check"></i> Busca avançada</li>
-                    </ul>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-calendar-alt"></i></div>
-                    <h3>Calendário Acadêmico</h3>
-                    <p>Visualize todos os seus compromissos em diferentes formatos.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Visualização mensal, semanal e diária</li>
-                        <li><i class="fas fa-check"></i> Eventos por tipo (prova, trabalho, aula)</li>
-                        <li><i class="fas fa-check"></i> Cores personalizadas</li>
-                        <li><i class="fas fa-check"></i> Lembretes automáticos</li>
-                    </ul>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-table"></i></div>
-                    <h3>Horário de Aulas</h3>
-                    <p>Monte e edite seu horário semanal de aulas de forma intuitiva.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Grade semanal personalizável</li>
-                        <li><i class="fas fa-check"></i> Cores por disciplina</li>
-                        <li><i class="fas fa-check"></i> Edição em tempo real</li>
-                        <li><i class="fas fa-check"></i> Modo de edição dedicado</li>
-                    </ul>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
-                    <h3>Dashboard Inteligente</h3>
-                    <p>Visão geral do seu progresso com estatísticas e gráficos.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Progresso semanal</li>
-                        <li><i class="fas fa-check"></i> Horas de estudo</li>
-                        <li><i class="fas fa-check"></i> Tarefas concluídas</li>
-                        <li><i class="fas fa-check"></i> Próximos eventos</li>
-                    </ul>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
-                    <h3>Versão Mobile</h3>
-                    <p>Acesse tudo de qualquer lugar com interface otimizada para celular.</p>
-                    <ul class="feature-list">
-                        <li><i class="fas fa-check"></i> Design responsivo</li>
-                        <li><i class="fas fa-check"></i> Navegação simplificada</li>
-                        <li><i class="fas fa-check"></i> Todas as funcionalidades</li>
-                        <li><i class="fas fa-check"></i> Experiência fluida</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
+            </header>
 
-    <section class="dashboard-preview">
-        <div class="container">
-            <div class="section-title">
-                <h2>Visão geral do seu <span>progresso</span></h2>
-                <p>Acompanhe tudo em um dashboard completo e intuitivo</p>
-            </div>
-            <div class="preview-container">
-                <div class="preview-header">
-                    <h3>Dashboard</h3>
-                    <span>Olá, Estudante! 👋</span>
-                </div>
-                <div class="preview-stats">
-                    <div class="preview-stat">
-                        <span class="stat-value">12</span>
-                        <span>Tarefas</span>
+            <!-- Calendar Container -->
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <div class="month-nav">
+                        <h2 id="currentMonth">Carregando...</h2>
+                        <div class="nav-buttons">
+                            <button class="nav-btn" id="prevBtn">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="nav-btn" id="nextBtn">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="preview-stat">
-                        <span class="stat-value">8</span>
-                        <span>Concluídas</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="stat-value">4</span>
-                        <span>Pendentes</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="stat-value">3</span>
-                        <span>Eventos</span>
+                    <div class="view-actions">
+                        <div class="view-toggle">
+                            <button class="toggle-btn active" data-view="month">Mês</button>
+                            <button class="toggle-btn" data-view="week">Semana</button>
+                            <button class="toggle-btn" data-view="day">Dia</button>
+                        </div>
+                        <button class="btn-primary" id="newEventBtn">
+                            <i class="fas fa-plus"></i> Novo Evento
+                        </button>
                     </div>
                 </div>
-                <div class="preview-grid">
-                    <div class="preview-tasks">
-                        <h4>Próximas tarefas</h4>
-                        <div class="preview-task-item">
-                            <div class="task-dot math"></div>
-                            <div style="flex: 1;">
-                                <strong>Lista de exercícios</strong>
-                                <div style="font-size: 12px; color: var(--text-secondary);">Matemática - Hoje</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="color: var(--text-secondary);"></i>
-                        </div>
-                        <div class="preview-task-item">
-                            <div class="task-dot port"></div>
-                            <div style="flex: 1;">
-                                <strong>Entregar redação</strong>
-                                <div style="font-size: 12px; color: var(--text-secondary);">Português - Amanhã</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="color: var(--text-secondary);"></i>
-                        </div>
-                        <div class="preview-task-item">
-                            <div class="task-dot hist"></div>
-                            <div style="flex: 1;">
-                                <strong>Resumo capítulo 5</strong>
-                                <div style="font-size: 12px; color: var(--text-secondary);">História - 15/03</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="color: var(--text-secondary);"></i>
-                        </div>
-                    </div>
-                    <div class="preview-calendar">
-                        <h4>Calendário</h4>
-                        <div style="font-size: 14px; color: var(--text-secondary); margin: 10px 0;">Março 2025</div>
-                        <div class="calendar-mini">
-                            <div class="calendar-day">D</div>
-                            <div class="calendar-day">S</div>
-                            <div class="calendar-day">T</div>
-                            <div class="calendar-day">Q</div>
-                            <div class="calendar-day">Q</div>
-                            <div class="calendar-day">S</div>
-                            <div class="calendar-day">S</div>
-                            <div class="calendar-day">1</div>
-                            <div class="calendar-day">2</div>
-                            <div class="calendar-day">3</div>
-                            <div class="calendar-day today">4</div>
-                            <div class="calendar-day">5</div>
-                            <div class="calendar-day">6</div>
-                            <div class="calendar-day">7</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 
-    <section class="modules" id="modules">
-        <div class="container">
-            <div class="section-title">
-                <h2>Módulos da <span>plataforma</span></h2>
-                <p>Acesse cada área com um clique</p>
-            </div>
-            <div class="modules-grid">
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
-                    <div class="module-icon"><i class="fas fa-home"></i></div>
-                    <h3>Início</h3>
-                    <p>Visão geral do seu progresso</p>
-                </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
-                    <div class="module-icon"><i class="fas fa-tasks"></i></div>
-                    <h3>Tarefas</h3>
-                    <p>Gerencie suas atividades</p>
-                </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
-                    <div class="module-icon"><i class="fas fa-edit"></i></div>
-                    <h3>Anotações</h3>
-                    <p>Crie e organize suas notas</p>
-                </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
-                    <div class="module-icon"><i class="fas fa-calendar-alt"></i></div>
-                    <h3>Calendário</h3>
-                    <p>Acompanhe eventos e provas</p>
-                </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
-                    <div class="module-icon"><i class="fas fa-mobile-alt"></i></div>
-                    <h3>Versão Mobile</h3>
-                    <p>Acesse de qualquer lugar</p>
-                </div>
-                <div class="module-card" onclick="window.location.href='TELAS/login/index.html'">
-                    <div class="module-icon"><i class="fas fa-user"></i></div>
-                    <h3>Perfil</h3>
-                    <p>Gerencie suas informações</p>
+                <div class="calendar-grid">
+                    <div class="weekdays" id="weekdaysHeader">
+                        <div>Dom</div>
+                        <div>Seg</div>
+                        <div>Ter</div>
+                        <div>Qua</div>
+                        <div>Qui</div>
+                        <div>Sex</div>
+                        <div>Sáb</div>
+                    </div>
+                    <div class="days" id="calendarDays"></div>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <section class="testimonials" id="testimonials">
-        <div class="container">
-            <div class="section-title">
-                <h2>O que nossos <span>usuários</span> dizem</h2>
-                <p>Depoimentos de quem já utiliza a plataforma</p>
-            </div>
-            <div class="testimonials-grid">
-                <div class="testimonial-card">
-                    <div class="testimonial-header">
-                        <div class="testimonial-avatar">AM</div>
-                        <div class="testimonial-info">
-                            <h4>Ana Maria</h4>
-                            <p>Estudante de Medicina</p>
-                        </div>
-                    </div>
-                    <p class="testimonial-text">"O Zero transformou minha organização acadêmica. Consigo gerenciar todas as matérias em um só lugar."</p>
-                    <div class="testimonial-rating">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="testimonial-header">
-                        <div class="testimonial-avatar">PS</div>
-                        <div class="testimonial-info">
-                            <h4>Pedro Santos</h4>
-                            <p>Engenharia Civil</p>
-                        </div>
-                    </div>
-                    <p class="testimonial-text">"A funcionalidade de horário de aulas é incrível! Posso visualizar minha semana inteira facilmente."</p>
-                    <div class="testimonial-rating">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="testimonial-header">
-                        <div class="testimonial-avatar">CL</div>
-                        <div class="testimonial-info">
-                            <h4>Carla Lima</h4>
-                            <p>Direito</p>
-                        </div>
-                    </div>
-                    <p class="testimonial-text">"As anotações com formatação rica me ajudam a manter tudo organizado por matéria."</p>
-                    <div class="testimonial-rating">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star-half-alt"></i>
-                    </div>
+            <!-- Events Section -->
+            <div class="events-section">
+                <h3>Eventos do Dia <span id="selectedDay">--</span></h3>
+                <div class="events-list" id="eventsList">
+                    <p style="color: var(--text-secondary); padding: 1rem; text-align: center;">Selecione um dia para ver os eventos</p>
                 </div>
             </div>
-        </div>
-    </section>
+        </main>
+    </div>
 
-    <section class="cta">
-        <div class="container cta-content">
-            <h2>Pronto para organizar sua vida acadêmica?</h2>
-            <p>Junte-se a milhares de estudantes que já estão utilizando a plataforma</p>
-            <div class="cta-buttons">
-                <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
-                    <i class="fas fa-rocket"></i> Criar conta gratuita
-                </button>
-                <button class="btn-secondary" onclick="window.location.href='TELAS/login/index.html'">
-                    <i class="fas fa-sign-in-alt"></i> Fazer login
+    <!-- Modal Novo Evento -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Criar Novo Evento</h2>
+                <button class="modal-close" id="modalClose">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
-        </div>
-    </section>
+            
+            <form id="eventForm">
+                <div class="form-group">
+                    <label>Título do Evento *</label>
+                    <input type="text" id="eventTitle" placeholder="Ex: Prova de Matemática" required>
+                </div>
 
-    <footer id="contact">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-col">
-                    <div class="logo" style="margin-bottom: 20px;">
-                        <div class="logo-icon">
-                            <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero logo" onerror="this.src='https://via.placeholder.com/40x40/9333ea/ffffff?text=Z'">
-                        </div>
-                        <span class="logo-text">Zero</span>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="eventDescription" placeholder="Detalhes do evento (opcional)"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="eventDate" required>
                     </div>
-                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Plataforma acadêmica completa para estudantes organizarem sua rotina de estudos.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
-                        <a href="#"><i class="fab fa-github"></i></a>
+                    <div class="form-group">
+                        <label>Início</label>
+                        <input type="time" id="eventStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Término</label>
+                        <input type="time" id="eventEnd" required>
                     </div>
                 </div>
-                <div class="footer-col">
-                    <h4>Módulos</h4>
-                    <ul>
-                        <li><a href='TELAS/login/index.html'>Início</a></li>
-                        <li><a href='TELAS/login/index.html'>Tarefas</a></li>
-                        <li><a href='TELAS/login/index.html'>Anotações</a></li>
-                        <li><a href='TELAS/login/index.html'>Calendário</a></li>
-                        <li><a href='TELAS/login/index.html'>Perfil</a></li>
-                    </ul>
+
+                <div class="form-group">
+                    <label>Tipo de Evento</label>
+                    <div class="event-type-grid">
+                        <button type="button" class="type-btn active" data-type="aula">
+                            <i class="fas fa-book"></i> Aula
+                        </button>
+                        <button type="button" class="type-btn" data-type="prova">
+                            <i class="fas fa-file-alt"></i> Prova
+                        </button>
+                        <button type="button" class="type-btn" data-type="trabalho">
+                            <i class="fas fa-briefcase"></i> Trabalho
+                        </button>
+                        <button type="button" class="type-btn" data-type="apresentacao">
+                            <i class="fas fa-chalkboard-teacher"></i> Apresentação
+                        </button>
+                        <button type="button" class="type-btn" data-type="reuniao">
+                            <i class="fas fa-users"></i> Reunião
+                        </button>
+                        <button type="button" class="type-btn" data-type="outro">
+                            <i class="fas fa-circle"></i> Outro
+                        </button>
+                    </div>
+                    <input type="hidden" id="eventType" value="aula">
                 </div>
-                <div class="footer-col">
-                    <h4>Links Úteis</h4>
-                    <ul>
-                        <li><a href='TELAS/login/index.html'>Sobre nós</a></li>
-                        <li><a href='TELAS/login/index.html'>Blog</a></li>
-                        <li><a href='TELAS/login/index.html'>FAQ</a></li>
-                        <li><a href='TELAS/login/index.html'>Suporte</a></li>
-                        <li><a href='TELAS/login/index.html'>Termos de uso</a></li>
-                    </ul>
+
+                <div class="form-group">
+                    <label>Repetir</label>
+                    <select id="eventRepeat">
+                        <option value="nao">Não repetir</option>
+                        <option value="diario">Diariamente</option>
+                        <option value="semanal">Semanalmente</option>
+                        <option value="mensal">Mensalmente</option>
+                    </select>
                 </div>
-                <div class="footer-col">
-                    <h4>Contato</h4>
-                    <ul>
-                        <li><i class="fas fa-envelope" style="margin-right: 10px;"></i> projectozerosatus@gmail.com</li>
-                        <li><i class="fas fa-phone" style="margin-right: 10px;"></i> +258 86 425 7391</li>
-                        <li><i class="fas fa-map-marker-alt" style="margin-right: 10px;"></i> Chimoio, MZ</li>
-                    </ul>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="eventReminder">
+                        <label for="eventReminder">Ativar lembrete para este evento</label>
+                    </div>
                 </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2026 Zero Plataforma Acadêmica. Todos os direitos reservados.</p>
-            </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="btnCancel">Cancelar</button>
+                    <button type="submit" class="btn-create">Criar Evento</button>
+                </div>
+            </form>
         </div>
-    </footer>
-<!-- Service Worker Registration -->
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('Service Worker registrado com sucesso:', registration);
-                })
-                .catch(error => {
-                    console.error('Erro ao registrar Service Worker:', error);
-                });
-        });
-    }
-</script>
+    </div>
+
     <script src="script.js"></script>
-<!-- PWA Manifest -->
-<link rel="manifest" href="/manifest.json">
-
-<!-- Apple Touch Icon (iOS) -->
-<link rel="apple-touch-icon" href="icons/icon-192x192.png">
-
-<!-- Meta tags para PWA -->
-<meta name="theme-color" content="#9333ea">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zero">
 </body>
 </html>
