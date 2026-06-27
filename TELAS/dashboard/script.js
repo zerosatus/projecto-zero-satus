@@ -14,10 +14,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         usuarioAtual = JSON.parse(usuario);
         
-        const welcomeTitle = document.querySelector('.header h2');
+        const welcomeTitle = document.querySelector('.header h1');
         const userNameDisplay = document.getElementById('userNameDisplay');
-        if (welcomeTitle && usuarioAtual.nome && userNameDisplay) {
+        const userName = document.getElementById('userName');
+        const userAvatar = document.getElementById('userAvatar');
+        
+        if (userNameDisplay && usuarioAtual.nome) {
             userNameDisplay.textContent = usuarioAtual.nome;
+        }
+        if (userName && usuarioAtual.nome) {
+            userName.textContent = usuarioAtual.nome;
+        }
+        if (userAvatar && usuarioAtual.nome) {
+            const iniciais = usuarioAtual.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            userAvatar.textContent = iniciais || usuarioAtual.nome.charAt(0).toUpperCase();
         }
         
         if (window.initSync) {
@@ -55,16 +65,13 @@ function carregarTodosDados() {
 
 function carregarHorario() {
     if (!usuarioAtual) return;
-    
     if (window.CacheManager) {
         const cached = window.CacheManager.get('weeklySchedule', null);
         if (cached !== null) {
             weeklySchedule = cached;
-            console.log('[Dashboard] Horário carregado do CacheManager');
             return;
         }
     }
-    
     const storageKey = `weeklySchedule_${usuarioAtual.email}`;
     const scheduleSalvo = localStorage.getItem(storageKey);
     weeklySchedule = scheduleSalvo ? JSON.parse(scheduleSalvo) : { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
@@ -72,16 +79,13 @@ function carregarHorario() {
 
 function carregarTarefas() {
     if (!usuarioAtual) return;
-    
     if (window.CacheManager) {
         const cached = window.CacheManager.get('tasks', null);
         if (cached !== null) {
             tarefas = cached;
-            console.log('[Dashboard] Tarefas carregadas do CacheManager:', tarefas.length);
             return;
         }
     }
-    
     const storageKey = `tasks_${usuarioAtual.email}`;
     const tarefasSalvas = localStorage.getItem(storageKey);
     tarefas = tarefasSalvas ? JSON.parse(tarefasSalvas) : [];
@@ -89,7 +93,6 @@ function carregarTarefas() {
 
 function carregarAnotacoes() {
     if (!usuarioAtual) return;
-    
     if (window.CacheManager) {
         const cached = window.CacheManager.get('notes', null);
         if (cached !== null) {
@@ -97,7 +100,6 @@ function carregarAnotacoes() {
             return;
         }
     }
-    
     const storageKey = `notes_${usuarioAtual.email}`;
     const anotacoesSalvas = localStorage.getItem(storageKey);
     anotacoes = anotacoesSalvas ? JSON.parse(anotacoesSalvas) : [];
@@ -105,7 +107,6 @@ function carregarAnotacoes() {
 
 function carregarEventos() {
     if (!usuarioAtual) return;
-    
     if (window.CacheManager) {
         const cached = window.CacheManager.get('calendarEvents', null);
         if (cached !== null) {
@@ -113,7 +114,6 @@ function carregarEventos() {
             return;
         }
     }
-    
     const storageKey = `calendarEvents_${usuarioAtual.email}`;
     const eventosSalvas = localStorage.getItem(storageKey);
     eventos = eventosSalvas ? JSON.parse(eventosSalvas) : [];
@@ -127,11 +127,10 @@ function atualizarDashboard() {
 
 function atualizarCardsEstatisticas() {
     const disciplinasSet = new Set();
-    
     tarefas.forEach(t => {
         if (t.subject || t.disciplina) disciplinasSet.add((t.subject || t.disciplina).toLowerCase());
     });
-    
+
     if (weeklySchedule) {
         Object.values(weeklySchedule).forEach(day => {
             if (Array.isArray(day)) {
@@ -141,17 +140,17 @@ function atualizarCardsEstatisticas() {
             }
         });
     }
-    
+
     const numDisciplinas = disciplinasSet.size || 0;
     const tarefasPendentes = tarefas.filter(t => !t.completed).length;
     const horasEstudadas = calcularHorasEstudadas();
     const mediaGeral = calcularMediaGeral();
-    
+
     const disciplinasEl = document.getElementById('disciplinasCount');
     const pendentesEl = document.getElementById('pendentesCount');
     const horasEl = document.getElementById('horasCount');
     const mediaEl = document.getElementById('mediaCount');
-    
+
     if (disciplinasEl) disciplinasEl.textContent = numDisciplinas;
     if (pendentesEl) pendentesEl.textContent = tarefasPendentes;
     if (horasEl) horasEl.textContent = horasEstudadas;
@@ -170,7 +169,6 @@ function calcularMediaGeral() {
     tarefas.forEach(t => {
         if (t.nota && typeof t.nota === 'number') notas.push(t.nota);
     });
-    
     if (notas.length === 0) return 0;
     return notas.reduce((a, b) => a + b, 0) / notas.length;
 }
@@ -180,7 +178,7 @@ function getIconeDisciplina(disciplina) {
         'matemática': 'fa-calculator', 'matematica': 'fa-calculator',
         'física': 'fa-flask', 'fisica': 'fa-flask',
         'português': 'fa-pen-nib', 'portugues': 'fa-pen-nib',
-        'história': 'fa-code', 'historia': 'fa-code',
+        'história': 'fa-landmark', 'historia': 'fa-landmark',
         'química': 'fa-flask', 'quimica': 'fa-flask',
         'biologia': 'fa-leaf', 'inglês': 'fa-language', 'ingles': 'fa-language',
         'geografia': 'fa-globe'
@@ -191,13 +189,13 @@ function getIconeDisciplina(disciplina) {
 
 function getCorDisciplina(disciplina) {
     const mapa = {
-        'matemática': '#9b59b6', 'matematica': '#9b59b6',
-        'física': '#e67e22', 'fisica': '#e67e22',
-        'português': '#3498db', 'portugues': '#3498db',
-        'história': '#e74c3c', 'historia': '#e74c3c',
-        'química': '#2ecc71', 'quimica': '#2ecc71',
-        'biologia': '#f1c40f', 'inglês': '#34495e', 'ingles': '#34495e',
-        'geografia': '#1abc9c'
+        'matemática': '#9333ea', 'matematica': '#9333ea',
+        'física': '#f59e0b', 'fisica': '#f59e0b',
+        'português': '#3b82f6', 'portugues': '#3b82f6',
+        'história': '#ef4444', 'historia': '#ef4444',
+        'química': '#10b981', 'quimica': '#10b981',
+        'biologia': '#eab308', 'inglês': '#64748b', 'ingles': '#64748b',
+        'geografia': '#14b8a6'
     };
     const lower = disciplina?.toLowerCase()?.trim() || '';
     return mapa[lower] || '#95a5a6';
@@ -205,7 +203,6 @@ function getCorDisciplina(disciplina) {
 
 function atualizarGraficoDesempenho() {
     const disciplinasMap = new Map();
-    
     tarefas.forEach(t => {
         const disc = t.subject || t.disciplina;
         if (disc) {
@@ -220,38 +217,35 @@ function atualizarGraficoDesempenho() {
             }
         }
     });
-    
+
     const barChart = document.getElementById('barChart');
     if (!barChart) return;
-    
+
     if (disciplinasMap.size === 0) {
-        barChart.innerHTML = '<div style="grid-column: span 4; text-align: center; padding: 40px; color: #888;">Adicione tarefas com notas para ver o gráfico</div>';
+        barChart.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Adicione tarefas com notas para ver o gráfico</p>';
         return;
     }
-    
+
     const disciplinas = Array.from(disciplinasMap.entries()).map(([_, data]) => ({
         nome: data.nome,
         icone: data.icone,
         cor: data.cor,
         media: data.count > 0 ? (data.media / data.count) : 0
     }));
-    
+
     disciplinas.sort((a, b) => b.media - a.media);
     const topDisciplinas = disciplinas.slice(0, 4);
-    
+
     barChart.innerHTML = '';
     topDisciplinas.forEach(disciplina => {
-        const corBg = disciplina.cor === '#9b59b6' ? '#F3E8FF' : '#FEF3C7';
-        const corIcon = disciplina.cor === '#9b59b6' ? '#8B5CF6' : '#F59E0B';
-        
         const barItem = document.createElement('div');
         barItem.className = 'bar-item';
         barItem.innerHTML = `
-            <div class="bar-icon" style="background: ${corBg}; color: ${corIcon};">
-                <i class="fa-solid ${disciplina.icone}"></i>
+            <div class="bar-icon" style="background: ${disciplina.cor}20; color: ${disciplina.cor};">
+                <i class="fas ${disciplina.icone}"></i>
             </div>
             <div class="bar-container">
-                <div class="bar-fill ${disciplina.cor === '#9b59b6' ? 'fill-purple' : 'fill-yellow'}" style="width: ${Math.min(100, disciplina.media * 10)}%;"></div>
+                <div class="bar-fill" style="width: ${Math.min(100, disciplina.media * 10)}%; background: ${disciplina.cor};"></div>
             </div>
             <span class="bar-value">${disciplina.media.toFixed(1)}</span>
         `;
@@ -265,7 +259,6 @@ function formatarDataRelativa(data) {
     const diffMin = Math.floor(diffMs / 60000);
     const diffHoras = Math.floor(diffMs / 3600000);
     const diffDias = Math.floor(diffMs / 86400000);
-    
     if (diffMin < 1) return 'agora mesmo';
     if (diffMin < 60) return `${diffMin} min atrás`;
     if (diffHoras < 24) return `${diffHoras} h atrás`;
@@ -284,54 +277,53 @@ function escapeHtml(text) {
 function atualizarAtividadesRecentes() {
     const activityList = document.getElementById('activityList');
     if (!activityList) return;
-    
     const atividades = [];
-    
+
     (tarefas || []).slice(0, 2).forEach(tarefa => {
         atividades.push({
             titulo: tarefa.title || tarefa.nome,
             descricao: tarefa.completed ? 'Concluída' : 'Pendente',
             icone: tarefa.completed ? 'fa-check-circle' : 'fa-clipboard-list',
-            cor: '#10B981',
+            cor: '#10b981',
             data: new Date(tarefa.dataCriacao || Date.now())
         });
     });
-    
+
     (anotacoes || []).slice(0, 2).forEach(anotacao => {
         atividades.push({
             titulo: anotacao.title || anotacao.titulo,
             descricao: 'Anotação atualizada',
             icone: 'fa-file-lines',
-            cor: '#8B5CF6',
+            cor: '#9333ea',
             data: new Date(anotacao.date || anotacao.dataModificacao || Date.now())
         });
     });
-    
+
     (eventos || []).slice(0, 2).forEach(evento => {
         atividades.push({
             titulo: evento.title,
             descricao: `Evento ${evento.type}`,
             icone: 'fa-calendar',
-            cor: '#3B82F6',
+            cor: '#3b82f6',
             data: new Date(evento.date || `${evento.year}-${evento.month + 1}-${evento.day}`)
         });
     });
-    
+
     atividades.sort((a, b) => b.data - a.data);
     const recentes = atividades.slice(0, 3);
-    
+
     activityList.innerHTML = '';
     if (recentes.length === 0) {
-        activityList.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Nenhuma atividade recente</p>';
+        activityList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhuma atividade recente</p>';
         return;
     }
-    
+
     recentes.forEach(atividade => {
         const activityItem = document.createElement('div');
         activityItem.className = 'activity-item';
         activityItem.innerHTML = `
             <div class="activity-icon" style="background: ${atividade.cor}20; color: ${atividade.cor};">
-                <i class="fa-solid ${atividade.icone}"></i>
+                <i class="fas ${atividade.icone}"></i>
             </div>
             <div class="activity-text">
                 <h4>${escapeHtml(atividade.titulo)}</h4>
@@ -352,8 +344,10 @@ function logout() {
 
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function() {
-        document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-        this.classList.add('active');
+        if (this.href && !this.href.endsWith('#')) {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+        }
     });
 });
 
@@ -362,4 +356,4 @@ setInterval(() => {
     console.log('Dashboard atualizado');
 }, 30000);
 
-console.log('%c📊 Dashboard Dinâmico', 'color: #8B5CF6; font-size: 20px; font-weight: bold;');
+console.log('%c📊 Dashboard - Tema Roxo Escuro', 'color: #9333ea; font-size: 20px; font-weight: bold;');

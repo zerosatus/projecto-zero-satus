@@ -1,133 +1,139 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Aluno - Dashboard</title>
     <link rel="icon" href="../../imagem/favicon.png" type="image/png">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-
-    <aside class="sidebar">
-        <div class="logo">
-            <i class="fas fa-graduation-cap"></i>
-            <span>Painel do Aluno</span>
-        </div>
-
-        <nav class="menu">
-            <a href="../inicio/index.html" class="menu-item">
-                <i class="fas fa-home"></i>
-                <span>Início</span>
-            </a>
-            <a href="./index.html" class="menu-item active">
-                <i class="fas fa-chart-line"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="../calendario/index.html" class="menu-item">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Calendário</span>
-            </a>
-            <a href="../tarefas/index.html" class="menu-item">
-                <i class="fas fa-tasks"></i>
-                <span>Tarefas</span>
-            </a>
-            <a href="../anotacoes/index.html" class="menu-item">
-                <i class="fas fa-sticky-note"></i>
-                <span>Anotações</span>
-            </a>
-        </nav>
-
-        <div class="menu-bottom">
-            <a href="#" class="menu-item">
-                <i class="fas fa-users"></i>
-                <span>Comunidade</span>
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-question-circle"></i>
-                <span>Ajuda</span>
-            </a>
-        </div>
-        
-        <div class="logout-section">
-            <button class="logout-btn" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Sair da Conta</span>
-            </button>
-        </div>
-    </aside>
-
-    <main class="main-content">
-        <header class="header">
-            <h2>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h2>
-            <div class="header-icons">
-                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
-                <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Painel do Aluno</span>
             </div>
-        </header>
+            
+            <nav class="menu">
+                <a href="../inicio/index.html" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="./index.html" class="menu-item active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../calendario/index.html" class="menu-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Calendário</span>
+                </a>
+                <a href="../tarefas/index.html" class="menu-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tarefas</span>
+                </a>
+                <a href="../anotacoes/index.html" class="menu-item">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Anotações</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Comunidade</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </a>
+            </nav>
+            
+            <div class="menu-bottom">
+                <div class="logout-section">
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sair da Conta</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
 
-        <div class="stats-grid">
-            <div class="stat-card bg-purple">
-                <div class="stat-info"><h3 id="disciplinasCount">0</h3><p>Disciplinas</p></div>
-                <i class="fa-solid fa-book stat-icon"></i>
-            </div>
-            <div class="stat-card bg-blue">
-                <div class="stat-info"><h3 id="pendentesCount">0</h3><p>Tarefas Pendentes</p></div>
-                <i class="fa-solid fa-clipboard-list stat-icon"></i>
-            </div>
-            <div class="stat-card bg-orange">
-                <div class="stat-info"><h3 id="horasCount">0</h3><p>Horas Estudadas</p></div>
-                <i class="fa-regular fa-clock stat-icon"></i>
-            </div>
-            <div class="stat-card bg-green">
-                <div class="stat-info"><h3 id="mediaCount">0.0</h3><p>Média Geral</p></div>
-                <i class="fa-solid fa-star stat-icon"></i>
-            </div>
-        </div>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
+                <div class="header-actions">
+                    <button class="icon-btn">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">U</div>
+                        <span id="userName">Carregando...</span>
+                    </div>
+                </div>
+            </header>
 
-        <div class="middle-grid">
-            <div class="card">
-                <h3>Desempenho por Disciplina</h3>
-                <div class="bar-chart" id="barChart">
-                    <div style="grid-column: span 4; text-align: center; padding: 40px; color: #888;">Carregando dados...</div>
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card stat-purple">
+                    <div class="stat-info">
+                        <h3 id="disciplinasCount">0</h3>
+                        <p>Disciplinas</p>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                </div>
+                <div class="stat-card stat-blue">
+                    <div class="stat-info">
+                        <h3 id="pendentesCount">0</h3>
+                        <p>Tarefas Pendentes</p>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                </div>
+                <div class="stat-card stat-orange">
+                    <div class="stat-info">
+                        <h3 id="horasCount">0</h3>
+                        <p>Horas Estudadas</p>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="stat-card stat-green">
+                    <div class="stat-info">
+                        <h3 id="mediaCount">0.0</h3>
+                        <p>Média Geral</p>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
                 </div>
             </div>
 
-            <div class="card">
-                <h3>Atividade Recente</h3>
-                <div class="activity-list" id="activityList">
-                    <p style="color: #888; text-align: center; padding: 20px;">Carregando atividades...</p>
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Performance Chart -->
+                <div class="card performance-card">
+                    <h3>Desempenho por Disciplina</h3>
+                    <div class="bar-chart" id="barChart">
+                        <p style="color: var(--text-secondary); text-align: center; padding: 40px;">Adicione tarefas com notas para ver o gráfico</p>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card activity-card">
+                    <h3>Atividade Recente</h3>
+                    <div class="activity-list" id="activityList">
+                        <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhuma atividade recente</p>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div class="quick-access-grid">
-            <a href="../inicio/index.html" class="access-btn">
-                <div class="access-icon" style="background: #E0F2FE; color: #0EA5E9;"><i class="fa-solid fa-house"></i></div>
-                <span>Painel Inicial</span>
-            </a>
-            <a href="./index.html" class="access-btn">
-                <div class="access-icon" style="background: #FEF3C7; color: #D97706;"><i class="fa-solid fa-chart-pie"></i></div>
-                <span>Dashboard</span>
-            </a>
-            <a href="../calendario/index.html" class="access-btn">
-                <div class="access-icon" style="background: #DCFCE7; color: #16A34A;"><i class="fa-solid fa-calendar"></i></div>
-                <span>Calendário</span>
-            </a>
-            <a href="../tarefas/index.html" class="access-btn">
-                <div class="access-icon" style="background: #FEE2E2; color: #DC2626;"><i class="fa-solid fa-list-check"></i></div>
-                <span>Tarefas</span>
-            </a>
-            <a href="../anotacoes/index.html" class="access-btn">
-                <div class="access-icon" style="background: #F3E8FF; color: #9333EA;"><i class="fa-solid fa-note-sticky"></i></div>
-                <span>Anotações</span>
-            </a>
-        </div>
-    </main>
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        </main>
+    </div>
 
 <!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
 <script src="../mobile-telas/supabase-client.js"></script>     <!-- AuthService primeiro -->
@@ -145,3 +151,4 @@
 <script src="script.js"></script>
 </body>
 </html>
+  
