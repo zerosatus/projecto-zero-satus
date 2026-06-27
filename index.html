@@ -3,10 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Zero  Satus · plataforma acadêmica</title>
+    <title>Zero Satus · plataforma acadêmica</title>
     <link rel="icon" href="imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Garantia máxima - esconder em desktop, mostrar em mobile -->
+    <style>
+        /* Por padrão, o botão fica oculto */
+        #btnDemo {
+            display: none !important;
+        }
+        
+        /* Mostrar apenas em dispositivos móveis (telas menores que 1024px) */
+        @media (max-width: 1023px) {
+            #btnDemo {
+                display: inline-flex !important;
+            }
+        }
+        
+        /* Garantir que em telas muito pequenas continue visível */
+        @media (max-width: 640px) {
+            #btnDemo {
+                display: inline-flex !important;
+            }
+        }
+        
+        /* Garantir que em tablets também fique visível */
+        @media (min-width: 641px) and (max-width: 1023px) {
+            #btnDemo {
+                display: inline-flex !important;
+            }
+        }
+        
+        /* Desktop - garantir que fique oculto */
+        @media (min-width: 1024px) {
+            #btnDemo {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -64,7 +100,7 @@
                     <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
                         <i class="fas fa-rocket"></i> Começar Agora
                     </button>
-                    <button class="btn-secondary" onclick="window.location.href='TELAS/login/index.html'">
+                    <button class="btn-secondary" id="btnDemo" onclick="window.location.href='TELAS/login/index.html'">
                         <i class="fas fa-play"></i> Ver Demo
                     </button>
                 </div>
@@ -433,31 +469,80 @@
             </div>
         </div>
     </footer>
-<!-- Service Worker Registration -->
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('Service Worker registrado com sucesso:', registration);
-                })
-                .catch(error => {
-                    console.error('Erro ao registrar Service Worker:', error);
-                });
-        });
-    }
-</script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao registrar Service Worker:', error);
+                    });
+            });
+        }
+    </script>
+
+    <!-- Script Principal -->
     <script src="script.js"></script>
-<!-- PWA Manifest -->
-<link rel="manifest" href="/manifest.json">
 
-<!-- Apple Touch Icon (iOS) -->
-<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <!-- Controle do Botão Ver Demo - APENAS MOBILE -->
+    <script>
+        // FORÇA BRUTA - Garantir que o botão Ver Demo só aparece em mobile
+        (function() {
+            function forcarVisibilidadeBotaoDemo() {
+                const btn = document.getElementById('btnDemo');
+                if (!btn) return;
+                
+                const largura = window.innerWidth;
+                const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isMobile = largura < 1024;
+                
+                // Mostrar apenas se for mobile OU touch
+                if (isMobile || isTouch) {
+                    btn.style.display = 'inline-flex';
+                    btn.style.visibility = 'visible';
+                    btn.style.opacity = '1';
+                    btn.style.setProperty('display', 'inline-flex', 'important');
+                } else {
+                    btn.style.display = 'none';
+                    btn.style.visibility = 'hidden';
+                    btn.style.opacity = '0';
+                    btn.style.setProperty('display', 'none', 'important');
+                }
+            }
+            
+            // Executar imediatamente
+            forcarVisibilidadeBotaoDemo();
+            
+            // Executar quando carregar
+            document.addEventListener('DOMContentLoaded', forcarVisibilidadeBotaoDemo);
+            
+            // Executar ao redimensionar
+            window.addEventListener('resize', forcarVisibilidadeBotaoDemo);
+            
+            // Executar ao orientar
+            window.addEventListener('orientationchange', function() {
+                setTimeout(forcarVisibilidadeBotaoDemo, 500);
+            });
+            
+            // Verificar a cada segundo (força bruta)
+            setInterval(forcarVisibilidadeBotaoDemo, 1000);
+        })();
+    </script>
 
-<!-- Meta tags para PWA -->
-<meta name="theme-color" content="#9333ea">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Zero">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Apple Touch Icon (iOS) -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Meta tags para PWA -->
+    <meta name="theme-color" content="#9333ea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Zero">
 </body>
 </html>
