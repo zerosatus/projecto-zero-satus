@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendário - Painel do Aluno</title>
-    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
+        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
                 <i class="fas fa-graduation-cap"></i>
@@ -38,9 +37,6 @@
                     <i class="fas fa-sticky-note"></i>
                     <span>Anotações</span>
                 </a>
-            </nav>
-            
-            <div class="menu-bottom">
                 <a href="#" class="menu-item">
                     <i class="fas fa-users"></i>
                     <span>Comunidade</span>
@@ -49,41 +45,49 @@
                     <i class="fas fa-question-circle"></i>
                     <span>Ajuda</span>
                 </a>
-            </div>
+            </nav>
             
-            <div class="logout-section">
-                <button class="logout-btn" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sair</span>
-                </button>
+            <div class="menu-bottom">
+                <div class="logout-section">
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sair</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
+        <!-- Main Content -->
         <main class="main-content">
+            <!-- Header -->
             <header class="header">
                 <h1>Bem-vindo, <span id="userNameDisplay">Aluno</span>!</h1>
                 <div class="header-actions">
                     <button class="icon-btn">
                         <i class="fas fa-bell"></i>
-                        <span class="badge">0</span>
+                        <span class="badge" id="notificationBadge" style="display: none;">0</span>
                     </button>
                     <div class="user-profile">
-                        <img src="https://i.pravatar.cc/150?img=12" alt="Usuário" id="userAvatar">
+                        <img id="userAvatar" src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=32" alt="Avatar">
                         <span id="userName">Aluno</span>
                     </div>
                 </div>
             </header>
 
+            <!-- Calendar Container -->
             <div class="calendar-container">
                 <div class="calendar-header">
                     <div class="month-nav">
                         <h2 id="currentMonth">Carregando...</h2>
                         <div class="nav-buttons">
-                            <button id="prevBtn" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
-                            <button id="nextBtn" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                            <button class="nav-btn" id="prevBtn">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="nav-btn" id="nextBtn">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
-                    
                     <div class="view-actions">
                         <div class="view-toggle">
                             <button class="toggle-btn active" data-view="month">Mês</button>
@@ -97,40 +101,50 @@
                 </div>
 
                 <div class="calendar-grid">
-                    <div class="weekdays">
-                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sab</div>
+                    <div class="weekdays" id="weekdaysHeader">
+                        <div>Dom</div>
+                        <div>Seg</div>
+                        <div>Ter</div>
+                        <div>Qua</div>
+                        <div>Qui</div>
+                        <div>Sex</div>
+                        <div>Sáb</div>
                     </div>
                     <div class="days" id="calendarDays"></div>
                 </div>
             </div>
 
+            <!-- Events Section -->
             <div class="events-section">
                 <h3>Eventos do Dia <span id="selectedDay">--</span></h3>
                 <div class="events-list" id="eventsList">
-                    <p style="color: #6b7280; padding: 1rem; text-align: center;">Selecione um dia para ver os eventos</p>
+                    <p style="color: var(--text-secondary); padding: 1rem; text-align: center;">Selecione um dia para ver os eventos</p>
                 </div>
             </div>
         </main>
     </div>
 
-    <div id="eventModal" class="modal">
+    <!-- Modal Novo Evento -->
+    <div class="modal" id="eventModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Criar Novo Evento</h2>
-                <button class="modal-close" id="modalClose">&times;</button>
+                <button class="modal-close" id="modalClose">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             
             <form id="eventForm">
                 <div class="form-group">
                     <label>Título do Evento *</label>
-                    <input type="text" id="eventTitle" placeholder="Ex: Aula de Matemática" required>
+                    <input type="text" id="eventTitle" placeholder="Ex: Prova de Matemática" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Descrição</label>
-                    <textarea id="eventDescription" placeholder="Adicione detalhes sobre o evento..." rows="3"></textarea>
+                    <textarea id="eventDescription" placeholder="Detalhes do evento (opcional)"></textarea>
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Data</label>
@@ -145,20 +159,32 @@
                         <input type="time" id="eventEnd" required>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Tipo de Evento</label>
                     <div class="event-type-grid">
-                        <button type="button" class="type-btn active" data-type="aula">Aula</button>
-                        <button type="button" class="type-btn" data-type="prova">Prova</button>
-                        <button type="button" class="type-btn" data-type="trabalho">Trabalho</button>
-                        <button type="button" class="type-btn" data-type="apresentacao">Apresentação</button>
-                        <button type="button" class="type-btn" data-type="reuniao">Reunião</button>
-                        <button type="button" class="type-btn" data-type="outro">Outro</button>
+                        <button type="button" class="type-btn active" data-type="aula">
+                            <i class="fas fa-book"></i> Aula
+                        </button>
+                        <button type="button" class="type-btn" data-type="prova">
+                            <i class="fas fa-file-alt"></i> Prova
+                        </button>
+                        <button type="button" class="type-btn" data-type="trabalho">
+                            <i class="fas fa-briefcase"></i> Trabalho
+                        </button>
+                        <button type="button" class="type-btn" data-type="apresentacao">
+                            <i class="fas fa-chalkboard-teacher"></i> Apresentação
+                        </button>
+                        <button type="button" class="type-btn" data-type="reuniao">
+                            <i class="fas fa-users"></i> Reunião
+                        </button>
+                        <button type="button" class="type-btn" data-type="outro">
+                            <i class="fas fa-circle"></i> Outro
+                        </button>
                     </div>
                     <input type="hidden" id="eventType" value="aula">
                 </div>
-                
+
                 <div class="form-group">
                     <label>Repetir</label>
                     <select id="eventRepeat">
@@ -168,12 +194,14 @@
                         <option value="mensal">Mensalmente</option>
                     </select>
                 </div>
-                
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="eventReminder">
-                    <label for="eventReminder">Ativar lembrete para este evento</label>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="eventReminder">
+                        <label for="eventReminder">Ativar lembrete para este evento</label>
+                    </div>
                 </div>
-                
+
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" id="btnCancel">Cancelar</button>
                     <button type="submit" class="btn-create">Criar Evento</button>
@@ -182,24 +210,6 @@
         </div>
     </div>
 
-    <div class="toast" id="toast"><i class="fas fa-check-circle"></i><span>Evento salvo!</span></div>
-<!-- Supabase CDN -->
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
-<script src="../mobile-telas/supabase-client.js"></script>     <!-- AuthService primeiro -->
-<script src="../mobile-telas/database-service.js"></script>    <!-- DatabaseService -->
-<script src="../mobile-telas/realtime-sync.js"></script>       <!-- Realtime -->
-<script src="../mobile-telas/cache-manager.js"></script>       <!-- Cache -->
-<script src="../mobile-telas/shared-data.js"></script>         <!-- Shared -->
-<script src="../mobile-telas/sync-helper.js"></script>         <!-- Sync -->
-
-<!-- FUNCIONALIDADES -->
-<script src="../mobile-telas/daily-phrases.js"></script>
-<script src="../mobile-telas/notes-sync.js"></script>
-
-<!-- PÁGINA -->
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
