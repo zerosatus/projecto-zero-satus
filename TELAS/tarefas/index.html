@@ -3,279 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Aluno - Tarefas</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Painel do Aluno - Perfil</title>
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo">
-                <i class="fas fa-graduation-cap"></i>
-                <span>Painel do Aluno</span>
-            </div>
-            
-            <nav class="menu">
-                <a href="../inicio/index.html" class="menu-item">
-                    <i class="fas fa-home"></i>
-                    <span>Início</span>
-                </a>
-                <a href="../dashboard/index.html" class="menu-item">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="../calendario/index.html" class="menu-item">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Calendário</span>
-                </a>
-                <a href="./index.html" class="menu-item active">
-                    <i class="fas fa-tasks"></i>
-                    <span>Tarefas</span>
-                </a>
-                <a href="../anotacoes/index.html" class="menu-item">
-                    <i class="fas fa-sticky-note"></i>
-                    <span>Anotações</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-users"></i>
-                    <span>Comunidade</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-question-circle"></i>
-                    <span>Ajuda</span>
-                </a>
-            </nav>
-            
-            <div class="menu-bottom">
-                <div class="logout-section">
-                    <button class="logout-btn" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Sair da Conta</span>
-                    </button>
-                </div>
-            </div>
-        </aside>
+<div class="container">
+    <!-- Sidebar Padronizada -->
+    <aside class="sidebar">
+        <div class="logo">
+            <i class="fas fa-graduation-cap"></i>
+            <span>Painel do Aluno</span>
+        </div>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="header">
-                <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
-                <div class="header-actions">
-                    <button class="icon-btn">
-                        <i class="fas fa-bell"></i>
-                    </button>
-                    <div class="user-profile">
-                        <div class="user-avatar" id="userAvatar">U</div>
-                        <span id="userNameProfile">Carregando...</span>
-                    </div>
-                </div>
-            </header>
+        <nav class="menu">
+            <a href="../inicio/index.html" class="menu-item">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a href="../dashboard/index.html" class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="../calendario/index.html" class="menu-item">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Calendário</span>
+            </a>
+            <a href="../tarefas/index.html" class="menu-item">
+                <i class="fas fa-tasks"></i>
+                <span>Tarefas</span>
+            </a>
+            <a href="../anotacoes/index.html" class="menu-item">
+                <i class="fas fa-sticky-note"></i>
+                <span>Anotações</span>
+            </a>
+        </nav>
 
-            <!-- Stats Container -->
-            <div class="stats-container">
-                <div class="stat-card pending">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-number" id="pendingCount">0</span>
-                        <span class="stat-label">Pendentes</span>
-                    </div>
-                </div>
-                <div class="stat-card completed">
-                    <div class="stat-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-number" id="completedTodayCount">0</span>
-                        <span class="stat-label">Concluídas hoje</span>
-                    </div>
-                </div>
-                <div class="stat-card overdue">
-                    <div class="stat-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-number" id="overdueCount">0</span>
-                        <span class="stat-label">Atrasadas</span>
-                    </div>
-                </div>
-            </div>
+        <div class="menu-bottom">
+            <a href="#" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>Comunidade</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-question-circle"></i>
+                <span>Ajuda</span>
+            </a>
+        </div>
 
-            <!-- Content Grid -->
-            <div class="content-grid">
-                <!-- Left Panel -->
-                <div class="left-panel">
-                    <button class="btn-primary" onclick="abrirModal()">
-                        <i class="fas fa-plus"></i>
-                        Nova Tarefa
-                    </button>
+        <div class="logout-section">
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </button>
+        </div>
+    </aside>
 
-                    <!-- Filter Section -->
-                    <div class="filter-section">
-                        <div class="filter-item active-filter" data-filter="todas">
-                            <i class="fas fa-list"></i>
-                            <span>Todas as tarefas</span>
-                            <span class="badge" id="totalBadge">0</span>
-                        </div>
-                        <div class="filter-item" data-filter="pendentes">
-                            <i class="fas fa-clock"></i>
-                            <span>Pendentes</span>
-                            <span class="badge" id="pendingBadge">0</span>
-                        </div>
-                        <div class="filter-item" data-filter="concluidas">
-                            <i class="fas fa-check"></i>
-                            <span>Concluídas</span>
-                            <span class="badge" id="completedBadge">0</span>
-                        </div>
-                        <div class="filter-item" data-filter="favoritas">
-                            <i class="fas fa-star"></i>
-                            <span>Favoritas</span>
-                            <span class="badge" id="favoriteBadge">0</span>
-                        </div>
-                    </div>
-
-                    <!-- Subjects Section -->
-                    <div class="subjects-section">
-                        <h3>DISCIPLINAS</h3>
-                        <div id="subjectsList">
-                            <p style="text-align: center; padding: 20px; color: #9ca3af;">Carregando disciplinas...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Panel -->
-                <div class="right-panel">
-                    <div class="tasks-header">
-                        <h2>Tarefas</h2>
-                        <select class="filter-select" id="orderSelect">
-                            <option value="prazo">Por prazo</option>
-                            <option value="disciplina">Por disciplina</option>
-                            <option value="prioridade">Por prioridade</option>
-                        </select>
-                    </div>
-
-                    <!-- Search Box -->
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Buscar tarefas...">
-                    </div>
-
-                    <!-- Task List -->
-                    <div class="task-list" id="taskList">
-                        <div class="empty-state" style="text-align: center; padding: 40px;">
-                            <i class="fas fa-tasks" style="font-size: 48px; color: var(--text-secondary); margin-bottom: 16px; display: block;"></i>
-                            <h3 style="color: var(--text-primary);">Nenhuma tarefa ainda</h3>
-                            <p style="color: var(--text-secondary);">Clique em "Nova Tarefa" para começar</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Modal Nova Tarefa -->
-    <div class="modal" id="modalNovaTarefa">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Nova Tarefa</h2>
-                <button class="modal-close" onclick="fecharModal()">
-                    <i class="fas fa-times"></i>
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <h1>Minha Conta</h1>
+            <div class="header-actions">
+                <button class="btn-save" onclick="salvarAlteracoes()">
+                    <i class="fas fa-save"></i>
+                    <span>Salvar Alterações</span>
                 </button>
             </div>
-            
-            <form id="formNovaTarefa">
-                <div class="form-group">
-                    <label>Nome da Tarefa</label>
-                    <input type="text" id="nomeTarefa" placeholder="Digite o nome da tarefa" required>
-                </div>
+        </header>
 
-                <div class="form-group">
-                    <label>Descrição</label>
-                    <textarea id="descricaoTarefa" placeholder="Digite a descrição (opcional)"></textarea>
-                </div>
-
-                <div class="form-row-two">
-                    <div class="form-group">
-                        <label>Prioridade</label>
-                        <div class="priority-options">
-                            <button type="button" class="priority-btn" data-priority="alta">
-                                <i class="fas fa-flag"></i> Alta
-                            </button>
-                            <button type="button" class="priority-btn active" data-priority="media">
-                                <i class="fas fa-flag"></i> Média
-                            </button>
-                            <button type="button" class="priority-btn" data-priority="baixa">
-                                <i class="fas fa-flag"></i> Baixa
-                            </button>
+        <!-- Profile Content -->
+        <div class="profile-container">
+            <!-- Left Column - Profile Info -->
+            <div class="profile-left">
+                <!-- Profile Card -->
+                <div class="profile-card">
+                    <div class="profile-cover"></div>
+                    <div class="profile-avatar-section">
+                        <div class="profile-avatar" id="profileAvatar">
+                            <img src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=150" alt="Foto de Perfil" id="avatarImage">
+                            <label for="avatarUpload" class="avatar-upload-btn">
+                                <i class="fas fa-camera"></i>
+                            </label>
+                            <input type="file" id="avatarUpload" accept="image/*" onchange="previewAvatar(event)" hidden>
+                        </div>
+                        <h2 class="profile-name" id="profileName">Carregando...</h2>
+                        <p class="profile-email" id="profileEmail">carregando@email.com</p>
+                    </div>
+                    <div class="profile-stats">
+                        <div class="profile-stat">
+                            <span class="stat-value" id="statTarefas">0</span>
+                            <span class="stat-label">Tarefas</span>
+                        </div>
+                        <div class="profile-stat">
+                            <span class="stat-value" id="statConclusao">0%</span>
+                            <span class="stat-label">Conclusão</span>
+                        </div>
+                        <div class="profile-stat">
+                            <span class="stat-value" id="statHoras">0h</span>
+                            <span class="stat-label">Estudo</span>
                         </div>
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label>Prazo</label>
-                        <div class="input-with-icon">
-                            <input type="date" id="prazoTarefa">
-                            <i class="fas fa-calendar"></i>
+                <!-- Activity History -->
+                <div class="activity-card">
+                    <h3><i class="fas fa-history"></i> Atividade Recente</h3>
+                    <div class="activity-list" id="activityList">
+                        <p style="color: #888; text-align: center; padding: 20px;">Nenhuma atividade recente</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Settings -->
+            <div class="profile-right">
+                <!-- Personal Information -->
+                <div class="settings-card">
+                    <h3><i class="fas fa-user"></i> Informações Pessoais</h3>
+                    <form id="profileForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nome Completo</label>
+                                <input type="text" id="nome" value="" required>
+                            </div>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>E-mail</label>
+                                <input type="email" id="email" value="" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Telefone</label>
+                                <input type="tel" id="telefone" value="" placeholder="+258 870000000">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Data de Nascimento</label>
+                                <input type="date" id="nascimento">
+                            </div>
+                            <div class="form-group">
+                                <label>Gênero</label>
+                                <select id="genero">
+                                    <option value="masculino">Masculino</option>
+                                    <option value="feminino">Feminino</option>
+                                    <option value="outro">Outro</option>
+                                    <option value="nao-informar">Prefiro não informar</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- 🔥 BOTÃO SALVAR DENTRO DO FORMULÁRIO -->
+                        <button type="button" class="btn-save-form" onclick="salvarAlteracoes()">
+                            <i class="fas fa-save"></i> Salvar Alterações
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Security Settings -->
+                <div class="settings-card">
+                    <h3><i class="fas fa-shield-alt"></i> Segurança</h3>
+                    <form id="securityForm">
+                        <div class="form-group">
+                            <label>Senha Atual</label>
+                            <div class="input-with-icon">
+                                <input type="password" id="senhaAtual" placeholder="••••••••">
+                                <i class="fas fa-eye toggle-password" onclick="togglePassword('senhaAtual')"></i>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nova Senha</label>
+                                <div class="input-with-icon">
+                                    <input type="password" id="novaSenha" placeholder="••••••••">
+                                    <i class="fas fa-eye toggle-password" onclick="togglePassword('novaSenha')"></i>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirmar Nova Senha</label>
+                                <div class="input-with-icon">
+                                    <input type="password" id="confirmarSenha" placeholder="••••••••">
+                                    <i class="fas fa-eye toggle-password" onclick="togglePassword('confirmarSenha')"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-secondary" onclick="alterarSenha()">
+                            <i class="fas fa-key"></i> Alterar Senha
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Preferences -->
+                <div class="settings-card">
+                    <h3><i class="fas fa-cog"></i> Preferências</h3>
+                    <div class="preference-item">
+                        <div class="preference-info">
+                            <h4>Notificações por E-mail</h4>
+                            <p>Receber notificações de tarefas e eventos</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifEmail" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="preference-item">
+                        <div class="preference-info">
+                            <h4>Notificações Push</h4>
+                            <p>Receber notificações no navegador</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifPush" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="preference-item">
+                        <div class="preference-info">
+                            <h4>Tema Escuro</h4>
+                            <p>Ativar modo escuro na interface</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="preference-item">
+                        <div class="preference-info">
+                            <h4>Idioma</h4>
+                            <p>Selecione o idioma da interface</p>
+                        </div>
+                        <select class="preference-select" id="languageSelect">
+                            <option value="pt-BR">Português (Brasil)</option>
+                            <option value="en-US">English (US)</option>
+                            <option value="es">Español</option>
+                        </select>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Disciplina</label>
-                    <select id="disciplinaTarefa">
-                        <option value="matematica">Matemática</option>
-                        <option value="portugues">Português</option>
-                        <option value="historia">História</option>
-                        <option value="fisica">Física</option>
-                        <option value="quimica">Química</option>
-                        <option value="biologia">Biologia</option>
-                        <option value="geografia">Geografia</option>
-                        <option value="ingles">Inglês</option>
-                        <option value="outros">Outros</option>
-                    </select>
+                <!-- Account Actions -->
+                <div class="settings-card danger-zone">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Zona de Perigo</h3>
+                    <p class="danger-text">Ações irreversíveis que podem afetar sua conta permanentemente.</p>
+                    <div class="danger-actions">
+                        <button type="button" class="btn-danger-outline" onclick="exportarDados()">
+                            <i class="fas fa-download"></i> Exportar Meus Dados
+                        </button>
+                        <button type="button" class="btn-danger" onclick="deletarConta()">
+                            <i class="fas fa-trash"></i> Deletar Conta
+                        </button>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Subtarefas</label>
-                    <div class="subtasks-container" id="subtasksContainer"></div>
-                    <button type="button" class="btn-add-subtask" onclick="adicionarSubtarefa()">
-                        <i class="fas fa-plus"></i> Adicionar subtarefa
-                    </button>
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="btn-cancel" onclick="fecharModal()">Cancelar</button>
-                    <button type="submit" class="btn-create">Criar Tarefa</button>
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
+    </main>
+</div>
 
-    <!-- Toast Notification -->
-    <div class="toast" id="toast">
-        <i class="fas fa-check-circle"></i>
-        <span>Operação realizada!</span>
-    </div>
-
-    <!-- Supabase CDN -->
+<!-- Toast Notification -->
+<div class="toast" id="toast">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage">Alterações salvas com sucesso!</span>
+</div>
+<!-- Supabase CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
-<script src="../supabase-client.js"></script>     <!-- AuthService primeiro -->
-<script src="../database-service.js"></script>    <!-- DatabaseService -->
-<script src="../realtime-sync.js"></script>       <!-- Realtime -->
-<script src="../cache-manager.js"></script>       <!-- Cache -->
-<script src="../shared-data.js"></script>         <!-- Shared -->
-<script src="../sync-helper.js"></script>         <!-- Sync -->
+<script src="../mobile-telas/supabase-client.js"></script>     <!-- AuthService primeiro -->
+<script src="../mobile-telas/database-service.js"></script>    <!-- DatabaseService -->
+<script src="../mobile-telas/realtime-sync.js"></script>       <!-- Realtime -->
+<script src="../mobile-telas/cache-manager.js"></script>       <!-- Cache -->
+<script src="../mobile-telas/shared-data.js"></script>         <!-- Shared -->
+<script src="../mobile-telas/sync-helper.js"></script>         <!-- Sync -->
 
 <!-- FUNCIONALIDADES -->
-<script src="../daily-phrases.js"></script>
-<script src="../notes-sync.js"></script>
+<script src="../mobile-telas/daily-phrases.js"></script>
+<script src="../mobile-telas/notes-sync.js"></script>
 
 <!-- PÁGINA -->
 <script src="script.js"></script>
-
 </body>
 </html>
