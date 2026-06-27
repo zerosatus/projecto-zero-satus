@@ -23,7 +23,7 @@ function setLoading(button, isLoading) {
     if (!button) return;
     if (isLoading) {
         button.dataset.originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AGUARDE...';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Espera...';
         button.disabled = true;
     } else {
         button.innerHTML = button.dataset.originalHtml;
@@ -73,7 +73,7 @@ async function processarLogin(user) {
 
     if (!user.email_confirmed_at) {
         console.warn('[Login] E-mail não confirmado!');
-        showMessage('📧 Por favor, confirme seu e-mail antes de fazer login.', true);
+        showMessage('📧 Vai no teu gmail, tchuna essa cena de confirmar e-mail.', true);
         return false;
     }
 
@@ -481,7 +481,7 @@ async function checkSession() {
             }
 
             // Se tem sessão mas não tem usuário salvo, pergunta se quer continuar
-            const continuar = confirm(`👋 Você tem uma sessão ativa (${user.email}).\n\nDeseja continuar na plataforma?`);
+            const continuar = confirm(`👋 Cê (${user.email}).\n\nTá bizz em continuar na plataforma?`);
 
             if (continuar) {
                 console.log('[Login] Usuário optou por continuar. Processando login...');
@@ -492,7 +492,7 @@ async function checkSession() {
                 await window.AuthService.logout();
                 localStorage.removeItem('usuarioLogado');
                 limparCamposFormulario();
-                showMessage('✅ Sessão encerrada. Faça login novamente.', false);
+                showMessage('✅ Sessão encerrada. Coisola tua conta dnv.', false);
                 return false;
             }
         }
@@ -515,7 +515,7 @@ window.forcarLogout = async function() {
         sessionStorage.clear();
         limparCamposFormulario();
         window.location.reload();
-        showMessage('✅ Sessão limpa! Faça login novamente.', false);
+        showMessage('✅ Sessão limpa! Coisola tua conta dnv. novamente.', false);
     }
 };
 
