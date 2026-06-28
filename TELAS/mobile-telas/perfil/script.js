@@ -1,4 +1,4 @@
-// mobile-telas/perfil/script.js - VERSÃO CORRIGIDA COM CACHEMANAGER
+// mobile-telas/perfil/script.js - VERSÃO CORRIGIDA (FIX LOGIN)
 
 let notifications = [];
 let usuarioLogado = null;
@@ -69,6 +69,70 @@ function closeModal(modalId) {
 }
 
 // ============================================
+// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
+// ============================================
+function loadAllData() {
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    
+    // ✅ VERIFICAÇÃO CORRETA
+    if (!usuarioSalvo) {
+        console.warn('[Perfil] Nenhum usuário logado encontrado');
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
+    try {
+        usuarioLogado = JSON.parse(usuarioSalvo);
+        
+        // ✅ VERIFICAR SE TEM ID DEPOIS DE PARSEAR
+        if (!usuarioLogado || !usuarioLogado.id) {
+            console.error('[Perfil] Usuário sem ID válido');
+            window.location.href = '../../login/index.html';
+            return;
+        }
+        
+        console.log('[Perfil Mobile] Usuário:', usuarioLogado.id);
+    } catch(e) {
+        console.error('[Perfil] Erro ao parsear usuário:', e);
+        window.location.href = '../../login/index.html';
+        return;
+    }
+    
+    // Inicializar CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.init();
+        window.CacheManager.currentUserId = usuarioLogado.id;
+        
+        // Carregar dados do CacheManager
+        notifications = window.CacheManager.get('notifications', []);
+        notificacoesSettings = window.CacheManager.get('notificacoesSettings', { 
+            push: true, 
+            email: false, 
+            aulas: true, 
+            tarefas: true 
+        });
+        appearanceSettings = window.CacheManager.get('appearanceSettings', { 
+            theme: 'dark', 
+            accent: '#8b5cf6', 
+            fontSize: 14 
+        });
+    } else {
+        // Fallback para localStorage com UUID
+        const userId = usuarioLogado.id;
+        notifications = JSON.parse(localStorage.getItem(`${userId}_notifications`) || '[]');
+        notificacoesSettings = JSON.parse(localStorage.getItem(`notificacoesSettings_${userId}`) || '{"push":true,"email":false,"aulas":true,"tarefas":true}');
+        appearanceSettings = JSON.parse(localStorage.getItem(`appearanceSettings_${userId}`) || '{"theme":"dark","accent":"#8b5cf6","fontSize":14}');
+    }
+    
+    userPhotoURL = localStorage.getItem('userPhotoURL');
+    
+    // Aplicar tema
+    if (appearanceSettings.accent) {
+        document.documentElement.style.setProperty('--accent-purple', appearanceSettings.accent);
+    }
+}
+
+// ============================================
 // ✅ FUNÇÃO CORRIGIDA: SALVAR DADOS
 // ============================================
 async function salvarTodosDados() {
@@ -86,7 +150,7 @@ async function salvarTodosDados() {
         
         if (userPhotoURL) localStorage.setItem('userPhotoURL', userPhotoURL);
         
-        // ✅ Backup local com UUID
+        // Backup local com UUID
         const userId = usuarioLogado.id;
         localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
         localStorage.setItem(`notificacoesSettings_${userId}`, JSON.stringify(notificacoesSettings));
@@ -101,43 +165,7 @@ async function salvarTodosDados() {
 }
 
 // ============================================
-// ✅ FUNÇÃO CORRIGIDA: CARREGAR DADOS
-// ============================================
-function loadAllData() {
-    const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (!usuarioSalvo || !usuarioSalvo.id) {
-        window.location.href = '../../login/index.html';
-        return;
-    }
-    
-    usuarioLogado = JSON.parse(usuarioSalvo);
-    console.log('[Perfil Mobile] Usuário:', usuarioLogado.id);
-    
-    if (window.CacheManager) {
-        window.CacheManager.init();
-        window.CacheManager.currentUserId = usuarioLogado.id;
-        
-        // ✅ PRIORIDADE: CacheManager
-        notifications = window.CacheManager.get('notifications', []);
-        notificacoesSettings = window.CacheManager.get('notificacoesSettings', { push: true, email: false, aulas: true, tarefas: true });
-        appearanceSettings = window.CacheManager.get('appearanceSettings', { theme: 'dark', accent: '#8b5cf6', fontSize: 14 });
-    } else {
-        // Fallback para localStorage com UUID
-        const userId = usuarioLogado.id;
-        notifications = JSON.parse(localStorage.getItem(`${userId}_notifications`) || '[]');
-        notificacoesSettings = JSON.parse(localStorage.getItem(`notificacoesSettings_${userId}`) || '{"push":true,"email":false,"aulas":true,"tarefas":true}');
-        appearanceSettings = JSON.parse(localStorage.getItem(`appearanceSettings_${userId}`) || '{"theme":"dark","accent":"#8b5cf6","fontSize":14}');
-    }
-    
-    userPhotoURL = localStorage.getItem('userPhotoURL');
-    
-    if (appearanceSettings.accent) {
-        document.documentElement.style.setProperty('--accent-purple', appearanceSettings.accent);
-    }
-}
-
-// ============================================
-// PERFIL
+// NOTIFICAÇÕES
 // ============================================
 function updateNotificationBadge() {
     const badge = document.getElementById('notification-badge');
@@ -209,6 +237,9 @@ function clearAllNotifications() {
     });
 }
 
+// ============================================
+// PERFIL
+// ============================================
 function loadProfileData() {
     if (!usuarioLogado) return;
     
@@ -462,34 +493,58 @@ async function syncToCloud() {
 }
 
 // ============================================
+// FUNÇÃO PARA ABRIR FAQ
+// ============================================
+function toggleFaq(element) {
+    element.classList.toggle('active');
+}
+
+// ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('👤 Iniciando perfil mobile com Supabase...');
     
+    // ✅ CARREGAR DADOS (COM VERIFICAÇÃO CORRETA)
     loadAllData();
     
-    if (usuarioLogado) {
-        const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
-        const headerName = document.getElementById('header-name');
-        const profileName = document.getElementById('profile-name');
-        const profileEmail = document.getElementById('profile-email');
-        
-        if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        if (profileName) profileName.textContent = usuarioLogado.nome || nomeExibicao;
-        if (profileEmail) profileEmail.textContent = usuarioLogado.email;
-        
-        if (window.initSync && !window._perfilMobileSyncInit) {
-            window._perfilMobileSyncInit = true;
-            await window.initSync({ force: false });
-        }
-        
-        await carregarFotoPerfil();
+    // ✅ VERIFICAR SE O USUÁRIO FOI CARREGADO CORRETAMENTE
+    if (!usuarioLogado) {
+        console.error('[Perfil] Falha ao carregar usuário');
+        window.location.href = '../../login/index.html';
+        return;
     }
     
+    // Atualizar UI
+    const nomeExibicao = usuarioLogado.nome || usuarioLogado.displayName || usuarioLogado.email?.split('@')[0] || 'Usuário';
+    const headerName = document.getElementById('header-name');
+    const profileName = document.getElementById('profile-name');
+    const profileEmail = document.getElementById('profile-email');
+    
+    if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
+    if (profileName) profileName.textContent = usuarioLogado.nome || nomeExibicao;
+    if (profileEmail) profileEmail.textContent = usuarioLogado.email;
+    
+    // Inicializar Sync
+    if (window.initSync && !window._perfilMobileSyncInit) {
+        window._perfilMobileSyncInit = true;
+        try {
+            await window.initSync({ force: false });
+            console.log('[Perfil] Sync inicializado ✅');
+        } catch(e) {
+            console.warn('[Perfil] Erro no sync:', e);
+        }
+    }
+    
+    // Carregar foto
+    await carregarFotoPerfil();
     updateNotificationBadge();
     
-    // Eventos UI
+    // ============================================
+    // EVENTOS DA UI
+    // ============================================
+    
+    // Notificações
     document.getElementById('notification-bell')?.addEventListener('click', () => {
         document.getElementById('notifications-modal').classList.add('active');
         renderNotificationsModal();
@@ -510,6 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
+    // Avatar - Mudar foto
     document.querySelector('.btn-change-avatar')?.addEventListener('click', () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -521,6 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.click();
     });
     
+    // Menu Items
     document.querySelectorAll('.profile-menu .menu-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -558,6 +615,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
+    // Fechar modais
     document.querySelectorAll('.btn-back, .btn-close').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -570,8 +628,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
+    // Salvar dados pessoais
     document.getElementById('btn-save-dados')?.addEventListener('click', salvarDadosPessoais);
     
+    // Salvar senha
     document.getElementById('btn-save-senha')?.addEventListener('click', () => {
         const currentPassword = document.getElementById('current-password')?.value;
         const newPassword = document.getElementById('new-password')?.value;
@@ -593,6 +653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeModal('seguranca-modal');
     });
     
+    // Salvar notificações
     document.getElementById('btn-save-notificacoes')?.addEventListener('click', () => {
         notificacoesSettings = {
             push: document.getElementById('toggle-push')?.checked,
@@ -605,6 +666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Notificações salvas!', 'success');
     });
     
+    // Temas
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
@@ -614,6 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
+    // Cores
     document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
         option.addEventListener('click', () => {
             document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active'));
@@ -623,10 +686,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
+    // Tamanho da fonte
     document.getElementById('font-size-slider')?.addEventListener('input', (e) => {
         document.body.style.fontSize = `${e.target.value}px`;
     });
     
+    // Salvar aparência
     document.getElementById('btn-save-aparencia')?.addEventListener('click', () => {
         appearanceSettings = {
             theme: selectedTheme,
@@ -639,6 +704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Aparência salva!', 'success');
     });
     
+    // Navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const view = item.dataset.view;
@@ -649,7 +715,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // ✅ LISTENERS GLOBAIS
+    // ============================================
+    // LISTENERS GLOBAIS
+    // ============================================
     window.addEventListener('cloudDataLoaded', async () => {
         console.log('[Perfil Mobile] 📡 Dados da nuvem carregados!');
         loadAllData();
@@ -673,7 +741,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    // ✅ ESCUTAR MUDANÇAS NO localStorage (outras abas)
+    // Escutar mudanças no localStorage (outras abas)
     window.addEventListener('storage', (e) => {
         if (e.key && (e.key.includes('_notifications') || 
             e.key.includes('_usuarioLogado') || 
