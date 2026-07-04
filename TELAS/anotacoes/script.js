@@ -473,3 +473,35 @@ setTimeout(() => {
 }, 2000);
 
 console.log('%c📝 Anotações com sincronização completa (CacheManager)!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+// Toggle da sidebar direita
+function toggleRightSidebar() {
+    const mainContent = document.querySelector('.main-content');
+    const btnToggle = document.getElementById('btnToggleSidebar');
+    
+    if (mainContent && btnToggle) {
+        mainContent.classList.toggle('sidebar-collapsed');
+        btnToggle.classList.toggle('active');
+        
+        // Salvar preferência no localStorage
+        const isCollapsed = mainContent.classList.contains('sidebar-collapsed');
+        localStorage.setItem('anotacoes_sidebar_collapsed', isCollapsed);
+        
+        // Atualizar ícone
+        const icon = btnToggle.querySelector('i');
+        if (icon) {
+            icon.className = isCollapsed ? 'fas fa-columns' : 'fas fa-columns';
+        }
+    }
+}
+
+// Restaurar estado da sidebar ao carregar
+window.addEventListener('DOMContentLoaded', () => {
+    const isCollapsed = localStorage.getItem('anotacoes_sidebar_collapsed') === 'true';
+    const mainContent = document.querySelector('.main-content');
+    const btnToggle = document.getElementById('btnToggleSidebar');
+    
+    if (isCollapsed && mainContent && btnToggle) {
+        mainContent.classList.add('sidebar-collapsed');
+        btnToggle.classList.add('active');
+    }
+});

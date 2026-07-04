@@ -19,12 +19,19 @@
     --success: #2ecc71;
     --danger: #ef4444;
     --border-color: #2a2a4a;
+    --bg-color: #1a1a2e;
+}
+
+html {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
 }
 
 body {
-    background-color: var(--bg-primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
     color: var(--text-primary);
-    line-height: 1.6;
+    overflow-x: hidden;
 }
 
 .container {
@@ -32,9 +39,10 @@ body {
     min-height: 100vh;
 }
 
+/* ====== SIDEBAR PADRONIZADA ====== */
 .sidebar {
     width: 260px;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    background: #0a0a1a;
     padding: 2rem 1.5rem;
     display: flex;
     flex-direction: column;
@@ -56,9 +64,17 @@ body {
     border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-.logo i { font-size: 1.5rem; color: #9333ea; }
+.logo i {
+    font-size: 1.5rem;
+    color: #8b5cf6;
+}
 
-.menu { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; }
+.menu {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
 
 .menu-item {
     display: flex;
@@ -67,23 +83,27 @@ body {
     padding: 1rem;
     border-radius: 12px;
     text-decoration: none;
-    color: #94a3b8;
+    color: #9ca3af;
     transition: all 0.3s ease;
     cursor: pointer;
 }
 
-.menu-item i { font-size: 1.25rem; width: 24px; text-align: center; }
+.menu-item i {
+    font-size: 1.25rem;
+    width: 24px;
+    text-align: center;
+}
 
 .menu-item:hover {
-    background-color: rgba(147, 51, 234, 0.15);
+    background-color: rgba(139, 92, 246, 0.1);
     color: white;
     transform: translateX(5px);
 }
 
 .menu-item.active {
-    background: linear-gradient(135deg, #9333ea, #7c3aed);
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     color: white;
-    box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
 }
 
 .menu-bottom {
@@ -122,6 +142,24 @@ body {
     border-color: #ef4444;
 }
 
+/* Responsivo - tablet */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 80px;
+        padding: 2rem 1rem;
+    }
+    .logo span, .menu-item span {
+        display: none;
+    }
+    .menu-item {
+        justify-content: center;
+        padding: 1rem 0.5rem;
+    }
+    .main-content {
+        margin-left: 80px;
+        width: calc(100% - 80px);
+    }
+}
 .main-content {
     flex: 1;
     margin-left: 260px;

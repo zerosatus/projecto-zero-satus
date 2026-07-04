@@ -38,21 +38,14 @@
                     <i class="fas fa-sticky-note"></i>
                     <span>Anotações</span>
                 </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-users"></i>
-                    <span>Comunidade</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-question-circle"></i>
-                    <span>Ajuda</span>
-                </a>
+               
             </nav>
             
             <div class="menu-bottom">
                 <div class="logout-section">
                     <button class="logout-btn" onclick="logout()">
                         <i class="fas fa-sign-out-alt"></i>
-                        <span>Sair</span>
+                        <span>Ta biz em sair?</span>
                     </button>
                 </div>
             </div>
@@ -210,6 +203,36 @@
             </form>
         </div>
     </div>
+    <!-- MODAL DE NOTIFICAÇÕES -->
+<div class="notif-modal" id="notifModal">
+    <div class="notif-modal-content">
+        <div class="notif-modal-header">
+            <h2><i class="fas fa-bell"></i> Notificações</h2>
+            <div class="notif-actions">
+                <button class="notif-btn-action" onclick="marcarTodasNotifLidas()">
+                    <i class="fas fa-check-double"></i> Marcar todas
+                </button>
+                <button class="notif-btn-action notif-btn-clear" onclick="limparNotificacoes()">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="notif-btn-close" onclick="fecharNotifModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="notif-tabs">
+            <button class="notif-tab active" data-filter="todas" onclick="filtrarNotif('todas', this)">Todas</button>
+            <button class="notif-tab" data-filter="nao-lidas" onclick="filtrarNotif('nao-lidas', this)">Não lidas</button>
+            <button class="notif-tab" data-filter="aulas" onclick="filtrarNotif('aulas', this)">Aulas</button>
+            <button class="notif-tab" data-filter="tarefas" onclick="filtrarNotif('tarefas', this)">Tarefas</button>
+        </div>
+
+        <div class="notif-list" id="notifList">
+            <!-- Notificações via JS -->
+        </div>
+    </div>
+</div>
 
   <!-- Supabase CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

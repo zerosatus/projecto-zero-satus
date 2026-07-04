@@ -10,6 +10,7 @@
 </head>
 <body>
     <div class="container">
+        <!-- SIDEBAR ESQUERDA -->
         <aside class="sidebar">
             <div class="logo">
                 <i class="fas fa-graduation-cap"></i>
@@ -39,26 +40,17 @@
                 </a>
             </nav>
             
-            <div class="menu-bottom">
-                <a href="#" class="menu-item">
-                    <i class="fas fa-users"></i>
-                    <span>Comunidade</span>
-                </a>
-                <a href="#" class="menu-item">
-                    <i class="fas fa-question-circle"></i>
-                    <span>Ajuda</span>
-                </a>
-            </div>
-            
             <div class="logout-section">
                 <button class="logout-btn" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
-                    <span>Sair</span>
+                    <span>Ta biz em sair?</span>
                 </button>
             </div>
         </aside>
 
+        <!-- CONTEÚDO PRINCIPAL -->
         <main class="main-content">
+            <!-- Editor de Anotações -->
             <div class="editor-container">
                 <div class="toolbar">
                     <div class="toolbar-group">
@@ -85,7 +77,14 @@
                         </select>
                     </div>
                     <div class="toolbar-spacer"></div>
-                    <button class="btn-save" onclick="saveNote()"><i class="fas fa-save"></i><span>Salvar</span></button>
+                   <div class="toolbar-spacer"></div>
+<!-- BOTÃO PARA TOGGLE DA SIDEBAR -->
+<button class="toolbar-btn" onclick="toggleRightSidebar()" title="Ocultar/Mostrar Anotações" id="btnToggleSidebar">
+    <i class="fas fa-columns"></i>
+</button>
+<button class="btn-save" onclick="saveNote()">
+    <i class="fas fa-save"></i><span>Salvar</span>
+</button>
                 </div>
 
                 <div class="editor-wrapper">
@@ -98,49 +97,44 @@
                     </div>
                 </div>
             </div>
-        </main>
 
-        <aside class="right-sidebar">
-            <div class="sidebar-header">
-                <h3>Minhas Anotações</h3>
-                <button class="btn-new" onclick="createNewNote()"><i class="fas fa-plus"></i></button>
-            </div>
-            <div class="notes-list" id="notesList">
-                <div style="text-align:center;padding:40px;color:var(--text-secondary)">
-                    <i class="fas fa-sticky-note" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
-                    Nenhuma anotação<br>Clique em + para criar
+            <!-- SIDEBAR DIREITA (DENTRO DO MAIN-CONTENT!) -->
+            <aside class="right-sidebar">
+                <div class="sidebar-header">
+                    <h3>Minhas Anotações</h3>
+                    <button class="btn-new" onclick="createNewNote()"><i class="fas fa-plus"></i></button>
                 </div>
-            </div>
-            <div class="tags-section">
-                <h3>Tags</h3>
-                <div class="tags-list">
-                    <span class="tag">Física</span>
-                    <span class="tag">Matemática</span>
-                    <span class="tag">Programação</span>
-                    <span class="tag">Importante</span>
+                <div class="notes-list" id="notesList">
+                    <div style="text-align:center;padding:40px;color:var(--text-secondary)">
+                        <i class="fas fa-sticky-note" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
+                        Nenhuma anotação<br>Clique em + para criar
+                    </div>
                 </div>
-            </div>
-        </aside>
+                <div class="tags-section">
+                    <h3>Tags</h3>
+                    <div class="tags-list">
+                        <span class="tag">Física</span>
+                        <span class="tag">Matemática</span>
+                        <span class="tag">Programação</span>
+                        <span class="tag">Importante</span>
+                    </div>
+                </div>
+            </aside>
+        </main>
     </div>
 
     <div class="toast" id="toast"><i class="fas fa-check-circle"></i><span>Anotação salva com sucesso!</span></div>
 
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
-<script src="../mobile-telas/supabase-client.js"></script>
-<script src="../mobile-telas/database-service.js"></script>
-<script src="../mobile-telas/realtime-sync.js"></script>
-<script src="../mobile-telas/cache-manager.js"></script>
-<script src="../mobile-telas/shared-data.js"></script>
-<script src="../mobile-telas/sync-helper.js"></script>
-
-<!-- FUNCIONALIDADES -->
-<script src="../mobile-telas/daily-phrases.js"></script>
-<script src="../mobile-telas/notes-sync.js"></script>
-
-<!-- PÁGINA -->
-<script src="script.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../mobile-telas/supabase-client.js"></script>
+    <script src="../mobile-telas/database-service.js"></script>
+    <script src="../mobile-telas/realtime-sync.js"></script>
+    <script src="../mobile-telas/cache-manager.js"></script>
+    <script src="../mobile-telas/shared-data.js"></script>
+    <script src="../mobile-telas/sync-helper.js"></script>
+    <script src="../mobile-telas/daily-phrases.js"></script>
+    <script src="../mobile-telas/notes-sync.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

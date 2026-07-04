@@ -357,3 +357,156 @@ setInterval(() => {
 }, 30000);
 
 console.log('%c📊 Dashboard - Tema Roxo Escuro', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+// ====== SISTEMA DE NOTIFICAÇÕES ======
+let notifications = [];
+
+function carregarNotificacoes() {
+    if (!usuarioAtual) return;
+    const userId = usuarioAtual.id;
+    const saved = localStorage.getItem(`${userId}_notifications`);
+    notifications = saved ? JSON.parse(saved) : [
+        { id: 1, type: 'info', title: 'Bem-vindo!', message: 'Sistema de tarefas ativo', time: new Date().toISOString(), read: false }
+    ];
+    salvarNotificacoes();
+    atualizarBadgeNotif();
+}
+
+function salvarNotificacoes() {
+    if (!usuarioAtual) return;
+    const userId = usuarioAtual.id;
+    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+    if (window.CacheManager) {
+        window.CacheManager.set('notifications', notifications, true);
+    }
+    atualizarBadgeNotif();
+}
+
+function atualizarBadgeNotif() {
+    const badge = document.querySelector('.icon-btn .badge');
+    const naoLidas = notifications.filter(n => !n.read).length;
+    if (badge) {
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+}
+
+function abrirNotifModal() {
+    const modal = document.getElementById('notifModal');
+    if (modal) {
+        modal.classList.add('active');
+        renderizarNotificacoes('todas');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function fecharNotifModal() {
+    const modal = document.getElementById('notifModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function renderizarNotificacoes(filtro = 'todas') {
+    const container = document.getElementById('notifList');
+    if (!container) return;
+
+    let filtradas = [...notifications];
+    if (filtro === 'nao-lidas') filtradas = notifications.filter(n => !n.read);
+    else if (filtro === 'aulas') filtradas = notifications.filter(n => n.type === 'aula');
+    else if (filtro === 'tarefas') filtradas = notifications.filter(n => n.type === 'tarefa');
+
+    if (filtradas.length === 0) {
+        container.innerHTML = `
+            <div class="notif-empty">
+                <i class="fas fa-bell-slash"></i>
+                <p>Nenhuma notificação</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtradas.map(notif => `
+        <div class="notif-item ${notif.read ? 'read' : 'unread'}" onclick="marcarNotifLida('${notif.id}')">
+            <div class="notif-icon ${notif.type || 'info'}">
+                <i class="fas fa-${notif.type === 'aula' ? 'book' : notif.type === 'tarefa' ? 'tasks' : 'bell'}"></i>
+            </div>
+            <div class="notif-content">
+                <div class="notif-title">${escapeHtml(notif.title)}</div>
+                <div class="notif-message">${escapeHtml(notif.message)}</div>
+                <div class="notif-time">${formatarTempoAtras(notif.time)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filtrarNotif(filtro, btn) {
+    document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderizarNotificacoes(filtro);
+}
+
+function marcarNotifLida(id) {
+    const notif = notifications.find(n => n.id == id);
+    if (notif && !notif.read) {
+        notif.read = true;
+        salvarNotificacoes();
+        renderizarNotificacoes(document.querySelector('.notif-tab.active')?.dataset.filter || 'todas');
+    }
+}
+
+function marcarTodasNotifLidas() {
+    notifications.forEach(n => n.read = true);
+    salvarNotificacoes();
+    renderizarNotificacoes(document.querySelector('.notif-tab.active')?.dataset.filter || 'todas');
+    mostrarNotificacao('Todas marcadas como lidas!', 'success');
+}
+
+function limparNotificacoes() {
+    if (confirm('Limpar todas as notificações?')) {
+        notifications = [];
+        salvarNotificacoes();
+        renderizarNotificacoes('todas');
+        mostrarNotificacao('Notificações limpas!', 'success');
+    }
+}
+
+function formatarTempoAtras(timeString) {
+    if (!timeString) return '';
+    const now = new Date();
+    const notifTime = new Date(timeString);
+    const diffMins = Math.floor((now - notifTime) / 60000);
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `Há ${diffMins} min`;
+    if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
+    return notifTime.toLocaleDateString('pt-BR');
+}
+
+function adicionarNotificacao(type, title, message) {
+    notifications.unshift({
+        id: Date.now(),
+        type,
+        title,
+        message,
+        time: new Date().toISOString(),
+        read: false
+    });
+    salvarNotificacoes();
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => {
+    carregarNotificacoes();
+    
+    const bellBtn = document.querySelector('.icon-btn');
+    if (bellBtn) {
+        bellBtn.addEventListener('click', abrirNotifModal);
+    }
+    
+    const notifModal = document.getElementById('notifModal');
+    if (notifModal) {
+        notifModal.addEventListener('click', (e) => {
+            if (e.target === notifModal) fecharNotifModal();
+        });
+    }
+});
