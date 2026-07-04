@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Páginas que NÃO devem ser indexadas
+Disallow: /TELAS/login/
+Disallow: /mobile-telas/
+Disallow: /pc-pwa/
+
+# Sitemap
+Sitemap: https://zerosatus.vercel.app/sitemap.xml
