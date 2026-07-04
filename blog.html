@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Zero Satus - Dicas e Guias para Estudantes</title>
+    <meta name="description" content="Blog do Zero Satus com dicas, truques e guias para estudantes organizarem melhor seus estudos. Aprenda técnicas de produtividade e organização acadêmica.">
+    <meta name="keywords" content="blog estudantes, dicas de estudo, organização acadêmica, produtividade, Zero Satus, Moçambique">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="Zero Satus">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Blog Zero Satus - Dicas para Estudantes">
+    <meta property="og:description" content="Aprenda técnicas de organização e produtividade para sua vida acadêmica.">
+    <meta property="og:image" content="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg">
+    <meta property="og:url" content="https://zerosatus.vercel.app/blog.html">
+    <meta property="og:type" content="website">
+    
+    <link rel="canonical" href="https://zerosatus.vercel.app/blog.html">
+    <link rel="icon" href="imagem/favicon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero Satus logo">
+                </div>
+                <span class="logo-text">Zero Satus</span>
+            </div>
+            
+            <nav class="desktop-menu">
+                <ul>
+                    <li><a href="index.html#home">Início</a></li>
+                    <li><a href="index.html#features">Funcionalidades</a></li>
+                    <li><a href="blog.html" style="color: var(--accent);">Blog</a></li>
+                    <li><a href="index.html#contact">Contato</a></li>
+                </ul>
+            </nav>
+
+            <button class="btn-login" onclick="window.location.href='TELAS/login/index.html'">
+                <i class="fas fa-sign-in-alt"></i> Entrar
+            </button>
+        </div>
+    </header>
+
+    <!-- HERO DO BLOG -->
+    <section class="hero" style="min-height: 50vh; padding-top: 100px;">
+        <div class="container hero-content" style="flex-direction: column; text-align: center;">
+            <div class="hero-text" style="max-width: 800px; margin: 0 auto;">
+                <h1>
+                    Blog <span>Zero Satus</span>
+                </h1>
+                <p style="font-size: 1.2rem; margin-bottom: 30px;">
+                    Dicas, guias e técnicas para transformar sua vida acadêmica. 
+                    Aprenda a estudar melhor, organizar seu tempo e alcançar seus objetivos.
+                </p>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">6</span>
+                        <span class="stat-label">Artigos</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Gratuito</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">Novo</span>
+                        <span class="stat-label">Toda semana</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- LISTA DE ARTIGOS -->
+    <section class="features" style="padding: 60px 0;">
+        <div class="container">
+            <div class="section-title">
+                <h2>Últimos <span>Artigos</span></h2>
+                <p>Conteúdo fresco para impulsionar seus estudos</p>
+            </div>
+            
+            <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+                
+                <!-- Artigo 1 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/como-organizar-estudos.html'">
+                    <div class="feature-icon"><i class="fas fa-book-open"></i></div>
+                    <h3>Como Organizar seus Estudos na Faculdade</h3>
+                    <p>Guia completo com técnicas práticas para organizar matérias, tarefas e provas. Aprenda a criar um sistema eficiente de estudos.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+                        Ler artigo →
+                    </div>
+                </article>
+
+                <!-- Artigo 2 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/nao-perder-prazos.html'">
+                    <div class="feature-icon"><i class="fas fa-clock"></i></div>
+                    <h3>5 Dicas para Não Perder Prazos Acadêmicos</h3>
+                    <p>Nunca mais perca uma entrega! Confira nossas dicas infalíveis para gerenciar deadlines e entregar tudo no prazo.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+                        Ler artigo →
+                    </div>
+                </article>
+
+                <!-- Artigo 3 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/horario-aulas.html'">
+                    <div class="feature-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <h3>Como Criar um Horário de Aulas Eficiente</h3>
+                    <p>Aprenda a montar um horário semanal que maximize seu aprendizado e minimize o estresse. Passo a passo completo.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+                        Ler artigo →
+                    </div>
+                </article>
+
+                <!-- Artigo 4 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/metodos-anotacoes.html'">
+                    <div class="feature-icon"><i class="fas fa-edit"></i></div>
+                    <h3>Melhores Métodos de Anotações para Universitários</h3>
+                    <p>Descubra técnicas como Cornell, Mapas Mentais e Método Outline. Encontre o método perfeito para seu estilo de aprendizado.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+                        Ler artigo →
+                    </div>
+                </article>
+
+                <!-- Artigo 5 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/vencer-procrastinacao.html'">
+                    <div class="feature-icon"><i class="fas fa-brain"></i></div>
+                    <h3>Como Vencer a Procrastinação nos Estudos</h3>
+                    <p>Entenda por que procrastinamos e aprenda técnicas científicas para manter o foco e a motivação nos estudos.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+                        Ler artigo →
+                    </div>
+                </article>
+
+                <!-- Artigo 6 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/guia-zero-satus.html'">
+                    <div class="feature-icon"><i class="fas fa-rocket"></i></div>
+                    <h3>Guia Completo: Como Usar o Zero Satus</h3>
+                    <p>Tutorial completo de todas as funcionalidades do Zero Satus. Aprenda a aproveitar ao máximo a plataforma.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem;">
+                        Ler artigo →
+                    </div>
+                </article>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="container cta-content">
+            <h2>Quer colocar em prática?</h2>
+            <p>Comece a organizar seus estudos hoje mesmo com o Zero Satus!</p>
+            <div class="cta-buttons">
+                <button class="btn-primary" onclick="window.location.href='TELAS/login/index.html'">
+                    <i class="fas fa-rocket"></i> Criar conta gratuita
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-col">
+                    <div class="logo" style="margin-bottom: 20px;">
+                        <div class="logo-icon">
+                            <img src="https://i.postimg.cc/9M8BJgz0/IMG-20260228-230522-803-edit-630502892199888.jpg" alt="Zero Satus logo">
+                        </div>
+                        <span class="logo-text">Zero Satus</span>
+                    </div>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Plataforma acadêmica completa para estudantes organizarem sua rotina de estudos.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Navegação</h4>
+                    <ul>
+                        <li><a href="index.html">Início</a></li>
+                        <li><a href="blog.html">Blog</a></li>
+                        <li><a href="TELAS/login/index.html">Entrar</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Artigos Populares</h4>
+                    <ul>
+                        <li><a href="blog/como-organizar-estudos.html">Organizar estudos</a></li>
+                        <li><a href="blog/nao-perder-prazos.html">Não perder prazos</a></li>
+                        <li><a href="blog/vencer-procrastinacao.html">Vencer procrastinação</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Contato</h4>
+                    <ul>
+                        <li><i class="fas fa-envelope" style="margin-right: 10px;"></i> ########@gmail.com</li>
+                        <li><i class="fas fa-map-marker-alt" style="margin-right: 10px;"></i> Chimoio, MZ</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Zero Satus Plataforma Acadêmica. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

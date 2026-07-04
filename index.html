@@ -875,15 +875,16 @@
             </div>
             
             <!-- Menu Desktop -->
-            <nav class="desktop-menu">
-                <ul>
-                    <li><a href="#home">Início</a></li>
-                    <li><a href="#features">Funcionalidades</a></li>
-                    <li><a href="#modules">Módulos</a></li>
-                    <li><a href="#testimonials">Depoimentos</a></li>
-                    <li><a href="#contact">Contato</a></li>
-                </ul>
-            </nav>
+          <nav class="desktop-menu">
+    <ul>
+        <li><a href="#home">Início</a></li>
+        <li><a href="#features">Funcionalidades</a></li>
+        <li><a href="#modules">Módulos</a></li>
+        <li><a href="#blog">Blog</a></li>
+        <li><a href="#testimonials">Depoimentos</a></li>
+        <li><a href="#contact">Contato</a></li>
+    </ul>
+</nav>
 
             <!-- 🔥 BOTÃO INSTALAR - SÓ PC -->
             <button id="installAppBtn" class="install-btn">
@@ -1030,6 +1031,58 @@
             </div>
         </div>
     </section>
+        <!-- ============================================ -->
+    <!-- 🔥 BLOG - SEÇÃO DE DESTAQUE -->
+    <!-- ============================================ -->
+    
+    <section class="features" id="blog" style="background: linear-gradient(135deg, rgba(147, 51, 234, 0.05), transparent);">
+        <div class="container">
+            <div class="section-title">
+                <h2>Últimos <span>Artigos</span></h2>
+                <p>Dicas e guias para transformar sua vida acadêmica</p>
+            </div>
+            <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                
+                <!-- Artigo 1 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/como-organizar-estudos.html'">
+                    <div class="feature-icon"><i class="fas fa-book-open"></i></div>
+                    <h3>Como Organizar seus Estudos na Faculdade</h3>
+                    <p>Guia completo com técnicas práticas para organizar matérias, tarefas e provas. Aprenda a criar um sistema eficiente de estudos.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-top: 12px;">
+                        Ler artigo <i class="fas fa-arrow-right"></i>
+                    </div>
+                </article>
+
+                <!-- Artigo 2 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/nao-perder-prazos.html'">
+                    <div class="feature-icon"><i class="fas fa-clock"></i></div>
+                    <h3>5 Dicas para Não Perder Prazos Acadêmicos</h3>
+                    <p>Nunca mais perca uma entrega! Confira nossas dicas infalíveis para gerenciar deadlines e entregar tudo no prazo.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-top: 12px;">
+                        Ler artigo <i class="fas fa-arrow-right"></i>
+                    </div>
+                </article>
+
+                <!-- Artigo 3 -->
+                <article class="feature-card" style="cursor: pointer;" onclick="window.location.href='blog/vencer-procrastinacao.html'">
+                    <div class="feature-icon"><i class="fas fa-brain"></i></div>
+                    <h3>Como Vencer a Procrastinação nos Estudos</h3>
+                    <p>Entenda por que procrastinamos e aprenda técnicas científicas para manter o foco e a motivação nos estudos.</p>
+                    <div style="color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-top: 12px;">
+                        Ler artigo <i class="fas fa-arrow-right"></i>
+                    </div>
+                </article>
+
+            </div>
+            
+            <!-- Botão para ver todos os artigos -->
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="blog.html" class="btn-secondary" style="display: inline-flex; padding: 14px 32px; text-decoration: none;">
+                    <i class="fas fa-newspaper"></i> Ver todos os artigos
+                </a>
+            </div>
+        </div>
+    </section>
 
     <!-- ============================================ -->
     <!-- TESTIMONIALS -->
@@ -1139,16 +1192,16 @@
                         <a href="#"><i class="fab fa-github"></i></a>
                     </div>
                 </div>
-                <div class="footer-col">
-                    <h4>Módulos</h4>
-                    <ul>
-                        <li><a href='TELAS/login/index.html'>Início</a></li>
-                        <li><a href='TELAS/login/index.html'>Tarefas</a></li>
-                        <li><a href='TELAS/login/index.html'>Anotações</a></li>
-                        <li><a href='TELAS/login/index.html'>Calendário</a></li>
-                        <li><a href='TELAS/login/index.html'>Perfil</a></li>
-                    </ul>
-                </div>
+              <div class="footer-col">
+    <h4>Links Úteis</h4>
+    <ul>
+        <li><a href='#'>Sobre nós</a></li>
+        <li><a href='blog.html'>Blog</a></li>
+        <li><a href='#'>FAQ</a></li>
+        <li><a href='#'>Suporte</a></li>
+        <li><a href='#'>Termos de uso</a></li>
+    </ul>
+</div>
                 <div class="footer-col">
                     <h4>Links Úteis</h4>
                     <ul>
