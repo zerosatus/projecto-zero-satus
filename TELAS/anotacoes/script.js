@@ -1,4 +1,4 @@
-// anotacoes/script.js - COMPLETO CORRIGIDO (SEM RECURSÃO)
+// anotacoes/script.js - COMPLETO CORRIGIDO (SEM DUPLICAÇÃO)
 
 window.addEventListener('DOMContentLoaded', async () => {
     const usuario = localStorage.getItem('usuarioLogado');
@@ -19,6 +19,7 @@ let anotacaoAtualId = null;
 let autoSaveTimer = null;
 let isSaving = false;
 let _isLoading = false;
+let _criandoAnotacao = false;
 
 function inicializarAnotacoes() {
     carregarAnotacoesInterno();
@@ -33,8 +34,31 @@ function configurarEventos() {
     if (editor) editor.addEventListener('input', () => programarAutoSave());
     if (noteTitle) noteTitle.addEventListener('input', () => programarAutoSave());
     
+    // 🔥 CORRIGIDO: PREVENIR DUPLICAÇÃO DE EVENTOS
     const btnNew = document.querySelector('.btn-new');
-    if (btnNew) btnNew.addEventListener('click', criarNovaAnotacao);
+    if (btnNew) {
+        // Remover todos os listeners antigos clonando
+        const newBtn = btnNew.cloneNode(true);
+        btnNew.parentNode.replaceChild(newBtn, btnNew);
+        // Adicionar novo listener
+        newBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            criarNovaAnotacao();
+        });
+    }
+    
+    // 🔥 CORRIGIDO: PREVENIR DUPLICAÇÃO DO BOTÃO SALVAR
+    const btnSave = document.querySelector('.btn-save');
+    if (btnSave) {
+        const saveBtn = btnSave.cloneNode(true);
+        btnSave.parentNode.replaceChild(saveBtn, btnSave);
+        saveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            salvarAnotacaoAtual();
+            mostrarToast('Anotação salva!', 'success');
+        });
+    }
     
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') { 
@@ -66,7 +90,7 @@ function configurarEventos() {
 }
 
 // ============================================
-// ✅ FUNÇÃO CORRIGIDA: CARREGAR ANOTAÇÕES (SEM RECURSÃO)
+// ✅ CARREGAR ANOTAÇÕES (SEM RECURSÃO)
 // ============================================
 function carregarAnotacoesInterno() {
     if (_isLoading) return;
@@ -122,7 +146,7 @@ function carregarAnotacoesInterno() {
 }
 
 // ============================================
-// ✅ FUNÇÃO CORRIGIDA: SALVAR ANOTAÇÕES
+// ✅ SALVAR ANOTAÇÕES
 // ============================================
 function salvarAnotacoes() {
     const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
@@ -142,7 +166,7 @@ function salvarAnotacoes() {
 }
 
 // ============================================
-// ✅ FUNÇÃO CORRIGIDA: SALVAR ANOTAÇÃO ATUAL
+// ✅ SALVAR ANOTAÇÃO ATUAL
 // ============================================
 function salvarAnotacaoAtual() {
     if (!anotacaoAtualId || isSaving) return;
@@ -189,42 +213,81 @@ function salvarAnotacaoAtual() {
 }
 
 // ============================================
-// ✅ FUNÇÃO CORRIGIDA: CRIAR NOVA ANOTAÇÃO
+// ✅ CRIAR NOVA ANOTAÇÃO (CORRIGIDO - SEM DUPLICAR)
 // ============================================
 function criarNovaAnotacao() {
+    // IMPEDIR CRIAÇÃO DUPLICADA
+    if (_criandoAnotacao) {
+        console.log('[Anotacoes] ⏳ Aguarde, já está criando uma anotação...');
+        return;
+    }
+    
+    // Salvar anotação atual antes de criar nova
     if (anotacaoAtualId) {
         salvarAnotacaoAtual();
     }
     
-    const dataAtual = new Date().toISOString();
-    const novaAnotacao = {
-        id: gerarId(),
-        titulo: '',
-        conteudo: '',
-        dataModificacao: dataAtual,
-        dataCriacao: dataAtual,
-        updated_at: dataAtual,
-        created_at: dataAtual
-    };
+    _criandoAnotacao = true;
     
-    anotacoes.unshift(novaAnotacao);
-    anotacaoAtualId = novaAnotacao.id;
-    
-    const titleInput = document.querySelector('.note-title');
-    const editor = document.getElementById('editor');
-    
-    if (titleInput) titleInput.value = '';
-    if (editor) editor.innerHTML = '';
-    
-    renderizarListaAnotacoes();
-    salvarAnotacoes();
-    
-    if (titleInput) titleInput.focus();
-    mostrarToast('Nova anotação criada!', 'success');
+    try {
+        const dataAtual = new Date().toISOString();
+        
+        // VERIFICAR SE JÁ EXISTE UMA ANOTAÇÃO VAZIA
+        const anotacaoVaziaExistente = anotacoes.find(a => 
+            (!a.titulo || a.titulo === '') && 
+            (!a.conteudo || a.conteudo === '' || a.conteudo === '<p><br></p>' || a.conteudo === '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">✨ Nenhuma anotação selecionada<br>Clique em + para criar uma nova anotação</p>')
+        );
+        
+        if (anotacaoVaziaExistente) {
+            // Se já existe uma vazia, só carregar ela
+            anotacaoAtualId = anotacaoVaziaExistente.id;
+            carregarAnotacao(anotacaoVaziaExistente.id);
+            mostrarToast('Já existe uma anotação vazia', 'info');
+            _criandoAnotacao = false;
+            return;
+        }
+        
+        const novaAnotacao = {
+            id: gerarId(),
+            titulo: '',
+            conteudo: '',
+            dataModificacao: dataAtual,
+            dataCriacao: dataAtual,
+            updated_at: dataAtual,
+            created_at: dataAtual
+        };
+        
+        // Adicionar nova anotação no INÍCIO da lista
+        anotacoes.unshift(novaAnotacao);
+        anotacaoAtualId = novaAnotacao.id;
+        
+        const titleInput = document.querySelector('.note-title');
+        const editor = document.getElementById('editor');
+        
+        if (titleInput) titleInput.value = '';
+        if (editor) editor.innerHTML = '';
+        
+        renderizarListaAnotacoes();
+        salvarAnotacoes();
+        
+        if (titleInput) titleInput.focus();
+        mostrarToast('Nova anotação criada!', 'success');
+        
+        console.log('[Anotacoes] ✅ Nova anotação criada:', novaAnotacao.id);
+        
+    } catch (error) {
+        console.error('[Anotacoes] Erro ao criar anotação:', error);
+        mostrarToast('Erro ao criar anotação', 'error');
+    } finally {
+        // Liberar o flag após um pequeno delay
+        setTimeout(() => {
+            _criandoAnotacao = false;
+        }, 500);
+    }
 }
 
 // ============================================
-// FUNÇÃO: CARREGAR DO CACHE SEM PERDER O EDITOR
+// CARREGAR DO CACHE SEM PERDER O EDITOR
 // ============================================
 function carregarAnotacoesDoCacheSemPerderEditor() {
     if (!window.CacheManager || _isLoading) return;
@@ -413,6 +476,8 @@ function mostrarToast(mensagem, tipo = 'success') {
     
     if (tipo === 'error') {
         toast.style.background = 'linear-gradient(135deg, #d63031, #c0392b)';
+    } else if (tipo === 'info') {
+        toast.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
     } else {
         toast.style.background = 'linear-gradient(135deg, #00b894, #059669)';
     }
@@ -440,7 +505,7 @@ function logout() {
 }
 
 // ============================================
-// FUNÇÕES GLOBAIS PARA SINCRONIZAÇÃO - CORRIGIDAS
+// FUNÇÕES GLOBAIS PARA SINCRONIZAÇÃO
 // ============================================
 
 window.carregarAnotacoes = function() {
@@ -458,22 +523,9 @@ window.forcarSincronizacaoAnotacoes = async function() {
     }
 };
 
-// NAVEGAÇÃO DO MENU
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', function() {
-        if (this.href && !this.href.endsWith('#')) {
-            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-            this.classList.add('active');
-        }
-    });
-});
-
-setTimeout(() => {
-    carregarAnotacoesDoCacheSemPerderEditor();
-}, 2000);
-
-console.log('%c📝 Anotações com sincronização completa (CacheManager)!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+// ============================================
 // Toggle da sidebar direita
+// ============================================
 function toggleRightSidebar() {
     const mainContent = document.querySelector('.main-content');
     const btnToggle = document.getElementById('btnToggleSidebar');
@@ -482,11 +534,9 @@ function toggleRightSidebar() {
         mainContent.classList.toggle('sidebar-collapsed');
         btnToggle.classList.toggle('active');
         
-        // Salvar preferência no localStorage
         const isCollapsed = mainContent.classList.contains('sidebar-collapsed');
         localStorage.setItem('anotacoes_sidebar_collapsed', isCollapsed);
         
-        // Atualizar ícone
         const icon = btnToggle.querySelector('i');
         if (icon) {
             icon.className = isCollapsed ? 'fas fa-columns' : 'fas fa-columns';
@@ -505,3 +555,20 @@ window.addEventListener('DOMContentLoaded', () => {
         btnToggle.classList.add('active');
     }
 });
+
+// NAVEGAÇÃO DO MENU
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', function() {
+        if (this.href && !this.href.endsWith('#')) {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+        }
+    });
+});
+
+setTimeout(() => {
+    carregarAnotacoesDoCacheSemPerderEditor();
+}, 2000);
+
+console.log('%c📝 Anotações com sincronização completa (CacheManager)!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c✅ Correção: Não cria mais anotações duplicadas!', 'color: #10b981; font-size: 14px; font-weight: bold;');

@@ -77,14 +77,14 @@
                         </select>
                     </div>
                     <div class="toolbar-spacer"></div>
-                   <div class="toolbar-spacer"></div>
-<!-- BOTÃO PARA TOGGLE DA SIDEBAR -->
-<button class="toolbar-btn" onclick="toggleRightSidebar()" title="Ocultar/Mostrar Anotações" id="btnToggleSidebar">
-    <i class="fas fa-columns"></i>
-</button>
-<button class="btn-save" onclick="saveNote()">
-    <i class="fas fa-save"></i><span>Salvar</span>
-</button>
+                    <div class="toolbar-spacer"></div>
+                    <!-- BOTÃO PARA TOGGLE DA SIDEBAR -->
+                    <button class="toolbar-btn" onclick="toggleRightSidebar()" title="Ocultar/Mostrar Anotações" id="btnToggleSidebar">
+                        <i class="fas fa-columns"></i>
+                    </button>
+                    <button class="btn-save" id="btnSaveNote">
+                        <i class="fas fa-save"></i><span>Salvar</span>
+                    </button>
                 </div>
 
                 <div class="editor-wrapper">
@@ -102,21 +102,13 @@
             <aside class="right-sidebar">
                 <div class="sidebar-header">
                     <h3>Minhas Anotações</h3>
-                    <button class="btn-new" onclick="createNewNote()"><i class="fas fa-plus"></i></button>
+                    <!-- 🔥 CORRIGIDO: SEM onclick no HTML, apenas ID -->
+                    <button class="btn-new" id="btnNewNote"><i class="fas fa-plus"></i></button>
                 </div>
                 <div class="notes-list" id="notesList">
                     <div style="text-align:center;padding:40px;color:var(--text-secondary)">
                         <i class="fas fa-sticky-note" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
                         Nenhuma anotação<br>Clique em + para criar
-                    </div>
-                </div>
-                <div class="tags-section">
-                    <h3>Tags</h3>
-                    <div class="tags-list">
-                        <span class="tag">Física</span>
-                        <span class="tag">Matemática</span>
-                        <span class="tag">Programação</span>
-                        <span class="tag">Importante</span>
                     </div>
                 </div>
             </aside>
