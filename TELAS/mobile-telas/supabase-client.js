@@ -13,9 +13,6 @@ function initSupabase() {
     return supabaseClient;
 }
 
-// ============================================
-// 🔥 FUNÇÃO CORRIGIDA: GERAR ID ÚNICO (UUID V4)
-// ============================================
 function generateId() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
@@ -27,9 +24,6 @@ function generateId() {
     });
 }
 
-// ============================================
-// FUNÇÃO PARA COMPACTAR IMAGEM
-// ============================================
 async function compressImage(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -641,7 +635,7 @@ const StorageService = {
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS - 🔥 VERSÃO CORRIGIDA
+// SERVIÇO DE BANCO DE DADOS - CORRIGIDO
 // ============================================
 const DatabaseService = {
     async getCurrentUserId() {
@@ -724,7 +718,6 @@ const DatabaseService = {
         }
     },
 
-    // 🔥 CORRIGIDO: NOTES
     async getNotes(userId) {
         const client = initSupabase();
         if (!client) return [];
@@ -754,7 +747,6 @@ const DatabaseService = {
         }
     },
 
-    // 🔥 CORRIGIDO: saveNotes com DELETE + INSERT e UUIDs novos
     async saveNotes(userId, notes) {
         const client = initSupabase();
         if (!client) return false;
@@ -762,7 +754,6 @@ const DatabaseService = {
         try {
             console.log(`[DB] Salvando ${notes?.length || 0} anotações para ${userId}`);
 
-            // 🔥 DELETAR TODAS AS ANOTAÇÕES EXISTENTES
             const { error: deleteError } = await client
                 .from('notes')
                 .delete()
@@ -778,7 +769,6 @@ const DatabaseService = {
                 return true;
             }
 
-            // 🔥 GERAR NOVOS IDs (UUID) PARA CADA ANOTAÇÃO
             const notesToInsert = notes.map(note => ({
                 id: generateId(),
                 user_id: userId,
@@ -788,7 +778,6 @@ const DatabaseService = {
                 updated_at: new Date().toISOString()
             }));
 
-            // 🔥 INSERIR TODAS AS ANOTAÇÕES
             const { error } = await client.from('notes').insert(notesToInsert);
             if (error) {
                 console.error('[DB] Erro ao inserir notes:', error);
@@ -803,7 +792,6 @@ const DatabaseService = {
         }
     },
 
-    // 🔥 CORRIGIDO: CALENDAR EVENTS
     async getCalendarEvents(userId) {
         const client = initSupabase();
         if (!client) return [];
@@ -894,7 +882,13 @@ const DatabaseService = {
                 console.error('[DB] Erro ao buscar horário:', error);
             }
 
-            return data?.schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
+            const schedule = data?.schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
+            const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+            dias.forEach(day => {
+                if (!schedule[day]) schedule[day] = [];
+            });
+
+            return schedule;
         } catch (error) {
             console.error('[DB] Erro ao buscar horário:', error);
             return { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
@@ -906,19 +900,47 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
-            const { error } = await client
-                .from('weekly_schedule')
-                .upsert({
-                    user_id: userId,
-                    schedule: schedule,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+            const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+            dias.forEach(day => {
+                if (!schedule[day]) schedule[day] = [];
+            });
 
-            if (error) throw error;
-            console.log('[DB] Horário salvo');
+            const { data: existing } = await client
+                .from('weekly_schedule')
+                .select('user_id')
+                .eq('user_id', userId)
+                .single();
+
+            let error;
+            if (existing) {
+                const { error: updateError } = await client
+                    .from('weekly_schedule')
+                    .update({
+                        schedule: schedule,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', userId);
+                error = updateError;
+            } else {
+                const { error: insertError } = await client
+                    .from('weekly_schedule')
+                    .insert({
+                        user_id: userId,
+                        schedule: schedule,
+                        updated_at: new Date().toISOString()
+                    });
+                error = insertError;
+            }
+
+            if (error) {
+                console.error('[DB] Erro ao salvar weekly schedule:', error);
+                return false;
+            }
+
+            console.log('[DB] Weekly schedule salvo com sucesso');
             return true;
         } catch (error) {
-            console.error('[DB] Erro ao salvar horário:', error);
+            console.error('[DB] Erro ao salvar weekly schedule:', error);
             return false;
         }
     },
@@ -950,16 +972,43 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
-            const { error } = await client
-                .from('time_slots')
-                .upsert({
-                    user_id: userId,
-                    slots: slots,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+            if (!slots || !Array.isArray(slots)) {
+                slots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            }
 
-            if (error) throw error;
-            console.log('[DB] Time slots salvos');
+            const { data: existing } = await client
+                .from('time_slots')
+                .select('user_id')
+                .eq('user_id', userId)
+                .single();
+
+            let error;
+            if (existing) {
+                const { error: updateError } = await client
+                    .from('time_slots')
+                    .update({
+                        slots: slots,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', userId);
+                error = updateError;
+            } else {
+                const { error: insertError } = await client
+                    .from('time_slots')
+                    .insert({
+                        user_id: userId,
+                        slots: slots,
+                        updated_at: new Date().toISOString()
+                    });
+                error = insertError;
+            }
+
+            if (error) {
+                console.error('[DB] Erro ao salvar time slots:', error);
+                return false;
+            }
+
+            console.log('[DB] Time slots salvos com sucesso');
             return true;
         } catch (error) {
             console.error('[DB] Erro ao salvar time slots:', error);
@@ -1056,36 +1105,22 @@ const DatabaseService = {
         try {
             console.log('[DB] Atualizando perfil para:', userId);
 
-            let existingColumns = [];
-            try {
-                const { data: columns } = await client
-                    .from('profiles')
-                    .select('*')
-                    .limit(1);
-                if (columns && columns.length > 0) {
-                    existingColumns = Object.keys(columns[0]);
-                }
-            } catch (e) {
-                console.warn('[DB] Não foi possível verificar colunas, usando campos padrão');
-            }
+            const updateData = {
+                updated_at: new Date().toISOString()
+            };
 
             const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero'];
-            const updateData = {};
 
             for (const field of allowedFields) {
                 if (profile[field] !== undefined && profile[field] !== null) {
-                    if (existingColumns.length === 0 || existingColumns.includes(field)) {
-                        updateData[field] = profile[field];
-                    }
+                    updateData[field] = profile[field];
                 }
             }
 
-            if (Object.keys(updateData).length === 0) {
+            if (Object.keys(updateData).length <= 1) {
                 console.log('[DB] Nenhum campo válido para atualizar');
                 return true;
             }
-
-            updateData.updated_at = new Date().toISOString();
 
             const { error } = await client
                 .from('profiles')
@@ -1143,7 +1178,7 @@ const DatabaseService = {
             const disciplinasToInsert = disciplinas.map(d => ({
                 id: generateId(),
                 user_id: userId,
-                nome: d.nome,
+                nome: d.nome || 'Disciplina',
                 cor: d.cor || '#9333ea',
                 icone: d.icone || 'fa-book',
                 created_at: d.created_at || new Date().toISOString(),
@@ -1206,7 +1241,8 @@ const DatabaseService = {
 // ============================================
 window.SupabaseClient = {
     initSupabase: initSupabase,
-    getClient: initSupabase
+    getClient: initSupabase,
+    generateId: generateId
 };
 window.AuthService = AuthService;
 window.DatabaseService = DatabaseService;
@@ -1215,7 +1251,7 @@ window.StorageService = StorageService;
 // Disparar evento para informar que o Supabase está pronto
 window.dispatchEvent(new CustomEvent('supabaseReady'));
 
-console.log('[Supabase] Serviços carregados com sucesso! (VERSÃO CORRIGIDA - UUID FIX)');
+console.log('[Supabase] Serviços carregados com sucesso! (VERSÃO CORRIGIDA)');
 console.log('[Supabase] URL:', SUPABASE_URL);
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
 console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService);
