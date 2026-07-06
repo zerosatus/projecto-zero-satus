@@ -9,13 +9,10 @@
     let syncInterval = null;
     let pendingChanges = new Map();
     let retryQueue = [];
-    const SYNC_INTERVAL = 30000; // 30 segundos
+    const SYNC_INTERVAL = 30000;
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 5000;
 
-    // ============================================
-    // CONFIGURAÇÃO
-    // ============================================
     const config = {
         syncInterval: SYNC_INTERVAL,
         maxRetries: MAX_RETRIES,
@@ -24,9 +21,6 @@
         debug: true
     };
 
-    // ============================================
-    // LOG
-    // ============================================
     function log(message, type = 'info') {
         if (!config.debug) return;
 
@@ -46,9 +40,6 @@
         }
     }
 
-    // ============================================
-    // INICIALIZAÇÃO
-    // ============================================
     window.initSync = async function(options = {}) {
         if (isInitialized) {
             log('Já inicializado');
@@ -57,10 +48,8 @@
 
         log('Inicializando sistema de sincronização...');
 
-        // Merge options
         Object.assign(config, options);
 
-        // Verificar dependências
         if (!window.DatabaseService) {
             log('Aguardando DatabaseService...', 'warn');
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -75,7 +64,6 @@
             return false;
         }
 
-        // FORÇAR inicialização do CacheManager
         window.CacheManager.init();
 
         const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -92,19 +80,16 @@
             return false;
         }
 
-        // USAR O ID CORRETO (UUID)
         const userId = usuario.id || usuario.uid;
         if (!userId) {
             log('Usuário sem ID válido', 'error');
             return false;
         }
 
-        // FORÇAR o userId no CacheManager
         window.CacheManager.currentUserId = userId;
         log('Usuário identificado: ' + userId);
 
         try {
-            // CARREGAR dados da nuvem COM FORCE
             const loaded = await window.CacheManager.loadFromCloud(true);
 
             if (loaded) {
@@ -113,7 +98,6 @@
                 log('Nenhum dado encontrado na nuvem', 'warn');
             }
 
-            // Iniciar realtime sync
             setTimeout(() => {
                 if (window.CacheManager && window.CacheManager.startRealtimeSync) {
                     window.CacheManager.startRealtimeSync();
@@ -121,7 +105,6 @@
                 }
             }, 1000);
 
-            // Iniciar sync periódico
             if (config.autoSync) {
                 startPeriodicSync();
             }
@@ -138,9 +121,6 @@
         }
     };
 
-    // ============================================
-    // SYNC PERIÓDICO
-    // ============================================
     function startPeriodicSync() {
         if (syncInterval) {
             clearInterval(syncInterval);
@@ -163,9 +143,6 @@
         }
     }
 
-    // ============================================
-    // PERFORM SYNC
-    // ============================================
     async function performSync() {
         if (isSyncing) {
             log('Sync já em andamento');
@@ -182,7 +159,6 @@
                 return;
             }
 
-            // Lista de dados para sincronizar
             const dataTypes = [
                 'tasks', 'notes', 'calendarEvents',
                 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'
@@ -202,19 +178,16 @@
                 } catch (error) {
                     errorCount++;
                     log('❌ Erro ao sincronizar ' + type + ': ' + error.message, 'error');
-                    // Adicionar à fila de retry
                     retryQueue.push({ type, timestamp: Date.now(), attempts: 0 });
                 }
             }
 
-            // Processar fila de retry
             await processRetryQueue();
 
             lastSyncTime = Date.now();
             log('Sincronização concluída: ' + syncCount + ' tipos sincronizados, ' + errorCount + ' erros',
                 errorCount > 0 ? 'warn' : 'success');
 
-            // Disparar evento
             window.dispatchEvent(new CustomEvent('syncCompleted', {
                 detail: {
                     success: errorCount === 0,
@@ -231,9 +204,6 @@
         }
     }
 
-    // ============================================
-    // RETRY QUEUE
-    // ============================================
     async function processRetryQueue() {
         if (retryQueue.length === 0) return;
 
@@ -261,7 +231,6 @@
                 log('❌ Retry falhou para ' + item.type + ': ' + error.message, 'error');
             }
 
-            // Se ainda tem tentativas, manter na fila
             if (item.attempts < config.maxRetries) {
                 remaining.push(item);
             } else {
@@ -271,7 +240,6 @@
 
         retryQueue = remaining;
 
-        // Agendar próximo retry se houver itens
         if (retryQueue.length > 0) {
             setTimeout(() => {
                 processRetryQueue();
@@ -279,11 +247,6 @@
         }
     }
 
-    // ============================================
-    // FUNÇÕES PÚBLICAS
-    // ============================================
-
-    // Forçar sincronização manual
     window.forceSync = async function() {
         if (isSyncing) {
             log('Sync já em andamento, aguarde...', 'warn');
@@ -294,7 +257,6 @@
         return true;
     };
 
-    // Recarregar dados da nuvem
     window.refreshFromCloud = async function() {
         if (!window.CacheManager) {
             log('CacheManager não disponível', 'error');
@@ -320,16 +282,13 @@
         }
     };
 
-    // Forçar recarga da UI
     window.refreshAllData = function() {
         log('🔄 Recarregando dados da UI...');
 
         const pathname = window.location.pathname;
 
-        // Disparar evento genérico
         window.dispatchEvent(new CustomEvent('forceRefresh'));
 
-        // Atualizações específicas por página
         if (pathname.includes('/inicio/') || pathname.includes('/mobile-telas/')) {
             if (typeof atualizarFraseDoDiaMobile === 'function') atualizarFraseDoDiaMobile();
             if (typeof atualizarFraseDoDiaDesktop === 'function') atualizarFraseDoDiaDesktop();
@@ -363,21 +322,13 @@
         log('UI recarregada', 'success');
     };
 
-    // ============================================
-    // EVENT LISTENERS
-    // ============================================
-    let cloudLoadTimeout = null;
-
     window.addEventListener('cloudDataLoaded', (event) => {
-        if (cloudLoadTimeout) clearTimeout(cloudLoadTimeout);
-        cloudLoadTimeout = setTimeout(() => {
+        setTimeout(() => {
             log('Cloud data loaded, atualizando UI');
             window.refreshAllData();
-            cloudLoadTimeout = null;
         }, 300);
     });
 
-    // Detectar mudanças nos dados locais
     window.addEventListener('storage', (event) => {
         if (event.key && (event.key.includes('_tasks') ||
             event.key.includes('_notes') ||
@@ -385,14 +336,12 @@
             event.key.includes('_calendarEvents') ||
             event.key.includes('_weeklySchedule'))) {
             log('Dados locais alterados: ' + event.key);
-            // Agendar sync
             if (config.autoSync && !isSyncing) {
                 setTimeout(performSync, 1000);
             }
         }
     });
 
-    // Escutar eventos de dados atualizados
     window.addEventListener('dataUpdated', (event) => {
         if (event.detail && event.detail.key) {
             log(`Dados ${event.detail.key} atualizados via evento`);
@@ -402,14 +351,10 @@
         }
     });
 
-    // ============================================
-    // LOGOUT SEGURO
-    // ============================================
     window.safeLogout = async function() {
         log('Realizando logout seguro...');
 
         try {
-            // Tentar sync final
             if (!isSyncing) {
                 await performSync();
             }
@@ -433,15 +378,11 @@
 
         } catch (error) {
             log('Erro no logout: ' + error.message, 'error');
-            // Forçar logout
             localStorage.removeItem('usuarioLogado');
             window.location.href = '../login/index.html';
         }
     };
 
-    // ============================================
-    // STATUS
-    // ============================================
     window.getSyncStatus = function() {
         return {
             initialized: isInitialized,
@@ -456,10 +397,6 @@
         };
     };
 
-    // ============================================
-    // INICIALIZAÇÃO AUTOMÁTICA
-    // ============================================
-    // Tentar inicializar automaticamente se o usuário estiver logado
     document.addEventListener('DOMContentLoaded', () => {
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {

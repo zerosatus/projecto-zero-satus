@@ -60,7 +60,6 @@ class SupabaseCacheManager {
             const data = localStorage.getItem(storageKey);
             
             if (data === null) {
-                // Tentar chave antiga para migração
                 const usuario = localStorage.getItem('usuarioLogado');
                 if (usuario) {
                     try {
@@ -102,7 +101,6 @@ class SupabaseCacheManager {
         try {
             const storageKey = `${userId}_${key}`;
 
-            // Verificar se mudou
             const currentData = localStorage.getItem(storageKey);
             if (currentData !== null) {
                 try {
@@ -115,11 +113,9 @@ class SupabaseCacheManager {
 
             this._savingFlags.set(flagKey, true);
             
-            // Salvar no localStorage
             localStorage.setItem(storageKey, JSON.stringify(value));
             this._dataCache.set(key, value);
 
-            // Backup com chave antiga (compatibilidade)
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
@@ -130,10 +126,8 @@ class SupabaseCacheManager {
                 } catch(e) {}
             }
 
-            // Adicionar à fila de salvamento
             this._addToSaveQueue(key, value, userId);
 
-            // Notificar listeners
             if (notify) {
                 if (this.listeners.has(key)) {
                     this.listeners.get(key).forEach(cb => {
@@ -169,17 +163,20 @@ class SupabaseCacheManager {
         this._isSaving = true;
         
         try {
-            // Processar todos os itens da fila
             while (this._saveQueue.length > 0) {
                 const item = this._saveQueue.shift();
-                await this.saveToCloud(item.key, item.value, item.userId);
+                const userId = item.userId || this.getCurrentUserId();
+                if (!userId) {
+                    console.warn('[CacheManager] ❌ Sem userId para salvar:', item.key);
+                    continue;
+                }
+                await this.saveToCloud(item.key, item.value, userId);
             }
         } catch (error) {
             console.error('[CacheManager] Erro ao processar fila de salvamento:', error);
         } finally {
             this._isSaving = false;
             
-            // Se mais itens foram adicionados durante o processamento
             if (this._saveQueue.length > 0) {
                 setTimeout(() => this._processSaveQueue(), 500);
             }
@@ -230,7 +227,6 @@ class SupabaseCacheManager {
             console.log(`[CacheManager] ✅ ${key} salvo na nuvem (${Array.isArray(value) ? value.length : Object.keys(value).length} itens)`);
         } catch (error) {
             console.error(`[CacheManager] Erro ao salvar ${key} na nuvem:`, error);
-            // Re-adicionar à fila para tentar novamente
             this._addToSaveQueue(key, value, userId);
         }
     }
