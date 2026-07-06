@@ -239,7 +239,7 @@ header {
 .note-footer-info { padding: 12px 20px; border-top: 1px solid var(--border-color); text-align: center; background-color: var(--card-bg); flex-shrink: 0; }
 .note-footer-info span { font-size: 0.7rem; color: var(--text-secondary); }
 
-/* ==================== BARRA DE NAVEGAÇÃO (CORRIGIDA - IGUAL ÀS DEMAIS) ==================== */
+/* ==================== BARRA DE NAVEGAÇÃO ==================== */
 .bottom-nav {
     position: fixed;
     bottom: 20px;
@@ -257,7 +257,6 @@ header {
     z-index: 100;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
-
 .nav-item {
     display: flex;
     flex-direction: column;
@@ -269,19 +268,16 @@ header {
     border-radius: 10px;
     transition: all 0.2s;
 }
-
 .nav-item ion-icon {
     font-size: 1.5rem;
     margin-bottom: 2px;
 }
-
 .nav-item.active {
     color: var(--text-primary);
     background-color: var(--accent-purple);
 }
 
 /* ==================== RESPONSIVIDADE DA BARRA DE NAVEGAÇÃO ==================== */
-
 /* Tablets (768px a 1024px) */
 @media (max-width: 1024px) and (min-width: 768px) {
     .bottom-nav {
@@ -289,12 +285,10 @@ header {
         max-width: calc(100% - 40px);
         height: 80px;
     }
-
     .nav-item {
         padding: 8px 15px;
         font-size: 0.8rem;
     }
-
     .nav-item ion-icon {
         font-size: 1.8rem;
     }
@@ -307,8 +301,6 @@ header {
         max-width: 100%;
         border-radius: 20px 20px 0 0;
         bottom: 0;
-        left: 0;
-        transform: none;
     }
 }
 
@@ -320,15 +312,11 @@ header {
         height: 65px;
         border-radius: 20px 20px 0 0;
         bottom: 0;
-        left: 0;
-        transform: none;
     }
-
     .nav-item {
         padding: 5px 8px;
         font-size: 0.65rem;
     }
-
     .nav-item ion-icon {
         font-size: 1.3rem;
     }
@@ -346,7 +334,6 @@ header {
         transform: translateX(-50%);
     }
 }
-
 /* ==================== MODAIS AUXILIARES ==================== */
 .notifications-modal {
     display: none;

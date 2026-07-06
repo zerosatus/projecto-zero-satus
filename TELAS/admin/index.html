@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin | Zero Satus</title>
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Ícones e Estilos -->
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../style.css"> <!-- Estilos globais do site -->
+    <link rel="stylesheet" href="admin.css">       <!-- Estilos específicos do Admin -->
+</head>
+<body>
+
+    <!-- HEADER SIMPLES -->
+    <header class="admin-header-simple">
+        <div class="logo">
+            <span class="logo-text">Zero Satus <span class="badge-admin">ADMIN</span></span>
+        </div>
+        <button id="logoutBtn" class="btn-logout" style="display: none;">
+            <i class="fas fa-sign-out-alt"></i> Sair
+        </button>
+    </header>
+
+    <!-- TELA DE LOGIN -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <i class="fas fa-shield-alt login-icon"></i>
+            <h2>Acesso Restrito</h2>
+            <p>Faça login com sua conta de administrador</p>
+            <input type="email" id="loginEmail" placeholder="Seu e-mail">
+            <input type="password" id="loginPassword" placeholder="Senha">
+            <button id="btnLogin" class="btn-primary-full">Entrar</button>
+            <p id="loginError" class="error-msg"></p>
+        </div>
+    </div>
+
+    <!-- PAINEL ADMIN (Escondido até logar) -->
+    <div id="adminPanel" class="admin-layout" style="display: none;">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-menu">
+                <h3>Principal</h3>
+                <a class="active" data-target="dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+                <a data-target="users"><i class="fas fa-users"></i> Usuários</a>
+                
+                <h3>Conteúdo</h3>
+                <a data-target="posts"><i class="fas fa-newspaper"></i> Posts do Blog</a>
+                <a data-target="comments"><i class="fas fa-comments"></i> Comentários</a>
+                
+                <h3>Sistema</h3>
+                <a data-target="settings"><i class="fas fa-cog"></i> Configurações</a>
+                <a href="../../index.html"><i class="fas fa-external-link-alt"></i> Ver Site</a>
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="main-content">
+            
+            <!-- SEÇÃO: DASHBOARD -->
+            <section id="dashboard" class="admin-section active">
+                <div class="section-header">
+                    <h1>Dashboard</h1>
+                    <span class="welcome-text">Olá, <span id="adminNameDisplay">Admin</span></span>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box"><i class="fas fa-users"></i></div>
+                        <div class="stat-info">
+                            <h3 id="countUsers">0</h3>
+                            <p>Usuários</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box"><i class="fas fa-newspaper"></i></div>
+                        <div class="stat-info">
+                            <h3 id="countPosts">0</h3>
+                            <p>Posts</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box"><i class="fas fa-comments"></i></div>
+                        <div class="stat-info">
+                            <h3 id="countComments">0</h3>
+                            <p>Comentários</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Status do Sistema</h3>
+                    <p>Conectado ao Supabase com sucesso.</p>
+                </div>
+            </section>
+
+            <!-- SEÇÃO: USUÁRIOS -->
+            <section id="users" class="admin-section">
+                <div class="section-header">
+                    <h1>Gerenciar Usuários</h1>
+                </div>
+                <div class="card">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Função</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SEÇÃO: POSTS -->
+            <section id="posts" class="admin-section">
+                <div class="section-header">
+                    <h1>Gerenciar Blog</h1>
+                    <button id="btnNewPost" class="btn-primary"><i class="fas fa-plus"></i> Novo Post</button>
+                </div>
+                <div class="card">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="postsTableBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SEÇÃO: COMENTÁRIOS -->
+            <section id="comments" class="admin-section">
+                <div class="section-header">
+                    <h1>Moderação de Comentários</h1>
+                </div>
+                <div class="card">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Autor</th>
+                                <th>Mensagem</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commentsTableBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SEÇÃO: CONFIGURAÇÕES -->
+            <section id="settings" class="admin-section">
+                <div class="section-header">
+                    <h1>Configurações</h1>
+                </div>
+                <div class="card">
+                    <p>Configurações gerais do sistema estarão aqui.</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL DE POST (Escondido) -->
+    <div id="postModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Novo Post</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="postId">
+                <div class="form-group">
+                    <label>Título</label>
+                    <input type="text" id="postTitle">
+                </div>
+                <div class="form-group">
+                    <label>Slug (URL)</label>
+                    <input type="text" id="postSlug" placeholder="ex: como-estudar">
+                </div>
+                <div class="form-group">
+                    <label>Conteúdo (HTML)</label>
+                    <textarea id="postContent" rows="10"></textarea>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="postPublished">
+                    <label for="postPublished">Publicar imediatamente?</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-modal">Cancelar</button>
+                <button id="btnSavePost" class="btn-primary">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="toast"></div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
