@@ -1,4 +1,4 @@
-// supabase-client.js - VERSÃO COMPLETAMENTE CORRIGIDA
+// supabase-client.js - Cliente Supabase COMPLETO CORRIGIDO
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -337,7 +337,7 @@ const AuthService = {
                 .from('profiles')
                 .select('id')
                 .eq('id', userId)
-                .maybeSingle();
+                .single();
 
             if (existing) {
                 console.log('[Auth] Perfil já existe para:', email);
@@ -392,7 +392,7 @@ const AuthService = {
                 .from('profiles')
                 .select('*')
                 .eq('id', user.id)
-                .maybeSingle();
+                .single();
 
             if (error && error.code === 'PGRST116') {
                 console.log('[Auth] Perfil não encontrado, criando para:', user.email);
@@ -635,7 +635,7 @@ const StorageService = {
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS - COMPLETAMENTE CORRIGIDO
+// SERVIÇO DE BANCO DE DADOS - CORRIGIDO
 // ============================================
 const DatabaseService = {
     async getCurrentUserId() {
@@ -867,7 +867,6 @@ const DatabaseService = {
         }
     },
 
-    // 🔥 CORRIGIDO: getWeeklySchedule com maybeSingle
     async getWeeklySchedule(userId) {
         const client = initSupabase();
         if (!client) return { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
@@ -877,11 +876,10 @@ const DatabaseService = {
                 .from('weekly_schedule')
                 .select('schedule')
                 .eq('user_id', userId)
-                .maybeSingle();
+                .single();
 
-            if (error) {
+            if (error && error.code !== 'PGRST116') {
                 console.error('[DB] Erro ao buscar horário:', error);
-                return { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
             }
 
             const schedule = data?.schedule || { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] };
@@ -911,7 +909,7 @@ const DatabaseService = {
                 .from('weekly_schedule')
                 .select('user_id')
                 .eq('user_id', userId)
-                .maybeSingle();
+                .single();
 
             let error;
             if (existing) {
@@ -947,7 +945,6 @@ const DatabaseService = {
         }
     },
 
-    // 🔥 CORRIGIDO: getTimeSlots com maybeSingle
     async getTimeSlots(userId) {
         const client = initSupabase();
         if (!client) return ['08:00', '09:30', '11:00', '14:00', '15:30'];
@@ -957,11 +954,10 @@ const DatabaseService = {
                 .from('time_slots')
                 .select('slots')
                 .eq('user_id', userId)
-                .maybeSingle();
+                .single();
 
-            if (error) {
+            if (error && error.code !== 'PGRST116') {
                 console.error('[DB] Erro ao buscar time slots:', error);
-                return ['08:00', '09:30', '11:00', '14:00', '15:30'];
             }
 
             return data?.slots || ['08:00', '09:30', '11:00', '14:00', '15:30'];
@@ -984,7 +980,7 @@ const DatabaseService = {
                 .from('time_slots')
                 .select('user_id')
                 .eq('user_id', userId)
-                .maybeSingle();
+                .single();
 
             let error;
             if (existing) {
@@ -1080,7 +1076,6 @@ const DatabaseService = {
         }
     },
 
-    // 🔥 CORRIGIDO: getUserProfile com maybeSingle
     async getUserProfile(userId) {
         const client = initSupabase();
         if (!client) return null;
@@ -1090,11 +1085,10 @@ const DatabaseService = {
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
-                .maybeSingle();
+                .single();
 
-            if (error) {
+            if (error && error.code !== 'PGRST116') {
                 console.error('[DB] Erro ao buscar perfil:', error);
-                return null;
             }
 
             return data || null;
