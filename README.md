@@ -61,3 +61,43 @@ telas de mobile terminadas e sistema de mudaca de telas de pc para mobile finali
  09.05.26
  a base de dados ja funciona(realtime) e finalmete ja é usavel. bem continua
  mas uma vez
+
+
+
+
+
+
+
+
+
+
+
+
+COMANDOS PARA EXECUTAR APÓS O SCRIPT
+1. Verificar estatísticas do admin
+sql
+SELECT * FROM get_admin_stats();
+Resultado esperado:
+
+total_usuarios	total_admins	total_posts	total_comentarios
+5	1	3	2
+2. Estatísticas por role
+sql
+SELECT * FROM get_stats_by_role();
+Resultado esperado:
+
+role	total
+user	4
+admin	1
+3. Verificar role de um usuário
+sql
+SELECT * FROM verificar_role('projectozerosatus@gmail.com');
+4. Diagnóstico de um usuário
+sql
+SELECT diagnosticar_usuario('projectozerosatus@gmail.com');
+5. Tornar um usuário admin
+sql
+SELECT tornar_admin('projectozerosatus@gmail.com');
+6. Ver todos os usuários
+sql
+SELECT id, email, nome, role, created_at FROM public.profiles ORDER BY created_at DESC;
