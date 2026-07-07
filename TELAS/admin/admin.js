@@ -1,5 +1,5 @@
 // ==========================================
-// admin.js - PAINEL ADMIN COMPLETO
+// admin.js - PAINEL ADMIN COMPLETO (CORRIGIDO)
 // ==========================================
 
 console.log('[Admin] 🚀 Iniciando admin.js...');
@@ -7,11 +7,20 @@ console.log('[Admin] 🚀 Iniciando admin.js...');
 // ==========================================
 // 1. CONFIGURAÇÃO DO SUPABASE
 // ==========================================
+// 🔥 REMOVER 'const' - usar 'let' ou nome diferente
+let supabaseClient = null;
 const SUPABASE_URL = 'https://yqxtfnnjjpoitbmtcxjd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-console.log('[Admin] ✅ Supabase inicializado');
+// Usar window.supabase se já existir, ou criar novo
+if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('[Admin] ✅ Supabase inicializado a partir do window.supabase');
+} else {
+    // Fallback: criar manualmente
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('[Admin] ✅ Supabase inicializado manualmente');
+}
 
 // ==========================================
 // 2. VERIFICAR SE É ADMIN
@@ -21,7 +30,7 @@ async function verificarAdmin() {
     
     try {
         // Verificar sessão
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
         
         if (sessionError) {
             console.error('[Admin] ❌ Erro ao buscar sessão:', sessionError);
@@ -40,7 +49,7 @@ async function verificarAdmin() {
         document.getElementById('systemStatus').textContent = '✅ Conectado como: ' + user.email;
         
         // Buscar perfil
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
             .select('role, nome')
             .eq('id', user.id)
@@ -49,7 +58,7 @@ async function verificarAdmin() {
         if (profileError) {
             console.error('[Admin] ❌ Erro ao buscar perfil:', profileError);
             document.getElementById('systemStatus').textContent = '❌ Erro ao buscar perfil';
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.href = '../login/index.html';
             return;
         }
@@ -57,7 +66,7 @@ async function verificarAdmin() {
         if (!profile) {
             console.log('[Admin] ❌ Perfil não encontrado');
             document.getElementById('systemStatus').textContent = '❌ Perfil não encontrado';
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.href = '../login/index.html';
             return;
         }
@@ -67,7 +76,7 @@ async function verificarAdmin() {
         if (profile.role !== 'admin') {
             console.log('[Admin] ❌ Usuário não é admin');
             document.getElementById('systemStatus').textContent = '❌ Acesso negado - Não é admin';
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.href = '../login/index.html';
             return;
         }
@@ -121,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 document.getElementById('logoutBtn').addEventListener('click', async () => {
     console.log('[Admin] 🔴 Fazendo logout...');
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     localStorage.removeItem('usuarioLogado');
     window.location.href = '../login/index.html';
 });
@@ -134,7 +143,7 @@ async function loadDashboardStats() {
     
     try {
         // Contar usuários
-        const { count: userCount, error: userError } = await supabase
+        const { count: userCount, error: userError } = await supabaseClient
             .from('profiles')
             .select('*', { count: 'exact', head: true });
         
@@ -147,7 +156,7 @@ async function loadDashboardStats() {
         }
 
         // Contar posts (tasks)
-        const { count: postCount, error: postError } = await supabase
+        const { count: postCount, error: postError } = await supabaseClient
             .from('tasks')
             .select('*', { count: 'exact', head: true });
         
@@ -160,7 +169,7 @@ async function loadDashboardStats() {
         }
 
         // Contar comentários (notifications)
-        const { count: commentCount, error: commentError } = await supabase
+        const { count: commentCount, error: commentError } = await supabaseClient
             .from('notifications')
             .select('*', { count: 'exact', head: true });
         
@@ -192,7 +201,7 @@ async function loadUsers() {
     try {
         console.log('[Admin] 👤 Carregando lista de usuários...');
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('profiles')
             .select('*')
             .order('created_at', { ascending: false });
@@ -256,7 +265,7 @@ async function loadPosts() {
     try {
         console.log('[Admin] 📝 Carregando posts...');
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('tasks')
             .select('*')
             .order('created_at', { ascending: false });
@@ -310,7 +319,7 @@ async function loadComments() {
     try {
         console.log('[Admin] 💬 Carregando comentários...');
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('notifications')
             .select('*')
             .order('created_at', { ascending: false });
@@ -364,7 +373,7 @@ window.tornarAdmin = async function(userId) {
     
     console.log('[Admin] 👑 Tornando usuário admin:', userId);
     
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('profiles')
         .update({ role: 'admin' })
         .eq('id', userId);
@@ -385,7 +394,7 @@ window.banirUsuario = async function(userId) {
     
     console.log('[Admin] 🚫 Banindo usuário:', userId);
     
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('profiles')
         .update({ role: 'banned' })
         .eq('id', userId);
@@ -450,13 +459,13 @@ document.getElementById('btnSavePost').addEventListener('click', async () => {
     try {
         if (id) {
             console.log('[Admin] 📝 Atualizando post:', id);
-            const { error } = await supabase.from('tasks').update(postData).eq('id', id);
+            const { error } = await supabaseClient.from('tasks').update(postData).eq('id', id);
             if (error) throw error;
             showToast('✅ Post atualizado!');
         } else {
             console.log('[Admin] 📝 Criando novo post...');
-            const { data: { user } } = await supabase.auth.getUser();
-            const { error } = await supabase.from('tasks').insert({
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { error } = await supabaseClient.from('tasks').insert({
                 ...postData,
                 user_id: user.id,
                 created_at: new Date().toISOString()
@@ -476,7 +485,7 @@ document.getElementById('btnSavePost').addEventListener('click', async () => {
 window.editarPost = async function(id) {
     try {
         console.log('[Admin] 📝 Editando post:', id);
-        const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single();
+        const { data, error } = await supabaseClient.from('tasks').select('*').eq('id', id).single();
         if (error) throw error;
         
         document.getElementById('modalTitle').textContent = '✏️ Editar Post';
@@ -497,7 +506,7 @@ window.deletarPost = async function(id) {
     
     try {
         console.log('[Admin] 🗑️ Deletando post:', id);
-        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
         if (error) throw error;
         showToast('🗑️ Post deletado!');
         await loadPosts();
@@ -511,7 +520,7 @@ window.deletarPost = async function(id) {
 window.marcarLido = async function(id) {
     try {
         console.log('[Admin] ✅ Marcando comentário como lido:', id);
-        const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+        const { error } = await supabaseClient.from('notifications').update({ read: true }).eq('id', id);
         if (error) throw error;
         showToast('✅ Marcado como lido!');
         await loadComments();
@@ -527,7 +536,7 @@ window.deletarComentario = async function(id) {
     
     try {
         console.log('[Admin] 🗑️ Deletando comentário:', id);
-        const { error } = await supabase.from('notifications').delete().eq('id', id);
+        const { error } = await supabaseClient.from('notifications').delete().eq('id', id);
         if (error) throw error;
         showToast('🗑️ Comentário deletado!');
         await loadComments();
