@@ -1,4 +1,4 @@
-// login/script.js - Login com Supabase (COM REDIRECIONAMENTO ADMIN)
+// login/script.js - Login com Supabase (COM REDIRECIONAMENTO ADMIN CORRIGIDO)
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -61,7 +61,7 @@ function limparCamposFormulario() {
 }
 
 // ============================================
-// 🔥 PROCESSAR LOGIN COM ROLE
+// 🔥 PROCESSAR LOGIN COM ROLE (CORRIGIDO)
 // ============================================
 async function processarLogin(user) {
     if (isProcessingAuth) {
@@ -73,7 +73,7 @@ async function processarLogin(user) {
 
     if (!user.email_confirmed_at) {
         console.warn('[Login] E-mail não confirmado!');
-        showMessage('📧 Vai no teu gmail, confirma essa cena de e-mail.', true);
+        showMessage('📧 Confirme seu e-mail antes de fazer login.', true);
         return false;
     }
 
@@ -98,6 +98,19 @@ async function processarLogin(user) {
                     nome = profile.nome || nome;
                     foto = profile.avatar_url || foto;
                     console.log('[Login] Perfil encontrado, role:', role);
+                } else {
+                    // 🔥 SE PERFIL NÃO EXISTIR, CRIAR
+                    console.log('[Login] Perfil não encontrado, criando...');
+                    await window.DatabaseService.ensureUserData(user.id, user.email, nome);
+                    
+                    // Buscar novamente
+                    const newProfile = await window.DatabaseService.getUserProfile(user.id);
+                    if (newProfile) {
+                        role = newProfile.role || 'user';
+                        nome = newProfile.nome || nome;
+                        foto = newProfile.avatar_url || foto;
+                        console.log('[Login] Perfil criado, role:', role);
+                    }
                 }
             } catch(e) {
                 console.warn('[Login] Erro ao buscar perfil:', e);
@@ -111,7 +124,7 @@ async function processarLogin(user) {
             foto: foto,
             avatar_url: foto,
             logado: true,
-            role: role,  // 🔥 ADICIONAR ROLE
+            role: role,
             email_confirmado: true
         };
 
@@ -135,6 +148,9 @@ async function processarLogin(user) {
         setTimeout(() => {
             const isMobile = ehCelular();
             
+            console.log('[Login] Role do usuário:', role);
+            console.log('[Login] Redirecionando para:', role === 'admin' ? 'admin' : 'normal');
+            
             if (role === 'admin') {
                 console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
                 window.location.href = '../admin/index.html';
@@ -143,11 +159,12 @@ async function processarLogin(user) {
                 console.log('[Login] 👤 Usuário normal, redirecionando para:', destino);
                 window.location.href = destino;
             }
-        }, 1000);
+        }, 1500);
 
         return true;
     } catch (error) {
         console.error('[Login] Erro ao processar login:', error);
+        showMessage('❌ Erro ao processar login: ' + error.message, true);
         return false;
     } finally {
         setTimeout(() => {
@@ -389,40 +406,55 @@ async function handleConfirmationCallback() {
 }
 
 // ============================================
-// HANDLE GOOGLE CALLBACK
+// HANDLE GOOGLE CALLBACK - CORRIGIDO
 // ============================================
 async function handleGoogleCallback() {
     console.log('[Google] Verificando callback...');
 
-    if (!window.AuthService) return false;
+    if (!window.AuthService) {
+        console.error('[Google] AuthService não disponível');
+        return false;
+    }
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Aguardar um pouco para o Supabase processar
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const { data: { user } } = await window.AuthService.getCurrentUser();
 
         if (user) {
             console.log('[Google] Usuário autenticado:', user.email);
+            console.log('[Google] User metadata:', user.user_metadata);
 
+            // 🔥 FORÇAR CRIAÇÃO DO PERFIL
             await window.AuthService.ensureProfileExists(user);
+            
+            // 🔥 ESPERAR O PERFIL SER CRIADO
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 🔥 PROCESSAR LOGIN COM ROLE
             await processarLogin(user);
 
             window.history.replaceState({}, document.title, window.location.pathname);
             return true;
         }
 
+        // Verificar se tem erro na URL
         const params = new URLSearchParams(window.location.search);
         if (params.has('error')) {
             const error = params.get('error');
             const desc = params.get('error_description');
             showMessage(`❌ Erro no Google: ${desc || error}`, true);
             window.history.replaceState({}, document.title, window.location.pathname);
+            return false;
         }
 
+        console.log('[Google] Nenhum usuário encontrado');
         return false;
 
     } catch (error) {
         console.error('[Google] Erro no callback:', error);
+        showMessage('❌ Erro ao fazer login com Google: ' + error.message, true);
         return false;
     }
 }
@@ -444,9 +476,9 @@ function isGoogleCallback() {
 }
 
 // ============================================
-// CHECK SESSION
+// 🔥 CHECK SESSION COM ROLE (CORRIGIDO)
 // ============================================
-async function checkSession() {
+async function checkSessionWithRole() {
     if (!window.AuthService) return false;
 
     try {
@@ -455,53 +487,51 @@ async function checkSession() {
         if (user) {
             console.log('[Login] Sessão existente para:', user.email);
 
-            const usuarioSalvo = localStorage.getItem('usuarioLogado');
+            // Buscar role
+            let role = 'user';
+            let nome = user.user_metadata?.full_name || user.email.split('@')[0];
+            
+            if (window.DatabaseService) {
+                try {
+                    const profile = await window.DatabaseService.getUserProfile(user.id);
+                    if (profile) {
+                        role = profile.role || 'user';
+                        nome = profile.nome || nome;
+                        console.log('[Login] Role da sessão:', role);
+                    }
+                } catch(e) {
+                    console.warn('[Login] Erro ao buscar perfil na sessão:', e);
+                }
+            }
 
+            // Verificar se já tem usuário salvo
+            const usuarioSalvo = localStorage.getItem('usuarioLogado');
+            
             if (usuarioSalvo) {
                 try {
                     const parsed = JSON.parse(usuarioSalvo);
                     if (parsed.id === user.id) {
-                        console.log('[Login] Usuário já está logado.');
-
-                        const continuar = confirm(`👋 Você já está logado como ${parsed.nome || 'Usuário'}.\n\nDeseja continuar na plataforma?`);
-
-                        if (continuar) {
-                            // 🔥 REDIRECIONAR BASEADO NA ROLE SALVA
-                            if (parsed.role === 'admin') {
-                                window.location.href = '../admin/index.html';
-                            } else {
-                                const isMobile = ehCelular();
-                                window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-                            }
-                            return true;
+                        console.log('[Login] Usuário já está logado. Role:', parsed.role);
+                        
+                        // 🔥 REDIRECIONAR BASEADO NA ROLE SALVA
+                        if (parsed.role === 'admin') {
+                            console.log('[Login] 🔐 Admin, redirecionando para admin');
+                            window.location.href = '../admin/index.html';
                         } else {
-                            console.log('[Login] Usuário optou por não continuar. Fazendo logout...');
-                            await window.AuthService.logout();
-                            localStorage.removeItem('usuarioLogado');
-                            limparCamposFormulario();
-                            showMessage('✅ Sessão encerrada. Faça login novamente.', false);
-                            return false;
+                            const isMobile = ehCelular();
+                            window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
                         }
+                        return true;
                     }
                 } catch(e) {
                     console.warn('[Login] Erro ao parsear usuário salvo:', e);
                 }
             }
 
-            const continuar = confirm(`👋 Cê (${user.email}).\n\nTá bizz em continuar na plataforma?`);
-
-            if (continuar) {
-                console.log('[Login] Usuário optou por continuar. Processando login...');
-                await processarLogin(user);
-                return true;
-            } else {
-                console.log('[Login] Usuário optou por não continuar. Fazendo logout...');
-                await window.AuthService.logout();
-                localStorage.removeItem('usuarioLogado');
-                limparCamposFormulario();
-                showMessage('✅ Sessão encerrada. Coisola tua conta dnv.', false);
-                return false;
-            }
+            // Se tem sessão mas não tem usuário salvo, redirecionar
+            console.log('[Login] Sessão encontrada, processando login...');
+            await processarLogin(user);
+            return true;
         }
         return false;
     } catch (err) {
@@ -543,7 +573,44 @@ function waitForSupabase() {
 }
 
 // ============================================
-// INICIALIZAÇÃO
+// LOGIN COM GOOGLE
+// ============================================
+async function loginWithGoogle() {
+    console.log('[Google] Iniciando login com Google...');
+
+    if (!window.AuthService) {
+        showMessage('Sistema offline. Tente novamente.', true);
+        return;
+    }
+
+    try {
+        const googleBtn = document.getElementById('google-login-btn');
+        if (googleBtn) {
+            googleBtn.disabled = true;
+            googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
+        }
+
+        await window.AuthService.loginWithGoogle();
+
+        if (googleBtn) {
+            googleBtn.disabled = false;
+            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
+        }
+
+    } catch (error) {
+        console.error('[Google] Erro:', error);
+        showMessage('❌ Erro ao fazer login com Google: ' + error.message, true);
+
+        const googleBtn = document.getElementById('google-login-btn');
+        if (googleBtn) {
+            googleBtn.disabled = false;
+            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
+        }
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO - CORRIGIDA
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
@@ -559,6 +626,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('[Login] AuthService disponível!');
 
+    // ============================================
+    // 🔥 VERIFICAR CALLBACK DE CONFIRMAÇÃO
+    // ============================================
     const isConfirmCallback = window.AuthService.isConfirmationCallback();
     if (isConfirmCallback) {
         console.log('[Login] 🔔 Detectado callback de confirmação!');
@@ -572,14 +642,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // ============================================
+    // 🔥 VERIFICAR CALLBACK DO GOOGLE
+    // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
         console.log('[Google] Detectado callback do Google!');
         const processed = await handleGoogleCallback();
-        if (processed) return;
+        if (processed) {
+            console.log('[Google] Callback processado com sucesso!');
+            return;
+        } else {
+            console.warn('[Google] Falha ao processar callback');
+        }
     }
 
-    const hasSession = await checkSession();
+    // ============================================
+    // 🔥 VERIFICAR SESSÃO EXISTENTE (COM ROLE)
+    // ============================================
+    const hasSession = await checkSessionWithRole();
     if (hasSession) {
         console.log('[Login] Sessão ativa encontrada - redirecionando...');
         return;
@@ -587,6 +668,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     limparCamposFormulario();
 
+    // ============================================
+    // EVENTOS ANTI-AUTOCOMPLETE
+    // ============================================
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const nomeInput = document.getElementById('nome');
@@ -613,6 +697,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => limparCamposFormulario(), 100);
     setTimeout(() => limparCamposFormulario(), 500);
 
+    // ============================================
+    // LISTENER DE AUTENTICAÇÃO
+    // ============================================
     if (!isCallback && !isConfirmCallback) {
         authListenerUnsubscribe = window.AuthService.onAuthStateChange(async (event, session) => {
             console.log('[Login] Auth state change:', event);
@@ -633,6 +720,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    // ============================================
+    // EVENTOS DA UI
+    // ============================================
 
     // Google Login
     const googleBtn = document.getElementById('google-login-btn');
@@ -712,41 +803,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
     console.log('%c✅ Login corrigido - COM REDIRECIONAMENTO ADMIN!', 'color: #10b981; font-size: 14px;');
+    console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
-
-// ============================================
-// LOGIN COM GOOGLE
-// ============================================
-async function loginWithGoogle() {
-    console.log('[Google] Iniciando login com Google...');
-
-    if (!window.AuthService) {
-        showMessage('Sistema offline. Tente novamente.', true);
-        return;
-    }
-
-    try {
-        const googleBtn = document.getElementById('google-login-btn');
-        if (googleBtn) {
-            googleBtn.disabled = true;
-            googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
-        }
-
-        await window.AuthService.loginWithGoogle();
-
-        if (googleBtn) {
-            googleBtn.disabled = false;
-            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
-        }
-
-    } catch (error) {
-        console.error('[Google] Erro:', error);
-        showMessage('❌ Erro ao fazer login com Google: ' + error.message, true);
-
-        const googleBtn = document.getElementById('google-login-btn');
-        if (googleBtn) {
-            googleBtn.disabled = false;
-            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
-        }
-    }
-}
