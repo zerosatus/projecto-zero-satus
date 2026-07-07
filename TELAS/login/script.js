@@ -1,9 +1,10 @@
-// login/script.js - COM PERGUNTA "CONTINUAR?"
+// login/script.js - COM MODAL CUSTOMIZADO (SEM confirm() bloqueante)
 
 let isRegisterMode = false;
 let pendingEmail = '';
 let authListenerUnsubscribe = null;
 let isProcessingAuth = false;
+let isCheckingSession = false;
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -58,6 +59,144 @@ function limparCamposFormulario() {
     }
 
     console.log('[Login] Campos do formulário limpos');
+}
+
+// ============================================
+// 🔥 MODAL CUSTOMIZADO DE CONTINUAR
+// ============================================
+function mostrarModalContinuar(usuario, callback) {
+    console.log('[Login] Mostrando modal de continuar para:', usuario.email);
+    
+    // Remover modal existente
+    const modalExistente = document.getElementById('modal-continuar');
+    if (modalExistente) modalExistente.remove();
+    
+    // Criar overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-continuar';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(10px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    // Criar modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: #1e293b;
+        border-radius: 16px;
+        padding: 40px;
+        max-width: 420px;
+        width: 90%;
+        border: 1px solid rgba(147, 51, 234, 0.3);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        text-align: center;
+        animation: slideUp 0.3s ease;
+    `;
+    
+    const roleEmoji = usuario.role === 'admin' ? '👑' : '👤';
+    const roleText = usuario.role === 'admin' ? 'Administrador' : 'Usuário';
+    
+    modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 16px;">${roleEmoji}</div>
+        <h2 style="color: white; font-size: 22px; margin-bottom: 8px;">Olá, ${usuario.nome || 'Usuário'}!</h2>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 4px;">
+            <i class="fas fa-envelope" style="color: #9333ea;"></i> ${usuario.email}
+        </p>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">
+            <span style="background: ${usuario.role === 'admin' ? '#9333ea' : '#334155'}; 
+                         padding: 4px 12px; 
+                         border-radius: 20px; 
+                         color: white;
+                         font-size: 12px;">
+                ${roleText}
+            </span>
+        </p>
+        <p style="color: #cbd5e1; font-size: 16px; margin-bottom: 24px;">
+            Você já está logado. Deseja continuar na plataforma?
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <button id="btn-continuar-sim" style="
+                background: linear-gradient(135deg, #9333ea, #7c3aed);
+                border: none;
+                color: white;
+                padding: 12px 32px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                flex: 1;
+                min-width: 120px;
+            "
+            onmouseover="this.style.transform='scale(1.05)'"
+            onmouseout="this.style.transform='scale(1)'">
+                <i class="fas fa-check"></i> Continuar
+            </button>
+            <button id="btn-continuar-nao" style="
+                background: transparent;
+                border: 1px solid #ef4444;
+                color: #ef4444;
+                padding: 12px 32px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                flex: 1;
+                min-width: 120px;
+            "
+            onmouseover="this.style.background='rgba(239,68,68,0.1)'"
+            onmouseout="this.style.background='transparent'">
+                <i class="fas fa-sign-out-alt"></i> Sair
+            </button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Adicionar estilos de animação
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Eventos dos botões
+    document.getElementById('btn-continuar-sim').addEventListener('click', () => {
+        overlay.remove();
+        callback(true);
+    });
+    
+    document.getElementById('btn-continuar-nao').addEventListener('click', () => {
+        overlay.remove();
+        callback(false);
+    });
+    
+    // Clicar fora fecha (apenas se clicar no overlay)
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+            callback(false);
+        }
+    });
 }
 
 // ============================================
@@ -465,9 +604,10 @@ function isGoogleCallback() {
 }
 
 // ============================================
-// 🔥 CHECK SESSION COM PERGUNTA "CONTINUAR?"
+// 🔥 CHECK SESSION COM MODAL CUSTOMIZADO
 // ============================================
 async function checkSessionWithRole() {
+    if (isCheckingSession) return false;
     if (!window.AuthService) return false;
 
     try {
@@ -502,36 +642,37 @@ async function checkSessionWithRole() {
                     if (parsed.id === user.id) {
                         console.log('[Login] Usuário já está logado. Role:', parsed.role);
                         
+                        isCheckingSession = true;
+                        
                         // ============================================
-                        // 🔥 PERGUNTAR SE QUER CONTINUAR
+                        // 🔥 MOSTRAR MODAL CUSTOMIZADO
                         // ============================================
-                        const continuar = confirm(
-                            `👋 Você já está logado como ${parsed.nome || 'Usuário'}.\n\n` +
-                            `📧 ${parsed.email}\n` +
-                            `👑 Role: ${parsed.role === 'admin' ? 'Administrador' : 'Usuário'}\n\n` +
-                            `Deseja continuar na plataforma?`
-                        );
-
-                        if (continuar) {
-                            console.log('[Login] ✅ Usuário optou por continuar');
-                            
-                            // 🔥 REDIRECIONAR BASEADO NA ROLE
-                            if (parsed.role === 'admin') {
-                                console.log('[Login] 🔐 Admin, redirecionando para admin');
-                                window.location.href = '../admin/index.html';
-                            } else {
-                                const isMobile = ehCelular();
-                                window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-                            }
-                            return true;
-                        } else {
-                            console.log('[Login] ❌ Usuário optou por não continuar. Fazendo logout...');
-                            await window.AuthService.logout();
-                            localStorage.removeItem('usuarioLogado');
-                            limparCamposFormulario();
-                            showMessage('✅ Sessão encerrada. Faça login novamente.', false);
-                            return false;
-                        }
+                        return new Promise((resolve) => {
+                            mostrarModalContinuar(parsed, async (continuar) => {
+                                isCheckingSession = false;
+                                
+                                if (continuar) {
+                                    console.log('[Login] ✅ Usuário optou por continuar');
+                                    
+                                    // 🔥 REDIRECIONAR BASEADO NA ROLE
+                                    if (parsed.role === 'admin') {
+                                        console.log('[Login] 🔐 Admin, redirecionando para admin');
+                                        window.location.href = '../admin/index.html';
+                                    } else {
+                                        const isMobile = ehCelular();
+                                        window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                                    }
+                                    resolve(true);
+                                } else {
+                                    console.log('[Login] ❌ Usuário optou por não continuar. Fazendo logout...');
+                                    await window.AuthService.logout();
+                                    localStorage.removeItem('usuarioLogado');
+                                    limparCamposFormulario();
+                                    showMessage('✅ Sessão encerrada. Faça login novamente.', false);
+                                    resolve(false);
+                                }
+                            });
+                        });
                     }
                 } catch(e) {
                     console.warn('[Login] Erro ao parsear usuário salvo:', e);
@@ -539,25 +680,32 @@ async function checkSessionWithRole() {
             }
 
             // Se tem sessão mas não tem usuário salvo
-            const continuar = confirm(
-                `👋 Cê tem uma sessão ativa.\n\n` +
-                `📧 ${user.email}\n` +
-                `👑 Role: ${role === 'admin' ? 'Administrador' : 'Usuário'}\n\n` +
-                `Tá bizz em continuar na plataforma?`
-            );
-
-            if (continuar) {
-                console.log('[Login] ✅ Usuário optou por continuar. Processando login...');
-                await processarLogin(user);
-                return true;
-            } else {
-                console.log('[Login] ❌ Usuário optou por não continuar. Fazendo logout...');
-                await window.AuthService.logout();
-                localStorage.removeItem('usuarioLogado');
-                limparCamposFormulario();
-                showMessage('✅ Sessão encerrada. Coisola tua conta dnv.', false);
-                return false;
-            }
+            isCheckingSession = true;
+            
+            return new Promise((resolve) => {
+                const usuarioTemp = {
+                    email: user.email,
+                    nome: nome,
+                    role: role
+                };
+                
+                mostrarModalContinuar(usuarioTemp, async (continuar) => {
+                    isCheckingSession = false;
+                    
+                    if (continuar) {
+                        console.log('[Login] ✅ Usuário optou por continuar. Processando login...');
+                        await processarLogin(user);
+                        resolve(true);
+                    } else {
+                        console.log('[Login] ❌ Usuário optou por não continuar. Fazendo logout...');
+                        await window.AuthService.logout();
+                        localStorage.removeItem('usuarioLogado');
+                        limparCamposFormulario();
+                        showMessage('✅ Sessão encerrada. Coisola tua conta dnv.', false);
+                        resolve(false);
+                    }
+                });
+            });
         }
         return false;
     } catch (err) {
@@ -684,7 +832,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================
-    // 🔥 VERIFICAR SESSÃO - AGORA PERGUNTA!
+    // 🔥 VERIFICAR SESSÃO - MODAL CUSTOMIZADO
     // ============================================
     const hasSession = await checkSessionWithRole();
     if (hasSession) {
@@ -828,6 +976,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Login com perguntar antes de redirecionar!', 'color: #10b981; font-size: 14px;');
+    console.log('%c✅ Login com MODAL CUSTOMIZADO!', 'color: #10b981; font-size: 14px;');
     console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
