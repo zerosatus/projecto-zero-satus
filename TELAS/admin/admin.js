@@ -236,17 +236,21 @@ async function loadUsers() {
                     </span>
                 </td>
                 <td>
-                    ${u.role === 'admin' ? 
-                        '<button class="btn-secondary" disabled style="opacity:0.5;padding:4px 10px;">Admin</button>' :
-                        `<button class="btn-primary" onclick="tornarAdmin('${u.id}')" style="padding:4px 10px;margin-right:6px;">
-                            <i class="fas fa-crown"></i>
-                        </button>`
-                    }
-                    <button class="btn-danger" onclick="banirUsuario('${u.id}')" style="padding:4px 10px;">
-                        <i class="fas fa-ban"></i>
-                    </button>
-                </td>
-            </tr>
+    <!-- BOTÃO DE OLHO (NOVO) -->
+    <button class="btn-secondary" onclick="abrirDetalhesUsuario('${u.id}', '${u.nome || 'Usuário'}', '${u.email}', '${u.created_at}')" style="margin-right:6px;">
+        <i class="fas fa-eye"></i>
+    </button>
+
+    ${u.role === 'admin' ? 
+        '<button class="btn-secondary" disabled style="opacity:0.5;">Admin</button>' :
+        `<button class="btn-primary" onclick="tornarAdmin('${u.id}')" style="margin-right:6px;">
+            <i class="fas fa-crown"></i> Admin
+        </button>`
+    }
+    <button class="btn-danger" onclick="banirUsuario('${u.id}')">
+        <i class="fas fa-ban"></i>
+    </button>
+</td>
         `).join('');
         
     } catch (error) {
@@ -565,6 +569,44 @@ function showToast(msg, isError = false) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Admin] 🚀 DOM carregado, inicializando...');
     verificarAdmin();
+});
+// ==========================================
+// 🔥 MODAL DE DETALHES DO USUÁRIO (ESTÁTICO)
+// ==========================================
+window.abrirDetalhesUsuario = function(id, nome, email, dataCadastro) {
+    console.log('[Admin] 👁️ Abrindo detalhes do usuário:', id);
+    
+    // Preencher dados básicos
+    document.getElementById('modalUserName').textContent = nome;
+    document.getElementById('modalUserEmail').textContent = email;
+    
+    // Formatar data
+    const dataFormatada = dataCadastro ? new Date(dataCadastro).toLocaleDateString('pt-BR') : 'Hoje';
+    document.getElementById('statJoinDate').textContent = dataFormatada;
+
+    // 🔥 DADOS ESTÁTICOS (Fictícios para mostrar o visual)
+    // Na futura integração, isso viria do banco de dados
+    const totalTarefas = Math.floor(Math.random() * 20) + 5; // Número aleatório entre 5 e 25
+    const concluidas = Math.floor(totalTarefas * 0.7);
+    const pendentes = totalTarefas - concluidas;
+
+    document.getElementById('statTotalTasks').textContent = totalTarefas;
+    document.getElementById('statCompletedTasks').textContent = concluidas;
+    document.getElementById('statPendingTasks').textContent = pendentes;
+
+    // Abrir modal
+    document.getElementById('userDetailsModal').classList.add('active');
+};
+
+window.fecharModalUsuario = function() {
+    document.getElementById('userDetailsModal').classList.remove('active');
+};
+
+// Fechar modal ao clicar fora dele
+document.getElementById('userDetailsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        fecharModalUsuario();
+    }
 });
 
 console.log('[Admin] ✅ admin.js carregado!');

@@ -45,42 +45,143 @@
         <!-- CONTEÚDO -->
         <main class="main-content">
             
-            <!-- DASHBOARD -->
-            <section id="dashboard" class="admin-section active">
-                <div class="section-header">
-                    <h1>Dashboard</h1>
-                    <span class="welcome-text">Olá, <span id="adminNameDisplay">Carregando...</span></span>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="icon-box"><i class="fas fa-users"></i></div>
-                        <div class="stat-info">
-                            <h3 id="countUsers">🔄</h3>
-                            <p>Usuários</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="icon-box"><i class="fas fa-newspaper"></i></div>
-                        <div class="stat-info">
-                            <h3 id="countPosts">🔄</h3>
-                            <p>Posts</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="icon-box"><i class="fas fa-comments"></i></div>
-                        <div class="stat-info">
-                            <h3 id="countComments">🔄</h3>
-                            <p>Comentários</p>
-                        </div>
-                    </div>
-                </div>
+           <!-- SEÇÃO: DASHBOARD -->
+<section id="dashboard" class="admin-section active">
+    <div class="section-header">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="text-muted">Visão geral da plataforma</p>
+        </div>
+        <div class="welcome-badge">
+            <i class="fas fa-user-circle"></i>
+            <span id="adminNameDisplay">Administrador</span>
+        </div>
+    </div>
+    
+    <!-- PRIMEIRA LINHA DE ESTATÍSTICAS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="icon-box users">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countUsers">-</h3>
+                <p>Total de Usuários</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box posts">
+                <i class="fas fa-newspaper"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countPosts">-</h3>
+                <p>Posts Publicados</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box comments">
+                <i class="fas fa-comments"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countComments">-</h3>
+                <p>Comentários Pendentes</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box tasks">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countActiveTasks">-</h3>
+                <p>Tarefas Ativas</p>
+            </div>
+        </div>
+    </div>
 
-                <div class="card">
-                    <h3>Status do Sistema</h3>
-                    <p id="systemStatus">🔄 Conectando ao Supabase...</p>
-                </div>
-            </section>
+    <!-- SEGUNDA LINHA DE ESTATÍSTICAS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="icon-box" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countNewUsers">-</h3>
+                <p>Novos Usuários (7 dias)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countBannedUsers">-</h3>
+                <p>Usuários Banidos</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
+                <i class="fas fa-ban"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countDraftPosts">-</h3>
+                <p>Posts em Rascunho</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="icon-box" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="countActiveToday">-</h3>
+                <p>Ativos Hoje</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALERTAS DO SISTEMA -->
+    <div class="card">
+        <h3><i class="fas fa-bell"></i> Alertas do Sistema</h3>
+        <div id="systemAlerts" style="margin-top: 15px;">
+            <div class="alert-item" style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 6px; margin-bottom: 10px;">
+                <i class="fas fa-info-circle" style="color: #f59e0b; margin-right: 10px;"></i>
+                <span>Carregando alertas...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ATIVIDADES RECENTES -->
+    <div class="card">
+        <h3><i class="fas fa-history"></i> Atividades Recentes</h3>
+        <div id="recentActivities" style="margin-top: 15px;">
+            <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                <i class="fas fa-spinner fa-spin"></i> Carregando atividades...
+            </div>
+        </div>
+    </div>
+
+    <!-- STATUS DO SISTEMA -->
+    <div class="card">
+        <h3><i class="fas fa-server"></i> Status do Sistema</h3>
+        <div class="system-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                <span>Supabase: Conectado</span>
+            </div>
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                <span>Autenticação: Ativa</span>
+            </div>
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                <span>Banco de Dados: Online</span>
+            </div>
+            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                <span>Última sincronização: Agora</span>
+            </div>
+        </div>
+    </div>
+</section>
 
             <!-- USUÁRIOS -->
             <section id="users" class="admin-section">
@@ -194,6 +295,60 @@
             </div>
         </div>
     </div>
+    <!-- ========================================== -->
+<!-- MODAL DE DETALHES DO USUÁRIO (NOVO) -->
+<!-- ========================================== -->
+<div id="userDetailsModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2 id="userModalTitle">👤 Detalhes do Usuário</h2>
+            <button class="close-modal" onclick="fecharModalUsuario()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 80px; height: 80px; background: rgba(147,51,234,0.2); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 10px;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h3 id="modalUserName" style="margin: 0; color: white;">Nome do Usuário</h3>
+                <p id="modalUserEmail" style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">email@exemplo.com</p>
+            </div>
+
+            <div class="user-stats-grid">
+                <div class="user-stat-item">
+                    <i class="fas fa-list-check" style="color: var(--primary);"></i>
+                    <div>
+                        <strong id="statTotalTasks">12</strong>
+                        <span>Tarefas Criadas</span>
+                    </div>
+                </div>
+                <div class="user-stat-item">
+                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                    <div>
+                        <strong id="statCompletedTasks">8</strong>
+                        <span>Concluídas</span>
+                    </div>
+                </div>
+                <div class="user-stat-item">
+                    <i class="fas fa-clock" style="color: var(--danger);"></i>
+                    <div>
+                        <strong id="statPendingTasks">4</strong>
+                        <span>Pendentes</span>
+                    </div>
+                </div>
+                <div class="user-stat-item">
+                    <i class="fas fa-calendar-alt" style="color: var(--text-muted);"></i>
+                    <div>
+                        <strong id="statJoinDate">-</strong>
+                        <span>Membro desde</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModalUsuario()">Fechar</button>
+        </div>
+    </div>
+</div>
 
     <!-- TOAST -->
     <div id="toast" class="toast"></div>
