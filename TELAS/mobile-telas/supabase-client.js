@@ -1,4 +1,4 @@
-// supabase-client.js - Cliente Supabase COMPLETO COM ADMIN
+// supabase-client.js - Cliente Supabase COMPLETO COM ADMIN CORRIGIDO
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -353,7 +353,7 @@ const AuthService = {
                 email: email,
                 nome: nome || email.split('@')[0],
                 avatar_url: null,
-                role: 'user',  // 🔥 PADRÃO: USER
+                role: 'user',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
@@ -369,6 +369,9 @@ const AuthService = {
         }
     },
 
+    // ============================================
+    // 🔥 ensureProfileExists - COM RETRY
+    // ============================================
     async ensureProfileExists(user) {
         if (!user) {
             console.warn('[Auth] ensureProfileExists: usuário inválido');
@@ -388,34 +391,61 @@ const AuthService = {
 
         console.log('[Auth] Verificando perfil para:', user.email);
 
-        try {
-            const { data, error } = await client
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+        let attempts = 0;
+        let maxAttempts = 3;
+        
+        while (attempts < maxAttempts) {
+            try {
+                const { data, error } = await client
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
 
-            if (error && error.code === 'PGRST116') {
-                console.log('[Auth] Perfil não encontrado, criando para:', user.email);
-                await this.createProfile(
-                    user.id,
-                    user.email,
-                    user.user_metadata?.full_name || user.email.split('@')[0]
-                );
-            } else if (error) {
-                console.error('[Auth] Erro ao verificar perfil:', error);
-            } else {
-                console.log('[Auth] Perfil já existe para:', user.email);
+                if (error && error.code === 'PGRST116') {
+                    console.log('[Auth] Perfil não encontrado, criando para:', user.email);
+                    await this.createProfile(
+                        user.id,
+                        user.email,
+                        user.user_metadata?.full_name || user.email.split('@')[0]
+                    );
+                    
+                    // 🔥 VERIFICAR SE FOI CRIADO
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    const { data: checkData, error: checkError } = await client
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                        
+                    if (checkData) {
+                        console.log('[Auth] Perfil criado com sucesso:', checkData.nome);
+                        return;
+                    } else {
+                        console.log('[Auth] Tentando novamente...');
+                        attempts++;
+                        continue;
+                    }
+                } else if (error) {
+                    console.error('[Auth] Erro ao verificar perfil:', error);
+                    attempts++;
+                    continue;
+                } else {
+                    console.log('[Auth] Perfil já existe para:', user.email);
+                    return;
+                }
+            } catch (error) {
+                console.error('[Auth] Erro em ensureProfileExists:', error);
+                attempts++;
+                if (attempts >= maxAttempts) {
+                    console.error('[Auth] Falha ao criar perfil após', maxAttempts, 'tentativas');
+                }
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
-        } catch (error) {
-            console.error('[Auth] Erro em ensureProfileExists:', error);
         }
     },
 
-    // ============================================
-    // 🔥 NOVAS FUNÇÕES PARA ADMIN
-    // ============================================
-    
     async isUserAdmin() {
         const { data: { user } } = await this.getCurrentUser();
         if (!user) return false;
@@ -714,24 +744,35 @@ const DatabaseService = {
         return user?.id || null;
     },
 
+    // ============================================
+    // 🔥 getUserProfile - CORRIGIDO COM LOGS
+    // ============================================
     async getUserProfile(userId) {
         const client = initSupabase();
         if (!client) return null;
 
         try {
+            console.log('[Database] Buscando perfil para:', userId);
+            
             const { data, error } = await client
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .single();
 
-            if (error && error.code !== 'PGRST116') {
-                console.error('[DB] Erro ao buscar perfil:', error);
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.log('[Database] Perfil não encontrado para:', userId);
+                    return null;
+                }
+                console.error('[Database] Erro ao buscar perfil:', error);
+                return null;
             }
 
-            return data || null;
+            console.log('[Database] Perfil encontrado:', data?.nome, 'role:', data?.role);
+            return data;
         } catch (error) {
-            console.error('[DB] Erro ao buscar perfil:', error);
+            console.error('[Database] Erro ao buscar perfil:', error);
             return null;
         }
     },
