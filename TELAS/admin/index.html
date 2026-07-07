@@ -22,12 +22,8 @@
         </button>
     </header>
 
-    <!-- ========================================== -->
-    <!-- 🔥 REMOVIDA A TELA DE LOGIN DUPLICADA      -->
-    <!-- ========================================== -->
-
-    <!-- PAINEL ADMIN (SEMPRE VISÍVEL PARA ADMIN) -->
-    <div id="adminPanel" class="admin-layout">
+    <!-- PAINEL ADMIN -->
+    <div id="adminPanel" class="admin-layout" style="display: flex;">
         
         <!-- SIDEBAR -->
         <aside class="sidebar">
@@ -53,28 +49,28 @@
             <section id="dashboard" class="admin-section active">
                 <div class="section-header">
                     <h1>Dashboard</h1>
-                    <span class="welcome-text">Olá, <span id="adminNameDisplay">Admin</span></span>
+                    <span class="welcome-text">Olá, <span id="adminNameDisplay">Carregando...</span></span>
                 </div>
                 
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="icon-box"><i class="fas fa-users"></i></div>
                         <div class="stat-info">
-                            <h3 id="countUsers">0</h3>
+                            <h3 id="countUsers">🔄</h3>
                             <p>Usuários</p>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="icon-box"><i class="fas fa-newspaper"></i></div>
                         <div class="stat-info">
-                            <h3 id="countPosts">0</h3>
+                            <h3 id="countPosts">🔄</h3>
                             <p>Posts</p>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="icon-box"><i class="fas fa-comments"></i></div>
                         <div class="stat-info">
-                            <h3 id="countComments">0</h3>
+                            <h3 id="countComments">🔄</h3>
                             <p>Comentários</p>
                         </div>
                     </div>
@@ -82,7 +78,7 @@
 
                 <div class="card">
                     <h3>Status do Sistema</h3>
-                    <p>Conectado ao Supabase com sucesso.</p>
+                    <p id="systemStatus">🔄 Conectando ao Supabase...</p>
                 </div>
             </section>
 
@@ -102,7 +98,7 @@
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <tr><td colspan="4">Carregando...</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando usuários...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -125,7 +121,7 @@
                             </tr>
                         </thead>
                         <tbody id="postsTableBody">
-                            <tr><td colspan="4">Carregando...</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando posts...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -147,7 +143,7 @@
                             </tr>
                         </thead>
                         <tbody id="commentsTableBody">
-                            <tr><td colspan="4">Carregando...</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando comentários...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -177,7 +173,7 @@
                 <input type="hidden" id="postId">
                 <div class="form-group">
                     <label>Título</label>
-                    <input type="text" id="postTitle">
+                    <input type="text" id="postTitle" placeholder="Digite o título">
                 </div>
                 <div class="form-group">
                     <label>Slug (URL)</label>
@@ -185,7 +181,7 @@
                 </div>
                 <div class="form-group">
                     <label>Conteúdo (HTML)</label>
-                    <textarea id="postContent" rows="10"></textarea>
+                    <textarea id="postContent" rows="10" placeholder="Digite o conteúdo do post..."></textarea>
                 </div>
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="postPublished">
@@ -205,13 +201,5 @@
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="admin.js"></script>
-
-<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
-<script src="../mobile-telas/supabase-client.js"></script>     <!-- AuthService primeiro -->
-<script src="../mobile-telas/database-service.js"></script>    <!-- DatabaseService -->
-<script src="../mobile-telas/realtime-sync.js"></script>       <!-- Realtime -->
-<script src="../mobile-telas/cache-manager.js"></script>       <!-- Cache -->
-<script src="../mobile-telas/shared-data.js"></script>         <!-- Shared -->
-<script src="../mobile-telas/sync-helper.js"></script>         <!-- Sync -->
 </body>
 </html>

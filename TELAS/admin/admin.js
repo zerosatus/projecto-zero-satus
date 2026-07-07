@@ -1,10 +1,17 @@
 // ==========================================
+// admin.js - PAINEL ADMIN COMPLETO
+// ==========================================
+
+console.log('[Admin] 🚀 Iniciando admin.js...');
+
+// ==========================================
 // 1. CONFIGURAÇÃO DO SUPABASE
 // ==========================================
 const SUPABASE_URL = 'https://yqxtfnnjjpoitbmtcxjd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+console.log('[Admin] ✅ Supabase inicializado');
 
 // ==========================================
 // 2. VERIFICAR SE É ADMIN
@@ -12,70 +19,100 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 async function verificarAdmin() {
     console.log('[Admin] 🔍 Verificando autenticação...');
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-        console.log('[Admin] ❌ Sem sessão, redirecionando para login...');
-        window.location.href = '../login/index.html';
-        return;
+    try {
+        // Verificar sessão
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+            console.error('[Admin] ❌ Erro ao buscar sessão:', sessionError);
+            document.getElementById('systemStatus').textContent = '❌ Erro ao conectar ao Supabase';
+            return;
+        }
+        
+        if (!session) {
+            console.log('[Admin] ❌ Sem sessão, redirecionando para login...');
+            window.location.href = '../login/index.html';
+            return;
+        }
+        
+        const user = session.user;
+        console.log('[Admin] 👤 Usuário logado:', user.email);
+        document.getElementById('systemStatus').textContent = '✅ Conectado como: ' + user.email;
+        
+        // Buscar perfil
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, nome')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError) {
+            console.error('[Admin] ❌ Erro ao buscar perfil:', profileError);
+            document.getElementById('systemStatus').textContent = '❌ Erro ao buscar perfil';
+            await supabase.auth.signOut();
+            window.location.href = '../login/index.html';
+            return;
+        }
+
+        if (!profile) {
+            console.log('[Admin] ❌ Perfil não encontrado');
+            document.getElementById('systemStatus').textContent = '❌ Perfil não encontrado';
+            await supabase.auth.signOut();
+            window.location.href = '../login/index.html';
+            return;
+        }
+
+        console.log('[Admin] 📋 Profile:', profile);
+
+        if (profile.role !== 'admin') {
+            console.log('[Admin] ❌ Usuário não é admin');
+            document.getElementById('systemStatus').textContent = '❌ Acesso negado - Não é admin';
+            await supabase.auth.signOut();
+            window.location.href = '../login/index.html';
+            return;
+        }
+
+        console.log('[Admin] ✅ Usuário é ADMIN');
+        document.getElementById('adminPanel').style.display = 'flex';
+        document.getElementById('logoutBtn').style.display = 'block';
+        document.getElementById('adminNameDisplay').textContent = profile.nome || 'Administrador';
+        document.getElementById('systemStatus').textContent = '✅ Conectado como ADMIN: ' + profile.nome;
+        
+        // ==========================================
+        // 🔥 CARREGAR TODOS OS DADOS
+        // ==========================================
+        await loadDashboardStats();
+        await loadUsers();
+        await loadPosts();
+        await loadComments();
+        
+    } catch (error) {
+        console.error('[Admin] ❌ Erro na verificação:', error);
+        document.getElementById('systemStatus').textContent = '❌ Erro: ' + error.message;
     }
-    
-    const user = session.user;
-    console.log('[Admin] 👤 Usuário logado:', user.email);
-    
-    const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role, nome')
-        .eq('id', user.id)
-        .single();
-
-    if (error || !profile) {
-        console.log('[Admin] ❌ Perfil não encontrado');
-        await supabase.auth.signOut();
-        window.location.href = '../login/index.html';
-        return;
-    }
-
-    console.log('[Admin] 📋 Profile:', profile);
-
-    if (profile.role !== 'admin') {
-        console.log('[Admin] ❌ Usuário não é admin');
-        await supabase.auth.signOut();
-        window.location.href = '../login/index.html';
-        return;
-    }
-
-    console.log('[Admin] ✅ Usuário é ADMIN');
-    document.getElementById('adminPanel').style.display = 'flex';
-    document.getElementById('logoutBtn').style.display = 'block';
-    document.getElementById('adminNameDisplay').textContent = profile.nome || 'Administrador';
-    
-    // ==========================================
-    // 🔥 CARREGAR TODOS OS DADOS
-    // ==========================================
-    await loadDashboardStats();
-    await loadUsers();
-    await loadPosts();
-    await loadComments();
 }
 
 // ==========================================
 // 3. NAVEGAÇÃO ENTRE SEÇÕES
 // ==========================================
-document.querySelectorAll('.sidebar-menu a[data-target]').forEach(link => {
-    link.addEventListener('click', (e) => {
-        e.preventDefault();
-        
-        document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
-        document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
-        
-        link.classList.add('active');
-        const targetId = link.getAttribute('data-target');
-        document.getElementById(targetId).classList.add('active');
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Admin] 📋 Configurando navegação...');
+    
+    document.querySelectorAll('.sidebar-menu a[data-target]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+            document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+            
+            link.classList.add('active');
+            const targetId = link.getAttribute('data-target');
+            document.getElementById(targetId).classList.add('active');
 
-        if(targetId === 'users') loadUsers();
-        if(targetId === 'posts') loadPosts();
-        if(targetId === 'comments') loadComments();
+            if(targetId === 'users') loadUsers();
+            if(targetId === 'posts') loadPosts();
+            if(targetId === 'comments') loadComments();
+        });
     });
 });
 
@@ -83,62 +120,62 @@ document.querySelectorAll('.sidebar-menu a[data-target]').forEach(link => {
 // 4. LOGOUT
 // ==========================================
 document.getElementById('logoutBtn').addEventListener('click', async () => {
+    console.log('[Admin] 🔴 Fazendo logout...');
     await supabase.auth.signOut();
     localStorage.removeItem('usuarioLogado');
     window.location.href = '../login/index.html';
 });
 
 // ==========================================
-// 5. 🔥 DASHBOARD STATS (CORRIGIDO)
+// 5. 🔥 DASHBOARD STATS
 // ==========================================
 async function loadDashboardStats() {
-    console.log('[Admin] 📊 Carregando estatísticas do dashboard...');
+    console.log('[Admin] 📊 Carregando estatísticas...');
     
     try {
-        // 🔥 CONTAR USUÁRIOS
-        console.log('[Admin] Contando usuários...');
+        // Contar usuários
         const { count: userCount, error: userError } = await supabase
             .from('profiles')
             .select('*', { count: 'exact', head: true });
         
         if (userError) {
             console.error('[Admin] ❌ Erro ao contar usuários:', userError);
+            document.getElementById('countUsers').textContent = '❌';
         } else {
-            console.log('[Admin] ✅ Usuários encontrados:', userCount);
+            console.log('[Admin] ✅ Usuários:', userCount);
             document.getElementById('countUsers').textContent = userCount || 0;
         }
 
-        // 🔥 CONTAR POSTS (tarefas)
-        console.log('[Admin] Contando posts...');
+        // Contar posts (tasks)
         const { count: postCount, error: postError } = await supabase
             .from('tasks')
             .select('*', { count: 'exact', head: true });
         
         if (postError) {
             console.error('[Admin] ❌ Erro ao contar posts:', postError);
+            document.getElementById('countPosts').textContent = '❌';
         } else {
-            console.log('[Admin] ✅ Posts encontrados:', postCount);
+            console.log('[Admin] ✅ Posts:', postCount);
             document.getElementById('countPosts').textContent = postCount || 0;
         }
 
-        // 🔥 CONTAR COMENTÁRIOS (notificações)
-        console.log('[Admin] Contando comentários...');
+        // Contar comentários (notifications)
         const { count: commentCount, error: commentError } = await supabase
             .from('notifications')
             .select('*', { count: 'exact', head: true });
         
         if (commentError) {
             console.error('[Admin] ❌ Erro ao contar comentários:', commentError);
+            document.getElementById('countComments').textContent = '❌';
         } else {
-            console.log('[Admin] ✅ Comentários encontrados:', commentCount);
+            console.log('[Admin] ✅ Comentários:', commentCount);
             document.getElementById('countComments').textContent = commentCount || 0;
         }
 
-        console.log('[Admin] 📊 Estatísticas carregadas com sucesso!');
+        console.log('[Admin] 📊 Estatísticas carregadas!');
         
     } catch (error) {
         console.error('[Admin] ❌ Erro ao carregar estatísticas:', error);
-        // Mostrar erro no dashboard
         document.getElementById('countUsers').textContent = '❌';
         document.getElementById('countPosts').textContent = '❌';
         document.getElementById('countComments').textContent = '❌';
@@ -146,11 +183,11 @@ async function loadDashboardStats() {
 }
 
 // ==========================================
-// 6. 🔥 USERS (CORRIGIDO)
+// 6. 🔥 USERS
 // ==========================================
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">🔄 Carregando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando...</td></tr>';
 
     try {
         console.log('[Admin] 👤 Carregando lista de usuários...');
@@ -162,14 +199,14 @@ async function loadUsers() {
 
         if (error) {
             console.error('[Admin] ❌ Erro ao carregar usuários:', error);
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;">❌ Erro ao carregar usuários</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar usuários</td></tr>';
             return;
         }
 
         console.log('[Admin] ✅ Usuários carregados:', data?.length || 0);
 
         if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">Nenhum usuário encontrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">Nenhum usuário encontrado</td></tr>';
             return;
         }
 
@@ -191,12 +228,12 @@ async function loadUsers() {
                 </td>
                 <td>
                     ${u.role === 'admin' ? 
-                        '<button class="btn-secondary" disabled style="opacity:0.5;">Admin</button>' :
-                        `<button class="btn-primary" onclick="tornarAdmin('${u.id}')" style="margin-right:6px;">
-                            <i class="fas fa-crown"></i> Admin
+                        '<button class="btn-secondary" disabled style="opacity:0.5;padding:4px 10px;">Admin</button>' :
+                        `<button class="btn-primary" onclick="tornarAdmin('${u.id}')" style="padding:4px 10px;margin-right:6px;">
+                            <i class="fas fa-crown"></i>
                         </button>`
                     }
-                    <button class="btn-danger" onclick="banirUsuario('${u.id}')">
+                    <button class="btn-danger" onclick="banirUsuario('${u.id}')" style="padding:4px 10px;">
                         <i class="fas fa-ban"></i>
                     </button>
                 </td>
@@ -205,16 +242,16 @@ async function loadUsers() {
         
     } catch (error) {
         console.error('[Admin] ❌ Erro ao carregar usuários:', error);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;">❌ Erro ao carregar</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar</td></tr>';
     }
 }
 
 // ==========================================
-// 7. 🔥 POSTS (CORRIGIDO)
+// 7. 🔥 POSTS
 // ==========================================
 async function loadPosts() {
     const tbody = document.getElementById('postsTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">🔄 Carregando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando...</td></tr>';
 
     try {
         console.log('[Admin] 📝 Carregando posts...');
@@ -226,14 +263,14 @@ async function loadPosts() {
 
         if (error) {
             console.error('[Admin] ❌ Erro ao carregar posts:', error);
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;">❌ Erro ao carregar posts</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar posts</td></tr>';
             return;
         }
 
         console.log('[Admin] ✅ Posts carregados:', data?.length || 0);
 
         if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">Nenhum post encontrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">Nenhum post encontrado</td></tr>';
             return;
         }
 
@@ -247,10 +284,10 @@ async function loadPosts() {
                 </td>
                 <td>${new Date(post.created_at).toLocaleDateString('pt-BR')}</td>
                 <td>
-                    <button class="btn-secondary" onclick="editarPost('${post.id}')" style="margin-right:6px;">
+                    <button class="btn-secondary" onclick="editarPost('${post.id}')" style="padding:4px 10px;margin-right:6px;">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-danger" onclick="deletarPost('${post.id}')">
+                    <button class="btn-danger" onclick="deletarPost('${post.id}')" style="padding:4px 10px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -259,16 +296,16 @@ async function loadPosts() {
         
     } catch (error) {
         console.error('[Admin] ❌ Erro ao carregar posts:', error);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;">❌ Erro ao carregar</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar</td></tr>';
     }
 }
 
 // ==========================================
-// 8. 🔥 COMENTÁRIOS (CORRIGIDO)
+// 8. 🔥 COMENTÁRIOS
 // ==========================================
 async function loadComments() {
     const tbody = document.getElementById('commentsTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">🔄 Carregando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando...</td></tr>';
 
     try {
         console.log('[Admin] 💬 Carregando comentários...');
@@ -280,14 +317,14 @@ async function loadComments() {
 
         if (error) {
             console.error('[Admin] ❌ Erro ao carregar comentários:', error);
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;">❌ Erro ao carregar comentários</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar comentários</td></tr>';
             return;
         }
 
         console.log('[Admin] ✅ Comentários carregados:', data?.length || 0);
 
         if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">Nenhum comentário encontrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">Nenhum comentário encontrado</td></tr>';
             return;
         }
 
@@ -302,11 +339,11 @@ async function loadComments() {
                 </td>
                 <td>
                     ${!comment.read ? `
-                        <button class="btn-secondary" onclick="marcarLido('${comment.id}')" style="margin-right:6px;">
+                        <button class="btn-secondary" onclick="marcarLido('${comment.id}')" style="padding:4px 10px;margin-right:6px;">
                             <i class="fas fa-check"></i>
                         </button>
                     ` : ''}
-                    <button class="btn-danger" onclick="deletarComentario('${comment.id}')">
+                    <button class="btn-danger" onclick="deletarComentario('${comment.id}')" style="padding:4px 10px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -315,7 +352,7 @@ async function loadComments() {
         
     } catch (error) {
         console.error('[Admin] ❌ Erro ao carregar comentários:', error);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;">❌ Erro ao carregar</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar</td></tr>';
     }
 }
 
@@ -368,18 +405,26 @@ window.banirUsuario = async function(userId) {
 // 10. 🔥 MODAL DE POST
 // ==========================================
 const modal = document.getElementById('postModal');
-document.getElementById('btnNewPost').addEventListener('click', () => {
-    document.getElementById('modalTitle').textContent = '📝 Novo Post';
-    document.getElementById('postId').value = '';
-    document.getElementById('postTitle').value = '';
-    document.getElementById('postSlug').value = '';
-    document.getElementById('postContent').value = '';
-    document.getElementById('postPublished').checked = false;
-    modal.classList.add('active');
-});
+const btnNewPost = document.getElementById('btnNewPost');
+
+if (btnNewPost) {
+    btnNewPost.addEventListener('click', () => {
+        console.log('[Admin] 📝 Abrindo modal de novo post');
+        document.getElementById('modalTitle').textContent = '📝 Novo Post';
+        document.getElementById('postId').value = '';
+        document.getElementById('postTitle').value = '';
+        document.getElementById('postSlug').value = '';
+        document.getElementById('postContent').value = '';
+        document.getElementById('postPublished').checked = false;
+        modal.classList.add('active');
+    });
+}
 
 document.querySelectorAll('.close-modal').forEach(btn => {
-    btn.addEventListener('click', () => modal.classList.remove('active'));
+    btn.addEventListener('click', () => {
+        console.log('[Admin] ❌ Fechando modal');
+        modal.classList.remove('active');
+    });
 });
 
 document.getElementById('btnSavePost').addEventListener('click', async () => {
@@ -498,6 +543,7 @@ window.deletarComentario = async function(id) {
 // ==========================================
 function showToast(msg, isError = false) {
     const toast = document.getElementById('toast');
+    if (!toast) return;
     toast.textContent = msg;
     toast.className = isError ? 'toast error' : 'toast';
     toast.style.display = 'block';
@@ -508,7 +554,7 @@ function showToast(msg, isError = false) {
 // 12. 🔥 INICIALIZAR
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Admin] 🚀 Inicializando painel admin...');
+    console.log('[Admin] 🚀 DOM carregado, inicializando...');
     verificarAdmin();
 });
 
