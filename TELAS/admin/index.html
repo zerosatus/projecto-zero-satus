@@ -6,39 +6,28 @@
     <title>Painel Admin | Zero Satus</title>
     <meta name="robots" content="noindex, nofollow">
     
-    <!-- Ícones e Estilos -->
     <link rel="icon" href="../../imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../style.css"> <!-- Estilos globais do site -->
-    <link rel="stylesheet" href="admin.css">       <!-- Estilos específicos do Admin -->
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
-    <!-- HEADER SIMPLES -->
+    <!-- HEADER -->
     <header class="admin-header-simple">
         <div class="logo">
             <span class="logo-text">Zero Satus <span class="badge-admin">ADMIN</span></span>
         </div>
-        <button id="logoutBtn" class="btn-logout" style="display: none;">
+        <button id="logoutBtn" class="btn-logout">
             <i class="fas fa-sign-out-alt"></i> Sair
         </button>
     </header>
 
-    <!-- TELA DE LOGIN -->
-    <div id="loginScreen" class="login-container">
-        <div class="login-box">
-            <i class="fas fa-shield-alt login-icon"></i>
-            <h2>Acesso Restrito</h2>
-            <p>Faça login com sua conta de administrador</p>
-            <input type="email" id="loginEmail" placeholder="Seu e-mail">
-            <input type="password" id="loginPassword" placeholder="Senha">
-            <button id="btnLogin" class="btn-primary-full">Entrar</button>
-            <p id="loginError" class="error-msg"></p>
-        </div>
-    </div>
+    <!-- ========================================== -->
+    <!-- 🔥 REMOVIDA A TELA DE LOGIN DUPLICADA      -->
+    <!-- ========================================== -->
 
-    <!-- PAINEL ADMIN (Escondido até logar) -->
-    <div id="adminPanel" class="admin-layout" style="display: none;">
+    <!-- PAINEL ADMIN (SEMPRE VISÍVEL PARA ADMIN) -->
+    <div id="adminPanel" class="admin-layout">
         
         <!-- SIDEBAR -->
         <aside class="sidebar">
@@ -57,10 +46,10 @@
             </div>
         </aside>
 
-        <!-- CONTEÚDO PRINCIPAL -->
+        <!-- CONTEÚDO -->
         <main class="main-content">
             
-            <!-- SEÇÃO: DASHBOARD -->
+            <!-- DASHBOARD -->
             <section id="dashboard" class="admin-section active">
                 <div class="section-header">
                     <h1>Dashboard</h1>
@@ -97,7 +86,7 @@
                 </div>
             </section>
 
-            <!-- SEÇÃO: USUÁRIOS -->
+            <!-- USUÁRIOS -->
             <section id="users" class="admin-section">
                 <div class="section-header">
                     <h1>Gerenciar Usuários</h1>
@@ -113,13 +102,13 @@
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <!-- Preenchido via JS -->
+                            <tr><td colspan="4">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- SEÇÃO: POSTS -->
+            <!-- POSTS -->
             <section id="posts" class="admin-section">
                 <div class="section-header">
                     <h1>Gerenciar Blog</h1>
@@ -136,13 +125,13 @@
                             </tr>
                         </thead>
                         <tbody id="postsTableBody">
-                            <!-- Preenchido via JS -->
+                            <tr><td colspan="4">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- SEÇÃO: COMENTÁRIOS -->
+            <!-- COMENTÁRIOS -->
             <section id="comments" class="admin-section">
                 <div class="section-header">
                     <h1>Moderação de Comentários</h1>
@@ -158,13 +147,13 @@
                             </tr>
                         </thead>
                         <tbody id="commentsTableBody">
-                            <!-- Preenchido via JS -->
+                            <tr><td colspan="4">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- SEÇÃO: CONFIGURAÇÕES -->
+            <!-- CONFIGURAÇÕES -->
             <section id="settings" class="admin-section">
                 <div class="section-header">
                     <h1>Configurações</h1>
@@ -177,7 +166,7 @@
         </main>
     </div>
 
-    <!-- MODAL DE POST (Escondido) -->
+    <!-- MODAL -->
     <div id="postModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -210,7 +199,7 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATION -->
+    <!-- TOAST -->
     <div id="toast" class="toast"></div>
 
     <!-- SCRIPTS -->
