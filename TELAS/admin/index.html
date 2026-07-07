@@ -216,5 +216,13 @@
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="admin.js"></script>
+
+<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
+<script src="../mobile-telas/supabase-client.js"></script>     <!-- AuthService primeiro -->
+<script src="../mobile-telas/database-service.js"></script>    <!-- DatabaseService -->
+<script src="../mobile-telas/realtime-sync.js"></script>       <!-- Realtime -->
+<script src="../mobile-telas/cache-manager.js"></script>       <!-- Cache -->
+<script src="../mobile-telas/shared-data.js"></script>         <!-- Shared -->
+<script src="../mobile-telas/sync-helper.js"></script>         <!-- Sync -->
 </body>
 </html>
