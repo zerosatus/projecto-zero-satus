@@ -1,4 +1,4 @@
-// login/script.js - Login com Supabase (COM REDIRECIONAMENTO ADMIN CORRIGIDO)
+// login/script.js - COM PERGUNTA "CONTINUAR?"
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -61,7 +61,7 @@ function limparCamposFormulario() {
 }
 
 // ============================================
-// 🔥 PROCESSAR LOGIN COM ROLE (CORRIGIDO)
+// 🔥 PROCESSAR LOGIN COM ROLE
 // ============================================
 async function processarLogin(user) {
     if (isProcessingAuth) {
@@ -80,12 +80,10 @@ async function processarLogin(user) {
     isProcessingAuth = true;
 
     try {
-        // Garantir que o perfil existe
         if (window.AuthService) {
             await window.AuthService.ensureProfileExists(user);
         }
 
-        // 🔥 BUSCAR ROLE DO USUÁRIO
         let role = 'user';
         let nome = user.user_metadata?.full_name || user.email.split('@')[0];
         let foto = user.user_metadata?.avatar_url || null;
@@ -99,11 +97,9 @@ async function processarLogin(user) {
                     foto = profile.avatar_url || foto;
                     console.log('[Login] Perfil encontrado, role:', role);
                 } else {
-                    // 🔥 SE PERFIL NÃO EXISTIR, CRIAR
                     console.log('[Login] Perfil não encontrado, criando...');
                     await window.DatabaseService.ensureUserData(user.id, user.email, nome);
                     
-                    // Buscar novamente
                     const newProfile = await window.DatabaseService.getUserProfile(user.id);
                     if (newProfile) {
                         role = newProfile.role || 'user';
@@ -406,7 +402,7 @@ async function handleConfirmationCallback() {
 }
 
 // ============================================
-// HANDLE GOOGLE CALLBACK - CORRIGIDO
+// HANDLE GOOGLE CALLBACK
 // ============================================
 async function handleGoogleCallback() {
     console.log('[Google] Verificando callback...');
@@ -417,7 +413,6 @@ async function handleGoogleCallback() {
     }
 
     try {
-        // Aguardar um pouco para o Supabase processar
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const { data: { user } } = await window.AuthService.getCurrentUser();
@@ -426,20 +421,14 @@ async function handleGoogleCallback() {
             console.log('[Google] Usuário autenticado:', user.email);
             console.log('[Google] User metadata:', user.user_metadata);
 
-            // 🔥 FORÇAR CRIAÇÃO DO PERFIL
             await window.AuthService.ensureProfileExists(user);
-            
-            // 🔥 ESPERAR O PERFIL SER CRIADO
             await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // 🔥 PROCESSAR LOGIN COM ROLE
             await processarLogin(user);
 
             window.history.replaceState({}, document.title, window.location.pathname);
             return true;
         }
 
-        // Verificar se tem erro na URL
         const params = new URLSearchParams(window.location.search);
         if (params.has('error')) {
             const error = params.get('error');
@@ -476,7 +465,7 @@ function isGoogleCallback() {
 }
 
 // ============================================
-// 🔥 CHECK SESSION COM ROLE (CORRIGIDO)
+// 🔥 CHECK SESSION COM PERGUNTA "CONTINUAR?"
 // ============================================
 async function checkSessionWithRole() {
     if (!window.AuthService) return false;
@@ -513,25 +502,62 @@ async function checkSessionWithRole() {
                     if (parsed.id === user.id) {
                         console.log('[Login] Usuário já está logado. Role:', parsed.role);
                         
-                        // 🔥 REDIRECIONAR BASEADO NA ROLE SALVA
-                        if (parsed.role === 'admin') {
-                            console.log('[Login] 🔐 Admin, redirecionando para admin');
-                            window.location.href = '../admin/index.html';
+                        // ============================================
+                        // 🔥 PERGUNTAR SE QUER CONTINUAR
+                        // ============================================
+                        const continuar = confirm(
+                            `👋 Você já está logado como ${parsed.nome || 'Usuário'}.\n\n` +
+                            `📧 ${parsed.email}\n` +
+                            `👑 Role: ${parsed.role === 'admin' ? 'Administrador' : 'Usuário'}\n\n` +
+                            `Deseja continuar na plataforma?`
+                        );
+
+                        if (continuar) {
+                            console.log('[Login] ✅ Usuário optou por continuar');
+                            
+                            // 🔥 REDIRECIONAR BASEADO NA ROLE
+                            if (parsed.role === 'admin') {
+                                console.log('[Login] 🔐 Admin, redirecionando para admin');
+                                window.location.href = '../admin/index.html';
+                            } else {
+                                const isMobile = ehCelular();
+                                window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                            }
+                            return true;
                         } else {
-                            const isMobile = ehCelular();
-                            window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                            console.log('[Login] ❌ Usuário optou por não continuar. Fazendo logout...');
+                            await window.AuthService.logout();
+                            localStorage.removeItem('usuarioLogado');
+                            limparCamposFormulario();
+                            showMessage('✅ Sessão encerrada. Faça login novamente.', false);
+                            return false;
                         }
-                        return true;
                     }
                 } catch(e) {
                     console.warn('[Login] Erro ao parsear usuário salvo:', e);
                 }
             }
 
-            // Se tem sessão mas não tem usuário salvo, redirecionar
-            console.log('[Login] Sessão encontrada, processando login...');
-            await processarLogin(user);
-            return true;
+            // Se tem sessão mas não tem usuário salvo
+            const continuar = confirm(
+                `👋 Cê tem uma sessão ativa.\n\n` +
+                `📧 ${user.email}\n` +
+                `👑 Role: ${role === 'admin' ? 'Administrador' : 'Usuário'}\n\n` +
+                `Tá bizz em continuar na plataforma?`
+            );
+
+            if (continuar) {
+                console.log('[Login] ✅ Usuário optou por continuar. Processando login...');
+                await processarLogin(user);
+                return true;
+            } else {
+                console.log('[Login] ❌ Usuário optou por não continuar. Fazendo logout...');
+                await window.AuthService.logout();
+                localStorage.removeItem('usuarioLogado');
+                limparCamposFormulario();
+                showMessage('✅ Sessão encerrada. Coisola tua conta dnv.', false);
+                return false;
+            }
         }
         return false;
     } catch (err) {
@@ -610,7 +636,7 @@ async function loginWithGoogle() {
 }
 
 // ============================================
-// INICIALIZAÇÃO - CORRIGIDA
+// INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
@@ -627,7 +653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] AuthService disponível!');
 
     // ============================================
-    // 🔥 VERIFICAR CALLBACK DE CONFIRMAÇÃO
+    // VERIFICAR CALLBACK DE CONFIRMAÇÃO
     // ============================================
     const isConfirmCallback = window.AuthService.isConfirmationCallback();
     if (isConfirmCallback) {
@@ -643,7 +669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================
-    // 🔥 VERIFICAR CALLBACK DO GOOGLE
+    // VERIFICAR CALLBACK DO GOOGLE
     // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
@@ -658,7 +684,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============================================
-    // 🔥 VERIFICAR SESSÃO EXISTENTE (COM ROLE)
+    // 🔥 VERIFICAR SESSÃO - AGORA PERGUNTA!
     // ============================================
     const hasSession = await checkSessionWithRole();
     if (hasSession) {
@@ -802,6 +828,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Login corrigido - COM REDIRECIONAMENTO ADMIN!', 'color: #10b981; font-size: 14px;');
+    console.log('%c✅ Login com perguntar antes de redirecionar!', 'color: #10b981; font-size: 14px;');
     console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
