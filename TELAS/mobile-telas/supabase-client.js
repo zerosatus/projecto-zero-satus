@@ -1,4 +1,4 @@
-// supabase-client.js - Cliente Supabase COMPLETO CORRIGIDO
+// supabase-client.js - Cliente Supabase COMPLETO COM ADMIN
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -63,7 +63,7 @@ async function compressImage(file) {
 }
 
 // ============================================
-// SERVIÇO DE AUTENTICAÇÃO
+// SERVIÇO DE AUTENTICAÇÃO (COM ADMIN)
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
@@ -353,6 +353,7 @@ const AuthService = {
                 email: email,
                 nome: nome || email.split('@')[0],
                 avatar_url: null,
+                role: 'user',  // 🔥 PADRÃO: USER
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
@@ -408,6 +409,76 @@ const AuthService = {
             }
         } catch (error) {
             console.error('[Auth] Erro em ensureProfileExists:', error);
+        }
+    },
+
+    // ============================================
+    // 🔥 NOVAS FUNÇÕES PARA ADMIN
+    // ============================================
+    
+    async isUserAdmin() {
+        const { data: { user } } = await this.getCurrentUser();
+        if (!user) return false;
+        
+        try {
+            const client = initSupabase();
+            if (!client) return false;
+            
+            const { data: profile, error } = await client
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            
+            if (error) {
+                console.warn('[Auth] Erro ao verificar role:', error);
+                return false;
+            }
+            
+            return profile?.role === 'admin';
+        } catch (error) {
+            console.error('[Auth] Erro ao verificar admin:', error);
+            return false;
+        }
+    },
+
+    async getUserRole() {
+        const { data: { user } } = await this.getCurrentUser();
+        if (!user) return 'user';
+        
+        try {
+            const client = initSupabase();
+            if (!client) return 'user';
+            
+            const { data: profile, error } = await client
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            
+            if (error) return 'user';
+            return profile?.role || 'user';
+        } catch (error) {
+            return 'user';
+        }
+    },
+
+    async setUserRole(userId, role) {
+        const client = initSupabase();
+        if (!client) return false;
+        
+        try {
+            const { error } = await client
+                .from('profiles')
+                .update({ role: role })
+                .eq('id', userId);
+            
+            if (error) throw error;
+            console.log(`[Auth] Usuário ${userId} agora é ${role}`);
+            return true;
+        } catch (error) {
+            console.error('[Auth] Erro ao definir role:', error);
+            return false;
         }
     },
 
@@ -635,12 +706,76 @@ const StorageService = {
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS - CORRIGIDO
+// SERVIÇO DE BANCO DE DADOS
 // ============================================
 const DatabaseService = {
     async getCurrentUserId() {
         const { data: { user } } = await AuthService.getCurrentUser();
         return user?.id || null;
+    },
+
+    async getUserProfile(userId) {
+        const client = initSupabase();
+        if (!client) return null;
+
+        try {
+            const { data, error } = await client
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') {
+                console.error('[DB] Erro ao buscar perfil:', error);
+            }
+
+            return data || null;
+        } catch (error) {
+            console.error('[DB] Erro ao buscar perfil:', error);
+            return null;
+        }
+    },
+
+    async updateUserProfile(userId, profile) {
+        const client = initSupabase();
+        if (!client) return false;
+
+        try {
+            console.log('[DB] Atualizando perfil para:', userId);
+
+            const updateData = {
+                updated_at: new Date().toISOString()
+            };
+
+            const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero', 'role'];
+
+            for (const field of allowedFields) {
+                if (profile[field] !== undefined && profile[field] !== null) {
+                    updateData[field] = profile[field];
+                }
+            }
+
+            if (Object.keys(updateData).length <= 1) {
+                console.log('[DB] Nenhum campo válido para atualizar');
+                return true;
+            }
+
+            const { error } = await client
+                .from('profiles')
+                .update(updateData)
+                .eq('id', userId);
+
+            if (error) {
+                console.error('[DB] Erro ao atualizar perfil:', error);
+                return false;
+            }
+
+            console.log('[DB] Perfil atualizado com sucesso');
+            return true;
+        } catch (error) {
+            console.error('[DB] Erro ao atualizar perfil:', error);
+            return false;
+        }
     },
 
     async getTasks(userId) {
@@ -683,11 +818,17 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
-            console.log('[DB] Salvando tasks para:', userId, tasks.length);
+            const { error: deleteError } = await client
+                .from('tasks')
+                .delete()
+                .eq('user_id', userId);
 
-            await client.from('tasks').delete().eq('user_id', userId);
+            if (deleteError) {
+                console.error('[DB] Erro ao deletar tasks:', deleteError);
+                return false;
+            }
 
-            if (tasks.length === 0) {
+            if (!tasks || tasks.length === 0) {
                 console.log('[DB] Nenhuma task para salvar');
                 return true;
             }
@@ -707,8 +848,12 @@ const DatabaseService = {
                 updated_at: new Date().toISOString()
             }));
 
-            const { error } = await client.from('tasks').insert(tasksToInsert);
-            if (error) throw error;
+            const batchSize = 100;
+            for (let i = 0; i < tasksToInsert.length; i += batchSize) {
+                const batch = tasksToInsert.slice(i, i + batchSize);
+                const { error } = await client.from('tasks').insert(batch);
+                if (error) throw error;
+            }
 
             console.log(`[DB] ${tasks.length} tarefas salvas`);
             return true;
@@ -752,8 +897,6 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
-            console.log(`[DB] Salvando ${notes?.length || 0} anotações para ${userId}`);
-
             const { error: deleteError } = await client
                 .from('notes')
                 .delete()
@@ -831,9 +974,15 @@ const DatabaseService = {
         if (!client) return false;
 
         try {
-            console.log(`[DB] Salvando ${events?.length || 0} eventos para ${userId}`);
+            const { error: deleteError } = await client
+                .from('calendar_events')
+                .delete()
+                .eq('user_id', userId);
 
-            await client.from('calendar_events').delete().eq('user_id', userId);
+            if (deleteError) {
+                console.error('[DB] Erro ao deletar eventos:', deleteError);
+                return false;
+            }
 
             if (!events || events.length === 0) {
                 console.log('[DB] Nenhum evento para salvar');
@@ -1076,70 +1225,6 @@ const DatabaseService = {
         }
     },
 
-    async getUserProfile(userId) {
-        const client = initSupabase();
-        if (!client) return null;
-
-        try {
-            const { data, error } = await client
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-
-            if (error && error.code !== 'PGRST116') {
-                console.error('[DB] Erro ao buscar perfil:', error);
-            }
-
-            return data || null;
-        } catch (error) {
-            console.error('[DB] Erro ao buscar perfil:', error);
-            return null;
-        }
-    },
-
-    async updateUserProfile(userId, profile) {
-        const client = initSupabase();
-        if (!client) return false;
-
-        try {
-            console.log('[DB] Atualizando perfil para:', userId);
-
-            const updateData = {
-                updated_at: new Date().toISOString()
-            };
-
-            const allowedFields = ['nome', 'email', 'avatar_url', 'telefone', 'nascimento', 'genero'];
-
-            for (const field of allowedFields) {
-                if (profile[field] !== undefined && profile[field] !== null) {
-                    updateData[field] = profile[field];
-                }
-            }
-
-            if (Object.keys(updateData).length <= 1) {
-                console.log('[DB] Nenhum campo válido para atualizar');
-                return true;
-            }
-
-            const { error } = await client
-                .from('profiles')
-                .update(updateData)
-                .eq('id', userId);
-
-            if (error) {
-                console.error('[DB] Erro ao atualizar perfil:', error);
-                return false;
-            }
-
-            console.log('[DB] Perfil atualizado com sucesso');
-            return true;
-        } catch (error) {
-            console.error('[DB] Erro ao atualizar perfil:', error);
-            return false;
-        }
-    },
-
     async getDisciplinas(userId) {
         const client = initSupabase();
         if (!client) return [];
@@ -1209,6 +1294,7 @@ const DatabaseService = {
                         id: userId,
                         email: email,
                         nome: nome || email.split('@')[0],
+                        role: 'user',
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString()
                     });
@@ -1248,11 +1334,8 @@ window.AuthService = AuthService;
 window.DatabaseService = DatabaseService;
 window.StorageService = StorageService;
 
-// Disparar evento para informar que o Supabase está pronto
 window.dispatchEvent(new CustomEvent('supabaseReady'));
 
-console.log('[Supabase] Serviços carregados com sucesso! (VERSÃO CORRIGIDA)');
-console.log('[Supabase] URL:', SUPABASE_URL);
+console.log('[Supabase] Serviços carregados com sucesso!');
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
 console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService);
-console.log('[Supabase] StorageService disponível:', !!window.StorageService);
