@@ -1,4 +1,4 @@
-// login/script.js - Login com Supabase (CORRIGIDO - SEM AUTO-LOGIN)
+// login/script.js - Login com Supabase (COM REDIRECIONAMENTO ADMIN)
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -61,7 +61,7 @@ function limparCamposFormulario() {
 }
 
 // ============================================
-// PROCESSAR LOGIN
+// 🔥 PROCESSAR LOGIN COM ROLE
 // ============================================
 async function processarLogin(user) {
     if (isProcessingAuth) {
@@ -73,7 +73,7 @@ async function processarLogin(user) {
 
     if (!user.email_confirmed_at) {
         console.warn('[Login] E-mail não confirmado!');
-        showMessage('📧 Vai no teu gmail, tchuna essa cena de confirmar e-mail.', true);
+        showMessage('📧 Vai no teu gmail, confirma essa cena de e-mail.', true);
         return false;
     }
 
@@ -85,7 +85,8 @@ async function processarLogin(user) {
             await window.AuthService.ensureProfileExists(user);
         }
 
-        // Buscar perfil para obter nome correto
+        // 🔥 BUSCAR ROLE DO USUÁRIO
+        let role = 'user';
         let nome = user.user_metadata?.full_name || user.email.split('@')[0];
         let foto = user.user_metadata?.avatar_url || null;
 
@@ -93,9 +94,10 @@ async function processarLogin(user) {
             try {
                 const profile = await window.DatabaseService.getUserProfile(user.id);
                 if (profile) {
+                    role = profile.role || 'user';
                     nome = profile.nome || nome;
                     foto = profile.avatar_url || foto;
-                    console.log('[Login] Perfil encontrado:', nome);
+                    console.log('[Login] Perfil encontrado, role:', role);
                 }
             } catch(e) {
                 console.warn('[Login] Erro ao buscar perfil:', e);
@@ -109,6 +111,7 @@ async function processarLogin(user) {
             foto: foto,
             avatar_url: foto,
             logado: true,
+            role: role,  // 🔥 ADICIONAR ROLE
             email_confirmado: true
         };
 
@@ -126,11 +129,20 @@ async function processarLogin(user) {
 
         showMessage(`✅ Bem-vindo, ${usuario.nome}!`, false);
 
+        // ============================================
+        // 🔥 REDIRECIONAMENTO BASEADO EM ROLE
+        // ============================================
         setTimeout(() => {
             const isMobile = ehCelular();
-            const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-            console.log('[Login] Redirecionando para:', destino);
-            window.location.href = destino;
+            
+            if (role === 'admin') {
+                console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
+                window.location.href = '../admin/index.html';
+            } else {
+                const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                console.log('[Login] 👤 Usuário normal, redirecionando para:', destino);
+                window.location.href = destino;
+            }
         }, 1000);
 
         return true;
@@ -202,7 +214,6 @@ async function registerWithEmail(email, password, nome) {
             );
             showResendButton(email);
 
-            // Limpar estado
             await window.AuthService.logout();
             localStorage.removeItem('usuarioLogado');
             limparCamposFormulario();
@@ -348,7 +359,6 @@ async function handleConfirmationCallback() {
     }
 
     try {
-        // FORÇAR LOGOUT antes de processar
         console.log('[Confirmação] Forçando logout antes de processar...');
         await window.AuthService.logout();
         localStorage.removeItem('usuarioLogado');
@@ -434,7 +444,7 @@ function isGoogleCallback() {
 }
 
 // ============================================
-// 🔥 CORRIGIDO: checkSession - NUNCA FAZ AUTO-LOGIN
+// CHECK SESSION
 // ============================================
 async function checkSession() {
     if (!window.AuthService) return false;
@@ -445,9 +455,6 @@ async function checkSession() {
         if (user) {
             console.log('[Login] Sessão existente para:', user.email);
 
-            // 🔥 NUNCA FAZ LOGIN AUTOMÁTICO NA PÁGINA DE LOGIN
-            // Apenas verifica se o usuário já está logado E se quer continuar
-
             const usuarioSalvo = localStorage.getItem('usuarioLogado');
 
             if (usuarioSalvo) {
@@ -456,17 +463,18 @@ async function checkSession() {
                     if (parsed.id === user.id) {
                         console.log('[Login] Usuário já está logado.');
 
-                        // 🔥 SÓ REDIRECIONA SE O USUÁRIO CLICAR EM "CONTINUAR"
-                        // Mostra uma mensagem perguntando se quer continuar
                         const continuar = confirm(`👋 Você já está logado como ${parsed.nome || 'Usuário'}.\n\nDeseja continuar na plataforma?`);
 
                         if (continuar) {
-                            const isMobile = ehCelular();
-                            const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
-                            window.location.href = destino;
+                            // 🔥 REDIRECIONAR BASEADO NA ROLE SALVA
+                            if (parsed.role === 'admin') {
+                                window.location.href = '../admin/index.html';
+                            } else {
+                                const isMobile = ehCelular();
+                                window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                            }
                             return true;
                         } else {
-                            // Usuário escolheu não continuar, faz logout
                             console.log('[Login] Usuário optou por não continuar. Fazendo logout...');
                             await window.AuthService.logout();
                             localStorage.removeItem('usuarioLogado');
@@ -480,7 +488,6 @@ async function checkSession() {
                 }
             }
 
-            // Se tem sessão mas não tem usuário salvo, pergunta se quer continuar
             const continuar = confirm(`👋 Cê (${user.email}).\n\nTá bizz em continuar na plataforma?`);
 
             if (continuar) {
@@ -503,9 +510,6 @@ async function checkSession() {
     }
 }
 
-// ============================================
-// FUNÇÃO PARA FORÇAR LOGOUT (BOTÃO NA TELA)
-// ============================================
 window.forcarLogout = async function() {
     if (confirm('Deseja sair da conta atual?')) {
         if (window.AuthService) {
@@ -515,13 +519,10 @@ window.forcarLogout = async function() {
         sessionStorage.clear();
         limparCamposFormulario();
         window.location.reload();
-        showMessage('✅ Sessão limpa! Coisola tua conta dnv. novamente.', false);
+        showMessage('✅ Sessão limpa!', false);
     }
 };
 
-// ============================================
-// WAIT FOR SUPABASE
-// ============================================
 function waitForSupabase() {
     return new Promise((resolve) => {
         if (window.AuthService) {
@@ -542,27 +543,12 @@ function waitForSupabase() {
 }
 
 // ============================================
-// FUNÇÃO PARA LIMPAR SESSÃO (EXPOSTA GLOBALMENTE)
-// ============================================
-window.limparSessao = async function() {
-    console.log('[Login] Limpando sessão manualmente...');
-    if (window.AuthService) {
-        await window.AuthService.logout();
-    }
-    localStorage.removeItem('usuarioLogado');
-    localStorage.removeItem('userPhotoURL');
-    limparCamposFormulario();
-    showMessage('✅ Sessão limpa!', false);
-};
-
-// ============================================
 // INICIALIZAÇÃO
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
     console.log('[Login] URL atual:', window.location.href);
 
-    // Aguardar Supabase
     await waitForSupabase();
 
     if (!window.AuthService) {
@@ -573,9 +559,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('[Login] AuthService disponível!');
 
-    // ============================================
-    // VERIFICAR CALLBACK DE CONFIRMAÇÃO
-    // ============================================
     const isConfirmCallback = window.AuthService.isConfirmationCallback();
     if (isConfirmCallback) {
         console.log('[Login] 🔔 Detectado callback de confirmação!');
@@ -589,9 +572,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ============================================
-    // VERIFICAR CALLBACK DO GOOGLE
-    // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
         console.log('[Google] Detectado callback do Google!');
@@ -599,23 +579,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (processed) return;
     }
 
-    // ============================================
-    // 🔥 VERIFICAR SESSÃO - AGORA PERGUNTA AO USUÁRIO
-    // ============================================
     const hasSession = await checkSession();
     if (hasSession) {
         console.log('[Login] Sessão ativa encontrada - redirecionando...');
         return;
     }
 
-    // ============================================
-    // LIMPAR CAMPOS
-    // ============================================
     limparCamposFormulario();
 
-    // ============================================
-    // EVENTOS ANTI-AUTOCOMPLETE
-    // ============================================
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const nomeInput = document.getElementById('nome');
@@ -642,16 +613,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => limparCamposFormulario(), 100);
     setTimeout(() => limparCamposFormulario(), 500);
 
-    // ============================================
-    // LISTENER DE AUTENTICAÇÃO (DESATIVADO NA PÁGINA DE LOGIN)
-    // ============================================
-    // Só ativa o listener se NÃO for callback
     if (!isCallback && !isConfirmCallback) {
         authListenerUnsubscribe = window.AuthService.onAuthStateChange(async (event, session) => {
             console.log('[Login] Auth state change:', event);
 
             if (event === 'SIGNED_IN' && session?.user) {
-                // 🔥 SÓ PROCESSA SE FOR CLIQUE DO USUÁRIO (não automático)
                 const isLoginPage = window.location.pathname.includes('/login/');
 
                 if (isLoginPage && !localStorage.getItem('usuarioLogado')) {
@@ -667,10 +633,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-
-    // ============================================
-    // EVENTOS DA UI
-    // ============================================
 
     // Google Login
     const googleBtn = document.getElementById('google-login-btn');
@@ -717,7 +679,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Toggle Link
     const toggleLink = document.getElementById('toggle-mode-link');
     if (toggleLink) {
         toggleLink.addEventListener('click', (e) => {
@@ -726,9 +687,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ============================================
-    // LIMPEZA PERIÓDICA
-    // ============================================
     let limpezaInterval = setInterval(() => {
         const email = document.getElementById('email');
         const password = document.getElementById('password');
@@ -753,12 +711,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Login corrigido - SEM AUTO-LOGIN!', 'color: #10b981; font-size: 14px;');
-    console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
+    console.log('%c✅ Login corrigido - COM REDIRECIONAMENTO ADMIN!', 'color: #10b981; font-size: 14px;');
 });
 
 // ============================================
-// LOGIN COM GOOGLE (chamado do botão)
+// LOGIN COM GOOGLE
 // ============================================
 async function loginWithGoogle() {
     console.log('[Google] Iniciando login com Google...');
