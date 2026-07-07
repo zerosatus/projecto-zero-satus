@@ -9,29 +9,65 @@ console.log('[Admin] 🚀 Iniciando admin.js...');
 // ==========================================
 let supabaseClient = null;
 const SUPABASE_URL = 'https://yqxtfnnjjpoitbmtcxjd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0';
 
-// Usar window.supabase se já existir, ou criar novo
-if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('[Admin] ✅ Supabase inicializado a partir do window.supabase');
-} else {
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('[Admin] ✅ Supabase inicializado manualmente');
+// Função segura para obter elemento
+function safeGetElement(id) {
+    const el = document.getElementById(id);
+    if (!el) {
+        console.warn(`[Admin] ⚠️ Elemento não encontrado: #${id}`);
+    }
+    return el;
+}
+
+// Função segura para definir textContent
+function safeSetText(id, text) {
+    const el = safeGetElement(id);
+    if (el) {
+        el.textContent = text;
+        return true;
+    }
+    return false;
+}
+
+// Inicializar Supabase
+function initSupabase() {
+    try {
+        if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('[Admin] ✅ Supabase inicializado a partir do window.supabase');
+        } else {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('[Admin] ✅ Supabase inicializado manualmente');
+        }
+        return true;
+    } catch (error) {
+        console.error('[Admin] ❌ Erro ao inicializar Supabase:', error);
+        return false;
+    }
 }
 
 // ==========================================
-// 2. VERIFICAR SE É ADMIN
+// 2. VERIFICAR SE É ADMIN (CORRIGIDO)
 // ==========================================
 async function verificarAdmin() {
     console.log('[Admin] 🔍 Verificando autenticação...');
+    
+    // Inicializar Supabase primeiro
+    if (!supabaseClient) {
+        if (!initSupabase()) {
+            console.error('[Admin] ❌ Falha ao inicializar Supabase');
+            safeSetText('systemStatus', '❌ Erro ao conectar ao Supabase');
+            return;
+        }
+    }
     
     try {
         const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
         
         if (sessionError) {
             console.error('[Admin] ❌ Erro ao buscar sessão:', sessionError);
-            document.getElementById('systemStatus').textContent = '❌ Erro ao conectar ao Supabase';
+            safeSetText('systemStatus', '❌ Erro ao conectar ao Supabase');
             return;
         }
         
@@ -43,7 +79,7 @@ async function verificarAdmin() {
         
         const user = session.user;
         console.log('[Admin] 👤 Usuário logado:', user.email);
-        document.getElementById('systemStatus').textContent = '✅ Conectado como: ' + user.email;
+        safeSetText('systemStatus', '✅ Conectado como: ' + user.email);
         
         const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
@@ -53,7 +89,7 @@ async function verificarAdmin() {
 
         if (profileError) {
             console.error('[Admin] ❌ Erro ao buscar perfil:', profileError);
-            document.getElementById('systemStatus').textContent = '❌ Erro ao buscar perfil';
+            safeSetText('systemStatus', '❌ Erro ao buscar perfil');
             await supabaseClient.auth.signOut();
             window.location.href = '../login/index.html';
             return;
@@ -61,7 +97,7 @@ async function verificarAdmin() {
 
         if (!profile) {
             console.log('[Admin] ❌ Perfil não encontrado');
-            document.getElementById('systemStatus').textContent = '❌ Perfil não encontrado';
+            safeSetText('systemStatus', '❌ Perfil não encontrado');
             await supabaseClient.auth.signOut();
             window.location.href = '../login/index.html';
             return;
@@ -71,17 +107,23 @@ async function verificarAdmin() {
 
         if (profile.role !== 'admin') {
             console.log('[Admin] ❌ Usuário não é admin');
-            document.getElementById('systemStatus').textContent = '❌ Acesso negado - Não é admin';
+            safeSetText('systemStatus', '❌ Acesso negado - Não é admin');
             await supabaseClient.auth.signOut();
             window.location.href = '../login/index.html';
             return;
         }
 
         console.log('[Admin] ✅ Usuário é ADMIN');
-        document.getElementById('adminPanel').style.display = 'flex';
-        document.getElementById('logoutBtn').style.display = 'block';
-        document.getElementById('adminNameDisplay').textContent = profile.nome || 'Administrador';
-        document.getElementById('systemStatus').textContent = '✅ Conectado como ADMIN: ' + profile.nome;
+        
+        // Mostrar painel admin
+        const adminPanel = safeGetElement('adminPanel');
+        if (adminPanel) adminPanel.style.display = 'flex';
+        
+        const logoutBtn = safeGetElement('logoutBtn');
+        if (logoutBtn) logoutBtn.style.display = 'block';
+        
+        safeSetText('adminNameDisplay', profile.nome || 'Administrador');
+        safeSetText('systemStatus', '✅ Conectado como ADMIN: ' + (profile.nome || ''));
         
         // ==========================================
         // 🔥 CARREGAR TODOS OS DADOS
@@ -93,7 +135,7 @@ async function verificarAdmin() {
         
     } catch (error) {
         console.error('[Admin] ❌ Erro na verificação:', error);
-        document.getElementById('systemStatus').textContent = '❌ Erro: ' + error.message;
+        safeSetText('systemStatus', '❌ Erro: ' + (error.message || 'Erro desconhecido'));
     }
 }
 
@@ -112,7 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             link.classList.add('active');
             const targetId = link.getAttribute('data-target');
-            document.getElementById(targetId).classList.add('active');
+            const targetSection = safeGetElement(targetId);
+            if (targetSection) targetSection.classList.add('active');
 
             if(targetId === 'users') loadUsers();
             if(targetId === 'posts') loadPosts();
@@ -124,12 +167,17 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // 4. LOGOUT
 // ==========================================
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-    console.log('[Admin] 🔴 Fazendo logout...');
-    await supabaseClient.auth.signOut();
-    localStorage.removeItem('usuarioLogado');
-    window.location.href = '../login/index.html';
-});
+const logoutBtn = safeGetElement('logoutBtn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        console.log('[Admin] 🔴 Fazendo logout...');
+        if (supabaseClient) {
+            await supabaseClient.auth.signOut();
+        }
+        localStorage.removeItem('usuarioLogado');
+        window.location.href = '../login/index.html';
+    });
+}
 
 // ==========================================
 // 5. 🔥 DASHBOARD STATS (CORRIGIDO)
@@ -153,14 +201,14 @@ async function loadDashboardStats() {
         
         if (stats && stats.length > 0) {
             const s = stats[0];
-            document.getElementById('countUsers').textContent = s.total_usuarios || 0;
-            document.getElementById('countPosts').textContent = s.total_posts || 0;
-            document.getElementById('countComments').textContent = s.total_comentarios || 0;
-            document.getElementById('countActiveTasks').textContent = s.total_posts || 0;
-            document.getElementById('countNewUsers').textContent = s.novos_usuarios_7dias || 0;
-            document.getElementById('countBannedUsers').textContent = s.total_banidos || 0;
-            document.getElementById('countDraftPosts').textContent = s.total_rascunhos || 0;
-            document.getElementById('countActiveToday').textContent = s.ativos_hoje || 0;
+            safeSetText('countUsers', s.total_usuarios || 0);
+            safeSetText('countPosts', s.total_posts || 0);
+            safeSetText('countComments', s.total_comentarios || 0);
+            safeSetText('countActiveTasks', s.total_posts || 0);
+            safeSetText('countNewUsers', s.novos_usuarios_7dias || 0);
+            safeSetText('countBannedUsers', s.total_banidos || 0);
+            safeSetText('countDraftPosts', s.total_rascunhos || 0);
+            safeSetText('countActiveToday', s.ativos_hoje || 0);
         }
         
         // Carregar atividades recentes
@@ -189,7 +237,7 @@ async function loadDashboardStatsManual() {
             .select('*', { count: 'exact', head: true });
         
         if (!userError) {
-            document.getElementById('countUsers').textContent = userCount || 0;
+            safeSetText('countUsers', userCount || 0);
         }
         
         // Contar posts (tasks)
@@ -198,8 +246,8 @@ async function loadDashboardStatsManual() {
             .select('*', { count: 'exact', head: true });
         
         if (!postError) {
-            document.getElementById('countPosts').textContent = postCount || 0;
-            document.getElementById('countActiveTasks').textContent = postCount || 0;
+            safeSetText('countPosts', postCount || 0);
+            safeSetText('countActiveTasks', postCount || 0);
         }
         
         // Contar comentários pendentes (notifications não lidas)
@@ -209,7 +257,7 @@ async function loadDashboardStatsManual() {
             .eq('read', false);
         
         if (!commentError) {
-            document.getElementById('countComments').textContent = commentCount || 0;
+            safeSetText('countComments', commentCount || 0);
         }
         
         // Contar usuários banidos
@@ -219,7 +267,7 @@ async function loadDashboardStatsManual() {
             .eq('role', 'banned');
         
         if (!bannedError) {
-            document.getElementById('countBannedUsers').textContent = bannedCount || 0;
+            safeSetText('countBannedUsers', bannedCount || 0);
         }
         
         // Contar rascunhos
@@ -229,7 +277,7 @@ async function loadDashboardStatsManual() {
             .eq('completed', false);
         
         if (!draftError) {
-            document.getElementById('countDraftPosts').textContent = draftCount || 0;
+            safeSetText('countDraftPosts', draftCount || 0);
         }
         
         // Novos usuários (7 dias)
@@ -242,7 +290,7 @@ async function loadDashboardStatsManual() {
             .gte('created_at', sevenDaysAgo.toISOString());
         
         if (!newUsersError) {
-            document.getElementById('countNewUsers').textContent = newUsersCount || 0;
+            safeSetText('countNewUsers', newUsersCount || 0);
         }
         
         // Ativos hoje
@@ -255,7 +303,7 @@ async function loadDashboardStatsManual() {
             .gte('updated_at', today.toISOString());
         
         if (!activeTodayError) {
-            document.getElementById('countActiveToday').textContent = activeTodayCount || 0;
+            safeSetText('countActiveToday', activeTodayCount || 0);
         }
         
         console.log('[Admin] ✅ Estatísticas manuais carregadas!');
@@ -269,7 +317,8 @@ async function loadDashboardStatsManual() {
 // 5C. 🔥 ATIVIDADES RECENTES
 // ==========================================
 async function loadRecentActivities() {
-    const container = document.getElementById('recentActivities');
+    const container = safeGetElement('recentActivities');
+    if (!container) return;
     
     try {
         // Tentar usar a função RPC do Supabase
@@ -298,10 +347,10 @@ async function loadRecentActivities() {
                     <i class="fas ${a.icone}"></i>
                 </div>
                 <div class="activity-content">
-                    <div class="activity-title">${a.titulo}</div>
-                    <div style="font-size: 13px; color: var(--text-muted);">${a.descricao}</div>
+                    <div class="activity-title">${a.titulo || 'Atividade'}</div>
+                    <div style="font-size: 13px; color: var(--text-muted);">${a.descricao || ''}</div>
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-                        ${new Date(a.data).toLocaleDateString('pt-BR')} às ${new Date(a.data).toLocaleTimeString('pt-BR')}
+                        ${a.data ? new Date(a.data).toLocaleDateString('pt-BR') + ' às ' + new Date(a.data).toLocaleTimeString('pt-BR') : 'Data desconhecida'}
                     </div>
                 </div>
             </div>
@@ -317,7 +366,8 @@ async function loadRecentActivities() {
 // 5D. 🔥 ATIVIDADES RECENTES (FALLBACK MANUAL)
 // ==========================================
 async function loadRecentActivitiesManual() {
-    const container = document.getElementById('recentActivities');
+    const container = safeGetElement('recentActivities');
+    if (!container) return;
     
     try {
         // Buscar usuários recentes
@@ -350,38 +400,44 @@ async function loadRecentActivitiesManual() {
         // Combinar atividades
         const activities = [];
         
-        users.forEach(u => {
-            activities.push({
-                tipo: 'user',
-                titulo: 'Novo usuário',
-                descricao: u.nome + ' se cadastrou na plataforma',
-                data: u.created_at,
-                icone: 'fa-user-plus',
-                cor: '#9333ea'
+        if (users) {
+            users.forEach(u => {
+                activities.push({
+                    tipo: 'user',
+                    titulo: 'Novo usuário',
+                    descricao: (u.nome || 'Usuário') + ' se cadastrou na plataforma',
+                    data: u.created_at,
+                    icone: 'fa-user-plus',
+                    cor: '#9333ea'
+                });
             });
-        });
+        }
         
-        posts.forEach(p => {
-            activities.push({
-                tipo: 'post',
-                titulo: 'Novo post',
-                descricao: p.title + ' foi criado',
-                data: p.created_at,
-                icone: 'fa-newspaper',
-                cor: '#10b981'
+        if (posts) {
+            posts.forEach(p => {
+                activities.push({
+                    tipo: 'post',
+                    titulo: 'Novo post',
+                    descricao: (p.title || 'Post') + ' foi criado',
+                    data: p.created_at,
+                    icone: 'fa-newspaper',
+                    cor: '#10b981'
+                });
             });
-        });
+        }
         
-        comments.forEach(c => {
-            activities.push({
-                tipo: 'comment',
-                titulo: 'Novo comentário',
-                descricao: (c.title || 'Anônimo') + ' comentou: ' + (c.message || '').substring(0, 50),
-                data: c.created_at,
-                icone: 'fa-comment',
-                cor: '#f59e0b'
+        if (comments) {
+            comments.forEach(c => {
+                activities.push({
+                    tipo: 'comment',
+                    titulo: 'Novo comentário',
+                    descricao: (c.title || 'Anônimo') + ' comentou: ' + (c.message || '').substring(0, 50),
+                    data: c.created_at,
+                    icone: 'fa-comment',
+                    cor: '#f59e0b'
+                });
             });
-        });
+        }
         
         // Ordenar por data
         activities.sort((a, b) => new Date(b.data) - new Date(a.data));
@@ -424,7 +480,9 @@ async function loadRecentActivitiesManual() {
 // 5E. 🔥 ALERTAS DO SISTEMA
 // ==========================================
 async function loadSystemAlerts() {
-    const container = document.getElementById('systemAlerts');
+    const container = safeGetElement('systemAlerts');
+    if (!container) return;
+    
     const alerts = [];
     
     try {
@@ -488,6 +546,12 @@ async function loadSystemAlerts() {
         
     } catch (error) {
         console.error('[Admin] ❌ Erro ao carregar alertas:', error);
+        container.innerHTML = `
+            <div class="alert-item" style="padding: 12px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 6px;">
+                <i class="fas fa-exclamation-circle" style="color: #ef4444; margin-right: 10px;"></i>
+                <span>Erro ao carregar alertas</span>
+            </div>
+        `;
     }
 }
 
@@ -495,7 +559,12 @@ async function loadSystemAlerts() {
 // 6. 🔥 USERS (CORRIGIDO)
 // ==========================================
 async function loadUsers() {
-    const tbody = document.getElementById('usersTableBody');
+    const tbody = safeGetElement('usersTableBody');
+    if (!tbody) {
+        console.warn('[Admin] ⚠️ Elemento usersTableBody não encontrado');
+        return;
+    }
+    
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando...</td></tr>';
 
     try {
@@ -522,7 +591,7 @@ async function loadUsers() {
         tbody.innerHTML = data.map(u => `
             <tr>
                 <td><strong>${u.nome || '-'}</strong></td>
-                <td>${u.email}</td>
+                <td>${u.email || '-'}</td>
                 <td>
                     <span style="
                         background: ${u.role === 'admin' ? 'rgba(147,51,234,0.2)' : u.role === 'banned' ? 'rgba(239,68,68,0.2)' : 'rgba(148,163,184,0.2)'};
@@ -536,7 +605,7 @@ async function loadUsers() {
                     </span>
                 </td>
                 <td>
-                    <button class="btn-secondary" onclick="abrirDetalhesUsuario('${u.id}', '${u.nome || 'Usuário'}', '${u.email}', '${u.created_at}')" style="margin-right:6px;">
+                    <button class="btn-secondary" onclick="abrirDetalhesUsuario('${u.id}', '${(u.nome || 'Usuário').replace(/'/g, "\\'")}', '${(u.email || '').replace(/'/g, "\\'")}', '${u.created_at || ''}')" style="margin-right:6px;">
                         <i class="fas fa-eye"></i>
                     </button>
                     ${u.role === 'admin' ? 
@@ -551,7 +620,7 @@ async function loadUsers() {
                             <i class="fas fa-crown"></i> Admin
                         </button>`
                     }
-                    ${u.role !== 'banned' ? 
+                    ${u.role !== 'banned' && u.role !== 'admin' ? 
                         `<button class="btn-danger" onclick="banirUsuario('${u.id}')">
                             <i class="fas fa-ban"></i>
                         </button>` :
@@ -571,7 +640,12 @@ async function loadUsers() {
 // 7. 🔥 POSTS (CORRIGIDO)
 // ==========================================
 async function loadPosts() {
-    const tbody = document.getElementById('postsTableBody');
+    const tbody = safeGetElement('postsTableBody');
+    if (!tbody) {
+        console.warn('[Admin] ⚠️ Elemento postsTableBody não encontrado');
+        return;
+    }
+    
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando...</td></tr>';
 
     try {
@@ -603,7 +677,7 @@ async function loadPosts() {
                         ${post.completed ? '✅ Publicado' : '📝 Rascunho'}
                     </span>
                 </td>
-                <td>${new Date(post.created_at).toLocaleDateString('pt-BR')}</td>
+                <td>${post.created_at ? new Date(post.created_at).toLocaleDateString('pt-BR') : '-'}</td>
                 <td>
                     <button class="btn-secondary" onclick="editarPost('${post.id}')" style="padding:4px 10px;margin-right:6px;">
                         <i class="fas fa-edit"></i>
@@ -625,7 +699,12 @@ async function loadPosts() {
 // 8. 🔥 COMENTÁRIOS (CORRIGIDO)
 // ==========================================
 async function loadComments() {
-    const tbody = document.getElementById('commentsTableBody');
+    const tbody = safeGetElement('commentsTableBody');
+    if (!tbody) {
+        console.warn('[Admin] ⚠️ Elemento commentsTableBody não encontrado');
+        return;
+    }
+    
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando...</td></tr>';
 
     try {
@@ -746,74 +825,92 @@ window.desbanirUsuario = async function(userId) {
 // ==========================================
 // 10. 🔥 MODAL DE POST
 // ==========================================
-const modal = document.getElementById('postModal');
-const btnNewPost = document.getElementById('btnNewPost');
+const modal = safeGetElement('postModal');
+const btnNewPost = safeGetElement('btnNewPost');
 
-if (btnNewPost) {
+if (btnNewPost && modal) {
     btnNewPost.addEventListener('click', () => {
         console.log('[Admin] 📝 Abrindo modal de novo post');
-        document.getElementById('modalTitle').textContent = '📝 Novo Post';
-        document.getElementById('postId').value = '';
-        document.getElementById('postTitle').value = '';
-        document.getElementById('postSlug').value = '';
-        document.getElementById('postContent').value = '';
-        document.getElementById('postPublished').checked = false;
+        const modalTitle = safeGetElement('modalTitle');
+        if (modalTitle) modalTitle.textContent = '📝 Novo Post';
+        
+        safeSetText('postId', '');
+        const postTitle = safeGetElement('postTitle');
+        if (postTitle) postTitle.value = '';
+        const postSlug = safeGetElement('postSlug');
+        if (postSlug) postSlug.value = '';
+        const postContent = safeGetElement('postContent');
+        if (postContent) postContent.value = '';
+        const postPublished = safeGetElement('postPublished');
+        if (postPublished) postPublished.checked = false;
+        
         modal.classList.add('active');
     });
 }
 
+// Fechar modal
 document.querySelectorAll('.close-modal').forEach(btn => {
     btn.addEventListener('click', () => {
         console.log('[Admin] ❌ Fechando modal');
-        modal.classList.remove('active');
+        if (modal) modal.classList.remove('active');
     });
 });
 
-document.getElementById('btnSavePost').addEventListener('click', async () => {
-    const id = document.getElementById('postId').value;
-    const title = document.getElementById('postTitle').value;
-    const slug = document.getElementById('postSlug').value;
-    const content = document.getElementById('postContent').value;
-    const published = document.getElementById('postPublished').checked;
+// Salvar post
+const btnSavePost = safeGetElement('btnSavePost');
+if (btnSavePost) {
+    btnSavePost.addEventListener('click', async () => {
+        const postId = safeGetElement('postId');
+        const postTitle = safeGetElement('postTitle');
+        const postSlug = safeGetElement('postSlug');
+        const postContent = safeGetElement('postContent');
+        const postPublished = safeGetElement('postPublished');
 
-    if (!title) {
-        showToast('⚠️ Título é obrigatório!', true);
-        return;
-    }
+        const id = postId ? postId.value : '';
+        const title = postTitle ? postTitle.value : '';
+        const slug = postSlug ? postSlug.value : '';
+        const content = postContent ? postContent.value : '';
+        const published = postPublished ? postPublished.checked : false;
 
-    const postData = {
-        title,
-        slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        content,
-        completed: published,
-        updated_at: new Date().toISOString()
-    };
-
-    try {
-        if (id) {
-            console.log('[Admin] 📝 Atualizando post:', id);
-            const { error } = await supabaseClient.from('tasks').update(postData).eq('id', id);
-            if (error) throw error;
-            showToast('✅ Post atualizado!');
-        } else {
-            console.log('[Admin] 📝 Criando novo post...');
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            const { error } = await supabaseClient.from('tasks').insert({
-                ...postData,
-                user_id: user.id,
-                created_at: new Date().toISOString()
-            });
-            if (error) throw error;
-            showToast('✅ Post criado!');
+        if (!title) {
+            showToast('⚠️ Título é obrigatório!', true);
+            return;
         }
-        modal.classList.remove('active');
-        await loadPosts();
-        await loadDashboardStats();
-    } catch (error) {
-        console.error('[Admin] ❌ Erro:', error);
-        showToast('❌ Erro: ' + error.message, true);
-    }
-});
+
+        const postData = {
+            title,
+            slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            content,
+            completed: published,
+            updated_at: new Date().toISOString()
+        };
+
+        try {
+            if (id) {
+                console.log('[Admin] 📝 Atualizando post:', id);
+                const { error } = await supabaseClient.from('tasks').update(postData).eq('id', id);
+                if (error) throw error;
+                showToast('✅ Post atualizado!');
+            } else {
+                console.log('[Admin] 📝 Criando novo post...');
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                const { error } = await supabaseClient.from('tasks').insert({
+                    ...postData,
+                    user_id: user.id,
+                    created_at: new Date().toISOString()
+                });
+                if (error) throw error;
+                showToast('✅ Post criado!');
+            }
+            if (modal) modal.classList.remove('active');
+            await loadPosts();
+            await loadDashboardStats();
+        } catch (error) {
+            console.error('[Admin] ❌ Erro:', error);
+            showToast('❌ Erro: ' + error.message, true);
+        }
+    });
+}
 
 window.editarPost = async function(id) {
     try {
@@ -821,13 +918,21 @@ window.editarPost = async function(id) {
         const { data, error } = await supabaseClient.from('tasks').select('*').eq('id', id).single();
         if (error) throw error;
         
-        document.getElementById('modalTitle').textContent = '✏️ Editar Post';
-        document.getElementById('postId').value = data.id;
-        document.getElementById('postTitle').value = data.title;
-        document.getElementById('postSlug').value = data.slug || '';
-        document.getElementById('postContent').value = data.content || '';
-        document.getElementById('postPublished').checked = data.completed || false;
-        modal.classList.add('active');
+        const modalTitle = safeGetElement('modalTitle');
+        if (modalTitle) modalTitle.textContent = '✏️ Editar Post';
+        
+        const postId = safeGetElement('postId');
+        if (postId) postId.value = data.id;
+        const postTitle = safeGetElement('postTitle');
+        if (postTitle) postTitle.value = data.title || '';
+        const postSlug = safeGetElement('postSlug');
+        if (postSlug) postSlug.value = data.slug || '';
+        const postContent = safeGetElement('postContent');
+        if (postContent) postContent.value = data.content || '';
+        const postPublished = safeGetElement('postPublished');
+        if (postPublished) postPublished.checked = data.completed || false;
+        
+        if (modal) modal.classList.add('active');
     } catch (error) {
         console.error('[Admin] ❌ Erro ao carregar post:', error);
         showToast('❌ Erro ao carregar post: ' + error.message, true);
@@ -884,8 +989,12 @@ window.deletarComentario = async function(id) {
 // 11. 🔥 TOAST
 // ==========================================
 function showToast(msg, isError = false) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
+    const toast = safeGetElement('toast');
+    if (!toast) {
+        console.warn('[Admin] ⚠️ Toast element not found');
+        alert(msg);
+        return;
+    }
     toast.textContent = msg;
     toast.className = isError ? 'toast error' : 'toast';
     toast.style.display = 'block';
@@ -898,16 +1007,23 @@ function showToast(msg, isError = false) {
 window.abrirDetalhesUsuario = function(id, nome, email, dataCadastro) {
     console.log('[Admin] 👁️ Abrindo detalhes do usuário:', id);
     
-    document.getElementById('modalUserName').textContent = nome;
-    document.getElementById('modalUserEmail').textContent = email;
+    const modalUserName = safeGetElement('modalUserName');
+    if (modalUserName) modalUserName.textContent = nome || 'Usuário';
     
-    const dataFormatada = dataCadastro ? new Date(dataCadastro).toLocaleDateString('pt-BR') : 'Hoje';
-    document.getElementById('statJoinDate').textContent = dataFormatada;
+    const modalUserEmail = safeGetElement('modalUserEmail');
+    if (modalUserEmail) modalUserEmail.textContent = email || 'Sem email';
+    
+    const statJoinDate = safeGetElement('statJoinDate');
+    if (statJoinDate) {
+        const dataFormatada = dataCadastro ? new Date(dataCadastro).toLocaleDateString('pt-BR') : 'Hoje';
+        statJoinDate.textContent = dataFormatada;
+    }
 
     // Buscar estatísticas reais do usuário
     buscarEstatisticasUsuario(id);
     
-    document.getElementById('userDetailsModal').classList.add('active');
+    const userDetailsModal = safeGetElement('userDetailsModal');
+    if (userDetailsModal) userDetailsModal.classList.add('active');
 };
 
 async function buscarEstatisticasUsuario(userId) {
@@ -924,9 +1040,9 @@ async function buscarEstatisticasUsuario(userId) {
         const completedTasks = tasks?.filter(t => t.completed === true).length || 0;
         const pendingTasks = totalTasks - completedTasks;
         
-        document.getElementById('statTotalTasks').textContent = totalTasks;
-        document.getElementById('statCompletedTasks').textContent = completedTasks;
-        document.getElementById('statPendingTasks').textContent = pendingTasks;
+        safeSetText('statTotalTasks', totalTasks);
+        safeSetText('statCompletedTasks', completedTasks);
+        safeSetText('statPendingTasks', pendingTasks);
         
     } catch (error) {
         console.error('[Admin] ❌ Erro ao buscar estatísticas do usuário:', error);
@@ -935,22 +1051,26 @@ async function buscarEstatisticasUsuario(userId) {
         const concluidas = Math.floor(totalTarefas * 0.7);
         const pendentes = totalTarefas - concluidas;
         
-        document.getElementById('statTotalTasks').textContent = totalTarefas;
-        document.getElementById('statCompletedTasks').textContent = concluidas;
-        document.getElementById('statPendingTasks').textContent = pendentes;
+        safeSetText('statTotalTasks', totalTarefas);
+        safeSetText('statCompletedTasks', concluidas);
+        safeSetText('statPendingTasks', pendentes);
     }
 }
 
 window.fecharModalUsuario = function() {
-    document.getElementById('userDetailsModal').classList.remove('active');
+    const userDetailsModal = safeGetElement('userDetailsModal');
+    if (userDetailsModal) userDetailsModal.classList.remove('active');
 };
 
 // Fechar modal ao clicar fora
-document.getElementById('userDetailsModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        fecharModalUsuario();
-    }
-});
+const userDetailsModal = safeGetElement('userDetailsModal');
+if (userDetailsModal) {
+    userDetailsModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            fecharModalUsuario();
+        }
+    });
+}
 
 // ==========================================
 // 13. 🔥 ATUALIZAR ESTATÍSTICAS AUTOMATICAMENTE
@@ -967,6 +1087,10 @@ setInterval(() => {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Admin] 🚀 DOM carregado, inicializando...');
+    // Inicializar Supabase primeiro
+    if (!supabaseClient) {
+        initSupabase();
+    }
     verificarAdmin();
 });
 
