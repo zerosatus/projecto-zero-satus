@@ -1,4 +1,38 @@
 // ==========================================
+// FORÇAR EXIBIÇÃO DO PAINEL
+// ==========================================
+(function() {
+    console.log('[Admin] 🔥 Verificando login imediato...');
+    
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo) {
+        try {
+            const parsed = JSON.parse(usuarioSalvo);
+            if (parsed.role === 'admin' && parsed.logado === true) {
+                console.log('[Admin] ✅ Admin encontrado no localStorage:', parsed.nome);
+                
+                // Mostrar painel imediatamente
+                const panel = document.getElementById('adminPanel');
+                if (panel) panel.style.display = 'flex';
+                
+                const nameEl = document.getElementById('adminNameDisplay');
+                if (nameEl) nameEl.textContent = parsed.nome || 'Administrador';
+                
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) logoutBtn.style.display = 'block';
+                
+                // Esconder qualquer loader
+                const loader = document.querySelector('.loading-overlay');
+                if (loader) loader.style.display = 'none';
+            }
+        } catch(e) {
+            console.warn('[Admin] ⚠️ Erro ao forçar:', e);
+        }
+    }
+})();
+
+
+// ==========================================
 // admin.js - INICIALIZAÇÃO DO PAINEL ADMIN
 // ==========================================
 
