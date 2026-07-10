@@ -101,3 +101,39 @@ SELECT tornar_admin('projectozerosatus@gmail.com');
 6. Ver todos os usuários
 sql
 SELECT id, email, nome, role, created_at FROM public.profiles ORDER BY created_at DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- ============================================
+-- CRIAR PERFIS PARA USUÁRIOS FALTANTES
+-- ============================================
+INSERT INTO public.profiles (id, email, nome, avatar_url, role, created_at, updated_at)
+SELECT 
+    u.id,
+    u.email,
+    COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)) as nome,
+    u.raw_user_meta_data->>'avatar_url' as avatar_url,
+    'user' as role,
+    COALESCE(u.created_at, NOW()) as created_at,
+    NOW() as updated_at
+FROM auth.users u
+LEFT JOIN public.profiles p ON u.id = p.id
+WHERE p.id IS NULL
+ON CONFLICT (id) DO UPDATE SET 
+    email = EXCLUDED.email,
+    nome = EXCLUDED.nome,
+    updated_at = NOW();
+
+-- Verificar resultado
+SELECT COUNT(*) FROM public.profiles;
