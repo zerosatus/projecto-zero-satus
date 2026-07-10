@@ -11,7 +11,6 @@
             if (parsed.role === 'admin' && parsed.logado === true) {
                 console.log('[Admin] ✅ Admin encontrado no localStorage:', parsed.nome);
                 
-                // Mostrar painel imediatamente
                 const panel = document.getElementById('adminPanel');
                 if (panel) {
                     panel.style.display = 'flex';
@@ -29,7 +28,6 @@
                     logoutBtn.style.display = 'block';
                 }
                 
-                // Esconder qualquer loader
                 const loader = document.querySelector('.loading-overlay');
                 if (loader) {
                     loader.style.display = 'none';
@@ -47,14 +45,10 @@
 
 console.log('[Admin] 🚀 Iniciando admin.js...');
 
-// ==========================================
-// VARIÁVEIS GLOBAIS
-// ==========================================
 let adminInicializado = false;
 let adminVerificado = false;
 let tentativasInicializacao = 0;
-const MAX_TENTATIVAS = 5;
-let adminInitialized = false;
+const MAX_TENTATIVAS_ADMIN = 5;
 
 // ==========================================
 // CARREGAR DADOS DO ADMIN
@@ -63,7 +57,6 @@ async function carregarDadosAdmin() {
     console.log('[Admin] 📊 Carregando dados do admin...');
     
     try {
-        // Inicializar CacheManager
         if (window.CacheManager) {
             window.CacheManager.init();
             const userId = window.CacheManager.getCurrentUserId();
@@ -74,76 +67,31 @@ async function carregarDadosAdmin() {
             }
         }
         
-        // Carregar cada seção
         const carregarPromises = [];
 
-        // Dashboard
         if (typeof loadDashboardStats === 'function') {
-            carregarPromises.push(
-                loadDashboardStats().catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar dashboard:', e);
-                })
-            );
+            carregarPromises.push(loadDashboardStats().catch(e => console.warn('[Admin] ⚠️ Erro dashboard:', e)));
         }
-
-        // Usuários
         if (typeof loadUsers === 'function') {
-            carregarPromises.push(
-                loadUsers().catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar usuários:', e);
-                })
-            );
+            carregarPromises.push(loadUsers().catch(e => console.warn('[Admin] ⚠️ Erro users:', e)));
         }
-
-        // Posts
         if (typeof loadPosts === 'function') {
-            carregarPromises.push(
-                loadPosts().catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar posts:', e);
-                })
-            );
+            carregarPromises.push(loadPosts().catch(e => console.warn('[Admin] ⚠️ Erro posts:', e)));
         }
-
-        // Comentários
         if (typeof loadComments === 'function') {
-            carregarPromises.push(
-                loadComments().catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar comentários:', e);
-                })
-            );
+            carregarPromises.push(loadComments().catch(e => console.warn('[Admin] ⚠️ Erro comments:', e)));
         }
-
-        // Notificações
         if (typeof loadNotifications === 'function') {
-            carregarPromises.push(
-                loadNotifications().catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar notificações:', e);
-                })
-            );
+            carregarPromises.push(loadNotifications().catch(e => console.warn('[Admin] ⚠️ Erro notifications:', e)));
         }
-
-        // Logs
         if (typeof loadAuditLogs === 'function') {
-            carregarPromises.push(
-                Promise.resolve(loadAuditLogs()).catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar logs:', e);
-                })
-            );
+            carregarPromises.push(Promise.resolve(loadAuditLogs()).catch(e => console.warn('[Admin] ⚠️ Erro logs:', e)));
         }
-
-        // Relatórios
         if (typeof loadReports === 'function') {
-            carregarPromises.push(
-                Promise.resolve(loadReports()).catch(e => {
-                    console.warn('[Admin] ⚠️ Erro ao carregar relatórios:', e);
-                })
-            );
+            carregarPromises.push(Promise.resolve(loadReports()).catch(e => console.warn('[Admin] ⚠️ Erro reports:', e)));
         }
 
-        // Aguardar todos os carregamentos
         await Promise.allSettled(carregarPromises);
-
-        // Atualizar status do sistema
         atualizarStatusSistema();
 
         console.log('[Admin] ✅ Todos os dados carregados com sucesso!');
@@ -161,35 +109,29 @@ async function inicializarAdmin() {
         return;
     }
 
-    if (tentativasInicializacao >= MAX_TENTATIVAS) {
+    if (tentativasInicializacao >= MAX_TENTATIVAS_ADMIN) {
         console.error('[Admin] ❌ Máximo de tentativas atingido');
         mostrarErro('Não foi possível inicializar o painel. Recarregue a página.');
         return;
     }
 
     tentativasInicializacao++;
-    console.log(`[Admin] 📋 Inicializando painel admin (tentativa ${tentativasInicializacao}/${MAX_TENTATIVAS})...`);
+    console.log(`[Admin] 📋 Inicializando painel admin (tentativa ${tentativasInicializacao}/${MAX_TENTATIVAS_ADMIN})...`);
 
     try {
-        // 1. Verificar autenticação
         const authOk = await verificarAdminComRetry();
         
         if (!authOk) {
             console.error('[Admin] ❌ Falha na verificação de autenticação');
-            if (tentativasInicializacao < MAX_TENTATIVAS) {
+            if (tentativasInicializacao < MAX_TENTATIVAS_ADMIN) {
                 console.log('[Admin] 🔄 Tentando novamente em 2 segundos...');
                 setTimeout(() => inicializarAdmin(), 2000);
             }
             return;
         }
 
-        // 2. Configurar navegação
         configurarNavegacao();
-
-        // 3. Carregar dados iniciais
         await carregarDadosAdmin();
-
-        // 4. Configurar eventos
         configurarEventos();
 
         adminInicializado = true;
@@ -199,7 +141,7 @@ async function inicializarAdmin() {
     } catch (error) {
         console.error('[Admin] ❌ Erro ao inicializar:', error);
         
-        if (tentativasInicializacao < MAX_TENTATIVAS) {
+        if (tentativasInicializacao < MAX_TENTATIVAS_ADMIN) {
             console.log('[Admin] 🔄 Tentando novamente em 2 segundos...');
             setTimeout(() => inicializarAdmin(), 2000);
         } else {
@@ -214,17 +156,13 @@ async function inicializarAdmin() {
 async function verificarAdminComRetry() {
     console.log('[Admin] 🔍 Verificando admin...');
     
-    // Verificar se já está verificado
     if (adminVerificado) {
         console.log('[Admin] ✅ Já verificado');
         return true;
     }
 
-    // Verificar se a função existe
     if (typeof window.verificarAdmin !== 'function') {
         console.error('[Admin] ❌ verificarAdmin não encontrado');
-        
-        // Aguardar o auth carregar
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         if (typeof window.verificarAdmin !== 'function') {
@@ -260,7 +198,6 @@ function configurarNavegacao() {
     const links = document.querySelectorAll('.sidebar-menu a[data-target]');
     
     links.forEach(link => {
-        // Remover listeners antigos
         const novoLink = link.cloneNode(true);
         link.parentNode.replaceChild(novoLink, link);
         
@@ -270,11 +207,9 @@ function configurarNavegacao() {
             const targetId = this.getAttribute('data-target');
             if (!targetId) return;
             
-            // Atualizar active na sidebar
             document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
             this.classList.add('active');
             
-            // Mostrar seção
             document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
             const targetEl = document.getElementById(targetId);
             if (targetEl) {
@@ -282,7 +217,6 @@ function configurarNavegacao() {
                 console.log(`[Admin] 📄 Seção ativada: ${targetId}`);
             }
 
-            // Carregar dados conforme a seção
             carregarDadosSecao(targetId);
         });
     });
@@ -333,7 +267,6 @@ function carregarDadosSecao(targetId) {
             }
             break;
         case 'settings':
-            // Sem ação específica
             break;
         default:
             console.warn(`[Admin] ⚠️ Seção desconhecida: ${targetId}`);
@@ -346,16 +279,9 @@ function carregarDadosSecao(targetId) {
 function configurarEventos() {
     console.log('[Admin] 🔧 Configurando eventos...');
     
-    // Configurar modal de posts
     configurarModalPosts();
-    
-    // Configurar modal de notificações
     configurarModalNotificacoes();
-    
-    // Configurar botão de logout
     configurarLogoutBtn();
-    
-    // Configurar botão de recarregar
     configurarBotaoRecarregar();
     
     console.log('[Admin] ✅ Eventos configurados');
@@ -375,7 +301,6 @@ function configurarModalPosts() {
         return;
     }
 
-    // Novo post
     if (btnNewPost) {
         btnNewPost.addEventListener('click', () => {
             console.log('[Admin] 📝 Abrindo modal de novo post');
@@ -389,21 +314,18 @@ function configurarModalPosts() {
         });
     }
 
-    // Fechar modal
     closeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             modal.classList.remove('active');
         });
     });
 
-    // Fechar clicando fora
     modal.addEventListener('click', function(e) {
         if (e.target === this) {
             this.classList.remove('active');
         }
     });
 
-    // Salvar post
     if (btnSave) {
         btnSave.addEventListener('click', salvarPost);
     }
@@ -433,12 +355,12 @@ async function salvarPost() {
     };
 
     try {
-        const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
+        const client = window.supabaseClient;
+        if (!client) throw new Error('Supabase não inicializado');
 
         if (id) {
             console.log('[Admin] 📝 Atualizando post:', id);
-            const { error } = await supabaseClient
+            const { error } = await client
                 .from('tasks')
                 .update(postData)
                 .eq('id', id);
@@ -447,10 +369,10 @@ async function salvarPost() {
             showToast('✅ Post atualizado!');
         } else {
             console.log('[Admin] 📝 Criando novo post...');
-            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { data: { user } } = await client.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');
 
-            const { error } = await supabaseClient
+            const { error } = await client
                 .from('tasks')
                 .insert({
                     ...postData,
@@ -482,14 +404,12 @@ function configurarModalNotificacoes() {
         return;
     }
 
-    // Fechar clicando fora
     modal.addEventListener('click', function(e) {
         if (e.target === this) {
             fecharModalNotificacao();
         }
     });
 
-    // Contador de caracteres
     const msgInput = document.getElementById('notifMensagem');
     if (msgInput) {
         msgInput.addEventListener('input', () => {
@@ -498,7 +418,6 @@ function configurarModalNotificacoes() {
         });
     }
 
-    // Atualizar campos de destino
     const destinoSelect = document.getElementById('notifDestino');
     if (destinoSelect) {
         destinoSelect.addEventListener('change', atualizarCamposDestino);
@@ -584,7 +503,6 @@ window.recarregarTodosDados = async function() {
     }
 
     try {
-        // Recarregar do cache/nuvem
         if (window.CacheManager) {
             console.log('[Admin] ☁️ Recarregando do cache...');
             await window.CacheManager.loadFromCloud(true);
@@ -618,9 +536,9 @@ window.logoutAdmin = async function() {
     if (!confirm('Tem certeza que deseja sair?')) return;
 
     try {
-        const supabaseClient = window.supabaseClient;
-        if (supabaseClient) {
-            await supabaseClient.auth.signOut();
+        const client = window.supabaseClient;
+        if (client) {
+            await client.auth.signOut();
         }
 
         localStorage.removeItem('usuarioLogado');
@@ -656,10 +574,9 @@ async function verificarLoginExistente() {
             if (parsed.role === 'admin' && parsed.logado === true) {
                 console.log('[Admin] ✅ Admin já logado:', parsed.nome);
                 
-                // Verificar se a sessão ainda é válida
-                const supabaseClient = window.supabaseClient;
-                if (supabaseClient) {
-                    const { data: { session } } = await supabaseClient.auth.getSession();
+                const client = window.supabaseClient;
+                if (client) {
+                    const { data: { session } } = await client.auth.getSession();
                     if (session) {
                         console.log('[Admin] ✅ Sessão válida, restaurando...');
                         adminVerificado = true;
@@ -683,7 +600,6 @@ async function verificarLoginExistente() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Admin] 📋 DOM carregado, preparando inicialização...');
 
-    // Verificar login existente primeiro
     verificarLoginExistente().then(logado => {
         if (logado) {
             console.log('[Admin] ✅ Login existente encontrado, inicializando...');
@@ -693,7 +609,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Aguardar o supabase e auth carregarem
         let verificacoes = 0;
         const maxVerificacoes = 20;
         
@@ -707,7 +622,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(verificarDependencias);
                 console.log('[Admin] ✅ Dependências carregadas');
                 
-                // Inicializar admin
                 setTimeout(() => {
                     inicializarAdmin();
                 }, 300);
@@ -715,7 +629,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(verificarDependencias);
                 console.warn('[Admin] ⚠️ Timeout aguardando dependências');
                 
-                // Tentar inicializar mesmo assim
                 setTimeout(() => {
                     inicializarAdmin();
                 }, 500);
