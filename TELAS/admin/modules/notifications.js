@@ -1,5 +1,5 @@
 // ==========================================
-// modules/notifications.js - NOTIFICAÇÕES
+// notifications.js - NOTIFICAÇÕES
 // ==========================================
 
 console.log('[Notif] 📬 Módulo de notificações carregado');
@@ -78,11 +78,19 @@ async function loadNotifications() {
     }
 
     try {
+        // Atualizar supabaseClient
+        supabaseClient = window.supabaseClient;
         if (!supabaseClient) {
-            supabaseClient = window.supabaseClient;
-            if (!supabaseClient) {
-                throw new Error('Supabase não inicializado');
+            console.error('[Notif] ❌ Supabase não inicializado');
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:40px; color:var(--danger);">
+                        <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px;"></i>
+                        <p>Erro: Supabase não inicializado</p>
+                    </div>
+                `;
             }
+            return;
         }
 
         const { data, error } = await supabaseClient
@@ -96,7 +104,7 @@ async function loadNotifications() {
                 container.innerHTML = `
                     <div style="text-align:center; padding:40px; color:var(--danger);">
                         <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px;"></i>
-                        <p>Erro ao carregar notificações: ${error.message}</p>
+                        <p>Erro ao carregar notificações: ${error.message || 'Erro desconhecido'}</p>
                         <button class="btn-secondary" onclick="recarregarNotificacoes()" style="margin-top: 10px;">
                             <i class="fas fa-sync"></i> Tentar novamente
                         </button>
@@ -129,7 +137,7 @@ async function loadNotifications() {
             container.innerHTML = `
                 <div style="text-align:center; padding:40px; color:var(--danger);">
                     <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 15px;"></i>
-                    <p>Erro ao carregar notificações</p>
+                    <p>Erro ao carregar notificações: ${error.message || 'Erro desconhecido'}</p>
                     <button class="btn-secondary" onclick="recarregarNotificacoes()" style="margin-top: 10px;">
                         <i class="fas fa-sync"></i> Tentar novamente
                     </button>
@@ -192,14 +200,14 @@ function renderizarLista(notificacoes) {
                 </div>
                 <div class="notif-content">
                     <div class="notif-header">
-                        <h4 class="notif-title">${n.titulo}</h4>
+                        <h4 class="notif-title">${n.titulo || 'Sem título'}</h4>
                         <div class="notif-time">
                             <i class="fas fa-clock"></i>
                             ${formatarData(n.enviada_em)}
                             ${isAgendada ? '<span style="color: #f59e0b; margin-left: 8px;">📅 Agendada</span>' : ''}
                         </div>
                     </div>
-                    <p class="notif-message">${n.mensagem}</p>
+                    <p class="notif-message">${n.mensagem || 'Sem mensagem'}</p>
                     <div class="notif-meta">
                         <span class="notif-tag ${n.tipo}">${tipoLabel}</span>
                         <div class="notif-stat">
@@ -255,6 +263,7 @@ function formatarData(timestamp) {
     if (!timestamp) return 'Data desconhecida';
     try {
         const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return timestamp;
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -436,11 +445,9 @@ async function enviarNotificacao() {
     }
 
     try {
+        supabaseClient = window.supabaseClient;
         if (!supabaseClient) {
-            supabaseClient = window.supabaseClient;
-            if (!supabaseClient) {
-                throw new Error('Supabase não inicializado');
-            }
+            throw new Error('Supabase não inicializado');
         }
 
         const autor = document.getElementById('adminNameDisplay')?.textContent || 'Administrador';
@@ -500,7 +507,7 @@ function verDetalhesNotificacao(id) {
         ? Math.round((notif.lidas / notif.total_destinatarios) * 100) 
         : 0;
 
-    alert(`📬 ${notif.titulo}\n\n${notif.mensagem}\n\n---\n📊 Estatísticas:\n• Enviada para: ${notif.total_destinatarios || 0} usuário(s)\n• Lidas: ${notif.lidas || 0} (${percentual}%)\n• Não lidas: ${(notif.total_destinatarios || 0) - (notif.lidas || 0)}\n\n👤 Autor: ${notif.autor || 'Sistema'}\n📅 Enviada em: ${formatarData(notif.enviada_em)}\n📌 Tipo: ${getTipoLabel(notif.tipo)}`);
+    alert(`📬 ${notif.titulo || 'Sem título'}\n\n${notif.mensagem || 'Sem mensagem'}\n\n---\n📊 Estatísticas:\n• Enviada para: ${notif.total_destinatarios || 0} usuário(s)\n• Lidas: ${notif.lidas || 0} (${percentual}%)\n• Não lidas: ${(notif.total_destinatarios || 0) - (notif.lidas || 0)}\n\n👤 Autor: ${notif.autor || 'Sistema'}\n📅 Enviada em: ${formatarData(notif.enviada_em)}\n📌 Tipo: ${getTipoLabel(notif.tipo)}`);
 }
 
 // ==========================================
@@ -510,11 +517,9 @@ async function deletarNotificacao(id) {
     if (!confirm('Tem certeza que deseja DELETAR esta notificação?')) return;
 
     try {
+        supabaseClient = window.supabaseClient;
         if (!supabaseClient) {
-            supabaseClient = window.supabaseClient;
-            if (!supabaseClient) {
-                throw new Error('Supabase não inicializado');
-            }
+            throw new Error('Supabase não inicializado');
         }
 
         const { error } = await supabaseClient
@@ -589,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Carregar notificações quando a página carregar
     if (document.querySelector('#notifications')) {
-        loadNotifications();
+        setTimeout(loadNotifications, 500);
     }
 });
 
