@@ -8,8 +8,12 @@ console.log('[Users] 👤 Carregando módulo de usuários...');
 // CARREGAR USUÁRIOS - COM TRATAMENTO DE ERRO RLS
 // ==========================================
 async function loadUsers() {
+    console.log('[Users] 🔍 Carregando usuários...');
     const tbody = document.getElementById('usersTableBody');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('[Users] ❌ Tabela de usuários não encontrada');
+        return;
+    }
     
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
 
@@ -67,7 +71,9 @@ async function loadUsers() {
             return;
         }
 
-        tbody.innerHTML = data.map(u => {
+        // Renderizar usuários
+        let html = '';
+        for (const u of data) {
             const isAdmin = u.role === 'admin';
             const isBanned = u.role === 'banned';
             
@@ -83,7 +89,7 @@ async function loadUsers() {
                 roleBg = 'rgba(239,68,68,0.2)';
             }
 
-            return `
+            html += `
                 <tr>
                     <td><strong>${u.nome || '-'}</strong></td>
                     <td>${u.email}</td>
@@ -127,7 +133,8 @@ async function loadUsers() {
                     </td>
                 </tr>
             `;
-        }).join('');
+        }
+        tbody.innerHTML = html;
 
     } catch (error) {
         console.error('[Users] ❌ Erro ao carregar usuários:', error);
@@ -140,6 +147,8 @@ async function loadUsers() {
 // ==========================================
 window.tornarAdmin = async function(userId) {
     if (!confirm('Tem certeza que deseja tornar este usuário ADMIN?')) return;
+    
+    console.log('[Users] 👑 Tornando admin:', userId);
     
     try {
         const supabaseClient = window.supabaseClient;
@@ -167,6 +176,8 @@ window.tornarAdmin = async function(userId) {
 window.tornarUser = async function(userId) {
     if (!confirm('Tem certeza que deseja remover os privilégios de ADMIN deste usuário?')) return;
     
+    console.log('[Users] 👤 Removendo admin:', userId);
+    
     try {
         const supabaseClient = window.supabaseClient;
         if (!supabaseClient) throw new Error('Supabase não inicializado');
@@ -192,6 +203,8 @@ window.tornarUser = async function(userId) {
 // ==========================================
 window.banirUsuario = async function(userId) {
     if (!confirm('Tem certeza que deseja BANIR este usuário?')) return;
+    
+    console.log('[Users] 🚫 Banindo usuário:', userId);
     
     try {
         const supabaseClient = window.supabaseClient;
@@ -219,6 +232,8 @@ window.banirUsuario = async function(userId) {
 window.desbanirUsuario = async function(userId) {
     if (!confirm('Tem certeza que deseja DESBANIR este usuário?')) return;
     
+    console.log('[Users] ✅ Desbanindo usuário:', userId);
+    
     try {
         const supabaseClient = window.supabaseClient;
         if (!supabaseClient) throw new Error('Supabase não inicializado');
@@ -245,6 +260,8 @@ window.desbanirUsuario = async function(userId) {
 window.deletarUsuario = async function(userId) {
     if (!confirm('⚠️ ATENÇÃO: Isso irá DELETAR permanentemente todos os dados deste usuário! Continuar?')) return;
     if (!confirm('Tem certeza absoluta?')) return;
+    
+    console.log('[Users] 🗑️ Deletando usuário:', userId);
     
     try {
         const supabaseClient = window.supabaseClient;
@@ -319,6 +336,7 @@ window.abrirDetalhesUsuario = async function(id, nome, email, dataCadastro) {
 // FECHAR MODAL DO USUÁRIO
 // ==========================================
 window.fecharModalUsuario = function() {
+    console.log('[Users] ❌ Fechando modal de usuário');
     document.getElementById('userDetailsModal').classList.remove('active');
 };
 
