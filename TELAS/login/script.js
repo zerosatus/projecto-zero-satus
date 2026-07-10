@@ -5,6 +5,12 @@ let pendingEmail = '';
 let authListenerUnsubscribe = null;
 let isProcessingAuth = false;
 let isCheckingSession = false;
+let tentativasLogin = 0;
+const MAX_TENTATIVAS_LOGIN = 3;
+
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
 
 function ehCelular() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -219,6 +225,7 @@ async function processarLogin(user) {
     isProcessingAuth = true;
 
     try {
+        // Garantir que o perfil existe
         if (window.AuthService) {
             await window.AuthService.ensureProfileExists(user);
         }
@@ -227,6 +234,7 @@ async function processarLogin(user) {
         let nome = user.user_metadata?.full_name || user.email.split('@')[0];
         let foto = user.user_metadata?.avatar_url || null;
 
+        // Buscar perfil no banco
         if (window.DatabaseService) {
             try {
                 const profile = await window.DatabaseService.getUserProfile(user.id);
@@ -252,6 +260,7 @@ async function processarLogin(user) {
             }
         }
 
+        // Criar objeto do usuário
         const usuario = {
             id: user.id,
             email: user.email,
@@ -263,8 +272,10 @@ async function processarLogin(user) {
             email_confirmado: true
         };
 
+        // Salvar no localStorage
         localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
 
+        // Inicializar cache
         if (window.CacheManager) {
             window.CacheManager.init();
             window.CacheManager.currentUserId = usuario.id;
@@ -278,7 +289,7 @@ async function processarLogin(user) {
         showMessage(`✅ Bem-vindo, ${usuario.nome}!`, false);
 
         // ============================================
-        // 🔥 REDIRECIONAMENTO BASEADO EM ROLE
+        // 🔥 REDIRECIONAMENTO CORRIGIDO
         // ============================================
         setTimeout(() => {
             const isMobile = ehCelular();
@@ -288,11 +299,11 @@ async function processarLogin(user) {
             
             if (role === 'admin') {
                 console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
-                window.location.href = '../admin/index.html';
+                window.location.replace('../admin/index.html');
             } else {
                 const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
                 console.log('[Login] 👤 Usuário normal, redirecionando para:', destino);
-                window.location.href = destino;
+                window.location.replace(destino);
             }
         }, 1500);
 
@@ -318,19 +329,28 @@ async function loginWithEmail(email, password) {
     }
 
     try {
+        if (tentativasLogin >= MAX_TENTATIVAS_LOGIN) {
+            showMessage('❌ Muitas tentativas. Aguarde um momento.', true);
+            tentativasLogin = 0;
+            return false;
+        }
+
         console.log('[Login] Tentando login com email:', email);
         const { user } = await window.AuthService.loginWithEmail(email, password);
 
         if (!user.email_confirmed_at) {
             showMessage('📧 E-mail não confirmado! Verifique sua caixa de entrada.', true);
             showResendButton(email);
+            tentativasLogin = 0;
             return false;
         }
 
+        tentativasLogin = 0;
         await processarLogin(user);
         return true;
     } catch (error) {
         console.error('[Email] Erro:', error);
+        tentativasLogin++;
 
         if (error.message.includes('Email not confirmed') || error.message.includes('confirm')) {
             showMessage('📧 Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.', true);
@@ -616,7 +636,6 @@ async function checkSessionWithRole() {
         if (user) {
             console.log('[Login] Sessão existente para:', user.email);
 
-            // Buscar role
             let role = 'user';
             let nome = user.user_metadata?.full_name || user.email.split('@')[0];
             
@@ -633,7 +652,6 @@ async function checkSessionWithRole() {
                 }
             }
 
-            // Verificar se já tem usuário salvo
             const usuarioSalvo = localStorage.getItem('usuarioLogado');
             
             if (usuarioSalvo) {
@@ -644,9 +662,6 @@ async function checkSessionWithRole() {
                         
                         isCheckingSession = true;
                         
-                        // ============================================
-                        // 🔥 MOSTRAR MODAL CUSTOMIZADO
-                        // ============================================
                         return new Promise((resolve) => {
                             mostrarModalContinuar(parsed, async (continuar) => {
                                 isCheckingSession = false;
@@ -654,13 +669,12 @@ async function checkSessionWithRole() {
                                 if (continuar) {
                                     console.log('[Login] ✅ Usuário optou por continuar');
                                     
-                                    // 🔥 REDIRECIONAR BASEADO NA ROLE
                                     if (parsed.role === 'admin') {
                                         console.log('[Login] 🔐 Admin, redirecionando para admin');
-                                        window.location.href = '../admin/index.html';
+                                        window.location.replace('../admin/index.html');
                                     } else {
                                         const isMobile = ehCelular();
-                                        window.location.href = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
+                                        window.location.replace(isMobile ? '../mobile-telas/index.html' : '../inicio/index.html');
                                     }
                                     resolve(true);
                                 } else {
@@ -679,7 +693,6 @@ async function checkSessionWithRole() {
                 }
             }
 
-            // Se tem sessão mas não tem usuário salvo
             isCheckingSession = true;
             
             return new Promise((resolve) => {
@@ -714,6 +727,9 @@ async function checkSessionWithRole() {
     }
 }
 
+// ============================================
+// FORÇAR LOGOUT (GLOBAL)
+// ============================================
 window.forcarLogout = async function() {
     if (confirm('Deseja sair da conta atual?')) {
         if (window.AuthService) {
@@ -727,6 +743,9 @@ window.forcarLogout = async function() {
     }
 };
 
+// ============================================
+// WAIT FOR SUPABASE
+// ============================================
 function waitForSupabase() {
     return new Promise((resolve) => {
         if (window.AuthService) {
@@ -784,7 +803,7 @@ async function loginWithGoogle() {
 }
 
 // ============================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO PRINCIPAL
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] Inicializando...');
@@ -944,6 +963,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Toggle Link
     const toggleLink = document.getElementById('toggle-mode-link');
     if (toggleLink) {
         toggleLink.addEventListener('click', (e) => {
@@ -952,6 +972,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // ============================================
+    // LIMPEZA PERIÓDICA
+    // ============================================
     let limpezaInterval = setInterval(() => {
         const email = document.getElementById('email');
         const password = document.getElementById('password');
@@ -979,3 +1002,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('%c✅ Login com MODAL CUSTOMIZADO!', 'color: #10b981; font-size: 14px;');
     console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
+
+console.log('[Login] ✅ script.js completamente carregado!');
