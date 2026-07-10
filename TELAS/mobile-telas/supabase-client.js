@@ -1,4 +1,6 @@
-// supabase-client.js - Cliente Supabase COMPLETO COM ADMIN CORRIGIDO
+// ==========================================
+// supabase-client.js - Cliente Supabase COMPLETO
+// ==========================================
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
@@ -63,7 +65,7 @@ async function compressImage(file) {
 }
 
 // ============================================
-// SERVIÇO DE AUTENTICAÇÃO (COM ADMIN)
+// SERVIÇO DE AUTENTICAÇÃO
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
@@ -369,9 +371,6 @@ const AuthService = {
         }
     },
 
-    // ============================================
-    // 🔥 ensureProfileExists - COM RETRY
-    // ============================================
     async ensureProfileExists(user) {
         if (!user) {
             console.warn('[Auth] ensureProfileExists: usuário inválido');
@@ -410,7 +409,6 @@ const AuthService = {
                         user.user_metadata?.full_name || user.email.split('@')[0]
                     );
                     
-                    // 🔥 VERIFICAR SE FOI CRIADO
                     await new Promise(resolve => setTimeout(resolve, 500));
                     
                     const { data: checkData, error: checkError } = await client
@@ -744,9 +742,6 @@ const DatabaseService = {
         return user?.id || null;
     },
 
-    // ============================================
-    // 🔥 getUserProfile - CORRIGIDO COM LOGS
-    // ============================================
     async getUserProfile(userId) {
         const client = initSupabase();
         if (!client) return null;
@@ -1375,7 +1370,14 @@ window.AuthService = AuthService;
 window.DatabaseService = DatabaseService;
 window.StorageService = StorageService;
 
-window.dispatchEvent(new CustomEvent('supabaseReady'));
+// Inicializar cliente
+initSupabase();
+
+// Disparar evento de pronto
+setTimeout(() => {
+    window.dispatchEvent(new CustomEvent('supabaseReady'));
+    console.log('[Supabase] Evento supabaseReady disparado');
+}, 100);
 
 console.log('[Supabase] Serviços carregados com sucesso!');
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
