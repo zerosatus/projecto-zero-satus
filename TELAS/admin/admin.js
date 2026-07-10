@@ -11,6 +11,7 @@ let adminInicializado = false;
 let adminVerificado = false;
 let tentativasInicializacao = 0;
 const MAX_TENTATIVAS = 5;
+let adminInitialized = false;
 
 // ==========================================
 // FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
@@ -551,7 +552,7 @@ window.logoutAdmin = async function() {
         adminInicializado = false;
         adminVerificado = false;
         
-        window.location.href = '../login/index.html';
+        window.location.replace('../login/index.html');
 
     } catch (error) {
         console.error('[Admin] ❌ Erro no logout:', error);
@@ -562,39 +563,84 @@ window.logoutAdmin = async function() {
 };
 
 // ==========================================
+// VERIFICAR SE JÁ ESTÁ LOGADO AO CARREGAR
+// ==========================================
+async function verificarLoginExistente() {
+    console.log('[Admin] 🔍 Verificando login existente...');
+    
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo) {
+        try {
+            const parsed = JSON.parse(usuarioSalvo);
+            if (parsed.role === 'admin' && parsed.logado === true) {
+                console.log('[Admin] ✅ Admin já logado:', parsed.nome);
+                
+                // Verificar se a sessão ainda é válida
+                const supabaseClient = window.supabaseClient;
+                if (supabaseClient) {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) {
+                        console.log('[Admin] ✅ Sessão válida, restaurando...');
+                        adminVerificado = true;
+                        return true;
+                    } else {
+                        console.log('[Admin] ⚠️ Sessão expirada, removendo localStorage');
+                        localStorage.removeItem('usuarioLogado');
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[Admin] ⚠️ Erro ao parsear usuarioLogado:', e);
+        }
+    }
+    return false;
+}
+
+// ==========================================
 // INICIALIZAR QUANDO O DOM ESTIVER PRONTO
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Admin] 📋 DOM carregado, preparando inicialização...');
 
-    // Aguardar o supabase e auth carregarem
-    let verificacoes = 0;
-    const maxVerificacoes = 20;
-    
-    const verificarDependencias = setInterval(() => {
-        verificacoes++;
-        
-        const supabaseOk = !!window.supabaseClient;
-        const authOk = typeof window.verificarAdmin === 'function';
-        
-        if (supabaseOk && authOk) {
-            clearInterval(verificarDependencias);
-            console.log('[Admin] ✅ Dependências carregadas');
-            
-            // Inicializar admin
+    // Verificar login existente primeiro
+    verificarLoginExistente().then(logado => {
+        if (logado) {
+            console.log('[Admin] ✅ Login existente encontrado, inicializando...');
             setTimeout(() => {
                 inicializarAdmin();
             }, 300);
-        } else if (verificacoes >= maxVerificacoes) {
-            clearInterval(verificarDependencias);
-            console.warn('[Admin] ⚠️ Timeout aguardando dependências');
-            
-            // Tentar inicializar mesmo assim
-            setTimeout(() => {
-                inicializarAdmin();
-            }, 500);
+            return;
         }
-    }, 500);
+
+        // Aguardar o supabase e auth carregarem
+        let verificacoes = 0;
+        const maxVerificacoes = 20;
+        
+        const verificarDependencias = setInterval(() => {
+            verificacoes++;
+            
+            const supabaseOk = !!window.supabaseClient;
+            const authOk = typeof window.verificarAdmin === 'function';
+            
+            if (supabaseOk && authOk) {
+                clearInterval(verificarDependencias);
+                console.log('[Admin] ✅ Dependências carregadas');
+                
+                // Inicializar admin
+                setTimeout(() => {
+                    inicializarAdmin();
+                }, 300);
+            } else if (verificacoes >= maxVerificacoes) {
+                clearInterval(verificarDependencias);
+                console.warn('[Admin] ⚠️ Timeout aguardando dependências');
+                
+                // Tentar inicializar mesmo assim
+                setTimeout(() => {
+                    inicializarAdmin();
+                }, 500);
+            }
+        }, 500);
+    });
 });
 
 // ==========================================
@@ -627,6 +673,8 @@ window.inicializarAdmin = inicializarAdmin;
 window.carregarDadosIniciais = carregarDadosIniciais;
 window.atualizarStatusSistema = atualizarStatusSistema;
 window.mostrarErro = mostrarErro;
+window.adminInicializado = () => adminInicializado;
+window.adminVerificado = () => adminVerificado;
 
 console.log('[Admin] ✅ admin.js completamente carregado!');
 console.log('[Admin] 📌 Funções disponíveis:');
