@@ -13,24 +13,33 @@
                 
                 // Mostrar painel imediatamente
                 const panel = document.getElementById('adminPanel');
-                if (panel) panel.style.display = 'flex';
+                if (panel) {
+                    panel.style.display = 'flex';
+                    console.log('[Admin] ✅ Painel exibido imediatamente');
+                }
                 
                 const nameEl = document.getElementById('adminNameDisplay');
-                if (nameEl) nameEl.textContent = parsed.nome || 'Administrador';
+                if (nameEl) {
+                    nameEl.textContent = parsed.nome || 'Administrador';
+                    console.log('[Admin] ✅ Nome definido:', nameEl.textContent);
+                }
                 
                 const logoutBtn = document.getElementById('logoutBtn');
-                if (logoutBtn) logoutBtn.style.display = 'block';
+                if (logoutBtn) {
+                    logoutBtn.style.display = 'block';
+                }
                 
                 // Esconder qualquer loader
                 const loader = document.querySelector('.loading-overlay');
-                if (loader) loader.style.display = 'none';
+                if (loader) {
+                    loader.style.display = 'none';
+                }
             }
         } catch(e) {
             console.warn('[Admin] ⚠️ Erro ao forçar:', e);
         }
     }
 })();
-
 
 // ==========================================
 // admin.js - INICIALIZAÇÃO DO PAINEL ADMIN
@@ -46,6 +55,102 @@ let adminVerificado = false;
 let tentativasInicializacao = 0;
 const MAX_TENTATIVAS = 5;
 let adminInitialized = false;
+
+// ==========================================
+// CARREGAR DADOS DO ADMIN
+// ==========================================
+async function carregarDadosAdmin() {
+    console.log('[Admin] 📊 Carregando dados do admin...');
+    
+    try {
+        // Inicializar CacheManager
+        if (window.CacheManager) {
+            window.CacheManager.init();
+            const userId = window.CacheManager.getCurrentUserId();
+            if (userId && window.DatabaseService) {
+                console.log('[Admin] ☁️ Carregando dados da nuvem...');
+                await window.CacheManager.loadFromCloud(true);
+                console.log('[Admin] ✅ Dados da nuvem carregados');
+            }
+        }
+        
+        // Carregar cada seção
+        const carregarPromises = [];
+
+        // Dashboard
+        if (typeof loadDashboardStats === 'function') {
+            carregarPromises.push(
+                loadDashboardStats().catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar dashboard:', e);
+                })
+            );
+        }
+
+        // Usuários
+        if (typeof loadUsers === 'function') {
+            carregarPromises.push(
+                loadUsers().catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar usuários:', e);
+                })
+            );
+        }
+
+        // Posts
+        if (typeof loadPosts === 'function') {
+            carregarPromises.push(
+                loadPosts().catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar posts:', e);
+                })
+            );
+        }
+
+        // Comentários
+        if (typeof loadComments === 'function') {
+            carregarPromises.push(
+                loadComments().catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar comentários:', e);
+                })
+            );
+        }
+
+        // Notificações
+        if (typeof loadNotifications === 'function') {
+            carregarPromises.push(
+                loadNotifications().catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar notificações:', e);
+                })
+            );
+        }
+
+        // Logs
+        if (typeof loadAuditLogs === 'function') {
+            carregarPromises.push(
+                Promise.resolve(loadAuditLogs()).catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar logs:', e);
+                })
+            );
+        }
+
+        // Relatórios
+        if (typeof loadReports === 'function') {
+            carregarPromises.push(
+                Promise.resolve(loadReports()).catch(e => {
+                    console.warn('[Admin] ⚠️ Erro ao carregar relatórios:', e);
+                })
+            );
+        }
+
+        // Aguardar todos os carregamentos
+        await Promise.allSettled(carregarPromises);
+
+        // Atualizar status do sistema
+        atualizarStatusSistema();
+
+        console.log('[Admin] ✅ Todos os dados carregados com sucesso!');
+    } catch (error) {
+        console.error('[Admin] ❌ Erro ao carregar dados:', error);
+    }
+}
 
 // ==========================================
 // FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
@@ -72,6 +177,7 @@ async function inicializarAdmin() {
         if (!authOk) {
             console.error('[Admin] ❌ Falha na verificação de autenticação');
             if (tentativasInicializacao < MAX_TENTATIVAS) {
+                console.log('[Admin] 🔄 Tentando novamente em 2 segundos...');
                 setTimeout(() => inicializarAdmin(), 2000);
             }
             return;
@@ -81,7 +187,7 @@ async function inicializarAdmin() {
         configurarNavegacao();
 
         // 3. Carregar dados iniciais
-        await carregarDadosIniciais();
+        await carregarDadosAdmin();
 
         // 4. Configurar eventos
         configurarEventos();
@@ -235,86 +341,6 @@ function carregarDadosSecao(targetId) {
 }
 
 // ==========================================
-// CARREGAR DADOS INICIAIS
-// ==========================================
-async function carregarDadosIniciais() {
-    console.log('[Admin] 📊 Carregando dados iniciais...');
-
-    const carregarPromises = [];
-
-    // Dashboard
-    if (typeof loadDashboardStats === 'function') {
-        carregarPromises.push(
-            loadDashboardStats().catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar dashboard:', e);
-            })
-        );
-    }
-
-    // Usuários
-    if (typeof loadUsers === 'function') {
-        carregarPromises.push(
-            loadUsers().catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar usuários:', e);
-            })
-        );
-    }
-
-    // Posts
-    if (typeof loadPosts === 'function') {
-        carregarPromises.push(
-            loadPosts().catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar posts:', e);
-            })
-        );
-    }
-
-    // Comentários
-    if (typeof loadComments === 'function') {
-        carregarPromises.push(
-            loadComments().catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar comentários:', e);
-            })
-        );
-    }
-
-    // Notificações
-    if (typeof loadNotifications === 'function') {
-        carregarPromises.push(
-            loadNotifications().catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar notificações:', e);
-            })
-        );
-    }
-
-    // Logs
-    if (typeof loadAuditLogs === 'function') {
-        carregarPromises.push(
-            Promise.resolve(loadAuditLogs()).catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar logs:', e);
-            })
-        );
-    }
-
-    // Relatórios
-    if (typeof loadReports === 'function') {
-        carregarPromises.push(
-            Promise.resolve(loadReports()).catch(e => {
-                console.warn('[Admin] ⚠️ Erro ao carregar relatórios:', e);
-            })
-        );
-    }
-
-    // Aguardar todos os carregamentos
-    await Promise.allSettled(carregarPromises);
-
-    // Atualizar status do sistema
-    atualizarStatusSistema();
-
-    console.log('[Admin] ✅ Todos os dados iniciais carregados!');
-}
-
-// ==========================================
 // CONFIGURAR EVENTOS
 // ==========================================
 function configurarEventos() {
@@ -344,11 +370,15 @@ function configurarModalPosts() {
     const closeBtns = modal?.querySelectorAll('.close-modal') || [];
     const btnSave = document.getElementById('btnSavePost');
 
-    if (!modal) return;
+    if (!modal) {
+        console.warn('[Admin] ⚠️ Modal de posts não encontrado');
+        return;
+    }
 
     // Novo post
     if (btnNewPost) {
         btnNewPost.addEventListener('click', () => {
+            console.log('[Admin] 📝 Abrindo modal de novo post');
             document.getElementById('modalTitle').textContent = '📝 Novo Post';
             document.getElementById('postId').value = '';
             document.getElementById('postTitle').value = '';
@@ -407,6 +437,7 @@ async function salvarPost() {
         if (!supabaseClient) throw new Error('Supabase não inicializado');
 
         if (id) {
+            console.log('[Admin] 📝 Atualizando post:', id);
             const { error } = await supabaseClient
                 .from('tasks')
                 .update(postData)
@@ -415,6 +446,7 @@ async function salvarPost() {
             if (error) throw error;
             showToast('✅ Post atualizado!');
         } else {
+            console.log('[Admin] 📝 Criando novo post...');
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');
 
@@ -445,7 +477,10 @@ async function salvarPost() {
 // ==========================================
 function configurarModalNotificacoes() {
     const modal = document.getElementById('notifModal');
-    if (!modal) return;
+    if (!modal) {
+        console.warn('[Admin] ⚠️ Modal de notificações não encontrado');
+        return;
+    }
 
     // Fechar clicando fora
     modal.addEventListener('click', function(e) {
@@ -481,6 +516,8 @@ function configurarLogoutBtn() {
             window.logoutAdmin();
         });
         console.log('[Admin] ✅ Botão de logout configurado');
+    } else {
+        console.warn('[Admin] ⚠️ Botão de logout não encontrado');
     }
 }
 
@@ -512,6 +549,7 @@ function atualizarStatusSistema() {
     if (statusEl) {
         const agora = new Date();
         statusEl.textContent = `Última sincronização: ${agora.toLocaleTimeString('pt-BR')}`;
+        console.log('[Admin] ✅ Status do sistema atualizado');
     }
 }
 
@@ -519,6 +557,7 @@ function atualizarStatusSistema() {
 // MOSTRAR ERRO NA INTERFACE
 // ==========================================
 function mostrarErro(mensagem) {
+    console.error('[Admin] ❌ Erro:', mensagem);
     const toast = document.getElementById('toast');
     if (toast) {
         toast.textContent = '❌ ' + mensagem;
@@ -545,10 +584,18 @@ window.recarregarTodosDados = async function() {
     }
 
     try {
-        await carregarDadosIniciais();
+        // Recarregar do cache/nuvem
+        if (window.CacheManager) {
+            console.log('[Admin] ☁️ Recarregando do cache...');
+            await window.CacheManager.loadFromCloud(true);
+        }
+        
+        await carregarDadosAdmin();
+        
         if (typeof showToast === 'function') {
             showToast('✅ Todos os dados foram recarregados!');
         }
+        console.log('[Admin] ✅ Dados recarregados com sucesso');
     } catch (error) {
         console.error('[Admin] ❌ Erro ao recarregar:', error);
         if (typeof showToast === 'function') {
@@ -695,7 +742,7 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden && adminInicializado) {
         console.log('[Admin] 🔄 Página voltou ao foco, recarregando dados...');
         setTimeout(() => {
-            carregarDadosIniciais();
+            carregarDadosAdmin();
         }, 500);
     }
 });
@@ -704,7 +751,7 @@ document.addEventListener('visibilitychange', () => {
 // EXPORTA FUNÇÕES GLOBAIS
 // ==========================================
 window.inicializarAdmin = inicializarAdmin;
-window.carregarDadosIniciais = carregarDadosIniciais;
+window.carregarDadosAdmin = carregarDadosAdmin;
 window.atualizarStatusSistema = atualizarStatusSistema;
 window.mostrarErro = mostrarErro;
 window.adminInicializado = () => adminInicializado;
@@ -713,6 +760,6 @@ window.adminVerificado = () => adminVerificado;
 console.log('[Admin] ✅ admin.js completamente carregado!');
 console.log('[Admin] 📌 Funções disponíveis:');
 console.log('   - inicializarAdmin()');
-console.log('   - carregarDadosIniciais()');
+console.log('   - carregarDadosAdmin()');
 console.log('   - recarregarTodosDados()');
 console.log('   - logoutAdmin()');
