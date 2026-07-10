@@ -10,7 +10,6 @@ console.log('[Auth] 🔐 Módulo de autenticação carregado');
 let authVerificado = false;
 let tentativasFalhas = 0;
 const MAX_TENTATIVAS = 3;
-let authTimeout = null;
 
 // ==========================================
 // VERIFICAR ADMIN - VERSÃO CORRIGIDA
@@ -18,9 +17,8 @@ let authTimeout = null;
 async function verificarAdmin() {
     console.log('[Auth] 🔍 Verificando autenticação...');
     
-    // Evitar múltiplas verificações simultâneas
     if (authVerificado) {
-        console.log('[Auth] ✅ Já verificado anteriormente');
+        console.log('[Auth] ✅ Já verificado');
         return true;
     }
 
@@ -40,7 +38,31 @@ async function verificarAdmin() {
         }
 
         if (!session) {
-            console.log('[Auth] ❌ Sem sessão, redirecionando para login...');
+            console.log('[Auth] ❌ Sem sessão');
+            // Verificar se tem no localStorage
+            const usuarioSalvo = localStorage.getItem('usuarioLogado');
+            if (usuarioSalvo) {
+                try {
+                    const parsed = JSON.parse(usuarioSalvo);
+                    if (parsed.role === 'admin') {
+                        console.log('[Auth] 🔄 Recuperando sessão do localStorage...');
+                        // Tentar restaurar a sessão
+                        const { data: { session: newSession } } = await supabaseClient.auth.getSession();
+                        if (!newSession) {
+                            // Tentar atualizar a sessão
+                            await supabaseClient.auth.refreshSession();
+                            const { data: { session: refreshedSession } } = await supabaseClient.auth.getSession();
+                            if (refreshedSession) {
+                                console.log('[Auth] ✅ Sessão restaurada por refresh');
+                                return await verificarAdmin();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Auth] ⚠️ Erro ao verificar localStorage:', e);
+                }
+            }
+            
             redirecionarLogin();
             return false;
         }
@@ -49,11 +71,22 @@ async function verificarAdmin() {
         console.log('[Auth] 👤 Usuário logado:', user.email);
 
         // 2. Buscar perfil do usuário
-        const { data: profile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('role, nome, email, avatar_url')
-            .eq('id', user.id)
-            .single();
+        let profile = null;
+        let profileError = null;
+        
+        try {
+            const result = await supabaseClient
+                .from('profiles')
+                .select('role, nome, email, avatar_url')
+                .eq('id', user.id)
+                .single();
+            
+            profile = result.data;
+            profileError = result.error;
+        } catch (e) {
+            console.error('[Auth] ❌ Erro na consulta:', e);
+            profileError = e;
+        }
 
         if (profileError) {
             console.error('[Auth] ❌ Erro ao buscar perfil:', profileError);
@@ -63,44 +96,68 @@ async function verificarAdmin() {
                 console.log('[Auth] 🔄 Criando perfil para usuário...');
                 await criarPerfilUsuario(user);
                 // Tentar buscar novamente
-                const { data: newProfile, error: newError } = await supabaseClient
-                    .from('profiles')
-                    .select('role, nome, email, avatar_url')
-                    .eq('id', user.id)
-                    .single();
+                try {
+                    const result = await supabaseClient
+                        .from('profiles')
+                        .select('role, nome, email, avatar_url')
+                        .eq('id', user.id)
+                        .single();
                     
-                if (newError || !newProfile) {
+                    profile = result.data;
+                    profileError = result.error;
+                } catch (e) {
+                    console.error('[Auth] ❌ Erro ao buscar perfil após criação:', e);
+                }
+                
+                if (profileError || !profile) {
                     console.error('[Auth] ❌ Falha ao criar perfil');
                     await supabaseClient.auth.signOut();
                     redirecionarLogin();
                     return false;
                 }
                 
-                // Verificar role do novo perfil
-                if (newProfile.role !== 'admin') {
-                    console.log('[Auth] ❌ Acesso negado - não é admin');
-                    await supabaseClient.auth.signOut();
-                    redirecionarLogin();
-                    return false;
+                // Se não for admin, tornar admin
+                if (profile.role !== 'admin') {
+                    console.log('[Auth] 🔄 Tornando usuário ADMIN...');
+                    await tornarAdminPorEmail(user.email);
+                    // Atualizar profile
+                    const result = await supabaseClient
+                        .from('profiles')
+                        .select('role, nome, email, avatar_url')
+                        .eq('id', user.id)
+                        .single();
+                    profile = result.data;
                 }
-                
-                // Atualizar UI com novo perfil
-                atualizarInterfaceAdmin(newProfile, user);
-                authVerificado = true;
-                return true;
+            } else {
+                await supabaseClient.auth.signOut();
+                redirecionarLogin();
+                return false;
             }
-            
-            await supabaseClient.auth.signOut();
-            redirecionarLogin();
-            return false;
         }
 
         // 3. Verificar se é admin
         if (!profile || profile.role !== 'admin') {
             console.log('[Auth] ❌ Acesso negado - não é admin. Role:', profile?.role);
-            await supabaseClient.auth.signOut();
-            redirecionarLogin();
-            return false;
+            
+            // Se o usuário existe mas não é admin, tentar tornar admin
+            console.log('[Auth] 🔄 Tentando tornar usuário ADMIN...');
+            await tornarAdminPorEmail(user.email);
+            
+            // Buscar novamente
+            const result = await supabaseClient
+                .from('profiles')
+                .select('role, nome, email, avatar_url')
+                .eq('id', user.id)
+                .single();
+            
+            if (result.data && result.data.role === 'admin') {
+                console.log('[Auth] ✅ Usuário agora é ADMIN!');
+                profile = result.data;
+            } else {
+                await supabaseClient.auth.signOut();
+                redirecionarLogin();
+                return false;
+            }
         }
 
         console.log('[Auth] ✅ Usuário é ADMIN:', profile.nome);
@@ -109,7 +166,7 @@ async function verificarAdmin() {
         atualizarInterfaceAdmin(profile, user);
         authVerificado = true;
         
-        // 5. Disparar evento de admin verificado
+        // 5. Disparar evento
         window.dispatchEvent(new CustomEvent('adminVerificado', { 
             detail: { user, profile } 
         }));
@@ -132,6 +189,44 @@ async function verificarAdmin() {
 }
 
 // ==========================================
+// FUNÇÃO PARA TORNAR ADMIN POR EMAIL
+// ==========================================
+async function tornarAdminPorEmail(email) {
+    try {
+        const supabaseClient = window.supabaseClient;
+        if (!supabaseClient) return;
+        
+        // Buscar o usuário no auth
+        const { data: { users } } = await supabaseClient.auth.admin.listUsers();
+        const user = users?.find(u => u.email === email);
+        
+        if (!user) {
+            console.error('[Auth] ❌ Usuário não encontrado no auth');
+            return;
+        }
+        
+        // Atualizar ou inserir perfil como admin
+        const { error } = await supabaseClient
+            .from('profiles')
+            .upsert({
+                id: user.id,
+                email: user.email,
+                nome: user.user_metadata?.full_name || email.split('@')[0],
+                role: 'admin',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+        
+        if (error) {
+            console.error('[Auth] ❌ Erro ao tornar admin:', error);
+        } else {
+            console.log('[Auth] ✅ Usuário tornado ADMIN:', email);
+        }
+    } catch (error) {
+        console.error('[Auth] ❌ Erro ao tornar admin:', error);
+    }
+}
+
+// ==========================================
 // CRIAR PERFIL USUÁRIO
 // ==========================================
 async function criarPerfilUsuario(user) {
@@ -142,24 +237,27 @@ async function criarPerfilUsuario(user) {
         const nome = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário';
         const avatarUrl = user.user_metadata?.avatar_url || null;
         
+        // Verificar se é o admin principal
+        const isAdminEmail = user.email === 'projectozerosatus@gmail.com';
+        
         const { error } = await supabaseClient
             .from('profiles')
-            .insert({
+            .upsert({
                 id: user.id,
                 email: user.email,
                 nome: nome,
-                role: 'user',
+                role: isAdminEmail ? 'admin' : 'user',
                 avatar_url: avatarUrl,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
-            });
+            }, { onConflict: 'id' });
             
         if (error) {
             console.error('[Auth] ❌ Erro ao criar perfil:', error);
             throw error;
         }
         
-        console.log('[Auth] ✅ Perfil criado para:', user.email);
+        console.log('[Auth] ✅ Perfil criado para:', user.email, 'Role:', isAdminEmail ? 'admin' : 'user');
     } catch (error) {
         console.error('[Auth] ❌ Erro ao criar perfil:', error);
         throw error;
@@ -220,7 +318,6 @@ function atualizarInterfaceAdmin(profile, user) {
 function redirecionarLogin() {
     console.log('[Auth] 🔄 Redirecionando para login...');
     
-    // Limpar dados
     authVerificado = false;
     localStorage.removeItem('usuarioLogado');
     localStorage.removeItem('userPhotoURL');
@@ -229,7 +326,6 @@ function redirecionarLogin() {
         window.CacheManager.logout();
     }
     
-    // Redirecionar - USAR REPLACE PARA NÃO PERMITIR VOLTAR
     setTimeout(() => {
         window.location.replace('../login/index.html');
     }, 300);
@@ -273,7 +369,6 @@ window.logoutAdmin = async function() {
 function configurarLogout() {
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) {
-        // Remover listeners antigos
         const novoBtn = btnLogout.cloneNode(true);
         btnLogout.parentNode.replaceChild(novoBtn, btnLogout);
         
@@ -286,85 +381,61 @@ function configurarLogout() {
 }
 
 // ==========================================
-// RESTAURAR SESSÃO (para quando voltar à página)
-// ==========================================
-async function restaurarSessao() {
-    console.log('[Auth] 🔄 Restaurando sessão...');
-    
-    const usuarioSalvo = localStorage.getItem('usuarioLogado');
-    if (!usuarioSalvo) {
-        console.log('[Auth] ❌ Nenhum usuário salvo');
-        return false;
-    }
-    
-    try {
-        const usuario = JSON.parse(usuarioSalvo);
-        
-        // Verificar se ainda é admin
-        const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) {
-            console.error('[Auth] ❌ Supabase não disponível');
-            return false;
-        }
-        
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) {
-            console.log('[Auth] ❌ Sessão expirada');
-            localStorage.removeItem('usuarioLogado');
-            return false;
-        }
-        
-        // Verificar se o perfil ainda existe
-        const { data: profile } = await supabaseClient
-            .from('profiles')
-            .select('role, nome')
-            .eq('id', session.user.id)
-            .single();
-            
-        if (!profile || profile.role !== 'admin') {
-            console.log('[Auth] ❌ Não é mais admin');
-            localStorage.removeItem('usuarioLogado');
-            await supabaseClient.auth.signOut();
-            return false;
-        }
-        
-        // Restaurar interface
-        atualizarInterfaceAdmin(profile, session.user);
-        authVerificado = true;
-        
-        console.log('[Auth] ✅ Sessão restaurada');
-        return true;
-        
-    } catch (error) {
-        console.error('[Auth] ❌ Erro ao restaurar sessão:', error);
-        return false;
-    }
-}
-
-// ==========================================
-// EXPORTAR FUNÇÕES
-// ==========================================
-window.verificarAdmin = verificarAdmin;
-window.logoutAdmin = window.logoutAdmin;
-window.restaurarSessao = restaurarSessao;
-window.authVerificado = () => authVerificado;
-
-// ==========================================
 // INICIALIZAR
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Auth] 📋 DOM carregado, configurando...');
     
-    // Configurar botão de logout
     configurarLogout();
     
-    // Tentar restaurar sessão primeiro
-    const restaurado = await restaurarSessao();
-    if (restaurado) {
-        console.log('[Auth] ✅ Sessão restaurada com sucesso!');
-        // Disparar evento de admin verificado
-        window.dispatchEvent(new CustomEvent('adminVerificado'));
-        return;
+    // Tentar restaurar sessão do localStorage primeiro
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (usuarioSalvo) {
+        try {
+            const parsed = JSON.parse(usuarioSalvo);
+            if (parsed.role === 'admin' && parsed.logado === true) {
+                console.log('[Auth] 🔄 Restaurando admin do localStorage...');
+                
+                // Verificar se a sessão existe
+                const supabaseClient = window.supabaseClient;
+                if (supabaseClient) {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) {
+                        console.log('[Auth] ✅ Sessão válida, restaurando...');
+                        // Atualizar interface com os dados salvos
+                        const profile = {
+                            nome: parsed.nome,
+                            role: parsed.role,
+                            email: parsed.email,
+                            avatar_url: parsed.avatar_url
+                        };
+                        atualizarInterfaceAdmin(profile, session.user);
+                        authVerificado = true;
+                        window.dispatchEvent(new CustomEvent('adminVerificado'));
+                        return;
+                    } else {
+                        console.log('[Auth] ⚠️ Sessão expirada, tentando refresh...');
+                        await supabaseClient.auth.refreshSession();
+                        const { data: { session: refreshed } } = await supabaseClient.auth.getSession();
+                        if (refreshed) {
+                            console.log('[Auth] ✅ Sessão restaurada por refresh');
+                            const profile = {
+                                nome: parsed.nome,
+                                role: parsed.role,
+                                email: parsed.email,
+                                avatar_url: parsed.avatar_url
+                            };
+                            atualizarInterfaceAdmin(profile, refreshed.user);
+                            authVerificado = true;
+                            window.dispatchEvent(new CustomEvent('adminVerificado'));
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[Auth] ⚠️ Erro ao restaurar:', e);
+        }
     }
     
     // Se não restaurou, verificar normalmente
