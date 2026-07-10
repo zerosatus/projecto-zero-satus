@@ -1,145 +1,19 @@
 // ==========================================
-// modules/notifications.js - NOTIFICAÇÕES (MOCK)
+// modules/notifications.js - NOTIFICAÇÕES
 // ==========================================
+
 console.log('[Notif] 📬 Módulo de notificações carregado');
 
-// 🔥 DADOS MOCKADOS (depois trocar por Supabase)
-const mockNotificacoes = [
-    {
-        id: '1',
-        tipo: 'broadcast',
-        titulo: '🎉 Bem-vindos ao novo semestre!',
-        mensagem: 'Olá, pessoal! Estamos muito felizes em receber todos vocês neste novo semestre. Preparem-se para uma jornada incrível de aprendizado!',
-        icone: 'star',
-        destino: 'Todos os usuários',
-        canais: { inapp: true, email: true, push: false },
-        autor: 'Jose Samisson',
-        totalDestinatarios: 156,
-        lidas: 128,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        status: 'enviada'
-    },
-    {
-        id: '2',
-        tipo: 'system',
-        titulo: '⚠️ Manutenção programada',
-        mensagem: 'O sistema ficará indisponível no dia 15/07 das 02:00 às 05:00 para manutenção preventiva. Pedimos desculpas pelo inconveniente.',
-        icone: 'warning',
-        destino: 'Todos os usuários',
-        canais: { inapp: true, email: true, push: true },
-        autor: 'Sistema',
-        totalDestinatarios: 156,
-        lidas: 142,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-        status: 'enviada'
-    },
-    {
-        id: '3',
-        tipo: 'segmented',
-        titulo: '📚 Nova tarefa de Matemática disponível!',
-        mensagem: 'Uma nova tarefa sobre Equações de 2º Grau foi adicionada à disciplina de Matemática. Não perca o prazo: 20/07!',
-        icone: 'bell',
-        destino: 'Disciplina: Matemática',
-        canais: { inapp: true, email: false, push: true },
-        autor: 'Jose Samisson',
-        totalDestinatarios: 42,
-        lidas: 28,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-        status: 'enviada'
-    },
-    {
-        id: '4',
-        tipo: 'individual',
-        titulo: '🏆 Parabéns pela conquista!',
-        mensagem: 'Você desbloqueou a conquista "Estudante Dedicado" por completar 7 dias seguidos de estudo. Continue assim!',
-        icone: 'gift',
-        destino: 'Maria Santos (maria@email.com)',
-        canais: { inapp: true, email: true, push: false },
-        autor: 'Sistema',
-        totalDestinatarios: 1,
-        lidas: 1,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-        status: 'enviada'
-    },
-    {
-        id: '5',
-        tipo: 'broadcast',
-        titulo: '📝 Novo post: "Como Organizar seus Estudos"',
-        mensagem: 'Acabamos de publicar um novo post com dicas incríveis para você organizar sua rotina de estudos. Confira agora!',
-        icone: 'rocket',
-        destino: 'Todos os usuários',
-        canais: { inapp: true, email: false, push: false },
-        autor: 'Jose Samisson',
-        totalDestinatarios: 156,
-        lidas: 89,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        status: 'enviada'
-    },
-    {
-        id: '6',
-        tipo: 'segmented',
-        titulo: '💤 Sentimos sua falta!',
-        mensagem: 'Faz mais de 30 dias que você não acessa a plataforma. Que tal voltar e continuar seus estudos? Temos novidades te esperando!',
-        icone: 'info',
-        destino: 'Usuários inativos (+30 dias)',
-        canais: { inapp: true, email: true, push: true },
-        autor: 'Sistema',
-        totalDestinatarios: 23,
-        lidas: 7,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-        status: 'enviada'
-    },
-    {
-        id: '7',
-        tipo: 'system',
-        titulo: '🔐 Atualização de segurança',
-        mensagem: 'Implementamos novas medidas de segurança na plataforma. Recomendamos que todos alterem suas senhas nas próximas 48h.',
-        icone: 'warning',
-        destino: 'Todos os usuários',
-        canais: { inapp: true, email: true, push: false },
-        autor: 'Sistema',
-        totalDestinatarios: 156,
-        lidas: 134,
-        enviadaEm: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-        status: 'enviada'
-    }
-];
+// ==========================================
+// VARIÁVEIS GLOBAIS
+// ==========================================
+let notificacoesCache = [];
+let iconeSelecionado = 'bell';
+let supabaseClient = window.supabaseClient;
 
-// Templates prontos
-const templatesNotificacao = {
-    welcome: {
-        titulo: '👋 Bem-vindo(a) ao Zero Satus!',
-        mensagem: 'Estamos muito felizes em ter você conosco! Comece explorando as disciplinas, criando sua primeira tarefa e organizando seus estudos. Se precisar de ajuda, estamos aqui!',
-        icone: 'star'
-    },
-    maintenance: {
-        titulo: '⚠️ Manutenção Programada',
-        mensagem: 'O sistema ficará indisponível para manutenção no dia [DATA] das [HORA_INICIO] às [HORA_FIM]. Pedimos desculpas pelo inconveniente.',
-        icone: 'warning'
-    },
-    newpost: {
-        titulo: '📝 Novo post publicado!',
-        mensagem: 'Acabamos de publicar um novo post no blog: "[TÍTULO]". Confira agora e aproveite o conteúdo!',
-        icone: 'bell'
-    },
-    reminder: {
-        titulo: '🔔 Lembrete de estudo',
-        mensagem: 'Oi! Passando pra te lembrar de continuar estudando hoje. Você tem [NUMERO] tarefas pendentes. Vamos juntos!',
-        icone: 'bell'
-    },
-    congrats: {
-        titulo: '🏆 Parabéns pela conquista!',
-        mensagem: 'Você desbloqueou uma nova conquista: "[CONQUISTA]". Continue assim e alcance seus objetivos!',
-        icone: 'gift'
-    },
-    urgent: {
-        titulo: '🚨 Aviso Importante',
-        mensagem: '[MENSAGEM]',
-        icone: 'warning'
-    }
-};
-
-// Ícones do picker
+// ==========================================
+// MAPA DE ÍCONES
+// ==========================================
 const iconesMap = {
     bell: '🔔',
     info: 'ℹ️',
@@ -151,69 +25,190 @@ const iconesMap = {
     rocket: '🚀'
 };
 
-// Carregar notificações
-function loadNotifications() {
+// ==========================================
+// TEMPLATES
+// ==========================================
+const templatesNotificacao = {
+    welcome: {
+        titulo: '👋 Bem-vindo(a) ao Zero Satus!',
+        mensagem: 'Estamos muito felizes em ter você conosco! Comece explorando as disciplinas, criando sua primeira tarefa e organizando seus estudos. Se precisar de ajuda, estamos aqui!',
+        icone: 'star'
+    },
+    maintenance: {
+        titulo: '⚠️ Manutenção Programada',
+        mensagem: 'O sistema ficará indisponível para manutenção preventiva. Pedimos desculpas pelo inconveniente.',
+        icone: 'warning'
+    },
+    newpost: {
+        titulo: '📝 Novo post publicado!',
+        mensagem: 'Acabamos de publicar um novo post no blog. Confira agora e aproveite o conteúdo!',
+        icone: 'bell'
+    },
+    reminder: {
+        titulo: '🔔 Lembrete de estudo',
+        mensagem: 'Continue seus estudos! Você tem tarefas pendentes. Vamos juntos alcançar seus objetivos!',
+        icone: 'bell'
+    },
+    congrats: {
+        titulo: '🏆 Parabéns pela conquista!',
+        mensagem: 'Você desbloqueou uma nova conquista! Continue assim e alcance seus objetivos!',
+        icone: 'gift'
+    },
+    urgent: {
+        titulo: '🚨 Aviso Importante',
+        mensagem: 'Atenção! Leia esta mensagem com cuidado.',
+        icone: 'warning'
+    }
+};
+
+// ==========================================
+// CARREGAR NOTIFICAÇÕES DO SUPABASE
+// ==========================================
+async function loadNotifications() {
     console.log('[Notif] 📬 Carregando notificações...');
     
-    atualizarStatsNotificacoes();
-    renderizarListaNotificacoes(mockNotificacoes);
-}
-
-// Atualizar stats
-function atualizarStatsNotificacoes() {
-    const totalEnviadas = mockNotificacoes.length;
-    const totalLidas = mockNotificacoes.reduce((acc, n) => acc + n.lidas, 0);
-    const totalDestinatarios = mockNotificacoes.reduce((acc, n) => acc + n.totalDestinatarios, 0);
-    const pendentes = totalDestinatarios - totalLidas;
-    
-    document.getElementById('statTotalEnviadas').textContent = totalEnviadas;
-    document.getElementById('statTotalLidas').textContent = totalLidas.toLocaleString('pt-BR');
-    document.getElementById('statPendentes').textContent = pendentes.toLocaleString('pt-BR');
-    document.getElementById('statAlcance').textContent = totalDestinatarios.toLocaleString('pt-BR');
-}
-
-// Renderizar lista
-function renderizarListaNotificacoes(notificacoes) {
     const container = document.getElementById('notifList');
-    if (!container) return;
-    
-    if (notificacoes.length === 0) {
+    if (container) {
         container.innerHTML = `
             <div style="text-align:center; padding:40px; color:var(--text-muted);">
-                <i class="fas fa-inbox" style="font-size:3rem; margin-bottom:15px; opacity:0.5;"></i>
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 15px;"></i>
+                <p>Carregando notificações...</p>
+            </div>
+        `;
+    }
+
+    try {
+        if (!supabaseClient) {
+            supabaseClient = window.supabaseClient;
+            if (!supabaseClient) {
+                throw new Error('Supabase não inicializado');
+            }
+        }
+
+        const { data, error } = await supabaseClient
+            .from('admin_notifications')
+            .select('*')
+            .order('enviada_em', { ascending: false });
+
+        if (error) {
+            console.error('[Notif] ❌ Erro ao carregar:', error);
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:40px; color:var(--danger);">
+                        <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px;"></i>
+                        <p>Erro ao carregar notificações: ${error.message}</p>
+                        <button class="btn-secondary" onclick="recarregarNotificacoes()" style="margin-top: 10px;">
+                            <i class="fas fa-sync"></i> Tentar novamente
+                        </button>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        notificacoesCache = data || [];
+        
+        // Atualizar badge
+        const badge = document.getElementById('notifBadge');
+        if (badge) {
+            const naoLidas = notificacoesCache.filter(n => n.status !== 'agendada').length;
+            badge.textContent = naoLidas > 0 ? naoLidas : '0';
+        }
+        
+        // Atualizar stats
+        atualizarStats();
+        
+        // Renderizar lista
+        renderizarLista(notificacoesCache);
+        
+        console.log('[Notif] ✅ Notificações carregadas:', notificacoesCache.length);
+
+    } catch (error) {
+        console.error('[Notif] ❌ Erro:', error);
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:40px; color:var(--danger);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 15px;"></i>
+                    <p>Erro ao carregar notificações</p>
+                    <button class="btn-secondary" onclick="recarregarNotificacoes()" style="margin-top: 10px;">
+                        <i class="fas fa-sync"></i> Tentar novamente
+                    </button>
+                </div>
+            `;
+        }
+    }
+}
+
+// ==========================================
+// ATUALIZAR ESTATÍSTICAS
+// ==========================================
+function atualizarStats() {
+    const total = notificacoesCache.length;
+    const totalLidas = notificacoesCache.reduce((acc, n) => acc + (n.lidas || 0), 0);
+    const totalDestinatarios = notificacoesCache.reduce((acc, n) => acc + (n.total_destinatarios || 0), 0);
+    const pendentes = totalDestinatarios - totalLidas;
+
+    const elTotal = document.getElementById('statTotalEnviadas');
+    const elLidas = document.getElementById('statTotalLidas');
+    const elPendentes = document.getElementById('statPendentes');
+    const elAlcance = document.getElementById('statAlcance');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elLidas) elLidas.textContent = totalLidas.toLocaleString('pt-BR');
+    if (elPendentes) elPendentes.textContent = pendentes.toLocaleString('pt-BR');
+    if (elAlcance) elAlcance.textContent = totalDestinatarios.toLocaleString('pt-BR');
+}
+
+// ==========================================
+// RENDERIZAR LISTA
+// ==========================================
+function renderizarLista(notificacoes) {
+    const container = document.getElementById('notifList');
+    if (!container) return;
+
+    if (!notificacoes || notificacoes.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
                 <p>Nenhuma notificação encontrada</p>
             </div>
         `;
         return;
     }
-    
+
     container.innerHTML = notificacoes.map(n => {
-        const naoLidas = n.totalDestinatarios - n.lidas;
-        const percentLidas = Math.round((n.lidas / n.totalDestinatarios) * 100);
-        
+        const percentual = n.total_destinatarios > 0 
+            ? Math.round((n.lidas / n.total_destinatarios) * 100) 
+            : 0;
+        const naoLidas = (n.total_destinatarios || 0) - (n.lidas || 0);
+        const icone = iconesMap[n.icone] || '🔔';
+        const tipoLabel = getTipoLabel(n.tipo);
+        const isAgendada = n.status === 'agendada';
+
         return `
-            <div class="notif-item ${n.tipo}">
+            <div class="notif-item ${n.tipo} ${isAgendada ? 'agendada' : ''}">
                 <div class="notif-icon-box ${n.tipo}">
-                    ${iconesMap[n.icone] || '🔔'}
+                    ${icone}
                 </div>
                 <div class="notif-content">
                     <div class="notif-header">
                         <h4 class="notif-title">${n.titulo}</h4>
                         <div class="notif-time">
                             <i class="fas fa-clock"></i>
-                            ${formatarTempoRelativoNotif(n.enviadaEm)}
+                            ${formatarData(n.enviada_em)}
+                            ${isAgendada ? '<span style="color: #f59e0b; margin-left: 8px;">📅 Agendada</span>' : ''}
                         </div>
                     </div>
                     <p class="notif-message">${n.mensagem}</p>
                     <div class="notif-meta">
-                        <span class="notif-tag ${n.tipo}">${getTipoLabel(n.tipo)}</span>
+                        <span class="notif-tag ${n.tipo}">${tipoLabel}</span>
                         <div class="notif-stat">
                             <i class="fas fa-users"></i>
-                            ${n.destino}
+                            ${n.destino || 'Não especificado'}
                         </div>
                         <div class="notif-stat read">
                             <i class="fas fa-check-circle"></i>
-                            ${n.lidas}/${n.totalDestinatarios} (${percentLidas}%)
+                            ${n.lidas || 0}/${n.total_destinatarios || 0} (${percentual}%)
                         </div>
                         ${naoLidas > 0 ? `
                             <div class="notif-stat unread">
@@ -221,18 +216,20 @@ function renderizarListaNotificacoes(notificacoes) {
                                 ${naoLidas} não lidas
                             </div>
                         ` : ''}
-                        <div class="notif-channels">
-                            ${n.canais.inapp ? '<div class="notif-channel-icon active" title="No site"><i class="fas fa-bell"></i></div>' : ''}
-                            ${n.canais.email ? '<div class="notif-channel-icon active" title="Email"><i class="fas fa-envelope"></i></div>' : ''}
-                            ${n.canais.push ? '<div class="notif-channel-icon active" title="Push"><i class="fas fa-mobile-alt"></i></div>' : ''}
-                        </div>
+                        ${n.canais ? `
+                            <div class="notif-channels">
+                                ${n.canais.inapp ? '<div class="notif-channel-icon active" title="No site"><i class="fas fa-bell"></i></div>' : ''}
+                                ${n.canais.email ? '<div class="notif-channel-icon active" title="Email"><i class="fas fa-envelope"></i></div>' : ''}
+                                ${n.canais.push ? '<div class="notif-channel-icon active" title="Push"><i class="fas fa-mobile-alt"></i></div>' : ''}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="notif-actions">
-                    <button class="btn-secondary" onclick="verDetalhesNotificacao('${n.id}')">
+                    <button class="btn-secondary" onclick="verDetalhesNotificacao('${n.id}')" title="Ver detalhes">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn-danger" onclick="deletarNotificacao('${n.id}')">
+                    <button class="btn-danger" onclick="deletarNotificacao('${n.id}')" title="Deletar">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -241,7 +238,9 @@ function renderizarListaNotificacoes(notificacoes) {
     }).join('');
 }
 
-// Helpers
+// ==========================================
+// HELPERS
+// ==========================================
 function getTipoLabel(tipo) {
     const labels = {
         broadcast: '📢 Em massa',
@@ -252,199 +251,318 @@ function getTipoLabel(tipo) {
     return labels[tipo] || tipo;
 }
 
-function formatarTempoRelativoNotif(timestamp) {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `${diffMins}min atrás`;
-    if (diffHours < 24) return `${diffHours}h atrás`;
-    if (diffDays < 7) return `${diffDays}d atrás`;
-    return date.toLocaleDateString('pt-BR');
+function formatarData(timestamp) {
+    if (!timestamp) return 'Data desconhecida';
+    try {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Agora';
+        if (diffMins < 60) return `${diffMins}min atrás`;
+        if (diffHours < 24) return `${diffHours}h atrás`;
+        if (diffDays < 7) return `${diffDays}d atrás`;
+        return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+        return timestamp;
+    }
 }
 
-// Filtrar notificações
+// ==========================================
+// FILTRAR NOTIFICAÇÕES
+// ==========================================
 function filtrarNotificacoes() {
-    const tipo = document.getElementById('notifFilterTipo').value;
-    const busca = document.getElementById('notifSearch').value.toLowerCase();
-    
-    let filtradas = mockNotificacoes;
-    
+    const tipo = document.getElementById('notifFilterTipo')?.value || 'all';
+    const busca = document.getElementById('notifSearch')?.value?.toLowerCase() || '';
+
+    let filtradas = notificacoesCache;
+
     if (tipo !== 'all') {
         filtradas = filtradas.filter(n => n.tipo === tipo);
     }
-    
+
     if (busca) {
-        filtradas = filtradas.filter(n => 
-            n.titulo.toLowerCase().includes(busca) || 
-            n.mensagem.toLowerCase().includes(busca)
+        filtradas = filtradas.filter(n =>
+            (n.titulo || '').toLowerCase().includes(busca) ||
+            (n.mensagem || '').toLowerCase().includes(busca)
         );
     }
-    
-    renderizarListaNotificacoes(filtradas);
+
+    renderizarLista(filtradas);
 }
 
-// Abrir modal
+// ==========================================
+// RECARREGAR NOTIFICAÇÕES
+// ==========================================
+function recarregarNotificacoes() {
+    console.log('[Notif] 🔄 Recarregando...');
+    loadNotifications();
+}
+
+// ==========================================
+// ABRIR MODAL
+// ==========================================
 function abrirModalNovaNotificacao() {
+    const modal = document.getElementById('notifModal');
+    if (!modal) return;
+
     document.getElementById('notifModalTitle').textContent = '📢 Nova Notificação';
+    document.getElementById('notifDestino').value = 'todos';
+    document.getElementById('notifEmailDestino').value = '';
     document.getElementById('notifTitulo').value = '';
     document.getElementById('notifMensagem').value = '';
     document.getElementById('notifAgendar').value = '';
-    document.getElementById('notifTipo').value = 'broadcast';
     document.getElementById('channelInapp').checked = true;
     document.getElementById('channelEmail').checked = false;
     document.getElementById('channelPush').checked = false;
-    atualizarCampoDestino();
-    document.getElementById('notifModal').classList.add('active');
+    document.getElementById('emailDestinoGroup').style.display = 'none';
+    document.getElementById('charCount').textContent = '0';
+    
+    // Resetar ícone
+    document.querySelectorAll('.icon-option').forEach(b => b.classList.remove('active'));
+    const defaultIcon = document.querySelector('.icon-option[data-icon="bell"]');
+    if (defaultIcon) defaultIcon.classList.add('active');
+    iconeSelecionado = 'bell';
+    
+    modal.classList.add('active');
 }
 
 function fecharModalNotificacao() {
-    document.getElementById('notifModal').classList.remove('active');
+    const modal = document.getElementById('notifModal');
+    if (modal) modal.classList.remove('active');
 }
 
-// Atualizar campo destino baseado no tipo
-function atualizarCampoDestino() {
-    const tipo = document.getElementById('notifTipo').value;
-    const segmentoGroup = document.getElementById('segmentoGroup');
-    const destinoGroup = document.getElementById('destinoGroup');
+// ==========================================
+// ATUALIZAR CAMPOS DE DESTINO
+// ==========================================
+function atualizarCamposDestino() {
+    const destino = document.getElementById('notifDestino')?.value || 'todos';
+    const emailGroup = document.getElementById('emailDestinoGroup');
     
-    segmentoGroup.style.display = 'none';
-    destinoGroup.style.display = 'none';
-    
-    if (tipo === 'segmented') {
-        segmentoGroup.style.display = 'block';
-        destinoGroup.style.display = 'block';
-    } else if (tipo === 'individual') {
-        destinoGroup.style.display = 'block';
-        document.getElementById('notifDestinoValor').innerHTML = `
-            <option value="user1">Maria Santos (maria@email.com)</option>
-            <option value="user2">João Silva (joao@email.com)</option>
-            <option value="user3">Ana Oliveira (ana@email.com)</option>
-        `;
+    if (emailGroup) {
+        emailGroup.style.display = destino === 'individual' ? 'block' : 'none';
     }
 }
 
-// Selecionar ícone
+// ==========================================
+// SELECIONAR ÍCONE
+// ==========================================
 function selecionarIcone(btn) {
     document.querySelectorAll('.icon-option').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    iconeSelecionado = btn.dataset.icon;
 }
 
-// Usar template
+// ==========================================
+// USAR TEMPLATE
+// ==========================================
 function usarTemplate(tipo) {
     const template = templatesNotificacao[tipo];
     if (!template) return;
-    
+
     abrirModalNovaNotificacao();
     document.getElementById('notifTitulo').value = template.titulo;
     document.getElementById('notifMensagem').value = template.mensagem;
-    
+    document.getElementById('charCount').textContent = template.mensagem.length;
+
     // Selecionar ícone
     document.querySelectorAll('.icon-option').forEach(b => {
         b.classList.toggle('active', b.dataset.icon === template.icone);
     });
-    
-    showToast('✅ Template carregado! Edite e envie.');
+    iconeSelecionado = template.icone;
+
+    if (typeof showToast === 'function') {
+        showToast('✅ Template carregado! Edite e envie.');
+    }
 }
 
-// Enviar notificação (MOCK)
-function enviarNotificacao() {
-    const titulo = document.getElementById('notifTitulo').value.trim();
-    const mensagem = document.getElementById('notifMensagem').value.trim();
-    
-    if (!titulo || !mensagem) {
-        showToast('⚠️ Preencha título e mensagem!', true);
+// ==========================================
+// CONTADOR DE CARACTERES
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const msgInput = document.getElementById('notifMensagem');
+    if (msgInput) {
+        msgInput.addEventListener('input', () => {
+            const count = document.getElementById('charCount');
+            if (count) count.textContent = msgInput.value.length;
+        });
+    }
+});
+
+// ==========================================
+// ENVIAR NOTIFICAÇÃO
+// ==========================================
+async function enviarNotificacao() {
+    const btn = document.getElementById('btnEnviarNotificacao');
+    const titulo = document.getElementById('notifTitulo')?.value?.trim() || '';
+    const mensagem = document.getElementById('notifMensagem')?.value?.trim() || '';
+    const destino = document.getElementById('notifDestino')?.value || 'todos';
+    const emailDestino = document.getElementById('notifEmailDestino')?.value?.trim() || '';
+    const agendar = document.getElementById('notifAgendar')?.value || '';
+    const canais = {
+        inapp: document.getElementById('channelInapp')?.checked || false,
+        email: document.getElementById('channelEmail')?.checked || false,
+        push: document.getElementById('channelPush')?.checked || false
+    };
+
+    // Validações
+    if (!titulo) {
+        if (typeof showToast === 'function') showToast('⚠️ Preencha o título!', true);
         return;
     }
-    
-    const tipo = document.getElementById('notifTipo').value;
-    const iconeAtivo = document.querySelector('.icon-option.active');
-    const icone = iconeAtivo ? iconeAtivo.dataset.icon : 'bell';
-    
-    // Calcular destinatários (mock)
-    let totalDestinatarios = 156;
-    let destino = 'Todos os usuários';
-    
-    if (tipo === 'segmented') {
-        totalDestinatarios = Math.floor(Math.random() * 50) + 20;
-        destino = 'Usuários segmentados';
-    } else if (tipo === 'individual') {
-        totalDestinatarios = 1;
-        destino = 'Usuário específico';
+
+    if (!mensagem) {
+        if (typeof showToast === 'function') showToast('⚠️ Preencha a mensagem!', true);
+        return;
     }
-    
-    // Criar nova notificação
-    const novaNotif = {
-        id: String(Date.now()),
-        tipo,
-        titulo,
-        mensagem,
-        icone,
-        destino,
-        canais: {
-            inapp: document.getElementById('channelInapp').checked,
-            email: document.getElementById('channelEmail').checked,
-            push: document.getElementById('channelPush').checked
-        },
-        autor: 'Jose Samisson',
-        totalDestinatarios,
-        lidas: 0,
-        enviadaEm: new Date().toISOString(),
-        status: 'enviada'
-    };
-    
-    // Adicionar ao início da lista
-    mockNotificacoes.unshift(novaNotif);
-    
-    fecharModalNotificacao();
-    loadNotifications();
-    showToast(`✅ Notificação enviada pra ${totalDestinatarios} usuário(s)!`);
+
+    if (destino === 'individual' && !emailDestino) {
+        if (typeof showToast === 'function') showToast('⚠️ Digite o email do usuário!', true);
+        return;
+    }
+
+    if (destino === 'individual' && !emailDestino.includes('@')) {
+        if (typeof showToast === 'function') showToast('⚠️ Email inválido!', true);
+        return;
+    }
+
+    // Desabilitar botão
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+    }
+
+    try {
+        if (!supabaseClient) {
+            supabaseClient = window.supabaseClient;
+            if (!supabaseClient) {
+                throw new Error('Supabase não inicializado');
+            }
+        }
+
+        const autor = document.getElementById('adminNameDisplay')?.textContent || 'Administrador';
+        
+        let destinoSql = destino;
+        if (destino === 'individual') {
+            destinoSql = emailDestino;
+        }
+
+        const { data, error } = await supabaseClient.rpc('enviar_notificacao', {
+            p_destino: destinoSql,
+            p_titulo: titulo,
+            p_mensagem: mensagem,
+            p_tipo: destino === 'todos' ? 'broadcast' : 
+                    destino === 'individual' ? 'individual' : 'segmented',
+            p_icone: iconeSelecionado || 'bell',
+            p_autor: autor,
+            p_autor_id: null,
+            p_canais: canais,
+            p_agendar: agendar || null
+        });
+
+        if (error) {
+            console.error('[Notif] ❌ Erro ao enviar:', error);
+            if (typeof showToast === 'function') showToast('❌ Erro ao enviar: ' + error.message, true);
+            return;
+        }
+
+        console.log('[Notif] ✅ Notificação enviada:', data);
+        if (typeof showToast === 'function') showToast('✅ ' + (data || 'Notificação enviada com sucesso!'));
+        
+        fecharModalNotificacao();
+        await loadNotifications();
+
+    } catch (error) {
+        console.error('[Notif] ❌ Erro:', error);
+        if (typeof showToast === 'function') showToast('❌ Erro ao enviar: ' + error.message, true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
+        }
+    }
 }
 
-// Ver detalhes
+// ==========================================
+// VER DETALHES DA NOTIFICAÇÃO
+// ==========================================
 function verDetalhesNotificacao(id) {
-    const notif = mockNotificacoes.find(n => n.id === id);
-    if (!notif) return;
-    
-    const percentLidas = Math.round((notif.lidas / notif.totalDestinatarios) * 100);
-    
-    alert(`📬 ${notif.titulo}\n\n${notif.mensagem}\n\n---\n📊 Estatísticas:\n• Enviada para: ${notif.totalDestinatarios}\n• Lidas: ${notif.lidas} (${percentLidas}%)\n• Não lidas: ${notif.totalDestinatarios - notif.lidas}\n\n👤 Autor: ${notif.autor}\n📅 Enviada em: ${new Date(notif.enviadaEm).toLocaleString('pt-BR')}`);
+    const notif = notificacoesCache.find(n => n.id === id);
+    if (!notif) {
+        if (typeof showToast === 'function') showToast('❌ Notificação não encontrada', true);
+        return;
+    }
+
+    const percentual = notif.total_destinatarios > 0 
+        ? Math.round((notif.lidas / notif.total_destinatarios) * 100) 
+        : 0;
+
+    alert(`📬 ${notif.titulo}\n\n${notif.mensagem}\n\n---\n📊 Estatísticas:\n• Enviada para: ${notif.total_destinatarios || 0} usuário(s)\n• Lidas: ${notif.lidas || 0} (${percentual}%)\n• Não lidas: ${(notif.total_destinatarios || 0) - (notif.lidas || 0)}\n\n👤 Autor: ${notif.autor || 'Sistema'}\n📅 Enviada em: ${formatarData(notif.enviada_em)}\n📌 Tipo: ${getTipoLabel(notif.tipo)}`);
 }
 
-// Deletar
-function deletarNotificacao(id) {
-    if (!confirm('Tem certeza que deseja deletar esta notificação?')) return;
-    
-    const index = mockNotificacoes.findIndex(n => n.id === id);
-    if (index !== -1) {
-        mockNotificacoes.splice(index, 1);
-        loadNotifications();
-        showToast('🗑️ Notificação deletada!');
+// ==========================================
+// DELETAR NOTIFICAÇÃO
+// ==========================================
+async function deletarNotificacao(id) {
+    if (!confirm('Tem certeza que deseja DELETAR esta notificação?')) return;
+
+    try {
+        if (!supabaseClient) {
+            supabaseClient = window.supabaseClient;
+            if (!supabaseClient) {
+                throw new Error('Supabase não inicializado');
+            }
+        }
+
+        const { error } = await supabaseClient
+            .from('admin_notifications')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('[Notif] ❌ Erro ao deletar:', error);
+            if (typeof showToast === 'function') showToast('❌ Erro ao deletar: ' + error.message, true);
+            return;
+        }
+
+        if (typeof showToast === 'function') showToast('🗑️ Notificação deletada!');
+        await loadNotifications();
+
+    } catch (error) {
+        console.error('[Notif] ❌ Erro:', error);
+        if (typeof showToast === 'function') showToast('❌ Erro ao deletar: ' + error.message, true);
     }
 }
 
-// Exportar CSV
+// ==========================================
+// EXPORTAR CSV
+// ==========================================
 function exportarNotificacoes() {
-    const csvContent = [
-        ['ID', 'Tipo', 'Título', 'Mensagem', 'Destino', 'Destinatários', 'Lidas', 'Autor', 'Data'].join(','),
-        ...mockNotificacoes.map(n => [
-            n.id,
-            n.tipo,
-            `"${n.titulo.replace(/"/g, '""')}"`,
-            `"${n.mensagem.replace(/"/g, '""')}"`,
-            n.destino,
-            n.totalDestinatarios,
-            n.lidas,
-            n.autor,
-            n.enviadaEm
-        ].join(','))
-    ].join('\n');
+    if (!notificacoesCache || notificacoesCache.length === 0) {
+        if (typeof showToast === 'function') showToast('⚠️ Nenhuma notificação para exportar', true);
+        return;
+    }
+
+    const headers = ['ID', 'Título', 'Mensagem', 'Tipo', 'Destino', 'Destinatários', 'Lidas', 'Autor', 'Status', 'Data'];
+    const rows = notificacoesCache.map(n => [
+        n.id || '',
+        `"${(n.titulo || '').replace(/"/g, '""')}"`,
+        `"${(n.mensagem || '').replace(/"/g, '""')}"`,
+        n.tipo || '',
+        n.destino || '',
+        n.total_destinatarios || 0,
+        n.lidas || 0,
+        n.autor || 'Sistema',
+        n.status || 'enviada',
+        n.enviada_em || ''
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -453,11 +571,14 @@ function exportarNotificacoes() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    showToast('📥 Notificações exportadas!');
+    URL.revokeObjectURL(url);
+
+    if (typeof showToast === 'function') showToast('📥 Notificações exportadas!');
 }
 
-// Fechar modal clicando fora
+// ==========================================
+// FECHAR MODAL CLICANDO FORA
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('notifModal');
     if (modal) {
@@ -465,18 +586,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === this) fecharModalNotificacao();
         });
     }
+    
+    // Carregar notificações quando a página carregar
+    if (document.querySelector('#notifications')) {
+        loadNotifications();
+    }
 });
 
-// Expor globalmente
+// ==========================================
+// EXPORTAR FUNÇÕES GLOBAIS
+// ==========================================
+window.loadNotifications = loadNotifications;
+window.filtrarNotificacoes = filtrarNotificacoes;
+window.recarregarNotificacoes = recarregarNotificacoes;
 window.abrirModalNovaNotificacao = abrirModalNovaNotificacao;
 window.fecharModalNotificacao = fecharModalNotificacao;
-window.atualizarCampoDestino = atualizarCampoDestino;
+window.atualizarCamposDestino = atualizarCamposDestino;
 window.selecionarIcone = selecionarIcone;
 window.usarTemplate = usarTemplate;
 window.enviarNotificacao = enviarNotificacao;
 window.verDetalhesNotificacao = verDetalhesNotificacao;
 window.deletarNotificacao = deletarNotificacao;
-window.filtrarNotificacoes = filtrarNotificacoes;
 window.exportarNotificacoes = exportarNotificacoes;
 
-console.log('[Notif] ✅ Módulo pronto!');
+console.log('[Notif] ✅ Módulo de notificações carregado com sucesso!');

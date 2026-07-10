@@ -1,16 +1,19 @@
 /* =========================================
-NOTIFICAÇÕES - ESTILOS
+NOTIFICAÇÕES - ESTILOS COMPLETOS
 ========================================= */
 
 /* Badge na sidebar */
 .notif-badge {
-    background: var(--danger);
+    background: #ef4444;
     color: white;
     font-size: 10px;
     padding: 2px 7px;
     border-radius: 10px;
     margin-left: 8px;
     font-weight: 700;
+    min-width: 18px;
+    display: inline-block;
+    text-align: center;
 }
 
 /* Filtros */
@@ -80,10 +83,11 @@ NOTIFICAÇÕES - ESTILOS
     background: rgba(147, 51, 234, 0.05);
 }
 
-.notif-item.broadcast { border-left-color: var(--primary); }
+.notif-item.broadcast { border-left-color: #9333ea; }
 .notif-item.segmented { border-left-color: #3b82f6; }
 .notif-item.individual { border-left-color: #10b981; }
 .notif-item.system { border-left-color: #f59e0b; }
+.notif-item.agendada { border-left-color: #f59e0b; opacity: 0.85; }
 
 .notif-icon-box {
     width: 48px;
@@ -330,22 +334,9 @@ NOTIFICAÇÕES - ESTILOS
     color: white;
 }
 
-/* Preview da notificação */
-.notif-preview {
-    background: var(--bg-dark);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-top: 15px;
-}
-
-.notif-preview-header {
-    color: var(--text-muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    font-weight: 600;
+/* Modal de notificação */
+#notifModal .modal-content {
+    max-width: 700px;
 }
 
 /* Responsivo */
@@ -377,5 +368,10 @@ NOTIFICAÇÕES - ESTILOS
     
     .channel-options {
         flex-direction: column;
+    }
+    
+    #notifModal .modal-content {
+        max-width: 95%;
+        margin: 10px;
     }
 }
