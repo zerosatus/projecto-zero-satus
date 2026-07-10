@@ -13,15 +13,37 @@ async function loadDashboardStats() {
     const supabaseClient = window.supabaseClient;
     if (!supabaseClient) {
         console.error('[Dashboard] ❌ supabaseClient não encontrado');
+        mostrarErroEstatisticas();
         return;
     }
 
     try {
+        // 🔥 Verificar sessão primeiro
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            console.warn('[Dashboard] ⚠️ Sem sessão');
+            mostrarErroEstatisticas();
+            return;
+        }
+
+        console.log('[Dashboard] 🔍 Buscando estatísticas...');
+
         // Usar a função SQL get_admin_stats
         const { data, error } = await supabaseClient.rpc('get_admin_stats');
 
         if (error) {
             console.error('[Dashboard] ❌ Erro ao carregar estatísticas:', error);
+            
+            // Se for erro de permissão (RLS), usar fallback
+            if (error.code === 'PGRST301' || 
+                error.message?.includes('permission denied') || 
+                error.message?.includes('permission denied for function') ||
+                error.message?.includes('function') && error.message?.includes('not found')) {
+                console.log('[Dashboard] 🔄 Usando fallback para estatísticas básicas...');
+                await carregarStatsBasicos();
+                return;
+            }
+            
             mostrarErroEstatisticas();
             return;
         }
@@ -40,6 +62,9 @@ async function loadDashboardStats() {
             atualizarElemento('countActiveToday', stats.ativos_hoje);
             
             console.log('[Dashboard] ✅ Estatísticas carregadas:', stats);
+        } else {
+            console.warn('[Dashboard] ⚠️ Nenhum dado retornado, usando fallback');
+            await carregarStatsBasicos();
         }
 
         // Carregar atividades recentes
@@ -47,6 +72,79 @@ async function loadDashboardStats() {
 
     } catch (error) {
         console.error('[Dashboard] ❌ Erro ao carregar estatísticas:', error);
+        mostrarErroEstatisticas();
+    }
+}
+
+// ==========================================
+// CARREGAR STATS BÁSICOS (FALLBACK)
+// ==========================================
+async function carregarStatsBasicos() {
+    console.log('[Dashboard] 📊 Carregando stats básicos (fallback)...');
+    
+    const supabaseClient = window.supabaseClient;
+    if (!supabaseClient) {
+        mostrarErroEstatisticas();
+        return;
+    }
+    
+    try {
+        // Contar usuários
+        const { count: usersCount, error: usersError } = await supabaseClient
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
+        
+        if (usersError) {
+            console.warn('[Dashboard] ⚠️ Erro ao contar usuários:', usersError);
+        }
+        
+        // Contar posts (tasks)
+        const { count: postsCount, error: postsError } = await supabaseClient
+            .from('tasks')
+            .select('*', { count: 'exact', head: true });
+        
+        if (postsError) {
+            console.warn('[Dashboard] ⚠️ Erro ao contar posts:', postsError);
+        }
+        
+        // Contar comentários (notifications)
+        const { count: commentsCount, error: commentsError } = await supabaseClient
+            .from('notifications')
+            .select('*', { count: 'exact', head: true });
+        
+        if (commentsError) {
+            console.warn('[Dashboard] ⚠️ Erro ao contar comentários:', commentsError);
+        }
+        
+        // Contar tarefas ativas
+        const { count: tasksCount, error: tasksError } = await supabaseClient
+            .from('tasks')
+            .select('*', { count: 'exact', head: true })
+            .eq('completed', false);
+        
+        if (tasksError) {
+            console.warn('[Dashboard] ⚠️ Erro ao contar tarefas ativas:', tasksError);
+        }
+        
+        // Atualizar elementos com os dados básicos
+        atualizarElemento('countUsers', usersCount || 0);
+        atualizarElemento('countPosts', postsCount || 0);
+        atualizarElemento('countComments', commentsCount || 0);
+        atualizarElemento('countActiveTasks', tasksCount || 0);
+        atualizarElemento('countNewUsers', '📊');
+        atualizarElemento('countBannedUsers', '📊');
+        atualizarElemento('countDraftPosts', '📊');
+        atualizarElemento('countActiveToday', '📊');
+        
+        console.log('[Dashboard] ✅ Stats básicos carregados:', {
+            users: usersCount || 0,
+            posts: postsCount || 0,
+            comments: commentsCount || 0,
+            tasks: tasksCount || 0
+        });
+        
+    } catch (e) {
+        console.warn('[Dashboard] ⚠️ Erro no fallback:', e);
         mostrarErroEstatisticas();
     }
 }

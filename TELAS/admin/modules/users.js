@@ -5,7 +5,7 @@
 console.log('[Users] 👤 Carregando módulo de usuários...');
 
 // ==========================================
-// CARREGAR USUÁRIOS
+// CARREGAR USUÁRIOS - COM TRATAMENTO DE ERRO RLS
 // ==========================================
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
@@ -19,13 +19,43 @@ async function loadUsers() {
             throw new Error('Supabase não inicializado');
         }
 
+        // 🔥 IMPORTANTE: Verificar se o usuário está autenticado
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            console.warn('[Users] ⚠️ Sem sessão, redirecionando para login...');
+            window.location.replace('../login/index.html');
+            return;
+        }
+
+        console.log('[Users] 🔍 Buscando usuários...');
+
         const { data, error } = await supabaseClient
             .from('profiles')
             .select('*')
             .order('created_at', { ascending: false });
 
+        // 🔥 Se der erro de RLS, mostrar mensagem amigável
         if (error) {
             console.error('[Users] ❌ Erro ao carregar usuários:', error);
+            
+            // Se for erro de permissão (RLS)
+            if (error.code === 'PGRST301' || error.message?.includes('permission denied') || error.message?.includes('permission denied for relation')) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align:center;color:#f59e0b;padding:20px;">
+                            ⚠️ Erro de permissão. Verifique se você é administrador.
+                            <br>
+                            <small style="color: var(--text-muted);">Tente recarregar a página ou verifique as políticas RLS do Supabase.</small>
+                            <br>
+                            <button class="btn-secondary" onclick="loadUsers()" style="margin-top:10px;">
+                                <i class="fas fa-sync"></i> Tentar novamente
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar usuários: ${error.message}</td></tr>`;
             return;
         }
