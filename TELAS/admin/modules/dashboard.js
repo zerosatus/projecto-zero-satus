@@ -38,7 +38,7 @@ async function loadDashboardStats() {
             if (error.code === 'PGRST301' || 
                 error.message?.includes('permission denied') || 
                 error.message?.includes('permission denied for function') ||
-                error.message?.includes('function') && error.message?.includes('not found')) {
+                (error.message?.includes('function') && error.message?.includes('not found'))) {
                 console.log('[Dashboard] 🔄 Usando fallback para estatísticas básicas...');
                 await carregarStatsBasicos();
                 return;
@@ -172,7 +172,7 @@ function mostrarErroEstatisticas() {
 }
 
 // ==========================================
-// CARREGAR ATIVIDADES RECENTES
+// CARREGAR ATIVIDADES RECENTES - CORRIGIDA
 // ==========================================
 async function loadRecentActivities() {
     const container = document.getElementById('recentActivities');
@@ -189,24 +189,32 @@ async function loadRecentActivities() {
     }
 
     try {
-        const { data, error } = await supabaseClient.rpc('get_recent_activities', {
-            limit_count: 10
-        });
+        // Tentar usar a função RPC
+        let data = null;
+        let error = null;
+        
+        try {
+            const result = await supabaseClient.rpc('get_recent_activities', {
+                limit_count: 10
+            });
+            data = result.data;
+            error = result.error;
+        } catch (e) {
+            console.warn('[Dashboard] ⚠️ RPC falhou, usando fallback:', e);
+        }
 
-        if (error) {
-            console.error('[Dashboard] ❌ Erro ao carregar atividades:', error);
-            container.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
-                    <i class="fas fa-exclamation-circle"></i> Erro ao carregar atividades
-                </div>
-            `;
-            return;
+        // Se RPC falhou, buscar dados diretamente
+        if (error || !data || data.length === 0) {
+            console.log('[Dashboard] 🔄 Buscando atividades diretamente...');
+            data = await buscarAtividadesDiretamente(supabaseClient);
         }
 
         if (!data || data.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 20px; color: var(--text-muted);">
                     <i class="fas fa-inbox"></i> Nenhuma atividade recente
+                    <br>
+                    <small style="font-size: 12px;">Cadastre usuários ou crie posts para ver atividades aqui.</small>
                 </div>
             `;
             return;
@@ -214,7 +222,7 @@ async function loadRecentActivities() {
 
         container.innerHTML = data.map(activity => `
             <div class="activity-item">
-                <div class="activity-icon ${activity.tipo}">
+                <div class="activity-icon ${activity.tipo || 'user'}">
                     <i class="fas ${activity.icone || 'fa-circle'}"></i>
                 </div>
                 <div class="activity-content">
@@ -222,7 +230,7 @@ async function loadRecentActivities() {
                     <div style="color: var(--text-muted); font-size: 13px;">${activity.descricao || ''}</div>
                     <div class="activity-time">
                         <i class="fas fa-user"></i> ${activity.usuario || 'Sistema'} 
-                        <i class="fas fa-clock" style="margin-left: 10px;"></i> ${formatarDataRelativa(activity.data)}
+                        <i class="fas fa-clock" style="margin-left: 10px;"></i> ${formatarDataRelativa(activity.data || new Date())}
                     </div>
                 </div>
             </div>
@@ -239,12 +247,158 @@ async function loadRecentActivities() {
 }
 
 // ==========================================
+// BUSCAR ATIVIDADES DIRETAMENTE (FALLBACK)
+// ==========================================
+async function buscarAtividadesDiretamente(supabaseClient) {
+    const atividades = [];
+    const limit = 10;
+
+    try {
+        // Buscar novos usuários
+        const { data: users, error: usersError } = await supabaseClient
+            .from('profiles')
+            .select('nome, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (usersError) {
+            console.warn('[Dashboard] ⚠️ Erro ao buscar usuários:', usersError);
+        }
+
+        if (users && users.length > 0) {
+            users.forEach(u => {
+                atividades.push({
+                    tipo: 'user',
+                    titulo: 'Novo usuário',
+                    descricao: (u.nome || 'Usuário') + ' se cadastrou',
+                    usuario: u.nome || 'Sistema',
+                    data: u.created_at,
+                    icone: 'fa-user-plus',
+                    cor: '#9333ea'
+                });
+            });
+        }
+
+        // Buscar novos posts (tasks)
+        const { data: posts, error: postsError } = await supabaseClient
+            .from('tasks')
+            .select('title, created_at, user_id')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (postsError) {
+            console.warn('[Dashboard] ⚠️ Erro ao buscar posts:', postsError);
+        }
+
+        if (posts && posts.length > 0) {
+            for (const p of posts) {
+                let nome = 'Sistema';
+                if (p.user_id) {
+                    try {
+                        const { data: profile } = await supabaseClient
+                            .from('profiles')
+                            .select('nome')
+                            .eq('id', p.user_id)
+                            .single();
+                        if (profile) nome = profile.nome || 'Sistema';
+                    } catch (e) {
+                        // Ignorar erro ao buscar perfil
+                    }
+                }
+                atividades.push({
+                    tipo: 'post',
+                    titulo: 'Novo post',
+                    descricao: (p.title || 'Sem título') + ' foi criado',
+                    usuario: nome,
+                    data: p.created_at,
+                    icone: 'fa-newspaper',
+                    cor: '#10b981'
+                });
+            }
+        }
+
+        // Buscar novos comentários (notifications)
+        const { data: comments, error: commentsError } = await supabaseClient
+            .from('notifications')
+            .select('title, created_at, user_id')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (commentsError) {
+            console.warn('[Dashboard] ⚠️ Erro ao buscar comentários:', commentsError);
+        }
+
+        if (comments && comments.length > 0) {
+            for (const c of comments) {
+                let nome = 'Sistema';
+                if (c.user_id) {
+                    try {
+                        const { data: profile } = await supabaseClient
+                            .from('profiles')
+                            .select('nome')
+                            .eq('id', c.user_id)
+                            .single();
+                        if (profile) nome = profile.nome || 'Sistema';
+                    } catch (e) {
+                        // Ignorar erro ao buscar perfil
+                    }
+                }
+                atividades.push({
+                    tipo: 'comment',
+                    titulo: 'Novo comentário',
+                    descricao: (c.title || 'Anônimo') + ' comentou',
+                    usuario: nome,
+                    data: c.created_at,
+                    icone: 'fa-comment',
+                    cor: '#f59e0b'
+                });
+            }
+        }
+
+        // Buscar usuários banidos
+        const { data: banned, error: bannedError } = await supabaseClient
+            .from('profiles')
+            .select('nome, updated_at')
+            .eq('role', 'banned')
+            .order('updated_at', { ascending: false })
+            .limit(3);
+
+        if (bannedError) {
+            console.warn('[Dashboard] ⚠️ Erro ao buscar banidos:', bannedError);
+        }
+
+        if (banned && banned.length > 0) {
+            banned.forEach(b => {
+                atividades.push({
+                    tipo: 'alert',
+                    titulo: 'Usuário banido',
+                    descricao: (b.nome || 'Usuário') + ' foi banido',
+                    usuario: 'Sistema',
+                    data: b.updated_at,
+                    icone: 'fa-ban',
+                    cor: '#ef4444'
+                });
+            });
+        }
+
+        // Ordenar por data e limitar
+        atividades.sort((a, b) => new Date(b.data) - new Date(a.data));
+        return atividades.slice(0, limit);
+
+    } catch (error) {
+        console.error('[Dashboard] ❌ Erro no fallback:', error);
+        return [];
+    }
+}
+
+// ==========================================
 // FORMATAR DATA RELATIVA
 // ==========================================
 function formatarDataRelativa(data) {
     if (!data) return 'Data desconhecida';
     try {
         const date = new Date(data);
+        if (isNaN(date.getTime())) return 'Data inválida';
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -277,6 +431,7 @@ function atualizarStatusSistema() {
 // ==========================================
 window.loadDashboardStats = loadDashboardStats;
 window.loadRecentActivities = loadRecentActivities;
+window.buscarAtividadesDiretamente = buscarAtividadesDiretamente;
 window.formatarDataRelativa = formatarDataRelativa;
 
 console.log('[Dashboard] ✅ dashboard.js carregado!');
