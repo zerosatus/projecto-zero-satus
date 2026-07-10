@@ -7,8 +7,8 @@ console.log('[Config] 🔧 Inicializando configurações...');
 // ==========================================
 // SUPABASE
 // ==========================================
-const SUPABASE_URL = 'https://yqxtfnnjjpoitbmtcxjd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0';
+const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
 
 // ==========================================
 // INICIALIZAR SUPABASE CLIENT
@@ -48,7 +48,6 @@ if (supabaseClient) {
         console.log('[Config] 📡 Evento supabaseReady disparado');
     }, 100);
 } else {
-    // Tentar novamente após 1 segundo
     setTimeout(() => {
         if (!window.supabaseClient) {
             try {

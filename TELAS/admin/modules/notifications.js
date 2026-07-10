@@ -9,7 +9,6 @@ console.log('[Notif] 📬 Módulo de notificações carregado');
 // ==========================================
 let notificacoesCache = [];
 let iconeSelecionado = 'bell';
-let supabaseClient = window.supabaseClient;
 
 // ==========================================
 // MAPA DE ÍCONES
@@ -78,9 +77,8 @@ async function loadNotifications() {
     }
 
     try {
-        // Atualizar supabaseClient
-        supabaseClient = window.supabaseClient;
-        if (!supabaseClient) {
+        const client = window.supabaseClient;
+        if (!client) {
             console.error('[Notif] ❌ Supabase não inicializado');
             if (container) {
                 container.innerHTML = `
@@ -93,7 +91,7 @@ async function loadNotifications() {
             return;
         }
 
-        const { data, error } = await supabaseClient
+        const { data, error } = await client
             .from('admin_notifications')
             .select('*')
             .order('enviada_em', { ascending: false });
@@ -116,17 +114,13 @@ async function loadNotifications() {
 
         notificacoesCache = data || [];
         
-        // Atualizar badge
         const badge = document.getElementById('notifBadge');
         if (badge) {
             const naoLidas = notificacoesCache.filter(n => n.status !== 'agendada').length;
             badge.textContent = naoLidas > 0 ? naoLidas : '0';
         }
         
-        // Atualizar stats
         atualizarStats();
-        
-        // Renderizar lista
         renderizarLista(notificacoesCache);
         
         console.log('[Notif] ✅ Notificações carregadas:', notificacoesCache.length);
@@ -330,7 +324,6 @@ function abrirModalNovaNotificacao() {
     document.getElementById('emailDestinoGroup').style.display = 'none';
     document.getElementById('charCount').textContent = '0';
     
-    // Resetar ícone
     document.querySelectorAll('.icon-option').forEach(b => b.classList.remove('active'));
     const defaultIcon = document.querySelector('.icon-option[data-icon="bell"]');
     if (defaultIcon) defaultIcon.classList.add('active');
@@ -377,7 +370,6 @@ function usarTemplate(tipo) {
     document.getElementById('notifMensagem').value = template.mensagem;
     document.getElementById('charCount').textContent = template.mensagem.length;
 
-    // Selecionar ícone
     document.querySelectorAll('.icon-option').forEach(b => {
         b.classList.toggle('active', b.dataset.icon === template.icone);
     });
@@ -417,7 +409,6 @@ async function enviarNotificacao() {
         push: document.getElementById('channelPush')?.checked || false
     };
 
-    // Validações
     if (!titulo) {
         if (typeof showToast === 'function') showToast('⚠️ Preencha o título!', true);
         return;
@@ -438,15 +429,14 @@ async function enviarNotificacao() {
         return;
     }
 
-    // Desabilitar botão
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     }
 
     try {
-        supabaseClient = window.supabaseClient;
-        if (!supabaseClient) {
+        const client = window.supabaseClient;
+        if (!client) {
             throw new Error('Supabase não inicializado');
         }
 
@@ -457,7 +447,7 @@ async function enviarNotificacao() {
             destinoSql = emailDestino;
         }
 
-        const { data, error } = await supabaseClient.rpc('enviar_notificacao', {
+        const { data, error } = await client.rpc('enviar_notificacao', {
             p_destino: destinoSql,
             p_titulo: titulo,
             p_mensagem: mensagem,
@@ -517,12 +507,12 @@ async function deletarNotificacao(id) {
     if (!confirm('Tem certeza que deseja DELETAR esta notificação?')) return;
 
     try {
-        supabaseClient = window.supabaseClient;
-        if (!supabaseClient) {
+        const client = window.supabaseClient;
+        if (!client) {
             throw new Error('Supabase não inicializado');
         }
 
-        const { error } = await supabaseClient
+        const { error } = await client
             .from('admin_notifications')
             .delete()
             .eq('id', id);
@@ -592,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Carregar notificações quando a página carregar
     if (document.querySelector('#notifications')) {
         setTimeout(loadNotifications, 500);
     }
