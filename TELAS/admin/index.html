@@ -32,22 +32,22 @@
                 <h3>Principal</h3>
                 <a class="active" data-target="dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
                 <a data-target="users"><i class="fas fa-users"></i> Usuários</a>
-               
             
                 <h3>Conteúdo</h3>
                 <a data-target="posts"><i class="fas fa-newspaper"></i> Posts do Blog</a>
                 <a data-target="comments"><i class="fas fa-comments"></i> Comentários</a>
+                
                 <h3>Comunicação</h3>
                 <a href="#" data-target="notifications">
-                <i class="fas fa-bell"></i> Notificações
-                <span class="notif-badge">3</span></a>
+                    <i class="fas fa-bell"></i> Notificações
+                    <span class="notif-badge" id="notifBadge">0</span>
+                </a>
+                
                 <h3>Análises</h3>
                 <a data-target="reports"><i class="fas fa-chart-bar"></i> Relatórios</a> 
-                <h3>Sistema</h3>
-                <a data-target="logs">
-                <i class="fas fa-history"></i> Logs de Auditoria</a>
                 
                 <h3>Sistema</h3>
+                <a data-target="logs"><i class="fas fa-history"></i> Logs de Auditoria</a>
                 <a data-target="settings"><i class="fas fa-cog"></i> Configurações</a>
                 <a href="../../index.html"><i class="fas fa-external-link-alt"></i> Ver Site</a>
             </div>
@@ -56,145 +56,109 @@
         <!-- CONTEÚDO -->
         <main class="main-content">
             
-           <!-- SEÇÃO: DASHBOARD -->
-<section id="dashboard" class="admin-section active">
-    <div class="section-header">
-        <div>
-            <h1>Dashboard</h1>
-            <p class="text-muted">Visão geral da plataforma</p>
-        </div>
-        <div class="welcome-badge">
-            <i class="fas fa-user-circle"></i>
-            <span id="adminNameDisplay">Administrador</span>
-        </div>
-    </div>
-    
-    <!-- PRIMEIRA LINHA DE ESTATÍSTICAS -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="icon-box users">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countUsers">-</h3>
-                <p>Total de Usuários</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box posts">
-                <i class="fas fa-newspaper"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countPosts">-</h3>
-                <p>Posts Publicados</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box comments">
-                <i class="fas fa-comments"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countComments">-</h3>
-                <p>Comentários Pendentes</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box tasks">
-                <i class="fas fa-tasks"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countActiveTasks">-</h3>
-                <p>Tarefas Ativas</p>
-            </div>
-        </div>
-    </div>
+            <!-- ==========================================
+            SEÇÃO: DASHBOARD
+            ========================================== -->
+            <section id="dashboard" class="admin-section active">
+                <div class="section-header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p class="text-muted">Visão geral da plataforma</p>
+                    </div>
+                    <div class="welcome-badge">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="adminNameDisplay">Administrador</span>
+                    </div>
+                </div>
+                
+                <!-- ESTATÍSTICAS -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box users">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="countUsers">-</h3>
+                            <p>Total de Usuários</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box posts">
+                            <i class="fas fa-newspaper"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="countPosts">-</h3>
+                            <p>Posts Publicados</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box comments">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="countComments">-</h3>
+                            <p>Comentários Pendentes</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box tasks">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="countActiveTasks">-</h3>
+                            <p>Tarefas Ativas</p>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- SEGUNDA LINHA DE ESTATÍSTICAS -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
-                <i class="fas fa-user-plus"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countNewUsers">-</h3>
-                <p>Novos Usuários (7 dias)</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countBannedUsers">-</h3>
-                <p>Usuários Banidos</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
-                <i class="fas fa-ban"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countDraftPosts">-</h3>
-                <p>Posts em Rascunho</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="countActiveToday">-</h3>
-                <p>Ativos Hoje</p>
-            </div>
-        </div>
-    </div>
+                <!-- ALERTAS DO SISTEMA -->
+                <div class="card">
+                    <h3><i class="fas fa-bell"></i> Alertas do Sistema</h3>
+                    <div id="systemAlerts" style="margin-top: 15px;">
+                        <div class="alert-item" style="padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 6px; margin-bottom: 10px;">
+                            <i class="fas fa-check-circle" style="color: #10b981; margin-right: 10px;"></i>
+                            <span>Sistema operando normalmente</span>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- ALERTAS DO SISTEMA -->
-    <div class="card">
-        <h3><i class="fas fa-bell"></i> Alertas do Sistema</h3>
-        <div id="systemAlerts" style="margin-top: 15px;">
-            <div class="alert-item" style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 6px; margin-bottom: 10px;">
-                <i class="fas fa-info-circle" style="color: #f59e0b; margin-right: 10px;"></i>
-                <span>Carregando alertas...</span>
-            </div>
-        </div>
-    </div>
+                <!-- ATIVIDADES RECENTES -->
+                <div class="card">
+                    <h3><i class="fas fa-history"></i> Atividades Recentes</h3>
+                    <div id="recentActivities" style="margin-top: 15px;">
+                        <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando atividades...
+                        </div>
+                    </div>
+                </div>
 
-    <!-- ATIVIDADES RECENTES -->
-    <div class="card">
-        <h3><i class="fas fa-history"></i> Atividades Recentes</h3>
-        <div id="recentActivities" style="margin-top: 15px;">
-            <div style="text-align: center; padding: 20px; color: var(--text-muted);">
-                <i class="fas fa-spinner fa-spin"></i> Carregando atividades...
-            </div>
-        </div>
-    </div>
+                <!-- STATUS DO SISTEMA -->
+                <div class="card">
+                    <h3><i class="fas fa-server"></i> Status do Sistema</h3>
+                    <div class="system-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                        <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                            <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                            <span>Supabase: Conectado</span>
+                        </div>
+                        <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                            <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                            <span>Autenticação: Ativa</span>
+                        </div>
+                        <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                            <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                            <span>Banco de Dados: Online</span>
+                        </div>
+                        <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+                            <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                            <span id="lastSyncStatus">Última sincronização: Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <!-- STATUS DO SISTEMA -->
-    <div class="card">
-        <h3><i class="fas fa-server"></i> Status do Sistema</h3>
-        <div class="system-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
-                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
-                <span>Supabase: Conectado</span>
-            </div>
-            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
-                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
-                <span>Autenticação: Ativa</span>
-            </div>
-            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
-                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
-                <span>Banco de Dados: Online</span>
-            </div>
-            <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
-                <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
-                <span>Última sincronização: Agora</span>
-            </div>
-        </div>
-    </div>
-</section>
-
-            <!-- USUÁRIOS -->
+            <!-- ==========================================
+            SEÇÃO: USUÁRIOS
+            ========================================== -->
             <section id="users" class="admin-section">
                 <div class="section-header">
                     <h1>Gerenciar Usuários</h1>
@@ -210,13 +174,15 @@
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando usuários...</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Carregando usuários...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- POSTS -->
+            <!-- ==========================================
+            SEÇÃO: POSTS
+            ========================================== -->
             <section id="posts" class="admin-section">
                 <div class="section-header">
                     <h1>Gerenciar Blog</h1>
@@ -233,13 +199,15 @@
                             </tr>
                         </thead>
                         <tbody id="postsTableBody">
-                            <tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando posts...</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Carregando posts...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- COMENTÁRIOS -->
+            <!-- ==========================================
+            SEÇÃO: COMENTÁRIOS
+            ========================================== -->
             <section id="comments" class="admin-section">
                 <div class="section-header">
                     <h1>Moderação de Comentários</h1>
@@ -255,593 +223,328 @@
                             </tr>
                         </thead>
                         <tbody id="commentsTableBody">
-                            <tr><td colspan="4" style="text-align:center;padding:20px;">🔄 Carregando comentários...</td></tr>
+                            <tr><td colspan="4" style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Carregando comentários...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </section>
-            <!-- ========================================== -->
-<!-- SEÇÃO: RELATÓRIOS (NOVA) -->
-<!-- ========================================== -->
-<section id="reports" class="admin-section">
-    <div class="section-header">
-        <div>
-            <h1>Relatórios e Análises</h1>
-            <p class="text-muted">Visão detalhada do desempenho da plataforma</p>
-        </div>
-        <div class="filter-group">
-            <select id="reportPeriod" class="filter-select">
-                <option value="7">Últimos 7 dias</option>
-                <option value="30" selected>Últimos 30 dias</option>
-                <option value="90">Últimos 90 dias</option>
-            </select>
-        </div>
-    </div>
 
-    <!-- CARDS DE MÉTRICAS PRINCIPAIS -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
-                <i class="fas fa-arrow-up"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="reportGrowth">+24%</h3>
-                <p>Crescimento de Usuários</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
-                <i class="fas fa-check-double"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="reportCompletion">68%</h3>
-                <p>Taxa de Conclusão</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="reportAvgTime">45min</h3>
-                <p>Tempo Médio/Dia</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(236, 72, 153, 0.2); color: #ec4899;">
-                <i class="fas fa-fire"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="reportStreak">12</h3>
-                <p>Maior Sequência</p>
-            </div>
-        </div>
-    </div>
+            <!-- ==========================================
+            SEÇÃO: NOTIFICAÇÕES
+            ========================================== -->
+            <section id="notifications" class="admin-section">
+                <div class="section-header">
+                    <div>
+                        <h1>📬 Central de Notificações</h1>
+                        <p class="text-muted">Gerencie comunicados, avisos e alertas da plataforma</p>
+                    </div>
+                    <button class="btn-primary" onclick="abrirModalNovaNotificacao()">
+                        <i class="fas fa-paper-plane"></i> Nova Notificação
+                    </button>
+                </div>
 
-    <!-- GRÁFICO DE CRESCIMENTO -->
-    <div class="card">
-        <h3><i class="fas fa-chart-line"></i> Crescimento de Usuários</h3>
-        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Novos registros por dia</p>
-        <div class="chart-container">
-            <div class="chart-bars">
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 40%;"><span class="chart-value">4</span></div>
-                    <span class="chart-label">Seg</span>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(147,51,234,0.2); color: #9333ea;">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="statTotalEnviadas">0</h3>
+                            <p>Total Enviadas</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(16,185,129,0.2); color: #10b981;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="statTotalLidas">0</h3>
+                            <p>Total Lidas</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(245,158,11,0.2); color: #f59e0b;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="statPendentes">0</h3>
+                            <p>Não Lidas</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(239,68,68,0.2); color: #ef4444;">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="statAlcance">0</h3>
+                            <p>Alcance Total</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 65%;"><span class="chart-value">7</span></div>
-                    <span class="chart-label">Ter</span>
-                </div>
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 50%;"><span class="chart-value">5</span></div>
-                    <span class="chart-label">Qua</span>
-                </div>
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 80%;"><span class="chart-value">9</span></div>
-                    <span class="chart-label">Qui</span>
-                </div>
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 95%;"><span class="chart-value">12</span></div>
-                    <span class="chart-label">Sex</span>
-                </div>
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 30%;"><span class="chart-value">3</span></div>
-                    <span class="chart-label">Sáb</span>
-                </div>
-                <div class="chart-bar-wrapper">
-                    <div class="chart-bar" style="height: 55%;"><span class="chart-value">6</span></div>
-                    <span class="chart-label">Dom</span>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- DUAS COLUNAS: DISCIPLINAS + HORÁRIO DE PICOS -->
-    <div class="reports-grid">
-        <!-- DISCIPLINAS MAIS USADAS -->
-        <div class="card">
-            <h3><i class="fas fa-book"></i> Disciplinas Mais Usadas</h3>
-            <div class="top-list">
-                <div class="top-item">
-                    <div class="top-info">
-                        <span class="top-rank">1</span>
-                        <span class="top-name">Matemática</span>
+                <div class="card">
+                    <div class="notif-filters">
+                        <div class="filter-group">
+                            <label><i class="fas fa-filter"></i> Filtrar por:</label>
+                            <select id="notifFilterTipo" class="filter-select" onchange="filtrarNotificacoes()">
+                                <option value="all">Todos os tipos</option>
+                                <option value="broadcast">📢 Em massa</option>
+                                <option value="segmented">🎯 Segmentada</option>
+                                <option value="individual">👤 Individual</option>
+                                <option value="system">⚙️ Sistema</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-search"></i> Buscar:</label>
+                            <input type="text" id="notifSearch" class="filter-input" placeholder="Título ou mensagem..." oninput="filtrarNotificacoes()">
+                        </div>
+                        <div class="filter-group">
+                            <button class="btn-secondary" onclick="exportarNotificacoes()">
+                                <i class="fas fa-download"></i> Exportar CSV
+                            </button>
+                        </div>
+                        <div class="filter-group">
+                            <button class="btn-secondary" onclick="recarregarNotificacoes()">
+                                <i class="fas fa-sync"></i> Recarregar
+                            </button>
+                        </div>
                     </div>
-                    <div class="top-bar">
-                        <div class="top-bar-fill" style="width: 85%;"></div>
-                    </div>
-                    <span class="top-count">142 tarefas</span>
                 </div>
-                <div class="top-item">
-                    <div class="top-info">
-                        <span class="top-rank">2</span>
-                        <span class="top-name">Programação</span>
-                    </div>
-                    <div class="top-bar">
-                        <div class="top-bar-fill" style="width: 72%;"></div>
-                    </div>
-                    <span class="top-count">118 tarefas</span>
-                </div>
-                <div class="top-item">
-                    <div class="top-info">
-                        <span class="top-rank">3</span>
-                        <span class="top-name">Física</span>
-                    </div>
-                    <div class="top-bar">
-                        <div class="top-bar-fill" style="width: 58%;"></div>
-                    </div>
-                    <span class="top-count">94 tarefas</span>
-                </div>
-                <div class="top-item">
-                    <div class="top-info">
-                        <span class="top-rank">4</span>
-                        <span class="top-name">História</span>
-                    </div>
-                    <div class="top-bar">
-                        <div class="top-bar-fill" style="width: 45%;"></div>
-                    </div>
-                    <span class="top-count">73 tarefas</span>
-                </div>
-                <div class="top-item">
-                    <div class="top-info">
-                        <span class="top-rank">5</span>
-                        <span class="top-name">Português</span>
-                    </div>
-                    <div class="top-bar">
-                        <div class="top-bar-fill" style="width: 38%;"></div>
-                    </div>
-                    <span class="top-count">61 tarefas</span>
-                </div>
-            </div>
-        </div>
 
-        <!-- HORÁRIO DE PICO -->
-        <div class="card">
-            <h3><i class="fas fa-clock"></i> Horário de Pico</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Quando os alunos mais estudam</p>
-            <div class="peak-hours">
-                <div class="peak-item">
-                    <span class="peak-time">08:00</span>
-                    <div class="peak-bar-container">
-                        <div class="peak-bar" style="width: 30%;"></div>
+                <div class="card">
+                    <h3 style="margin-bottom: 20px;">
+                        <i class="fas fa-history"></i> Histórico de Notificações
+                    </h3>
+                    <div id="notifList" class="notif-list">
+                        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 15px;"></i>
+                            <p>Carregando notificações...</p>
+                        </div>
                     </div>
-                    <span class="peak-count">Baixo</span>
                 </div>
-                <div class="peak-item">
-                    <span class="peak-time">12:00</span>
-                    <div class="peak-bar-container">
-                        <div class="peak-bar" style="width: 65%;"></div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 20px;">
+                        <i class="fas fa-magic"></i> Templates Rápidos
+                    </h3>
+                    <div class="templates-grid">
+                        <div class="template-card" onclick="usarTemplate('welcome')">
+                            <div class="template-icon" style="background: rgba(147,51,234,0.2); color: #9333ea;">
+                                <i class="fas fa-hand-sparkles"></i>
+                            </div>
+                            <div class="template-info">
+                                <strong>Bem-vindo(a)!</strong>
+                                <span>Mensagem de boas-vindas</span>
+                            </div>
+                        </div>
+                        <div class="template-card" onclick="usarTemplate('maintenance')">
+                            <div class="template-icon" style="background: rgba(245,158,11,0.2); color: #f59e0b;">
+                                <i class="fas fa-tools"></i>
+                            </div>
+                            <div class="template-info">
+                                <strong>Manutenção</strong>
+                                <span>Aviso de manutenção</span>
+                            </div>
+                        </div>
+                        <div class="template-card" onclick="usarTemplate('newpost')">
+                            <div class="template-icon" style="background: rgba(16,185,129,0.2); color: #10b981;">
+                                <i class="fas fa-newspaper"></i>
+                            </div>
+                            <div class="template-info">
+                                <strong>Novo Post</strong>
+                                <span>Anunciar publicação</span>
+                            </div>
+                        </div>
+                        <div class="template-card" onclick="usarTemplate('reminder')">
+                            <div class="template-icon" style="background: rgba(59,130,246,0.2); color: #3b82f6;">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="template-info">
+                                <strong>Lembrete</strong>
+                                <span>Lembrete de estudo</span>
+                            </div>
+                        </div>
+                        <div class="template-card" onclick="usarTemplate('congrats')">
+                            <div class="template-icon" style="background: rgba(236,72,153,0.2); color: #ec4899;">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="template-info">
+                                <strong>Parabéns!</strong>
+                                <span>Conquista desbloqueada</span>
+                            </div>
+                        </div>
+                        <div class="template-card" onclick="usarTemplate('urgent')">
+                            <div class="template-icon" style="background: rgba(239,68,68,0.2); color: #ef4444;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="template-info">
+                                <strong>Urgente</strong>
+                                <span>Aviso importante</span>
+                            </div>
+                        </div>
                     </div>
-                    <span class="peak-count">Médio</span>
                 </div>
-                <div class="peak-item highlight">
-                    <span class="peak-time">19:00</span>
-                    <div class="peak-bar-container">
-                        <div class="peak-bar" style="width: 95%;"></div>
+            </section>
+
+            <!-- ==========================================
+            SEÇÃO: RELATÓRIOS
+            ========================================== -->
+            <section id="reports" class="admin-section">
+                <div class="section-header">
+                    <div>
+                        <h1>Relatórios e Análises</h1>
+                        <p class="text-muted">Visão detalhada do desempenho da plataforma</p>
                     </div>
-                    <span class="peak-count">🔥 Alto</span>
-                </div>
-                <div class="peak-item">
-                    <span class="peak-time">22:00</span>
-                    <div class="peak-bar-container">
-                        <div class="peak-bar" style="width: 75%;"></div>
+                    <div class="filter-group">
+                        <select id="reportPeriod" class="filter-select" onchange="loadReports()">
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="90">Últimos 90 dias</option>
+                        </select>
                     </div>
-                    <span class="peak-count">Alto</span>
                 </div>
-                <div class="peak-item">
-                    <span class="peak-time">00:00</span>
-                    <div class="peak-bar-container">
-                        <div class="peak-bar" style="width: 20%;"></div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(16,185,129,0.2); color: #10b981;">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="reportGrowth">+0%</h3>
+                            <p>Crescimento de Usuários</p>
+                        </div>
                     </div>
-                    <span class="peak-count">Baixo</span>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(245,158,11,0.2); color: #f59e0b;">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="reportCompletion">0%</h3>
+                            <p>Taxa de Conclusão</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(139,92,246,0.2); color: #8b5cf6;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="reportAvgTime">0min</h3>
+                            <p>Tempo Médio/Dia</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(236,72,153,0.2); color: #ec4899;">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="reportStreak">0</h3>
+                            <p>Maior Sequência</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- TOP USUÁRIOS MAIS ATIVOS -->
-    <div class="card">
-        <h3><i class="fas fa-trophy"></i> Top Usuários Mais Ativos</h3>
-        <div class="top-users-grid">
-            <div class="top-user-card gold">
-                <div class="top-user-avatar">🥇</div>
-                <div class="top-user-info">
-                    <strong>Maria Santos</strong>
-                    <span>156 tarefas concluídas</span>
+                <div class="card">
+                    <h3><i class="fas fa-chart-line"></i> Crescimento de Usuários</h3>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Novos registros por dia</p>
+                    <div class="chart-container">
+                        <div class="chart-bars" id="chartBars">
+                            <!-- Preenchido pelo JavaScript -->
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="top-user-card silver">
-                <div class="top-user-avatar">🥈</div>
-                <div class="top-user-info">
-                    <strong>João Silva</strong>
-                    <span>132 tarefas concluídas</span>
-                </div>
-            </div>
-            <div class="top-user-card bronze">
-                <div class="top-user-avatar">🥉</div>
-                <div class="top-user-info">
-                    <strong>Ana Oliveira</strong>
-                    <span>98 tarefas concluídas</span>
-                </div>
-            </div>
-            <div class="top-user-card">
-                <div class="top-user-avatar">4</div>
-                <div class="top-user-info">
-                    <strong>Pedro Costa</strong>
-                    <span>87 tarefas concluídas</span>
-                </div>
-            </div>
-            <div class="top-user-card">
-                <div class="top-user-avatar">5</div>
-                <div class="top-user-info">
-                    <strong>Carlos Mendes</strong>
-                    <span>74 tarefas concluídas</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<!-- ========================================== -->
-<!-- SEÇÃO: LOGS DE AUDITORIA (NOVA) -->
-<!-- ========================================== -->
-<section id="logs" class="admin-section">
-    <div class="section-header">
-        <div>
-            <h1>Logs de Auditoria</h1>
-            <p class="text-muted">Histórico completo de ações no sistema</p>
-        </div>
-        <div class="filter-group">
-            <select id="logFilter" class="filter-select">
-                <option value="all">Todos os Logs</option>
-                <option value="user">Ações de Usuários</option>
-                <option value="post">Posts/Blog</option>
-                <option value="admin">Ações Admin</option>
-                <option value="security">Segurança</option>
-            </select>
-            <button class="btn-secondary" onclick="exportLogs()">
-                <i class="fas fa-download"></i> Exportar
-            </button>
-        </div>
-    </div>
+            </section>
 
-    <!-- RESUMO DOS LOGS -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="totalLogs">0</h3>
-                <p>Total de Logs</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="warningLogs">0</h3>
-                <p>Avisos</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
-                <i class="fas fa-shield-alt"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="securityLogs">0</h3>
-                <p>Eventos de Segurança</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(147, 51, 234, 0.2); color: #9333ea;">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="todayLogs">0</h3>
-                <p>Hoje</p>
-            </div>
-        </div>
-    </div>
+            <!-- ==========================================
+            SEÇÃO: LOGS DE AUDITORIA
+            ========================================== -->
+            <section id="logs" class="admin-section">
+                <div class="section-header">
+                    <div>
+                        <h1>Logs de Auditoria</h1>
+                        <p class="text-muted">Histórico completo de ações no sistema</p>
+                    </div>
+                    <div class="filter-group">
+                        <select id="logFilter" class="filter-select" onchange="loadAuditLogs()">
+                            <option value="all">Todos os Logs</option>
+                            <option value="user">Ações de Usuários</option>
+                            <option value="post">Posts/Blog</option>
+                            <option value="admin">Ações Admin</option>
+                            <option value="security">Segurança</option>
+                        </select>
+                        <button class="btn-secondary" onclick="exportLogs()">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    </div>
+                </div>
 
-    <!-- TIMELINE DE LOGS -->
-    <div class="card">
-        <h3><i class="fas fa-stream"></i> Timeline de Atividades</h3>
-        <div id="logsTimeline" style="margin-top: 20px;">
-            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
-                <p style="margin-top: 15px;">Carregando logs...</p>
-            </div>
-        </div>
-    </div>
-</section>
-<!-- ==========================================
-SEÇÃO: NOTIFICAÇÕES
-========================================== -->
-<section id="notifications" class="admin-section">
-    <div class="section-header">
-        <div>
-            <h1>📬 Central de Notificações</h1>
-            <p class="welcome-text">Gerencie comunicados, avisos e alertas da plataforma</p>
-        </div>
-        <button class="btn-primary" onclick="abrirModalNovaNotificacao()">
-            <i class="fas fa-paper-plane"></i> Nova Notificação
-        </button>
-    </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(16,185,129,0.2); color: #10b981;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalLogs">0</h3>
+                            <p>Total de Logs</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(245,158,11,0.2); color: #f59e0b;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="warningLogs">0</h3>
+                            <p>Avisos</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(239,68,68,0.2); color: #ef4444;">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="securityLogs">0</h3>
+                            <p>Eventos de Segurança</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box" style="background: rgba(147,51,234,0.2); color: #9333ea;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="todayLogs">0</h3>
+                            <p>Hoje</p>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Stats de notificações -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(147,51,234,0.2); color: #9333ea;">
-                <i class="fas fa-paper-plane"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="statTotalEnviadas">0</h3>
-                <p>Total Enviadas</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(16,185,129,0.2); color: #10b981;">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="statTotalLidas">0</h3>
-                <p>Total Lidas</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(245,158,11,0.2); color: #f59e0b;">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="statPendentes">0</h3>
-                <p>Não Lidas</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="icon-box" style="background: rgba(239,68,68,0.2); color: #ef4444;">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="statAlcance">0</h3>
-                <p>Alcance Total</p>
-            </div>
-        </div>
-    </div>
+                <div class="card">
+                    <h3><i class="fas fa-stream"></i> Timeline de Atividades</h3>
+                    <div id="logsTimeline" style="margin-top: 20px;">
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                            <p style="margin-top: 15px;">Carregando logs...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <!-- Filtros -->
-    <div class="card">
-        <div class="notif-filters">
-            <div class="filter-group">
-                <label><i class="fas fa-filter"></i> Filtrar por:</label>
-                <select id="notifFilterTipo" class="filter-select" onchange="filtrarNotificacoes()">
-                    <option value="all">Todos os tipos</option>
-                    <option value="broadcast">📢 Em massa</option>
-                    <option value="segmented">🎯 Segmentada</option>
-                    <option value="individual">👤 Individual</option>
-                    <option value="system">⚙️ Sistema</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label><i class="fas fa-search"></i> Buscar:</label>
-                <input type="text" id="notifSearch" class="filter-input" placeholder="Título ou mensagem..." oninput="filtrarNotificacoes()">
-            </div>
-            <div class="filter-group">
-                <button class="btn-secondary" onclick="exportarNotificacoes()">
-                    <i class="fas fa-download"></i> Exportar CSV
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lista de notificações -->
-    <div class="card">
-        <h3 style="margin-bottom: 20px;">
-            <i class="fas fa-history"></i> Histórico de Notificações
-        </h3>
-        <div id="notifList" class="notif-list">
-            <div style="text-align:center; padding:40px; color:var(--text-muted);">
-                🔄 Carregando...
-            </div>
-        </div>
-    </div>
-
-    <!-- Templates rápidos -->
-    <div class="card">
-        <h3 style="margin-bottom: 20px;">
-            <i class="fas fa-magic"></i> Templates Rápidos
-        </h3>
-        <div class="templates-grid">
-            <div class="template-card" onclick="usarTemplate('welcome')">
-                <div class="template-icon" style="background: rgba(147,51,234,0.2); color: #9333ea;">
-                    <i class="fas fa-hand-sparkles"></i>
-                </div>
-                <div class="template-info">
-                    <strong>Bem-vindo(a)!</strong>
-                    <span>Mensagem de boas-vindas</span>
-                </div>
-            </div>
-            <div class="template-card" onclick="usarTemplate('maintenance')">
-                <div class="template-icon" style="background: rgba(245,158,11,0.2); color: #f59e0b;">
-                    <i class="fas fa-tools"></i>
-                </div>
-                <div class="template-info">
-                    <strong>Manutenção</strong>
-                    <span>Aviso de manutenção</span>
-                </div>
-            </div>
-            <div class="template-card" onclick="usarTemplate('newpost')">
-                <div class="template-icon" style="background: rgba(16,185,129,0.2); color: #10b981;">
-                    <i class="fas fa-newspaper"></i>
-                </div>
-                <div class="template-info">
-                    <strong>Novo Post</strong>
-                    <span>Anunciar publicação</span>
-                </div>
-            </div>
-            <div class="template-card" onclick="usarTemplate('reminder')">
-                <div class="template-icon" style="background: rgba(59,130,246,0.2); color: #3b82f6;">
-                    <i class="fas fa-bell"></i>
-                </div>
-                <div class="template-info">
-                    <strong>Lembrete</strong>
-                    <span>Lembrete de estudo</span>
-                </div>
-            </div>
-            <div class="template-card" onclick="usarTemplate('congrats')">
-                <div class="template-icon" style="background: rgba(236,72,153,0.2); color: #ec4899;">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="template-info">
-                    <strong>Parabéns!</strong>
-                    <span>Conquista desbloqueada</span>
-                </div>
-            </div>
-            <div class="template-card" onclick="usarTemplate('urgent')">
-                <div class="template-icon" style="background: rgba(239,68,68,0.2); color: #ef4444;">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="template-info">
-                    <strong>Urgente</strong>
-                    <span>Aviso importante</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Modal de Nova Notificação -->
-<div id="notifModal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="notifModalTitle">📢 Nova Notificação</h2>
-            <button class="close-modal" onclick="fecharModalNotificacao()">×</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Tipo de Destino</label>
-                <select id="notifTipo" class="filter-select" style="width:100%;" onchange="atualizarCampoDestino()">
-                    <option value="broadcast">📢 Todos os usuários</option>
-                    <option value="segmented">🎯 Segmentado</option>
-                    <option value="individual">👤 Usuário específico</option>
-                </select>
-            </div>
-            
-            <div class="form-group" id="segmentoGroup" style="display:none;">
-                <label>Segmentar por</label>
-                <select id="notifSegmento" class="filter-select" style="width:100%;">
-                    <option value="role">🎭 Por função (admin/user)</option>
-                    <option value="subject">📚 Por disciplina</option>
-                    <option value="active">✅ Usuários ativos (últimos 7 dias)</option>
-                    <option value="inactive">💤 Usuários inativos (+30 dias)</option>
-                </select>
-            </div>
-            
-            <div class="form-group" id="destinoGroup" style="display:none;">
-                <label>Destino</label>
-                <select id="notifDestinoValor" class="filter-select" style="width:100%;">
-                    <option value="user">Usuários comuns</option>
-                    <option value="admin">Administradores</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Ícone</label>
-                <div class="icon-picker">
-                    <button type="button" class="icon-option active" data-icon="bell" onclick="selecionarIcone(this)">🔔</button>
-                    <button type="button" class="icon-option" data-icon="info" onclick="selecionarIcone(this)">ℹ️</button>
-                    <button type="button" class="icon-option" data-icon="warning" onclick="selecionarIcone(this)">⚠️</button>
-                    <button type="button" class="icon-option" data-icon="success" onclick="selecionarIcone(this)">✅</button>
-                    <button type="button" class="icon-option" data-icon="error" onclick="selecionarIcone(this)">❌</button>
-                    <button type="button" class="icon-option" data-icon="star" onclick="selecionarIcone(this)">⭐</button>
-                    <button type="button" class="icon-option" data-icon="gift" onclick="selecionarIcone(this)">🎁</button>
-                    <button type="button" class="icon-option" data-icon="rocket" onclick="selecionarIcone(this)">🚀</button>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Título *</label>
-                <input type="text" id="notifTitulo" placeholder="Ex: Manutenção programada">
-            </div>
-            
-            <div class="form-group">
-                <label>Mensagem *</label>
-                <textarea id="notifMensagem" placeholder="Escreva sua mensagem aqui..." rows="4"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label>Canais de entrega</label>
-                <div class="channel-options">
-                    <label class="channel-option">
-                        <input type="checkbox" id="channelInapp" checked>
-                        <span class="channel-label">
-                            <i class="fas fa-bell"></i> No site
-                        </span>
-                    </label>
-                    <label class="channel-option">
-                        <input type="checkbox" id="channelEmail">
-                        <span class="channel-label">
-                            <i class="fas fa-envelope"></i> Email
-                        </span>
-                    </label>
-                    <label class="channel-option">
-                        <input type="checkbox" id="channelPush">
-                        <span class="channel-label">
-                            <i class="fas fa-mobile-alt"></i> Push
-                        </span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Agendar envio (opcional)</label>
-                <input type="datetime-local" id="notifAgendar">
-                <small style="color: var(--text-muted);">Deixe vazio para enviar agora</small>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-secondary" onclick="fecharModalNotificacao()">Cancelar</button>
-            <button class="btn-primary" onclick="enviarNotificacao()">
-                <i class="fas fa-paper-plane"></i> Enviar
-            </button>
-        </div>
-    </div>
-</div>
-
-            <!-- CONFIGURAÇÕES -->
+            <!-- ==========================================
+            SEÇÃO: CONFIGURAÇÕES
+            ========================================== -->
             <section id="settings" class="admin-section">
                 <div class="section-header">
                     <h1>Configurações</h1>
                 </div>
                 <div class="card">
-                    <p>Configurações gerais do sistema estarão aqui.</p>
+                    <p style="color: var(--text-muted);">Configurações gerais do sistema estarão disponíveis em breve.</p>
                 </div>
             </section>
 
         </main>
     </div>
 
-    <!-- MODAL -->
+    <!-- ==========================================
+    MODAL: NOVO/EDITAR POST
+    ========================================== -->
     <div id="postModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -873,65 +576,158 @@ SEÇÃO: NOTIFICAÇÕES
             </div>
         </div>
     </div>
-    <!-- ========================================== -->
-<!-- MODAL DE DETALHES DO USUÁRIO (NOVO) -->
-<!-- ========================================== -->
-<div id="userDetailsModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h2 id="userModalTitle">👤 Detalhes do Usuário</h2>
-            <button class="close-modal" onclick="fecharModalUsuario()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <div style="width: 80px; height: 80px; background: rgba(147,51,234,0.2); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 10px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h3 id="modalUserName" style="margin: 0; color: white;">Nome do Usuário</h3>
-                <p id="modalUserEmail" style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">email@exemplo.com</p>
-            </div>
 
-            <div class="user-stats-grid">
-                <div class="user-stat-item">
-                    <i class="fas fa-list-check" style="color: var(--primary);"></i>
-                    <div>
-                        <strong id="statTotalTasks">12</strong>
-                        <span>Tarefas Criadas</span>
+    <!-- ==========================================
+    MODAL: DETALHES DO USUÁRIO
+    ========================================== -->
+    <div id="userDetailsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="userModalTitle">👤 Detalhes do Usuário</h2>
+                <button class="close-modal" onclick="fecharModalUsuario()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; background: rgba(147,51,234,0.2); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 10px;">
+                        <i class="fas fa-user"></i>
                     </div>
+                    <h3 id="modalUserName" style="margin: 0; color: white;">Nome do Usuário</h3>
+                    <p id="modalUserEmail" style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px;">email@exemplo.com</p>
                 </div>
-                <div class="user-stat-item">
-                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
-                    <div>
-                        <strong id="statCompletedTasks">8</strong>
-                        <span>Concluídas</span>
+
+                <div class="user-stats-grid">
+                    <div class="user-stat-item">
+                        <i class="fas fa-list-check" style="color: var(--primary);"></i>
+                        <div>
+                            <strong id="statTotalTasks">0</strong>
+                            <span>Tarefas Criadas</span>
+                        </div>
                     </div>
-                </div>
-                <div class="user-stat-item">
-                    <i class="fas fa-clock" style="color: var(--danger);"></i>
-                    <div>
-                        <strong id="statPendingTasks">4</strong>
-                        <span>Pendentes</span>
+                    <div class="user-stat-item">
+                        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                        <div>
+                            <strong id="statCompletedTasks">0</strong>
+                            <span>Concluídas</span>
+                        </div>
                     </div>
-                </div>
-                <div class="user-stat-item">
-                    <i class="fas fa-calendar-alt" style="color: var(--text-muted);"></i>
-                    <div>
-                        <strong id="statJoinDate">-</strong>
-                        <span>Membro desde</span>
+                    <div class="user-stat-item">
+                        <i class="fas fa-clock" style="color: var(--danger);"></i>
+                        <div>
+                            <strong id="statPendingTasks">0</strong>
+                            <span>Pendentes</span>
+                        </div>
+                    </div>
+                    <div class="user-stat-item">
+                        <i class="fas fa-calendar-alt" style="color: var(--text-muted);"></i>
+                        <div>
+                            <strong id="statJoinDate">-</strong>
+                            <span>Membro desde</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-secondary" onclick="fecharModalUsuario()">Fechar</button>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModalUsuario()">Fechar</button>
+            </div>
         </div>
     </div>
-</div>
+
+    <!-- ==========================================
+    MODAL: NOVA NOTIFICAÇÃO
+    ========================================== -->
+    <div id="notifModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="notifModalTitle">📢 Nova Notificação</h2>
+                <button class="close-modal" onclick="fecharModalNotificacao()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tipo de Destino *</label>
+                    <select id="notifDestino" class="filter-select" style="width:100%;" onchange="atualizarCamposDestino()">
+                        <option value="todos">📢 Todos os usuários</option>
+                        <option value="admin">👑 Administradores</option>
+                        <option value="user">👤 Usuários comuns</option>
+                        <option value="individual">👤 Usuário específico</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="emailDestinoGroup" style="display:none;">
+                    <label>Email do Usuário *</label>
+                    <input type="email" id="notifEmailDestino" placeholder="usuario@email.com">
+                    <small style="color: var(--text-muted);">Digite o email do usuário que receberá a notificação</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ícone</label>
+                    <div class="icon-picker">
+                        <button type="button" class="icon-option active" data-icon="bell" onclick="selecionarIcone(this)">🔔</button>
+                        <button type="button" class="icon-option" data-icon="info" onclick="selecionarIcone(this)">ℹ️</button>
+                        <button type="button" class="icon-option" data-icon="warning" onclick="selecionarIcone(this)">⚠️</button>
+                        <button type="button" class="icon-option" data-icon="success" onclick="selecionarIcone(this)">✅</button>
+                        <button type="button" class="icon-option" data-icon="error" onclick="selecionarIcone(this)">❌</button>
+                        <button type="button" class="icon-option" data-icon="star" onclick="selecionarIcone(this)">⭐</button>
+                        <button type="button" class="icon-option" data-icon="gift" onclick="selecionarIcone(this)">🎁</button>
+                        <button type="button" class="icon-option" data-icon="rocket" onclick="selecionarIcone(this)">🚀</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Título *</label>
+                    <input type="text" id="notifTitulo" placeholder="Ex: Manutenção programada" maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label>Mensagem *</label>
+                    <textarea id="notifMensagem" placeholder="Escreva sua mensagem aqui..." rows="4" maxlength="500"></textarea>
+                    <small style="color: var(--text-muted);"><span id="charCount">0</span>/500 caracteres</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Canais de entrega</label>
+                    <div class="channel-options">
+                        <label class="channel-option">
+                            <input type="checkbox" id="channelInapp" checked>
+                            <span class="channel-label">
+                                <i class="fas fa-bell"></i> No site
+                            </span>
+                        </label>
+                        <label class="channel-option">
+                            <input type="checkbox" id="channelEmail">
+                            <span class="channel-label">
+                                <i class="fas fa-envelope"></i> Email
+                            </span>
+                        </label>
+                        <label class="channel-option">
+                            <input type="checkbox" id="channelPush">
+                            <span class="channel-label">
+                                <i class="fas fa-mobile-alt"></i> Push
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Agendar envio (opcional)</label>
+                    <input type="datetime-local" id="notifAgendar">
+                    <small style="color: var(--text-muted);">Deixe vazio para enviar agora</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModalNotificacao()">Cancelar</button>
+                <button class="btn-primary" onclick="enviarNotificacao()" id="btnEnviarNotificacao">
+                    <i class="fas fa-paper-plane"></i> Enviar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- TOAST -->
     <div id="toast" class="toast"></div>
 
-    <!-- SCRIPTS -->
+    <!-- ==========================================
+    SCRIPTS
+    ========================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="modules/config.js"></script>
     <script src="modules/ui.js"></script>
@@ -945,5 +741,6 @@ SEÇÃO: NOTIFICAÇÕES
     <script src="modules/audit-logs.js"></script>
     <script src="modules/notifications.js"></script>
     <script src="admin.js"></script>
+    
 </body>
 </html>
