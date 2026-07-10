@@ -32,7 +32,6 @@ async function loadUsers() {
 
         console.log('[Users] 🔍 Buscando usuários...');
 
-        // Buscar usuários da tabela profiles
         const { data: users, error } = await supabaseClient
             .from('profiles')
             .select('*')
@@ -71,7 +70,6 @@ async function loadUsers() {
             return;
         }
 
-        // Renderizar usuários
         let html = '';
         for (const u of users) {
             const isAdmin = u.role === 'admin';
@@ -153,45 +151,85 @@ async function loadUsers() {
 }
 
 // ==========================================
-// TORNAR ADMIN - CORRIGIDO
+// FUNÇÃO AUXILIAR: BUSCAR EMAIL POR ID
 // ==========================================
-window.tornarAdmin = async function(userId) {
-    if (!confirm('Tem certeza que deseja tornar este usuário ADMIN?')) return;
-    
-    console.log('[Users] 👑 Tornando admin:', userId);
+async function getEmailById(userId) {
+    console.log('[Users] 🔍 Buscando email para userId:', userId);
     
     try {
         const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
+        if (!supabaseClient) {
+            console.error('[Users] ❌ Supabase não inicializado');
+            return null;
+        }
 
-        // Buscar email do usuário
-        const { data: profile, error: profileError } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('profiles')
             .select('email')
             .eq('id', userId)
             .single();
 
-        if (profileError) {
-            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
-            showToast('❌ Usuário não encontrado', true);
+        if (error) {
+            console.error('[Users] ❌ Erro ao buscar email:', error);
+            return null;
+        }
+
+        console.log('[Users] ✅ Email encontrado:', data?.email);
+        return data?.email || null;
+    } catch (error) {
+        console.error('[Users] ❌ Erro ao buscar email:', error);
+        return null;
+    }
+}
+
+// ==========================================
+// TORNAR ADMIN - CORRIGIDO COM LOGS
+// ==========================================
+window.tornarAdmin = async function(userId) {
+    console.log('[Users] 👑 Iniciando tornarAdmin para:', userId);
+    
+    if (!confirm('Tem certeza que deseja tornar este usuário ADMIN?')) {
+        console.log('[Users] ❌ Cancelado pelo usuário');
+        return;
+    }
+    
+    try {
+        const supabaseClient = window.supabaseClient;
+        if (!supabaseClient) {
+            console.error('[Users] ❌ Supabase não inicializado');
+            showToast('❌ Supabase não inicializado', true);
             return;
         }
 
-        // Usar a função RPC tornar_admin
+        // Buscar email
+        const email = await getEmailById(userId);
+        if (!email) {
+            console.error('[Users] ❌ Email não encontrado');
+            showToast('❌ Email do usuário não encontrado', true);
+            return;
+        }
+
+        console.log('[Users] 📧 Email encontrado:', email);
+
+        // Chamar RPC
+        console.log('[Users] 📡 Chamando RPC tornar_admin para:', email);
         const { data, error } = await supabaseClient.rpc('tornar_admin', {
-            email_usuario: profile.email
+            email_usuario: email
         });
 
         if (error) {
-            console.error('[Users] ❌ Erro ao tornar admin:', error);
-            showToast('❌ Erro: ' + error.message, true);
+            console.error('[Users] ❌ Erro RPC tornar_admin:', error);
+            showToast('❌ Erro ao tornar admin: ' + error.message, true);
             return;
         }
 
-        console.log('[Users] ✅ Resultado:', data);
+        console.log('[Users] ✅ Resposta RPC:', data);
         showToast(data || '👑 Usuário agora é ADMIN!');
+        
+        // Recarregar lista
         await loadUsers();
         await loadDashboardStats();
+        
     } catch (error) {
         console.error('[Users] ❌ Erro ao tornar admin:', error);
         showToast('❌ Erro: ' + error.message, true);
@@ -199,87 +237,101 @@ window.tornarAdmin = async function(userId) {
 };
 
 // ==========================================
-// TORNAR USER - CORRIGIDO
+// TORNAR USER - CORRIGIDO COM LOGS
 // ==========================================
 window.tornarUser = async function(userId) {
-    if (!confirm('Tem certeza que deseja remover os privilégios de ADMIN deste usuário?')) return;
+    console.log('[Users] 👤 Iniciando tornarUser para:', userId);
     
-    console.log('[Users] 👤 Removendo admin:', userId);
+    if (!confirm('Tem certeza que deseja remover os privilégios de ADMIN deste usuário?')) {
+        console.log('[Users] ❌ Cancelado pelo usuário');
+        return;
+    }
     
     try {
         const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { data: profile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('email')
-            .eq('id', userId)
-            .single();
-
-        if (profileError) {
-            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
-            showToast('❌ Usuário não encontrado', true);
+        if (!supabaseClient) {
+            console.error('[Users] ❌ Supabase não inicializado');
+            showToast('❌ Supabase não inicializado', true);
             return;
         }
 
+        const email = await getEmailById(userId);
+        if (!email) {
+            console.error('[Users] ❌ Email não encontrado');
+            showToast('❌ Email do usuário não encontrado', true);
+            return;
+        }
+
+        console.log('[Users] 📧 Email encontrado:', email);
+        console.log('[Users] 📡 Chamando RPC tornar_user para:', email);
+        
         const { data, error } = await supabaseClient.rpc('tornar_user', {
-            email_usuario: profile.email
+            email_usuario: email
         });
 
         if (error) {
-            console.error('[Users] ❌ Erro ao tornar user:', error);
-            showToast('❌ Erro: ' + error.message, true);
+            console.error('[Users] ❌ Erro RPC tornar_user:', error);
+            showToast('❌ Erro ao tornar user: ' + error.message, true);
             return;
         }
 
-        console.log('[Users] ✅ Resultado:', data);
+        console.log('[Users] ✅ Resposta RPC:', data);
         showToast(data || '✅ Usuário agora é USER!');
+        
         await loadUsers();
         await loadDashboardStats();
+        
     } catch (error) {
-        console.error('[Users] ❌ Erro:', error);
+        console.error('[Users] ❌ Erro ao tornar user:', error);
         showToast('❌ Erro: ' + error.message, true);
     }
 };
 
 // ==========================================
-// BANIR USUÁRIO - CORRIGIDO
+// BANIR USUÁRIO - CORRIGIDO COM LOGS
 // ==========================================
 window.banirUsuario = async function(userId) {
-    if (!confirm('Tem certeza que deseja BANIR este usuário?')) return;
+    console.log('[Users] 🚫 Iniciando banirUsuario para:', userId);
     
-    console.log('[Users] 🚫 Banindo usuário:', userId);
+    if (!confirm('Tem certeza que deseja BANIR este usuário?')) {
+        console.log('[Users] ❌ Cancelado pelo usuário');
+        return;
+    }
     
     try {
         const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { data: profile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('email')
-            .eq('id', userId)
-            .single();
-
-        if (profileError) {
-            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
-            showToast('❌ Usuário não encontrado', true);
+        if (!supabaseClient) {
+            console.error('[Users] ❌ Supabase não inicializado');
+            showToast('❌ Supabase não inicializado', true);
             return;
         }
 
+        const email = await getEmailById(userId);
+        if (!email) {
+            console.error('[Users] ❌ Email não encontrado');
+            showToast('❌ Email do usuário não encontrado', true);
+            return;
+        }
+
+        console.log('[Users] 📧 Email encontrado:', email);
+        console.log('[Users] 📡 Chamando RPC banir_usuario para:', email);
+        
         const { data, error } = await supabaseClient.rpc('banir_usuario', {
-            email_usuario: profile.email
+            email_usuario: email
         });
 
         if (error) {
-            console.error('[Users] ❌ Erro ao banir:', error);
-            showToast('❌ Erro: ' + error.message, true);
+            console.error('[Users] ❌ Erro RPC banir_usuario:', error);
+            showToast('❌ Erro ao banir: ' + error.message, true);
             return;
         }
 
-        console.log('[Users] ✅ Resultado:', data);
+        console.log('[Users] ✅ Resposta RPC:', data);
         showToast(data || '🚫 Usuário BANIDO!');
+        
         await loadUsers();
         await loadDashboardStats();
+        
     } catch (error) {
         console.error('[Users] ❌ Erro ao banir:', error);
         showToast('❌ Erro: ' + error.message, true);
@@ -287,43 +339,50 @@ window.banirUsuario = async function(userId) {
 };
 
 // ==========================================
-// DESBANIR USUÁRIO - CORRIGIDO
+// DESBANIR USUÁRIO - CORRIGIDO COM LOGS
 // ==========================================
 window.desbanirUsuario = async function(userId) {
-    if (!confirm('Tem certeza que deseja DESBANIR este usuário?')) return;
+    console.log('[Users] ✅ Iniciando desbanirUsuario para:', userId);
     
-    console.log('[Users] ✅ Desbanindo usuário:', userId);
+    if (!confirm('Tem certeza que deseja DESBANIR este usuário?')) {
+        console.log('[Users] ❌ Cancelado pelo usuário');
+        return;
+    }
     
     try {
         const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { data: profile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('email')
-            .eq('id', userId)
-            .single();
-
-        if (profileError) {
-            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
-            showToast('❌ Usuário não encontrado', true);
+        if (!supabaseClient) {
+            console.error('[Users] ❌ Supabase não inicializado');
+            showToast('❌ Supabase não inicializado', true);
             return;
         }
 
+        const email = await getEmailById(userId);
+        if (!email) {
+            console.error('[Users] ❌ Email não encontrado');
+            showToast('❌ Email do usuário não encontrado', true);
+            return;
+        }
+
+        console.log('[Users] 📧 Email encontrado:', email);
+        console.log('[Users] 📡 Chamando RPC desbanir_usuario para:', email);
+        
         const { data, error } = await supabaseClient.rpc('desbanir_usuario', {
-            email_usuario: profile.email
+            email_usuario: email
         });
 
         if (error) {
-            console.error('[Users] ❌ Erro ao desbanir:', error);
-            showToast('❌ Erro: ' + error.message, true);
+            console.error('[Users] ❌ Erro RPC desbanir_usuario:', error);
+            showToast('❌ Erro ao desbanir: ' + error.message, true);
             return;
         }
 
-        console.log('[Users] ✅ Resultado:', data);
+        console.log('[Users] ✅ Resposta RPC:', data);
         showToast(data || '✅ Usuário DESBANIDO!');
+        
         await loadUsers();
         await loadDashboardStats();
+        
     } catch (error) {
         console.error('[Users] ❌ Erro ao desbanir:', error);
         showToast('❌ Erro: ' + error.message, true);
@@ -331,49 +390,54 @@ window.desbanirUsuario = async function(userId) {
 };
 
 // ==========================================
-// DELETAR USUÁRIO - CORRIGIDO
+// DELETAR USUÁRIO - CORRIGIDO COM LOGS
 // ==========================================
 window.deletarUsuario = async function(userId) {
-    if (!confirm('⚠️ ATENÇÃO: Isso irá DELETAR permanentemente todos os dados deste usuário! Continuar?')) return;
-    if (!confirm('Tem certeza absoluta?')) return;
+    console.log('[Users] 🗑️ Iniciando deletarUsuario para:', userId);
     
-    console.log('[Users] 🗑️ Deletando usuário:', userId);
+    if (!confirm('⚠️ ATENÇÃO: Isso irá DELETAR permanentemente todos os dados deste usuário! Continuar?')) {
+        console.log('[Users] ❌ Cancelado pelo usuário');
+        return;
+    }
+    if (!confirm('Tem certeza absoluta?')) {
+        console.log('[Users] ❌ Cancelado pelo usuário');
+        return;
+    }
     
     try {
         const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { data: profile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('email')
-            .eq('id', userId)
-            .single();
-
-        if (profileError) {
-            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
-            showToast('❌ Usuário não encontrado', true);
+        if (!supabaseClient) {
+            console.error('[Users] ❌ Supabase não inicializado');
+            showToast('❌ Supabase não inicializado', true);
             return;
         }
 
-        if (!profile || !profile.email) {
-            showToast('❌ Usuário não encontrado', true);
+        const email = await getEmailById(userId);
+        if (!email) {
+            console.error('[Users] ❌ Email não encontrado');
+            showToast('❌ Email do usuário não encontrado', true);
             return;
         }
 
+        console.log('[Users] 📧 Email encontrado:', email);
+        console.log('[Users] 📡 Chamando RPC deletar_usuario para:', email);
+        
         const { data, error } = await supabaseClient.rpc('deletar_usuario', {
-            email_usuario: profile.email
+            email_usuario: email
         });
 
         if (error) {
-            console.error('[Users] ❌ Erro ao deletar:', error);
-            showToast('❌ Erro: ' + error.message, true);
+            console.error('[Users] ❌ Erro RPC deletar_usuario:', error);
+            showToast('❌ Erro ao deletar: ' + error.message, true);
             return;
         }
 
-        console.log('[Users] ✅ Resultado:', data);
+        console.log('[Users] ✅ Resposta RPC:', data);
         showToast(data || '🗑️ Usuário e todos os dados DELETADOS!');
+        
         await loadUsers();
         await loadDashboardStats();
+        
     } catch (error) {
         console.error('[Users] ❌ Erro ao deletar:', error);
         showToast('❌ Erro: ' + error.message, true);
