@@ -1,4 +1,4 @@
-// login/script.js - COM MODAL CUSTOMIZADO (SEM confirm() bloqueante)
+// login/script.js - COM MODAL CUSTOMIZADO E REDIRECIONAMENTO CORRIGIDO
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -299,6 +299,7 @@ async function processarLogin(user) {
             
             if (role === 'admin') {
                 console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
+                // USAR REPLACE PARA NÃO PERMITIR VOLTAR
                 window.location.replace('../admin/index.html');
             } else {
                 const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
