@@ -5,7 +5,7 @@
 console.log('[Users] 👤 Carregando módulo de usuários...');
 
 // ==========================================
-// CARREGAR USUÁRIOS - COM TRATAMENTO DE ERRO RLS
+// CARREGAR USUÁRIOS
 // ==========================================
 async function loadUsers() {
     console.log('[Users] 🔍 Carregando usuários...');
@@ -23,7 +23,6 @@ async function loadUsers() {
             throw new Error('Supabase não inicializado');
         }
 
-        // 🔥 IMPORTANTE: Verificar se o usuário está autenticado
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) {
             console.warn('[Users] ⚠️ Sem sessão, redirecionando para login...');
@@ -33,23 +32,20 @@ async function loadUsers() {
 
         console.log('[Users] 🔍 Buscando usuários...');
 
-        const { data, error } = await supabaseClient
+        // Buscar usuários da tabela profiles
+        const { data: users, error } = await supabaseClient
             .from('profiles')
             .select('*')
             .order('created_at', { ascending: false });
 
-        // 🔥 Se der erro de RLS, mostrar mensagem amigável
         if (error) {
             console.error('[Users] ❌ Erro ao carregar usuários:', error);
             
-            // Se for erro de permissão (RLS)
-            if (error.code === 'PGRST301' || error.message?.includes('permission denied') || error.message?.includes('permission denied for relation')) {
+            if (error.code === 'PGRST301' || error.message?.includes('permission denied')) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="4" style="text-align:center;color:#f59e0b;padding:20px;">
                             ⚠️ Erro de permissão. Verifique se você é administrador.
-                            <br>
-                            <small style="color: var(--text-muted);">Tente recarregar a página ou verifique as políticas RLS do Supabase.</small>
                             <br>
                             <button class="btn-secondary" onclick="loadUsers()" style="margin-top:10px;">
                                 <i class="fas fa-sync"></i> Tentar novamente
@@ -59,21 +55,25 @@ async function loadUsers() {
                 `;
                 return;
             }
-            
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar usuários: ${error.message}</td></tr>`;
-            return;
+            throw error;
         }
 
-        console.log('[Users] ✅ Usuários carregados:', data?.length || 0);
-
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">Nenhum usuário encontrado</td></tr>';
+        if (!users || users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">
+                        <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                        <br>
+                        Nenhum usuário encontrado
+                    </td>
+                </tr>
+            `;
             return;
         }
 
         // Renderizar usuários
         let html = '';
-        for (const u of data) {
+        for (const u of users) {
             const isAdmin = u.role === 'admin';
             const isBanned = u.role === 'banned';
             
@@ -91,15 +91,15 @@ async function loadUsers() {
 
             html += `
                 <tr>
-                    <td><strong>${u.nome || '-'}</strong></td>
-                    <td>${u.email}</td>
+                    <td><strong>${u.nome || u.email?.split('@')[0] || '-'}</strong></td>
+                    <td>${u.email || '-'}</td>
                     <td>
                         <span style="background: ${roleBg}; color: ${roleColor}; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
                             ${roleLabel.toUpperCase()}
                         </span>
                     </td>
                     <td>
-                        <button class="btn-secondary" onclick="abrirDetalhesUsuario('${u.id}', '${u.nome || 'Usuário'}', '${u.email}', '${u.created_at}')" style="margin-right:6px;" title="Ver detalhes">
+                        <button class="btn-secondary" onclick="abrirDetalhesUsuario('${u.id}', '${u.nome || u.email?.split('@')[0] || 'Usuário'}', '${u.email}', '${u.created_at}')" style="margin-right:6px;" title="Ver detalhes">
                             <i class="fas fa-eye"></i>
                         </button>
 
@@ -138,130 +138,27 @@ async function loadUsers() {
 
     } catch (error) {
         console.error('[Users] ❌ Erro ao carregar usuários:', error);
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">❌ Erro ao carregar: ${error.message}</td></tr>`;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align:center;color:#ef4444;padding:20px;">
+                    ❌ Erro ao carregar usuários: ${error.message}
+                    <br>
+                    <button class="btn-secondary" onclick="loadUsers()" style="margin-top:10px;">
+                        <i class="fas fa-sync"></i> Tentar novamente
+                    </button>
+                </td>
+            </tr>
+        `;
     }
 }
 
 // ==========================================
-// TORNAR ADMIN
+// TORNAR ADMIN - CORRIGIDO
 // ==========================================
 window.tornarAdmin = async function(userId) {
     if (!confirm('Tem certeza que deseja tornar este usuário ADMIN?')) return;
     
     console.log('[Users] 👑 Tornando admin:', userId);
-    
-    try {
-        const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { error } = await supabaseClient
-            .from('profiles')
-            .update({ role: 'admin', updated_at: new Date().toISOString() })
-            .eq('id', userId);
-
-        if (error) throw error;
-
-        showToast('👑 Usuário agora é ADMIN!');
-        await loadUsers();
-        await loadDashboardStats();
-    } catch (error) {
-        console.error('[Users] ❌ Erro ao tornar admin:', error);
-        showToast('❌ Erro: ' + error.message, true);
-    }
-};
-
-// ==========================================
-// TORNAR USER
-// ==========================================
-window.tornarUser = async function(userId) {
-    if (!confirm('Tem certeza que deseja remover os privilégios de ADMIN deste usuário?')) return;
-    
-    console.log('[Users] 👤 Removendo admin:', userId);
-    
-    try {
-        const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { error } = await supabaseClient
-            .from('profiles')
-            .update({ role: 'user', updated_at: new Date().toISOString() })
-            .eq('id', userId);
-
-        if (error) throw error;
-
-        showToast('✅ Usuário agora é USER!');
-        await loadUsers();
-        await loadDashboardStats();
-    } catch (error) {
-        console.error('[Users] ❌ Erro:', error);
-        showToast('❌ Erro: ' + error.message, true);
-    }
-};
-
-// ==========================================
-// BANIR USUÁRIO
-// ==========================================
-window.banirUsuario = async function(userId) {
-    if (!confirm('Tem certeza que deseja BANIR este usuário?')) return;
-    
-    console.log('[Users] 🚫 Banindo usuário:', userId);
-    
-    try {
-        const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { error } = await supabaseClient
-            .from('profiles')
-            .update({ role: 'banned', updated_at: new Date().toISOString() })
-            .eq('id', userId);
-
-        if (error) throw error;
-
-        showToast('🚫 Usuário BANIDO!');
-        await loadUsers();
-        await loadDashboardStats();
-    } catch (error) {
-        console.error('[Users] ❌ Erro ao banir:', error);
-        showToast('❌ Erro: ' + error.message, true);
-    }
-};
-
-// ==========================================
-// DESBANIR USUÁRIO
-// ==========================================
-window.desbanirUsuario = async function(userId) {
-    if (!confirm('Tem certeza que deseja DESBANIR este usuário?')) return;
-    
-    console.log('[Users] ✅ Desbanindo usuário:', userId);
-    
-    try {
-        const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) throw new Error('Supabase não inicializado');
-
-        const { error } = await supabaseClient
-            .from('profiles')
-            .update({ role: 'user', updated_at: new Date().toISOString() })
-            .eq('id', userId);
-
-        if (error) throw error;
-
-        showToast('✅ Usuário DESBANIDO!');
-        await loadUsers();
-        await loadDashboardStats();
-    } catch (error) {
-        console.error('[Users] ❌ Erro ao desbanir:', error);
-        showToast('❌ Erro: ' + error.message, true);
-    }
-};
-
-// ==========================================
-// DELETAR USUÁRIO
-// ==========================================
-window.deletarUsuario = async function(userId) {
-    if (!confirm('⚠️ ATENÇÃO: Isso irá DELETAR permanentemente todos os dados deste usuário! Continuar?')) return;
-    if (!confirm('Tem certeza absoluta?')) return;
-    
-    console.log('[Users] 🗑️ Deletando usuário:', userId);
     
     try {
         const supabaseClient = window.supabaseClient;
@@ -274,19 +171,207 @@ window.deletarUsuario = async function(userId) {
             .eq('id', userId)
             .single();
 
-        if (profileError) throw profileError;
-
-        if (!profile || !profile.email) {
-            throw new Error('Usuário não encontrado');
+        if (profileError) {
+            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
+            showToast('❌ Usuário não encontrado', true);
+            return;
         }
 
-        const { error } = await supabaseClient.rpc('deletar_usuario', {
+        // Usar a função RPC tornar_admin
+        const { data, error } = await supabaseClient.rpc('tornar_admin', {
             email_usuario: profile.email
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('[Users] ❌ Erro ao tornar admin:', error);
+            showToast('❌ Erro: ' + error.message, true);
+            return;
+        }
 
-        showToast('🗑️ Usuário e todos os dados DELETADOS!');
+        console.log('[Users] ✅ Resultado:', data);
+        showToast(data || '👑 Usuário agora é ADMIN!');
+        await loadUsers();
+        await loadDashboardStats();
+    } catch (error) {
+        console.error('[Users] ❌ Erro ao tornar admin:', error);
+        showToast('❌ Erro: ' + error.message, true);
+    }
+};
+
+// ==========================================
+// TORNAR USER - CORRIGIDO
+// ==========================================
+window.tornarUser = async function(userId) {
+    if (!confirm('Tem certeza que deseja remover os privilégios de ADMIN deste usuário?')) return;
+    
+    console.log('[Users] 👤 Removendo admin:', userId);
+    
+    try {
+        const supabaseClient = window.supabaseClient;
+        if (!supabaseClient) throw new Error('Supabase não inicializado');
+
+        const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('email')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) {
+            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
+            showToast('❌ Usuário não encontrado', true);
+            return;
+        }
+
+        const { data, error } = await supabaseClient.rpc('tornar_user', {
+            email_usuario: profile.email
+        });
+
+        if (error) {
+            console.error('[Users] ❌ Erro ao tornar user:', error);
+            showToast('❌ Erro: ' + error.message, true);
+            return;
+        }
+
+        console.log('[Users] ✅ Resultado:', data);
+        showToast(data || '✅ Usuário agora é USER!');
+        await loadUsers();
+        await loadDashboardStats();
+    } catch (error) {
+        console.error('[Users] ❌ Erro:', error);
+        showToast('❌ Erro: ' + error.message, true);
+    }
+};
+
+// ==========================================
+// BANIR USUÁRIO - CORRIGIDO
+// ==========================================
+window.banirUsuario = async function(userId) {
+    if (!confirm('Tem certeza que deseja BANIR este usuário?')) return;
+    
+    console.log('[Users] 🚫 Banindo usuário:', userId);
+    
+    try {
+        const supabaseClient = window.supabaseClient;
+        if (!supabaseClient) throw new Error('Supabase não inicializado');
+
+        const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('email')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) {
+            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
+            showToast('❌ Usuário não encontrado', true);
+            return;
+        }
+
+        const { data, error } = await supabaseClient.rpc('banir_usuario', {
+            email_usuario: profile.email
+        });
+
+        if (error) {
+            console.error('[Users] ❌ Erro ao banir:', error);
+            showToast('❌ Erro: ' + error.message, true);
+            return;
+        }
+
+        console.log('[Users] ✅ Resultado:', data);
+        showToast(data || '🚫 Usuário BANIDO!');
+        await loadUsers();
+        await loadDashboardStats();
+    } catch (error) {
+        console.error('[Users] ❌ Erro ao banir:', error);
+        showToast('❌ Erro: ' + error.message, true);
+    }
+};
+
+// ==========================================
+// DESBANIR USUÁRIO - CORRIGIDO
+// ==========================================
+window.desbanirUsuario = async function(userId) {
+    if (!confirm('Tem certeza que deseja DESBANIR este usuário?')) return;
+    
+    console.log('[Users] ✅ Desbanindo usuário:', userId);
+    
+    try {
+        const supabaseClient = window.supabaseClient;
+        if (!supabaseClient) throw new Error('Supabase não inicializado');
+
+        const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('email')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) {
+            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
+            showToast('❌ Usuário não encontrado', true);
+            return;
+        }
+
+        const { data, error } = await supabaseClient.rpc('desbanir_usuario', {
+            email_usuario: profile.email
+        });
+
+        if (error) {
+            console.error('[Users] ❌ Erro ao desbanir:', error);
+            showToast('❌ Erro: ' + error.message, true);
+            return;
+        }
+
+        console.log('[Users] ✅ Resultado:', data);
+        showToast(data || '✅ Usuário DESBANIDO!');
+        await loadUsers();
+        await loadDashboardStats();
+    } catch (error) {
+        console.error('[Users] ❌ Erro ao desbanir:', error);
+        showToast('❌ Erro: ' + error.message, true);
+    }
+};
+
+// ==========================================
+// DELETAR USUÁRIO - CORRIGIDO
+// ==========================================
+window.deletarUsuario = async function(userId) {
+    if (!confirm('⚠️ ATENÇÃO: Isso irá DELETAR permanentemente todos os dados deste usuário! Continuar?')) return;
+    if (!confirm('Tem certeza absoluta?')) return;
+    
+    console.log('[Users] 🗑️ Deletando usuário:', userId);
+    
+    try {
+        const supabaseClient = window.supabaseClient;
+        if (!supabaseClient) throw new Error('Supabase não inicializado');
+
+        const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('email')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) {
+            console.error('[Users] ❌ Erro ao buscar perfil:', profileError);
+            showToast('❌ Usuário não encontrado', true);
+            return;
+        }
+
+        if (!profile || !profile.email) {
+            showToast('❌ Usuário não encontrado', true);
+            return;
+        }
+
+        const { data, error } = await supabaseClient.rpc('deletar_usuario', {
+            email_usuario: profile.email
+        });
+
+        if (error) {
+            console.error('[Users] ❌ Erro ao deletar:', error);
+            showToast('❌ Erro: ' + error.message, true);
+            return;
+        }
+
+        console.log('[Users] ✅ Resultado:', data);
+        showToast(data || '🗑️ Usuário e todos os dados DELETADOS!');
         await loadUsers();
         await loadDashboardStats();
     } catch (error) {
@@ -301,8 +386,8 @@ window.deletarUsuario = async function(userId) {
 window.abrirDetalhesUsuario = async function(id, nome, email, dataCadastro) {
     console.log('[Users] 👁️ Abrindo detalhes do usuário:', id);
     
-    document.getElementById('modalUserName').textContent = nome;
-    document.getElementById('modalUserEmail').textContent = email;
+    document.getElementById('modalUserName').textContent = nome || 'Usuário';
+    document.getElementById('modalUserEmail').textContent = email || 'Sem email';
     
     const dataFormatada = dataCadastro ? new Date(dataCadastro).toLocaleDateString('pt-BR') : 'Hoje';
     document.getElementById('statJoinDate').textContent = dataFormatada;
@@ -323,10 +408,17 @@ window.abrirDetalhesUsuario = async function(id, nome, email, dataCadastro) {
                 document.getElementById('statTotalTasks').textContent = total;
                 document.getElementById('statCompletedTasks').textContent = concluidas;
                 document.getElementById('statPendingTasks').textContent = pendentes;
+            } else {
+                document.getElementById('statTotalTasks').textContent = '0';
+                document.getElementById('statCompletedTasks').textContent = '0';
+                document.getElementById('statPendingTasks').textContent = '0';
             }
         }
     } catch (error) {
         console.warn('[Users] ⚠️ Erro ao buscar tarefas:', error);
+        document.getElementById('statTotalTasks').textContent = '?';
+        document.getElementById('statCompletedTasks').textContent = '?';
+        document.getElementById('statPendingTasks').textContent = '?';
     }
 
     document.getElementById('userDetailsModal').classList.add('active');
