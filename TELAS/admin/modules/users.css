@@ -1,0 +1,16 @@
+
+/* USER STATS GRID (modal user details) */
+.user-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+.user-stat-item { background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 15px; display: flex; align-items: center; gap: 12px; }
+.user-stat-item i { font-size: 1.5rem; width: 30px; text-align: center; }
+.user-stat-item div { display: flex; flex-direction: column; }
+.user-stat-item strong { font-size: 1.2rem; color: white; margin-bottom: 2px; }
+.user-stat-item span { font-size: 0.75rem; color: var(--text-muted); }
+
+/* USER DETAILS */
+.user-details { display:flex; gap:12px; align-items:center; }
+.user-avatar { width:72px; height:72px; border-radius:999px; background:rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:center; font-weight:700; }
+.user-meta { display:flex; flex-direction:column; gap:4px; }
+
+@media (max-width: 768px) { .user-stats-grid { grid-template-columns: 1fr; } }
+

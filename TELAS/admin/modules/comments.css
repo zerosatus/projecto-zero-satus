@@ -1,0 +1,9 @@
+/* Comments-specific styles */
+.comment-row { padding:10px; border-radius:8px; background:rgba(255,255,255,0.01); display:flex; gap:10px; align-items:flex-start; }
+.comment-author { font-weight:600; }
+.comment-message { color:var(--muted); }
+.comment-actions { margin-left:auto; display:flex; gap:6px; }
+
+@media (max-width: 768px) {
+    .comment-row { flex-direction:column; }
+}

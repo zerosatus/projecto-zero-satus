@@ -1,0 +1,60 @@
+
+/* TIMELINE (Audit Logs) - copied from admin.css */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: var(--bg-dark);
+    border-radius: 10px;
+    border-left: 4px solid var(--border);
+    transition: all 0.3s;
+}
+.timeline-item:hover { transform: translateX(5px); background: rgba(147, 51, 234, 0.05); }
+.timeline-item::before { content: ''; position: absolute; left: -26px; top: 24px; width: 12px; height: 12px; border-radius: 50%; background: var(--border); border: 3px solid var(--bg-card); }
+
+.timeline-item.user { border-left-color: #10b981; }
+.timeline-item.user::before { background: #10b981; }
+.timeline-item.admin { border-left-color: var(--primary); }
+.timeline-item.admin::before { background: var(--primary); }
+.timeline-item.security { border-left-color: #ef4444; }
+.timeline-item.security::before { background: #ef4444; }
+.timeline-item.post { border-left-color: #f59e0b; }
+.timeline-item.post::before { background: #f59e0b; }
+
+.timeline-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+.timeline-title { font-weight: 600; color: white; font-size: 14px; margin: 0; }
+.timeline-time { color: var(--text-muted); font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.timeline-time i { font-size: 10px; }
+.timeline-description { color: var(--text-muted); font-size: 13px; margin-bottom: 10px; line-height: 1.5; }
+.timeline-meta { display: flex; gap: 15px; flex-wrap: wrap; }
+
+.timeline-badge { background: var(--bg-hover); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.timeline-badge.user { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.timeline-badge.admin { background: rgba(147, 51, 234, 0.2); color: #9333ea; }
+.timeline-badge.security { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.timeline-badge.post { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+
+.timeline-user { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
+.timeline-user i { color: var(--primary); }
+
+@media (max-width: 768px) {
+    .timeline { padding-left: 20px; }
+    .timeline::before { left: 5px; }
+    .timeline-item::before { left: -21px; }
+    .timeline-header { flex-direction: column; }
+}
+

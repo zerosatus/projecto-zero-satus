@@ -1,0 +1,11 @@
+/* Post-specific styles (modal uses modal base in layout.css) */
+.post-meta { display:flex; gap:8px; align-items:center; color:var(--muted); font-size:13px; }
+.post-editor { min-height:160px; background:rgba(255,255,255,0.01); border-radius:8px; padding:10px; }
+
+/* In case of rich editor toolbar */
+.post-toolbar { display:flex; gap:8px; margin-bottom:8px; }
+
+/* Table tweaks for posts (base table is in layout.css) */
+.posts-actions { display:flex; gap:6px; }
+
+/* Leave space for future post-specific rules */
