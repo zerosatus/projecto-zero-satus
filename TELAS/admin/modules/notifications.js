@@ -1,5 +1,5 @@
 // ==========================================
-// notifications.js - NOTIFICAÇÕES
+// notifications.js - NOTIFICAÇÕES (CORRIGIDO)
 // ==========================================
 
 console.log('[Notif] 📬 Módulo de notificações carregado');
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// ENVIAR NOTIFICAÇÃO
+// ENVIAR NOTIFICAÇÃO (CORRIGIDO)
 // ==========================================
 async function enviarNotificacao() {
     const btn = document.getElementById('btnEnviarNotificacao');
@@ -442,13 +442,24 @@ async function enviarNotificacao() {
 
         const autor = document.getElementById('adminNameDisplay')?.textContent || 'Administrador';
         
-        let destinoSql = destino;
+        // DETERMINA O DESTINO FINAL
+        let destinoFinal = destino;
         if (destino === 'individual') {
-            destinoSql = emailDestino;
+            destinoFinal = emailDestino;
         }
 
+        console.log('[Notif] 📤 Enviando notificação:');
+        console.log('[Notif] Destino:', destinoFinal);
+        console.log('[Notif] Título:', titulo);
+        console.log('[Notif] Mensagem:', mensagem);
+        console.log('[Notif] Tipo:', destino === 'todos' ? 'broadcast' : destino === 'individual' ? 'individual' : 'segmented');
+        console.log('[Notif] Ícone:', iconeSelecionado);
+        console.log('[Notif] Canais:', canais);
+        console.log('[Notif] Agendar:', agendar || 'agora');
+
+        // CHAMADA CORRIGIDA - USANDO PARÂMETROS NOMEADOS
         const { data, error } = await client.rpc('enviar_notificacao', {
-            p_destino: destinoSql,
+            p_destino: destinoFinal,
             p_titulo: titulo,
             p_mensagem: mensagem,
             p_tipo: destino === 'todos' ? 'broadcast' : 
