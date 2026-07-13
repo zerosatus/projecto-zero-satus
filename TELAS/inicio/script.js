@@ -1,4 +1,4 @@
-// inicio/script.js - COMPLETO COM SISTEMA DE DISCIPLINAS E HORÁRIO
+// inicio/script.js - COMPLETO COM NOTIFICAÇÕES RECENTES
 
 let usuarioAtual = null;
 let tarefas = [];
@@ -13,7 +13,7 @@ let disciplinaEditando = null;
 const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 
 // ============================================
-// MÓDULO DE DISCIPLINAS - SEM DADOS PADRÃO
+// MÓDULO DE DISCIPLINAS
 // ============================================
 const DisciplinaManager = {
     disciplinas: [],
@@ -35,7 +35,6 @@ const DisciplinaManager = {
         this._loading = true;
 
         try {
-            // Tentar carregar do localStorage primeiro
             const cached = localStorage.getItem(this.storageKey);
             let dados = null;
 
@@ -47,7 +46,6 @@ const DisciplinaManager = {
                 }
             }
 
-            // Se não tem cache, tentar do banco
             if (!dados || dados.length === 0) {
                 const userId = window.CacheManager?.getCurrentUserId();
                 if (userId && window.DatabaseService) {
@@ -59,7 +57,6 @@ const DisciplinaManager = {
                 }
             }
 
-            // Se ainda não tem dados, inicia vazio
             if (!dados) {
                 dados = [];
                 console.log('[Disciplinas] Nenhuma disciplina encontrada');
@@ -82,17 +79,14 @@ const DisciplinaManager = {
     },
 
     salvar(skipCloud = false) {
-        // Salvar no localStorage
         if (this.storageKey) {
             localStorage.setItem(this.storageKey, JSON.stringify(this.disciplinas));
         }
 
-        // Salvar no CacheManager
         if (window.CacheManager) {
             window.CacheManager.set('disciplinas', this.disciplinas, false);
         }
 
-        // Salvar na nuvem com debounce
         if (!skipCloud) {
             if (this._saveTimeout) {
                 clearTimeout(this._saveTimeout);
@@ -192,6 +186,174 @@ const DisciplinaManager = {
 };
 
 // ============================================
+// FUNÇÕES DE NOTIFICAÇÕES RECENTES
+// ============================================
+
+function carregarNotificacoesRecentes() {
+    const container = document.getElementById('notificacoesRecentes');
+    if (!container) return;
+
+    let notificacoes = [];
+
+    // Tentar do window.notifications (do notifications-sync.js)
+    if (window.notifications && window.notifications.length > 0) {
+        notificacoes = window.notifications;
+    } else if (window._notifications && window._notifications.length > 0) {
+        notificacoes = window._notifications;
+    } else {
+        // Tentar do CacheManager
+        if (window.CacheManager) {
+            const cached = window.CacheManager.get('notifications', null);
+            if (cached && cached.length > 0) {
+                notificacoes = cached;
+            }
+        }
+    }
+
+    // Se ainda não tem, tentar do localStorage
+    if (notificacoes.length === 0 && usuarioAtual) {
+        const userId = usuarioAtual.id || usuarioAtual.uid;
+        const saved = localStorage.getItem(`${userId}_notifications`);
+        if (saved) {
+            try {
+                notificacoes = JSON.parse(saved);
+            } catch(e) {}
+        }
+    }
+
+    // Ordenar por data (mais recente primeiro)
+    notificacoes.sort((a, b) => {
+        const dateA = new Date(a.time || a.created_at || 0);
+        const dateB = new Date(b.time || b.created_at || 0);
+        return dateB - dateA;
+    });
+
+    // Pegar apenas as 3 mais recentes
+    const recentes = notificacoes.slice(0, 3);
+
+    if (recentes.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                <i class="fas fa-bell-slash" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                Nenhuma notificação recente
+            </div>
+        `;
+        return;
+    }
+
+    // Ícones por tipo
+    const icones = {
+        'info': 'fa-bell',
+        'aula': 'fa-book',
+        'tarefa': 'fa-tasks',
+        'warning': 'fa-exclamation-triangle',
+        'success': 'fa-check-circle'
+    };
+
+    const cores = {
+        'info': 'purple',
+        'aula': 'blue',
+        'tarefa': 'green',
+        'warning': 'orange',
+        'success': 'purple'
+    };
+
+    container.innerHTML = recentes.map(notif => `
+        <div class="notification-item ${cores[notif.type] || 'purple'}" onclick="abrirNotifModal()" style="cursor: pointer;">
+            <i class="fas ${icones[notif.type] || 'fa-bell'}"></i>
+            <span>${escapeHtml(notif.title || 'Notificação')}</span>
+            <span style="margin-left: auto; font-size: 11px; color: var(--text-secondary);">
+                ${formatarTempoRelativo(notif.time || notif.created_at)}
+            </span>
+        </div>
+    `).join('');
+}
+
+function formatarTempoRelativo(timeString) {
+    if (!timeString) return '';
+    try {
+        const now = new Date();
+        const notifTime = new Date(timeString);
+        if (isNaN(notifTime.getTime())) return '';
+        const diffMins = Math.floor((now - notifTime) / 60000);
+        
+        if (diffMins < 1) return 'Agora';
+        if (diffMins < 60) return `Há ${diffMins} min`;
+        if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
+        return notifTime.toLocaleDateString('pt-BR');
+    } catch(e) {
+        return '';
+    }
+}
+
+function abrirNotifModal() {
+    const modal = document.getElementById('notifModal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        if (typeof renderizarNotificacoesEmTodasPaginas === 'function') {
+            renderizarNotificacoesEmTodasPaginas(window.notifications || []);
+        }
+    } else {
+        mostrarToast('Clique no sino para ver todas as notificações', 'info');
+    }
+}
+
+function fecharNotifModal() {
+    const modal = document.getElementById('notifModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function limparNotificacoes() {
+    if (confirm('Limpar todas as notificações?')) {
+        if (window._notifications) {
+            window._notifications = [];
+        }
+        if (window.notifications) {
+            window.notifications = [];
+        }
+        if (window.CacheManager) {
+            window.CacheManager.set('notifications', [], true);
+        }
+        if (usuarioAtual) {
+            const userId = usuarioAtual.id || usuarioAtual.uid;
+            localStorage.setItem(`${userId}_notifications`, JSON.stringify([]));
+        }
+        carregarNotificacoesRecentes();
+        if (typeof renderizarNotificacoesEmTodasPaginas === 'function') {
+            renderizarNotificacoesEmTodasPaginas([]);
+        }
+        mostrarToast('Notificações limpas!', 'success');
+    }
+}
+
+function iniciarEscutaNotificacoes() {
+    // Escutar evento de notificações atualizadas
+    window.addEventListener('notificationsUpdated', () => {
+        console.log('[Inicio] Notificações atualizadas, recarregando...');
+        carregarNotificacoesRecentes();
+    });
+
+    // Escutar mudanças no CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.addListener('notifications', () => {
+            carregarNotificacoesRecentes();
+        });
+    }
+
+    // Escutar mudanças no storage (outras abas)
+    window.addEventListener('storage', (e) => {
+        if (e.key && e.key.includes('_notifications')) {
+            console.log('[Inicio] Mudança em outra aba - recarregando notificações');
+            setTimeout(carregarNotificacoesRecentes, 300);
+        }
+    });
+}
+
+// ============================================
 // INICIALIZAÇÃO
 // ============================================
 window.addEventListener('DOMContentLoaded', async () => {
@@ -235,6 +397,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         configurarModalDisciplinas();
 
+        // 🔥 CARREGAR NOTIFICAÇÕES RECENTES
+        carregarNotificacoesRecentes();
+        iniciarEscutaNotificacoes();
+
+        // Fechar modal de notificações clicando fora
+        const notifModal = document.getElementById('notifModal');
+        if (notifModal) {
+            notifModal.addEventListener('click', function(e) {
+                if (e.target === this) fecharNotifModal();
+            });
+        }
+
         window.addEventListener('cloudDataLoaded', (event) => {
             console.log('[Inicio] Cloud data loaded');
             DisciplinaManager.carregar();
@@ -243,6 +417,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             atualizarHorarioDesktop();
             atualizarListaDisciplinas();
             atualizarFraseDoDiaDesktop();
+            carregarNotificacoesRecentes(); // 🔥 RECARREGAR NOTIFICAÇÕES
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
             carregarFotoPerfilDesktop();
         });
@@ -466,7 +641,6 @@ function atualizarListaDisciplinas() {
 
     const disciplinasMap = new Map();
 
-    // Coletar das tarefas
     tarefas.forEach(t => {
         const disc = t.disciplina || t.subject;
         if (disc && disc !== 'outros') {
@@ -479,7 +653,6 @@ function atualizarListaDisciplinas() {
         }
     });
 
-    // Coletar do horário
     if (weeklySchedule) {
         Object.values(weeklySchedule).forEach(day => {
             if (Array.isArray(day)) {
@@ -1248,11 +1421,16 @@ window.addEventListener('forceRefresh', () => {
             atualizarEstatisticasMini();
             atualizarListaDisciplinas();
             atualizarFraseDoDiaDesktop();
+            carregarNotificacoesRecentes();
         }
     }, 100);
 });
 
 // Expor globalmente
 window.DisciplinaManager = DisciplinaManager;
+window.abrirNotifModal = abrirNotifModal;
+window.fecharNotifModal = fecharNotifModal;
+window.limparNotificacoes = limparNotificacoes;
+window.carregarNotificacoesRecentes = carregarNotificacoesRecentes;
 
-console.log('%c🏠 Painel Inicial - Sistema Completo!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
+console.log('%c🏠 Painel Inicial - Sistema Completo com Notificações!', 'color: #9333ea; font-size: 20px; font-weight: bold;');

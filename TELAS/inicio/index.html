@@ -38,7 +38,6 @@
                     <i class="fas fa-sticky-note"></i>
                     <span>Anotações</span>
                 </a>
-               
             </nav>
             
             <div class="menu-bottom">
@@ -65,7 +64,6 @@
                             <div class="profile-info-mini">
                                 <h3 id="miniName">Carregando...</h3>
                                 <p class="profile-email-mini" id="miniEmail">carregando@email.com</p>
-                                
                             </div>
                         </div>
                         
@@ -158,13 +156,18 @@
                     </div>
                 </div>
 
-                <!-- Notifications -->
+                <!-- 🔥 NOTIFICAÇÕES RECENTES - CORRIGIDO -->
                 <div class="notifications-panel">
-                    <h3><i class="fas fa-bell"></i> Notificações recentes</h3>
-                    <div class="notification-list">
-                        <div class="notification-item purple">
-                            <i class="fas fa-check-circle"></i>
-                            <span>Bem-vindo ao Painel do Aluno!</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-bell"></i> Notificações Recentes</h3>
+                        <button class="btn-ver-todas" onclick="abrirNotifModal()" 
+                                style="background: transparent; border: none; color: var(--purple-primary); cursor: pointer; font-size: 13px; font-weight: 600;">
+                            Ver todas →
+                        </button>
+                    </div>
+                    <div class="notification-list" id="notificacoesRecentes">
+                        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando...
                         </div>
                     </div>
                 </div>
@@ -449,24 +452,55 @@
         <i class="fas fa-check-circle"></i>
         <span>Operação realizada!</span>
     </div>
-<!-- Supabase CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
-<script src="../mobile-telas/supabase-client.js"></script>     <!-- AuthService primeiro -->
-<script src="../mobile-telas/database-service.js"></script> 
-<!-- Depois dos serviços -->
-<script src="../mobile-telas/notifications-sync.js"></script>
-<script src="../mobile-telas/realtime-sync.js"></script>       <!-- Realtime -->
-<script src="../mobile-telas/cache-manager.js"></script>       <!-- Cache -->
-<script src="../mobile-telas/shared-data.js"></script>         <!-- Shared -->
-<script src="../mobile-telas/sync-helper.js"></script>         <!-- Sync -->
+    <!-- MODAL DE NOTIFICAÇÕES -->
+    <div class="notif-modal" id="notifModal">
+        <div class="notif-modal-content">
+            <div class="notif-modal-header">
+                <h2><i class="fas fa-bell"></i> Notificações</h2>
+                <div class="notif-actions">
+                    <button class="notif-btn-action" onclick="marcarTodasNotificacoesLidas()">
+                        <i class="fas fa-check-double"></i> Marcar todas
+                    </button>
+                    <button class="notif-btn-action notif-btn-clear" onclick="limparNotificacoes()">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="notif-btn-close" onclick="fecharNotifModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
 
-<!-- FUNCIONALIDADES -->
-<script src="../mobile-telas/daily-phrases.js"></script>
-<script src="../mobile-telas/notes-sync.js"></script>
+            <div class="notif-tabs">
+                <button class="notif-tab active" data-filter="todas" onclick="filtrarNotificacoes('todas', this)">Todas</button>
+                <button class="notif-tab" data-filter="nao-lidas" onclick="filtrarNotificacoes('nao-lidas', this)">Não lidas</button>
+                <button class="notif-tab" data-filter="aulas" onclick="filtrarNotificacoes('aulas', this)">Aulas</button>
+                <button class="notif-tab" data-filter="tarefas" onclick="filtrarNotificacoes('tarefas', this)">Tarefas</button>
+            </div>
 
-<!-- PÁGINA -->
-<script src="script.js"></script>
+            <div class="notif-list" id="notifList">
+                <!-- Notificações via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- SERVIÇOS (ORDEM IMPORTANTE!) -->
+    <script src="../mobile-telas/supabase-client.js"></script>
+    <script src="../mobile-telas/database-service.js"></script>
+    <script src="../mobile-telas/notifications-sync.js"></script>
+    <script src="../mobile-telas/realtime-sync.js"></script>
+    <script src="../mobile-telas/cache-manager.js"></script>
+    <script src="../mobile-telas/shared-data.js"></script>
+    <script src="../mobile-telas/sync-helper.js"></script>
+
+    <!-- FUNCIONALIDADES -->
+    <script src="../mobile-telas/daily-phrases.js"></script>
+    <script src="../mobile-telas/notes-sync.js"></script>
+
+    <!-- PÁGINA -->
+    <script src="script.js"></script>
 </body>
 </html>
