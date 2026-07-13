@@ -101,11 +101,9 @@ function mostrarPopUpNotificacao(notificacao) {
         </button>
     `;
     
-    // Clicar no popup abre o modal de notificações
     popup.addEventListener('click', function(e) {
         if (e.target.closest('.popup-close')) return;
         this.remove();
-        // Tentar abrir o modal de notificações
         if (typeof abrirNotifModal === 'function') {
             abrirNotifModal();
         } else if (typeof window.abrirNotifModal === 'function') {
@@ -115,7 +113,6 @@ function mostrarPopUpNotificacao(notificacao) {
     
     document.body.appendChild(popup);
     
-    // Remover após 6 segundos
     setTimeout(() => {
         if (popup.parentElement) {
             popup.style.transition = 'all 0.3s ease-in';
@@ -125,7 +122,6 @@ function mostrarPopUpNotificacao(notificacao) {
         }
     }, 6000);
     
-    // Tocar som
     try {
         const audio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAACBhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqFhYqF');
         audio.volume = 0.3;
@@ -198,38 +194,13 @@ async function carregarNotificacoesDoAdmin() {
         return;
     }
     
-    // Carregar do cache primeiro
-    if (window.CacheManager) {
-        const cached = window.CacheManager.get('notifications', null);
-        if (cached && cached.length > 0) {
-            const oldCount = notifications.length;
-            notifications = cached;
-            console.log('[NotifSync] 📦 Notificações carregadas do cache:', notifications.length);
-            
-            // Verificar novas notificações
-            if (notifications.length > oldCount) {
-                const novas = notifications.slice(0, notifications.length - oldCount);
-                novas.forEach(n => {
-                    if (!localStorage.getItem(`notif_shown_${n.id}`) && !n.read) {
-                        setTimeout(() => mostrarPopUpNotificacao(n), 500);
-                    }
-                });
-            }
-            
-            localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
-            atualizarBadgeEmTodasPaginas(notifications);
-            renderizarNotificacoesEmTodasPaginas(notifications);
-        }
-    }
-    
-    // Tentar do Supabase
     try {
         const client = getSupabaseClient();
         
         if (!client) {
             console.log('[NotifSync] ℹ️ Supabase não disponível - usando cache');
             const saved = localStorage.getItem(`${userId}_notifications`);
-            if (saved && !notifications.length) {
+            if (saved) {
                 try {
                     notifications = JSON.parse(saved);
                     atualizarBadgeEmTodasPaginas(notifications);
@@ -253,6 +224,9 @@ async function carregarNotificacoesDoAdmin() {
             return;
         }
         
+        // 🔥 VERIFICAR SE HÁ NOTIFICAÇÕES NOVAS
+        const oldNotifications = notifications;
+        
         if (data && data.length > 0) {
             console.log('[NotifSync] ✅ Encontradas:', data.length, 'notificações');
             
@@ -265,68 +239,55 @@ async function carregarNotificacoesDoAdmin() {
                 read: n.read || false
             }));
             
-            // Verificar novas notificações (comparar com as atuais)
-            const idsAtuais = new Set(notifications.map(n => n.id));
-            const novasNotificacoes = notificacoes.filter(n => !idsAtuais.has(n.id) && !n.read);
+            // Verificar novas notificações
+            const oldIds = new Set(oldNotifications.map(n => n.id));
+            const novasNotificacoes = notificacoes.filter(n => !oldIds.has(n.id) && !n.read);
             
-            // Mostrar pop-ups para novas notificações
-            novasNotificacoes.slice(0, 3).forEach(n => {
-                setTimeout(() => mostrarPopUpNotificacao(n), 300);
-            });
-            
-            // Mesclar com existentes
-            const merged = [...notificacoes];
-            if (notifications.length > 0) {
-                const existingIds = new Set(merged.map(n => n.id));
-                notifications.forEach(n => {
-                    if (!existingIds.has(n.id)) {
-                        merged.push(n);
-                    }
+            // 🔥 MOSTRAR POP-UP PARA CADA NOVA NOTIFICAÇÃO
+            if (novasNotificacoes.length > 0) {
+                console.log('[NotifSync] 🎉 Novas notificações:', novasNotificacoes.length);
+                novasNotificacoes.slice(0, 3).forEach(n => {
+                    setTimeout(() => mostrarPopUpNotificacao(n), 500);
                 });
             }
             
-            // Salvar
-            localStorage.setItem(`${userId}_notifications`, JSON.stringify(merged));
+            // Atualizar notificações
+            notifications = notificacoes;
+            
+            // Salvar localmente
+            localStorage.setItem(`${userId}_notifications`, JSON.stringify(notificacoes));
             
             if (window.CacheManager) {
-                window.CacheManager.set('notifications', merged, true);
+                window.CacheManager.set('notifications', notificacoes, true);
             }
             
-            notifications = merged;
-            
             // ATUALIZAR UI
-            atualizarBadgeEmTodasPaginas(notifications);
-            renderizarNotificacoesEmTodasPaginas(notifications);
+            atualizarBadgeEmTodasPaginas(notificacoes);
+            renderizarNotificacoesEmTodasPaginas(notificacoes);
+            
+            // 🔥 DISPARAR EVENTO PARA RECARREGAR NOTIFICAÇÕES RECENTES
+            window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+            
         } else {
             console.log('[NotifSync] ℹ️ Nenhuma notificação encontrada no Supabase');
-            if (notifications.length === 0) {
-                const saved = localStorage.getItem(`${userId}_notifications`);
-                if (saved) {
-                    try {
-                        notifications = JSON.parse(saved);
-                        atualizarBadgeEmTodasPaginas(notifications);
-                        renderizarNotificacoesEmTodasPaginas(notifications);
-                    } catch(e) {}
-                } else {
-                    const welcomeNotif = [{
-                        id: 'welcome-' + Date.now(),
-                        type: 'info',
-                        title: 'Bem-vindo! 🎉',
-                        message: 'Sistema de notificações ativo!',
-                        time: new Date().toISOString(),
-                        read: false
-                    }];
-                    notifications = welcomeNotif;
-                    localStorage.setItem(`${userId}_notifications`, JSON.stringify(welcomeNotif));
-                    if (window.CacheManager) {
-                        window.CacheManager.set('notifications', welcomeNotif, true);
-                    }
-                    atualizarBadgeEmTodasPaginas(welcomeNotif);
-                    renderizarNotificacoesEmTodasPaginas(welcomeNotif);
-                    
-                    // Mostrar pop-up de boas-vindas
-                    setTimeout(() => mostrarPopUpNotificacao(welcomeNotif[0]), 1000);
+            // Se não tem notificações no Supabase, criar boas-vindas
+            if (oldNotifications.length === 0) {
+                const welcomeNotif = [{
+                    id: 'welcome-' + Date.now(),
+                    type: 'info',
+                    title: 'Bem-vindo! 🎉',
+                    message: 'Sistema de notificações ativo!',
+                    time: new Date().toISOString(),
+                    read: false
+                }];
+                notifications = welcomeNotif;
+                localStorage.setItem(`${userId}_notifications`, JSON.stringify(welcomeNotif));
+                if (window.CacheManager) {
+                    window.CacheManager.set('notifications', welcomeNotif, true);
                 }
+                atualizarBadgeEmTodasPaginas(welcomeNotif);
+                renderizarNotificacoesEmTodasPaginas(welcomeNotif);
+                setTimeout(() => mostrarPopUpNotificacao(welcomeNotif[0]), 1000);
             }
         }
     } catch (error) {
@@ -431,6 +392,7 @@ window.marcarNotificacaoLida = async function(id) {
     
     atualizarBadgeEmTodasPaginas(notifications);
     renderizarNotificacoesEmTodasPaginas(notifications);
+    window.dispatchEvent(new CustomEvent('notificationsUpdated'));
 };
 
 // ==========================================
@@ -473,6 +435,7 @@ window.marcarTodasNotificacoesLidas = async function() {
     
     atualizarBadgeEmTodasPaginas(notifications);
     renderizarNotificacoesEmTodasPaginas(notifications);
+    window.dispatchEvent(new CustomEvent('notificationsUpdated'));
     mostrarToast('Todas as notificações marcadas como lidas!', 'success');
 };
 
@@ -525,7 +488,6 @@ function mostrarToast(mensagem, tipo = 'success') {
 // INICIALIZAR
 // ==========================================
 async function initNotificacoes() {
-    // Adicionar estilos CSS
     adicionarEstilosPopUp();
     
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -551,26 +513,57 @@ async function initNotificacoes() {
             }
         }
         
+        // 🔥 CARREGAR DO SUPABASE
         await carregarNotificacoesDoAdmin();
-        
-        // Verificar notificações não lidas periodicamente
-        setInterval(() => {
-            const naoLidas = notifications.filter(n => !n.read);
-            if (naoLidas.length > 0) {
-                // Verificar se alguma não foi mostrada
-                naoLidas.forEach(n => {
-                    if (!localStorage.getItem(`notif_shown_${n.id}`)) {
-                        mostrarPopUpNotificacao(n);
-                    }
-                });
-            }
-        }, 30000);
         
         console.log('[NotifSync] ✅ Inicializado com sucesso,', notifications.length, 'notificações');
     } catch(e) {
         console.error('[NotifSync] ❌ Erro ao inicializar:', e);
     }
 }
+
+// ============================================
+// 🔥 FORÇAR RECARREGAMENTO DE NOTIFICAÇÕES
+// ============================================
+
+// 1. Iniciar automaticamente
+if (document.readyState === 'complete') {
+    setTimeout(initNotificacoes, 800);
+} else {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initNotificacoes, 800);
+    });
+}
+
+// 2. Recarregar quando a página voltar ao foco
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        console.log('[NotifSync] 📱 Página voltou ao foco - recarregando notificações');
+        carregarNotificacoesDoAdmin();
+    }
+});
+
+// 3. Recarregar periodicamente (a cada 30 segundos)
+setInterval(() => {
+    console.log('[NotifSync] 🔄 Verificando novas notificações...');
+    carregarNotificacoesDoAdmin();
+}, 30000);
+
+// 4. Recarregar quando o usuário clicar no sino
+document.addEventListener('click', (e) => {
+    const bellBtn = e.target.closest('.icon-btn, .btn-notification, #bellBtn, .btn-bell');
+    if (bellBtn) {
+        console.log('[NotifSync] 🔔 Sino clicado - recarregando notificações');
+        setTimeout(() => carregarNotificacoesDoAdmin(), 300);
+    }
+});
+
+// 5. Função global para recarregar manualmente
+window.forcarRecarregarNotificacoes = function() {
+    console.log('[NotifSync] 🔄 Forçando recarregamento de notificações');
+    carregarNotificacoesDoAdmin();
+    mostrarToast('🔄 Recarregando notificações...', 'info');
+};
 
 // ==========================================
 // EXPORTAR FUNÇÕES GLOBAIS
@@ -579,22 +572,12 @@ window.carregarNotificacoesDoAdmin = carregarNotificacoesDoAdmin;
 window.renderizarNotificacoesEmTodasPaginas = renderizarNotificacoesEmTodasPaginas;
 window.atualizarBadgeEmTodasPaginas = atualizarBadgeEmTodasPaginas;
 window.mostrarPopUpNotificacao = mostrarPopUpNotificacao;
+window.forcarRecarregarNotificacoes = carregarNotificacoesDoAdmin;
 window.notifications = notifications;
 
 window.carregarNotificacoes = carregarNotificacoesDoAdmin;
 window.filtrarNotif = window.filtrarNotificacoes;
 window.marcarTodasNotifLidas = window.marcarTodasNotificacoesLidas;
-
-// ==========================================
-// INICIAR AUTOMATICAMENTE
-// ==========================================
-if (document.readyState === 'complete') {
-    setTimeout(initNotificacoes, 800);
-} else {
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(initNotificacoes, 800);
-    });
-}
 
 window.addEventListener('cloudDataLoaded', () => {
     console.log('[NotifSync] 📡 cloudDataLoaded - sincronizando...');
@@ -618,38 +601,4 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-console.log('[NotifSync] ✅ Módulo carregado com POP-UP!');
-
-// ============================================
-// ESCUTAR NOTIFICAÇÕES EM TEMPO REAL
-// ============================================
-
-// 🔥 RECARREGAR NOTIFICAÇÕES PERIODICAMENTE
-setInterval(() => {
-    console.log('[NotifSync] 🔄 Verificando novas notificações...');
-    carregarNotificacoesDoAdmin();
-}, 30000); // A cada 30 segundos
-
-// 🔥 RECARREGAR QUANDO A PÁGINA VOLTAR AO FOCO
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-        console.log('[NotifSync] 📱 Página voltou ao foco - recarregando notificações');
-        carregarNotificacoesDoAdmin();
-    }
-});
-
-// 🔥 RECARREGAR QUANDO O USUÁRIO FIZER ALGUMA AÇÃO
-// Exemplo: clicar no sino
-document.addEventListener('click', (e) => {
-    const bellBtn = e.target.closest('.icon-btn, .btn-notification, #bellBtn');
-    if (bellBtn) {
-        console.log('[NotifSync] 🔔 Sino clicado - recarregando notificações');
-        carregarNotificacoesDoAdmin();
-    }
-});
-
-// 🔥 FORÇAR RECARREGAMENTO VIA EVENTO GLOBAL
-window.forcarRecarregarNotificacoes = function() {
-    console.log('[NotifSync] 🔄 Forçando recarregamento de notificações');
-    carregarNotificacoesDoAdmin();
-};
+console.log('[NotifSync] ✅ Módulo carregado com POP-UP e recarga automática!');
