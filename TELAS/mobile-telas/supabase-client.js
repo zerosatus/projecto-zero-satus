@@ -1,5 +1,5 @@
 // ==========================================
-// supabase-client.js - Cliente Supabase COMPLETO
+// supabase-client.js - Cliente Supabase COMPLETO (CORRIGIDO)
 // ==========================================
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
@@ -7,10 +7,16 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 let supabaseClient = null;
 
+// ============================================
+// 🔥 CORRIGIDO: EXPORTA O CLIENTE
+// ============================================
 function initSupabase() {
     if (!supabaseClient && typeof supabase !== 'undefined') {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('[Supabase] Cliente inicializado');
+        
+        // 🔥 EXPORTA PARA WINDOW
+        window.supabaseClient = supabaseClient;
     }
     return supabaseClient;
 }
@@ -1359,22 +1365,33 @@ const DatabaseService = {
 };
 
 // ============================================
-// EXPORTAR PARA USO GLOBAL
+// 🔥 EXPORTAR PARA USO GLOBAL (MELHORADO)
 // ============================================
 window.SupabaseClient = {
     initSupabase: initSupabase,
     getClient: initSupabase,
-    generateId: generateId
+    generateId: generateId,
+    client: supabaseClient  // 🔥 EXPORTA DIRETO
 };
+
+// 🔥 EXPORTA DIRETAMENTE TAMBÉM
+window.supabaseClient = supabaseClient;
+
 window.AuthService = AuthService;
 window.DatabaseService = DatabaseService;
 window.StorageService = StorageService;
 
-// Inicializar cliente
+// 🔥 INICIALIZAR E EXPORTA
 initSupabase();
 
-// Disparar evento de pronto
+// 🔥 FORÇAR EXPORTAÇÃO APÓS INICIALIZAÇÃO
 setTimeout(() => {
+    // Garantir que o cliente está disponível
+    if (supabaseClient) {
+        window.supabaseClient = supabaseClient;
+        window.SupabaseClient.client = supabaseClient;
+        console.log('[Supabase] ✅ Cliente exportado para window.supabaseClient');
+    }
     window.dispatchEvent(new CustomEvent('supabaseReady'));
     console.log('[Supabase] Evento supabaseReady disparado');
 }, 100);
@@ -1382,3 +1399,4 @@ setTimeout(() => {
 console.log('[Supabase] Serviços carregados com sucesso!');
 console.log('[Supabase] AuthService disponível:', !!window.AuthService);
 console.log('[Supabase] DatabaseService disponível:', !!window.DatabaseService);
+console.log('[Supabase] supabaseClient disponível:', !!window.supabaseClient);
