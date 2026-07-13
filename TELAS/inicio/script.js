@@ -1,4 +1,4 @@
-// inicio/script.js - COMPLETO COM NOTIFICAÇÕES RECENTES
+// inicio/script.js - COMPLETO COM NOTIFICAÇÕES RECENTES CORRIGIDO
 
 let usuarioAtual = null;
 let tarefas = [];
@@ -186,12 +186,15 @@ const DisciplinaManager = {
 };
 
 // ============================================
-// FUNÇÕES DE NOTIFICAÇÕES RECENTES
+// FUNÇÕES DE NOTIFICAÇÕES RECENTES - CORRIGIDAS
 // ============================================
 
 function carregarNotificacoesRecentes() {
     const container = document.getElementById('notificacoesRecentes');
-    if (!container) return;
+    if (!container) {
+        console.warn('[Inicio] ⚠️ #notificacoesRecentes não encontrado');
+        return;
+    }
 
     let notificacoes = [];
 
@@ -286,20 +289,188 @@ function formatarTempoRelativo(timeString) {
     }
 }
 
+// ============================================
+// ABRIR MODAL DE NOTIFICAÇÕES - CORRIGIDO
+// ============================================
 function abrirNotifModal() {
+    console.log('[Inicio] 🔔 Abrindo modal de notificações...');
+    
     const modal = document.getElementById('notifModal');
+    
     if (modal) {
+        console.log('[Inicio] ✅ Modal encontrado, abrindo...');
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
-        if (typeof renderizarNotificacoesEmTodasPaginas === 'function') {
-            renderizarNotificacoesEmTodasPaginas(window.notifications || []);
+        
+        // 🔥 FORÇAR RECARREGAMENTO DAS NOTIFICAÇÕES
+        if (typeof carregarNotificacoesDoAdmin === 'function') {
+            console.log('[Inicio] 🔄 Recarregando notificações do admin...');
+            carregarNotificacoesDoAdmin().then(() => {
+                renderizarNotificacoesNoModal();
+            }).catch(() => {
+                renderizarNotificacoesNoModal();
+            });
+        } else {
+            renderizarNotificacoesNoModal();
         }
     } else {
-        mostrarToast('Clique no sino para ver todas as notificações', 'info');
+        console.warn('[Inicio] ⚠️ Modal #notifModal não encontrado!');
+        mostrarToast('Clique no ícone do sino no canto superior direito', 'info');
     }
 }
 
+// ============================================
+// RENDERIZAR NOTIFICAÇÕES NO MODAL
+// ============================================
+function renderizarNotificacoesNoModal() {
+    const container = document.getElementById('notifList');
+    if (!container) {
+        console.warn('[Inicio] ⚠️ #notifList não encontrado');
+        return;
+    }
+    
+    let notificacoes = [];
+    
+    // Tentar obter notificações de várias fontes
+    if (window.notifications && window.notifications.length > 0) {
+        notificacoes = window.notifications;
+    } else if (window._notifications && window._notifications.length > 0) {
+        notificacoes = window._notifications;
+    } else if (window.CacheManager) {
+        const cached = window.CacheManager.get('notifications', null);
+        if (cached && cached.length > 0) {
+            notificacoes = cached;
+        }
+    }
+    
+    // Se ainda não tem, tentar do localStorage
+    if (notificacoes.length === 0 && usuarioAtual) {
+        const userId = usuarioAtual.id || usuarioAtual.uid;
+        const saved = localStorage.getItem(`${userId}_notifications`);
+        if (saved) {
+            try {
+                notificacoes = JSON.parse(saved);
+            } catch(e) {}
+        }
+    }
+    
+    console.log('[Inicio] 📊 Renderizando', notificacoes.length, 'notificações no modal');
+    
+    if (notificacoes.length === 0) {
+        container.innerHTML = `
+            <div class="notif-empty">
+                <i class="fas fa-bell-slash"></i>
+                <p>Nenhuma notificação</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Ícones por tipo
+    const icones = {
+        'info': 'bell',
+        'aula': 'book',
+        'tarefa': 'tasks',
+        'warning': 'exclamation-triangle',
+        'success': 'check-circle'
+    };
+    
+    // Ordenar por data (mais recente primeiro)
+    notificacoes.sort((a, b) => {
+        const dateA = new Date(a.time || a.created_at || 0);
+        const dateB = new Date(b.time || b.created_at || 0);
+        return dateB - dateA;
+    });
+    
+    container.innerHTML = notificacoes.map(notif => {
+        const icone = icones[notif.type] || 'bell';
+        const isUnread = !notif.read;
+        
+        return `
+            <div class="notif-item ${isUnread ? 'unread' : 'read'}" onclick="marcarNotificacaoLida('${notif.id}')" style="cursor: pointer;">
+                <div class="notif-icon ${notif.type || 'info'}">
+                    <i class="fas fa-${icone}"></i>
+                </div>
+                <div class="notif-content">
+                    <div class="notif-title">${escapeHtml(notif.title || 'Notificação')}</div>
+                    <div class="notif-message">${escapeHtml(notif.message || '')}</div>
+                    <div class="notif-time">${formatarTempoRelativo(notif.time || notif.created_at)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================
+// MARCAR NOTIFICAÇÃO COMO LIDA
+// ============================================
+function marcarNotificacaoLida(id) {
+    console.log('[Inicio] 📌 Marcando notificação como lida:', id);
+    
+    // Usar a função do notifications-sync.js se disponível
+    if (typeof window.marcarNotificacaoLida === 'function') {
+        window.marcarNotificacaoLida(id);
+        return;
+    }
+    
+    // Fallback: marcar localmente
+    let notificacoes = [];
+    if (window.notifications && window.notifications.length > 0) {
+        notificacoes = window.notifications;
+    } else if (window._notifications && window._notifications.length > 0) {
+        notificacoes = window._notifications;
+    }
+    
+    const notif = notificacoes.find(n => n.id == id);
+    if (notif && !notif.read) {
+        notif.read = true;
+        
+        if (usuarioAtual) {
+            const userId = usuarioAtual.id || usuarioAtual.uid;
+            localStorage.setItem(`${userId}_notifications`, JSON.stringify(notificacoes));
+        }
+        
+        if (window.CacheManager) {
+            window.CacheManager.set('notifications', notificacoes, true);
+        }
+        
+        renderizarNotificacoesNoModal();
+        carregarNotificacoesRecentes();
+        atualizarBadgeManual();
+    }
+}
+
+// ============================================
+// ATUALIZAR BADGE MANUALMENTE
+// ============================================
+function atualizarBadgeManual() {
+    let notificacoes = [];
+    
+    if (window.notifications && window.notifications.length > 0) {
+        notificacoes = window.notifications;
+    } else if (window._notifications && window._notifications.length > 0) {
+        notificacoes = window._notifications;
+    } else if (window.CacheManager) {
+        const cached = window.CacheManager.get('notifications', null);
+        if (cached && cached.length > 0) {
+            notificacoes = cached;
+        }
+    }
+    
+    const naoLidas = notificacoes.filter(n => !n.read).length;
+    const badges = document.querySelectorAll('.icon-btn .badge, .notif-badge, .badge');
+    
+    badges.forEach(badge => {
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    });
+}
+
+// ============================================
+// FECHAR MODAL DE NOTIFICAÇÕES
+// ============================================
 function fecharNotifModal() {
+    console.log('[Inicio] ❌ Fechando modal de notificações');
     const modal = document.getElementById('notifModal');
     if (modal) {
         modal.classList.remove('active');
@@ -307,6 +478,9 @@ function fecharNotifModal() {
     }
 }
 
+// ============================================
+// LIMPAR NOTIFICAÇÕES
+// ============================================
 function limparNotificacoes() {
     if (confirm('Limpar todas as notificações?')) {
         if (window._notifications) {
@@ -323,24 +497,34 @@ function limparNotificacoes() {
             localStorage.setItem(`${userId}_notifications`, JSON.stringify([]));
         }
         carregarNotificacoesRecentes();
-        if (typeof renderizarNotificacoesEmTodasPaginas === 'function') {
-            renderizarNotificacoesEmTodasPaginas([]);
-        }
+        renderizarNotificacoesNoModal();
+        atualizarBadgeManual();
         mostrarToast('Notificações limpas!', 'success');
     }
 }
 
+// ============================================
+// INICIAR ESCUTA DE NOTIFICAÇÕES
+// ============================================
 function iniciarEscutaNotificacoes() {
     // Escutar evento de notificações atualizadas
     window.addEventListener('notificationsUpdated', () => {
         console.log('[Inicio] Notificações atualizadas, recarregando...');
         carregarNotificacoesRecentes();
+        if (document.getElementById('notifModal')?.classList.contains('active')) {
+            renderizarNotificacoesNoModal();
+        }
+        atualizarBadgeManual();
     });
 
     // Escutar mudanças no CacheManager
     if (window.CacheManager) {
         window.CacheManager.addListener('notifications', () => {
             carregarNotificacoesRecentes();
+            if (document.getElementById('notifModal')?.classList.contains('active')) {
+                renderizarNotificacoesNoModal();
+            }
+            atualizarBadgeManual();
         });
     }
 
@@ -348,7 +532,13 @@ function iniciarEscutaNotificacoes() {
     window.addEventListener('storage', (e) => {
         if (e.key && e.key.includes('_notifications')) {
             console.log('[Inicio] Mudança em outra aba - recarregando notificações');
-            setTimeout(carregarNotificacoesRecentes, 300);
+            setTimeout(() => {
+                carregarNotificacoesRecentes();
+                if (document.getElementById('notifModal')?.classList.contains('active')) {
+                    renderizarNotificacoesNoModal();
+                }
+                atualizarBadgeManual();
+            }, 300);
         }
     });
 }
@@ -417,7 +607,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             atualizarHorarioDesktop();
             atualizarListaDisciplinas();
             atualizarFraseDoDiaDesktop();
-            carregarNotificacoesRecentes(); // 🔥 RECARREGAR NOTIFICAÇÕES
+            carregarNotificacoesRecentes();
+            atualizarBadgeManual();
+            if (document.getElementById('notifModal')?.classList.contains('active')) {
+                renderizarNotificacoesNoModal();
+            }
             if (window.calendarInstance) window.calendarInstance.renderCalendar();
             carregarFotoPerfilDesktop();
         });
@@ -1422,6 +1616,7 @@ window.addEventListener('forceRefresh', () => {
             atualizarListaDisciplinas();
             atualizarFraseDoDiaDesktop();
             carregarNotificacoesRecentes();
+            atualizarBadgeManual();
         }
     }, 100);
 });
@@ -1432,5 +1627,8 @@ window.abrirNotifModal = abrirNotifModal;
 window.fecharNotifModal = fecharNotifModal;
 window.limparNotificacoes = limparNotificacoes;
 window.carregarNotificacoesRecentes = carregarNotificacoesRecentes;
+window.renderizarNotificacoesNoModal = renderizarNotificacoesNoModal;
+window.marcarNotificacaoLida = marcarNotificacaoLida;
+window.atualizarBadgeManual = atualizarBadgeManual;
 
 console.log('%c🏠 Painel Inicial - Sistema Completo com Notificações!', 'color: #9333ea; font-size: 20px; font-weight: bold;');
