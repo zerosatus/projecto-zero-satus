@@ -1,5 +1,5 @@
 // ==========================================
-// notifications-sync.js - Com POP-UP de notificações
+// notifications-sync.js - Com POP-UP e LOGS
 // ==========================================
 
 console.log('[NotifSync] 📬 Inicializando sincronização de notificações...');
@@ -168,9 +168,11 @@ function getSupabaseClient() {
 }
 
 // ==========================================
-// CARREGAR NOTIFICAÇÕES DO ADMIN
+// 🔥 CARREGAR NOTIFICAÇÕES DO ADMIN (COM LOGS)
 // ==========================================
 async function carregarNotificacoesDoAdmin() {
+    console.log('[NotifSync] 🔍 Iniciando carregamento de notificações...');
+    
     let usuario = window.usuarioAtual || window._usuarioAtual;
     
     if (!usuario) {
@@ -189,6 +191,8 @@ async function carregarNotificacoesDoAdmin() {
     }
 
     const userId = usuario.id || usuario.uid;
+    console.log('[NotifSync] 👤 Usuário ID:', userId);
+    
     if (!userId) {
         console.warn('[NotifSync] ⚠️ Sem userId');
         return;
@@ -203,6 +207,7 @@ async function carregarNotificacoesDoAdmin() {
             if (saved) {
                 try {
                     notifications = JSON.parse(saved);
+                    console.log('[NotifSync] 📦 Notificações do cache:', notifications.length);
                     atualizarBadgeEmTodasPaginas(notifications);
                     renderizarNotificacoesEmTodasPaginas(notifications);
                 } catch(e) {}
@@ -210,7 +215,8 @@ async function carregarNotificacoesDoAdmin() {
             return;
         }
         
-        console.log('[NotifSync] 🔍 Buscando notificações para:', userId);
+        console.log('[NotifSync] 🔍 Buscando notificações para userId:', userId);
+        console.log('[NotifSync] 📡 Query: SELECT * FROM notifications WHERE user_id =', userId);
         
         const { data, error } = await client
             .from('notifications')
@@ -221,14 +227,33 @@ async function carregarNotificacoesDoAdmin() {
         
         if (error) {
             console.error('[NotifSync] ❌ Erro ao buscar:', error);
+            console.error('[NotifSync] ❌ Código do erro:', error.code);
+            console.error('[NotifSync] ❌ Mensagem:', error.message);
             return;
         }
         
+        console.log('[NotifSync] 📊 Dados retornados:', data);
+        console.log('[NotifSync] 📊 Quantidade:', data?.length || 0);
+        
         // 🔥 VERIFICAR SE HÁ NOTIFICAÇÕES NOVAS
         const oldNotifications = notifications;
+        console.log('[NotifSync] 📊 Notificações antigas:', oldNotifications.length);
         
         if (data && data.length > 0) {
             console.log('[NotifSync] ✅ Encontradas:', data.length, 'notificações');
+            
+            // Mostrar os dados brutos para debug
+            data.forEach((n, index) => {
+                console.log(`[NotifSync] 📝 Notificação ${index + 1}:`, {
+                    id: n.id,
+                    title: n.title,
+                    message: n.message,
+                    type: n.type,
+                    read: n.read,
+                    created_at: n.created_at,
+                    user_id: n.user_id
+                });
+            });
             
             const notificacoes = data.map(n => ({
                 id: n.id || String(Date.now() + Math.random()),
@@ -243,11 +268,14 @@ async function carregarNotificacoesDoAdmin() {
             const oldIds = new Set(oldNotifications.map(n => n.id));
             const novasNotificacoes = notificacoes.filter(n => !oldIds.has(n.id) && !n.read);
             
+            console.log('[NotifSync] 🆕 Novas notificações:', novasNotificacoes.length);
+            
             // 🔥 MOSTRAR POP-UP PARA CADA NOVA NOTIFICAÇÃO
             if (novasNotificacoes.length > 0) {
-                console.log('[NotifSync] 🎉 Novas notificações:', novasNotificacoes.length);
-                novasNotificacoes.slice(0, 3).forEach(n => {
-                    setTimeout(() => mostrarPopUpNotificacao(n), 500);
+                console.log('[NotifSync] 🎉 Novas notificações encontradas!');
+                novasNotificacoes.forEach((n, i) => {
+                    console.log(`[NotifSync] 🎯 Nova ${i + 1}:`, n.title);
+                    setTimeout(() => mostrarPopUpNotificacao(n), 500 + (i * 300));
                 });
             }
             
@@ -259,6 +287,7 @@ async function carregarNotificacoesDoAdmin() {
             
             if (window.CacheManager) {
                 window.CacheManager.set('notifications', notificacoes, true);
+                console.log('[NotifSync] 💾 Salvo no CacheManager');
             }
             
             // ATUALIZAR UI
@@ -270,8 +299,10 @@ async function carregarNotificacoesDoAdmin() {
             
         } else {
             console.log('[NotifSync] ℹ️ Nenhuma notificação encontrada no Supabase');
+            
             // Se não tem notificações no Supabase, criar boas-vindas
             if (oldNotifications.length === 0) {
+                console.log('[NotifSync] 📝 Criando notificação de boas-vindas...');
                 const welcomeNotif = [{
                     id: 'welcome-' + Date.now(),
                     type: 'info',
@@ -292,7 +323,10 @@ async function carregarNotificacoesDoAdmin() {
         }
     } catch (error) {
         console.error('[NotifSync] ❌ Erro ao carregar notificações:', error);
+        console.error('[NotifSync] ❌ Stack:', error.stack);
     }
+    
+    console.log('[NotifSync] ✅ Carregamento concluído. Total:', notifications.length);
 }
 
 // ==========================================
@@ -300,6 +334,7 @@ async function carregarNotificacoesDoAdmin() {
 // ==========================================
 function atualizarBadgeEmTodasPaginas(notificacoes) {
     const naoLidas = (notificacoes || []).filter(n => !n.read).length;
+    console.log('[NotifSync] 🔔 Badge:', naoLidas, 'não lidas');
     
     const badges = document.querySelectorAll('.icon-btn .badge, .notif-badge, .badge');
     
@@ -488,6 +523,7 @@ function mostrarToast(mensagem, tipo = 'success') {
 // INICIALIZAR
 // ==========================================
 async function initNotificacoes() {
+    console.log('[NotifSync] 🚀 Inicializando módulo...');
     adicionarEstilosPopUp();
     
     const usuarioSalvo = localStorage.getItem('usuarioLogado');
@@ -499,21 +535,27 @@ async function initNotificacoes() {
     try {
         const usuario = JSON.parse(usuarioSalvo);
         _usuarioNotif = usuario;
+        console.log('[NotifSync] 👤 Usuário:', usuario.email);
         
         const userId = usuario.id || usuario.uid;
+        console.log('[NotifSync] 🆔 UserId:', userId);
         
         if (userId) {
             const saved = localStorage.getItem(`${userId}_notifications`);
             if (saved) {
                 try {
                     notifications = JSON.parse(saved);
+                    console.log('[NotifSync] 📦 Carregado do localStorage:', notifications.length);
                     atualizarBadgeEmTodasPaginas(notifications);
                     renderizarNotificacoesEmTodasPaginas(notifications);
-                } catch(e) {}
+                } catch(e) {
+                    console.warn('[NotifSync] ⚠️ Erro ao parsear notificações salvas:', e);
+                }
             }
         }
         
         // 🔥 CARREGAR DO SUPABASE
+        console.log('[NotifSync] 🔄 Carregando do Supabase...');
         await carregarNotificacoesDoAdmin();
         
         console.log('[NotifSync] ✅ Inicializado com sucesso,', notifications.length, 'notificações');
@@ -528,9 +570,11 @@ async function initNotificacoes() {
 
 // 1. Iniciar automaticamente
 if (document.readyState === 'complete') {
+    console.log('[NotifSync] 📄 Documento já carregado, iniciando...');
     setTimeout(initNotificacoes, 800);
 } else {
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('[NotifSync] 📄 DOMContentLoaded, iniciando...');
         setTimeout(initNotificacoes, 800);
     });
 }
@@ -539,19 +583,19 @@ if (document.readyState === 'complete') {
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
         console.log('[NotifSync] 📱 Página voltou ao foco - recarregando notificações');
-        carregarNotificacoesDoAdmin();
+        setTimeout(carregarNotificacoesDoAdmin, 500);
     }
 });
 
-// 3. Recarregar periodicamente (a cada 30 segundos)
+// 3. Recarregar periodicamente (a cada 15 segundos)
 setInterval(() => {
     console.log('[NotifSync] 🔄 Verificando novas notificações...');
     carregarNotificacoesDoAdmin();
-}, 30000);
+}, 15000);
 
 // 4. Recarregar quando o usuário clicar no sino
 document.addEventListener('click', (e) => {
-    const bellBtn = e.target.closest('.icon-btn, .btn-notification, #bellBtn, .btn-bell');
+    const bellBtn = e.target.closest('.icon-btn, .btn-notification, #bellBtn, .btn-bell, .icon-btn i');
     if (bellBtn) {
         console.log('[NotifSync] 🔔 Sino clicado - recarregando notificações');
         setTimeout(() => carregarNotificacoesDoAdmin(), 300);
@@ -565,6 +609,35 @@ window.forcarRecarregarNotificacoes = function() {
     mostrarToast('🔄 Recarregando notificações...', 'info');
 };
 
+// 6. Função para testar notificação
+window.testarNotificacao = function() {
+    const notif = {
+        id: 'test-' + Date.now(),
+        type: 'info',
+        title: '🧪 Notificação de Teste',
+        message: 'Esta é uma notificação de teste! Se você está vendo isso, o sistema está funcionando!',
+        time: new Date().toISOString(),
+        read: false
+    };
+    
+    console.log('[NotifSync] 🧪 Testando notificação:', notif);
+    mostrarPopUpNotificacao(notif);
+    
+    // Adicionar à lista
+    notifications.unshift(notif);
+    const usuario = _usuarioNotif || window.usuarioAtual;
+    if (usuario) {
+        const userId = usuario.id || usuario.uid;
+        localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+        if (window.CacheManager) {
+            window.CacheManager.set('notifications', notifications, true);
+        }
+    }
+    atualizarBadgeEmTodasPaginas(notifications);
+    renderizarNotificacoesEmTodasPaginas(notifications);
+    window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+};
+
 // ==========================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ==========================================
@@ -573,6 +646,7 @@ window.renderizarNotificacoesEmTodasPaginas = renderizarNotificacoesEmTodasPagin
 window.atualizarBadgeEmTodasPaginas = atualizarBadgeEmTodasPaginas;
 window.mostrarPopUpNotificacao = mostrarPopUpNotificacao;
 window.forcarRecarregarNotificacoes = carregarNotificacoesDoAdmin;
+window.testarNotificacao = testarNotificacao;
 window.notifications = notifications;
 
 window.carregarNotificacoes = carregarNotificacoesDoAdmin;
@@ -586,13 +660,14 @@ window.addEventListener('cloudDataLoaded', () => {
 
 window.addEventListener('storage', (e) => {
     if (e.key && e.key.includes('_notifications')) {
-        console.log('[NotifSync] 📡 Mudança em outra aba');
+        console.log('[NotifSync] 📡 Mudança em outra aba:', e.key);
         const usuario = _usuarioNotif || window.usuarioAtual;
         if (usuario && e.key.includes(usuario.id || usuario.uid)) {
             const saved = localStorage.getItem(e.key);
             if (saved) {
                 try {
                     notifications = JSON.parse(saved);
+                    console.log('[NotifSync] 📦 Atualizado do storage:', notifications.length);
                     atualizarBadgeEmTodasPaginas(notifications);
                     renderizarNotificacoesEmTodasPaginas(notifications);
                 } catch(e) {}
@@ -601,4 +676,12 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-console.log('[NotifSync] ✅ Módulo carregado com POP-UP e recarga automática!');
+// 🔥 Forçar recarregamento após 3 segundos
+setTimeout(() => {
+    console.log('[NotifSync] ⏰ Forçando recarregamento após 3s...');
+    carregarNotificacoesDoAdmin();
+}, 3000);
+
+console.log('[NotifSync] ✅ Módulo carregado com POP-UP e LOGS detalhados!');
+console.log('[NotifSync] 📌 Use testarNotificacao() para testar pop-up');
+console.log('[NotifSync] 📌 Use forcarRecarregarNotificacoes() para recarregar');
