@@ -619,3 +619,37 @@ window.addEventListener('storage', (e) => {
 });
 
 console.log('[NotifSync] ✅ Módulo carregado com POP-UP!');
+
+// ============================================
+// ESCUTAR NOTIFICAÇÕES EM TEMPO REAL
+// ============================================
+
+// 🔥 RECARREGAR NOTIFICAÇÕES PERIODICAMENTE
+setInterval(() => {
+    console.log('[NotifSync] 🔄 Verificando novas notificações...');
+    carregarNotificacoesDoAdmin();
+}, 30000); // A cada 30 segundos
+
+// 🔥 RECARREGAR QUANDO A PÁGINA VOLTAR AO FOCO
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        console.log('[NotifSync] 📱 Página voltou ao foco - recarregando notificações');
+        carregarNotificacoesDoAdmin();
+    }
+});
+
+// 🔥 RECARREGAR QUANDO O USUÁRIO FIZER ALGUMA AÇÃO
+// Exemplo: clicar no sino
+document.addEventListener('click', (e) => {
+    const bellBtn = e.target.closest('.icon-btn, .btn-notification, #bellBtn');
+    if (bellBtn) {
+        console.log('[NotifSync] 🔔 Sino clicado - recarregando notificações');
+        carregarNotificacoesDoAdmin();
+    }
+});
+
+// 🔥 FORÇAR RECARREGAMENTO VIA EVENTO GLOBAL
+window.forcarRecarregarNotificacoes = function() {
+    console.log('[NotifSync] 🔄 Forçando recarregamento de notificações');
+    carregarNotificacoesDoAdmin();
+};
