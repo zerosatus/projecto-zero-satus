@@ -5,36 +5,73 @@
 console.log('[NotifSync] 📬 Inicializando sincronização de notificações...');
 
 // ==========================================
-// VARIÁVEL GLOBAL
+// VARIÁVEL GLOBAL (NÃO DECLARAR NOVAMENTE)
 // ==========================================
-let notifications = [];
-let usuarioAtual = null;
+// Usar a variável já existente ou criar uma única
+if (typeof window._notifications === 'undefined') {
+    window._notifications = [];
+}
+let notifications = window._notifications;
+
+// Não declarar usuarioAtual aqui - usar a da página
+// Ou usar uma variável separada
+let _usuarioNotif = null;
 
 // ==========================================
 // CARREGAR NOTIFICAÇÕES DO ADMIN
 // ==========================================
 async function carregarNotificacoesDoAdmin() {
-    if (!usuarioAtual) {
-        const usuario = localStorage.getItem('usuarioLogado');
-        if (!usuario) return;
+    // Tentar obter o usuário da variável global da página
+    let usuario = window.usuarioAtual || window._usuarioAtual;
+    
+    if (!usuario) {
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        if (!usuarioSalvo) {
+            console.warn('[NotifSync] ⚠️ Nenhum usuário logado');
+            return;
+        }
         try {
-            usuarioAtual = JSON.parse(usuario);
+            usuario = JSON.parse(usuarioSalvo);
+            // Salvar para uso futuro
+            _usuarioNotif = usuario;
         } catch(e) {
-            console.error('[NotifSync] Erro ao parsear usuário:', e);
+            console.error('[NotifSync] ❌ Erro ao parsear usuário:', e);
             return;
         }
     }
 
-    const userId = usuarioAtual.id;
+    const userId = usuario.id || usuario.uid;
     if (!userId) {
         console.warn('[NotifSync] ⚠️ Sem userId');
         return;
     }
     
     try {
-        const client = window.supabaseClient;
+        // Tentar obter o cliente Supabase de diferentes formas
+        let client = window.supabaseClient;
+        
         if (!client) {
-            console.warn('[NotifSync] ⚠️ Supabase não disponível');
+            console.warn('[NotifSync] ⚠️ Supabase não disponível via window.supabaseClient');
+            // Tentar via window.SupabaseClient
+            if (window.SupabaseClient && window.SupabaseClient.getClient) {
+                client = window.SupabaseClient.getClient();
+            }
+        }
+        
+        if (!client) {
+            console.warn('[NotifSync] ⚠️ Supabase não disponível - carregando do cache/local');
+            // Tentar carregar do CacheManager
+            if (window.CacheManager) {
+                const cached = window.CacheManager.get('notifications', null);
+                if (cached && cached.length > 0) {
+                    notifications = cached;
+                    window._notifications = notifications;
+                    localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
+                    atualizarBadgeEmTodasPaginas(notifications);
+                    renderizarNotificacoesEmTodasPaginas(notifications);
+                    console.log('[NotifSync] ✅ Notificações carregadas do cache:', notifications.length);
+                }
+            }
             return;
         }
         
@@ -49,6 +86,16 @@ async function carregarNotificacoesDoAdmin() {
         
         if (error) {
             console.error('[NotifSync] ❌ Erro ao buscar:', error);
+            // Fallback para cache
+            if (window.CacheManager) {
+                const cached = window.CacheManager.get('notifications', null);
+                if (cached && cached.length > 0) {
+                    notifications = cached;
+                    window._notifications = notifications;
+                    atualizarBadgeEmTodasPaginas(notifications);
+                    renderizarNotificacoesEmTodasPaginas(notifications);
+                }
+            }
             return;
         }
         
@@ -72,6 +119,7 @@ async function carregarNotificacoesDoAdmin() {
             }
             
             notifications = notificacoes;
+            window._notifications = notifications;
             
             // ATUALIZAR BADGE
             atualizarBadgeEmTodasPaginas(notificacoes);
@@ -95,7 +143,7 @@ function atualizarBadgeEmTodasPaginas(notificacoes) {
     const naoLidas = (notificacoes || []).filter(n => !n.read).length;
     
     // Procurar badge em qualquer lugar da página
-    const badges = document.querySelectorAll('.icon-btn .badge, .notif-badge');
+    const badges = document.querySelectorAll('.icon-btn .badge, .notif-badge, .badge');
     
     badges.forEach(badge => {
         badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
@@ -153,8 +201,17 @@ window.marcarNotificacaoLida = async function(id) {
     
     notif.read = true;
     
-    // Salvar localmente
-    const userId = usuarioAtual?.id;
+    // Obter usuário
+    let usuario = window.usuarioAtual || window._usuarioAtual || _usuarioNotif;
+    if (!usuario) {
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        if (usuarioSalvo) {
+            try { usuario = JSON.parse(usuarioSalvo); } catch(e) {}
+        }
+    }
+    
+    const userId = usuario?.id || usuario?.uid;
+    
     if (userId) {
         localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
     }
@@ -165,7 +222,7 @@ window.marcarNotificacaoLida = async function(id) {
     
     // Marcar no Supabase
     try {
-        const client = window.supabaseClient;
+        let client = window.supabaseClient || (window.SupabaseClient?.getClient ? window.SupabaseClient.getClient() : null);
         if (client && userId) {
             await client
                 .from('notifications')
@@ -188,7 +245,16 @@ window.marcarNotificacaoLida = async function(id) {
 window.marcarTodasNotificacoesLidas = async function() {
     notifications.forEach(n => n.read = true);
     
-    const userId = usuarioAtual?.id;
+    let usuario = window.usuarioAtual || window._usuarioAtual || _usuarioNotif;
+    if (!usuario) {
+        const usuarioSalvo = localStorage.getItem('usuarioLogado');
+        if (usuarioSalvo) {
+            try { usuario = JSON.parse(usuarioSalvo); } catch(e) {}
+        }
+    }
+    
+    const userId = usuario?.id || usuario?.uid;
+    
     if (userId) {
         localStorage.setItem(`${userId}_notifications`, JSON.stringify(notifications));
     }
@@ -198,7 +264,7 @@ window.marcarTodasNotificacoesLidas = async function() {
     }
     
     try {
-        const client = window.supabaseClient;
+        let client = window.supabaseClient || (window.SupabaseClient?.getClient ? window.SupabaseClient.getClient() : null);
         if (client && userId) {
             await client
                 .from('notifications')
@@ -214,6 +280,17 @@ window.marcarTodasNotificacoesLidas = async function() {
     atualizarBadgeEmTodasPaginas(notifications);
     renderizarNotificacoesEmTodasPaginas(notifications);
     mostrarToast('Todas as notificações marcadas como lidas!', 'success');
+};
+
+// ==========================================
+// FUNÇÃO PARA FILTRAR NOTIFICAÇÕES
+// ==========================================
+window.filtrarNotificacoes = function(filtro, btn) {
+    if (btn) {
+        document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    renderizarNotificacoesEmTodasPaginas(notifications, filtro);
 };
 
 // ==========================================
@@ -240,7 +317,10 @@ function formatarTempoRelativo(timeString) {
 
 function mostrarToast(mensagem, tipo = 'success') {
     const toast = document.getElementById('toast');
-    if (!toast) return;
+    if (!toast) {
+        console.log('[Toast]', mensagem);
+        return;
+    }
     const span = toast.querySelector('span');
     if (span) span.textContent = mensagem;
     toast.classList.add('show');
@@ -251,18 +331,27 @@ function mostrarToast(mensagem, tipo = 'success') {
 // INICIALIZAR AUTOMATICAMENTE
 // ==========================================
 async function initNotificacoes() {
-    const usuario = localStorage.getItem('usuarioLogado');
-    if (!usuario) return;
+    const usuarioSalvo = localStorage.getItem('usuarioLogado');
+    if (!usuarioSalvo) {
+        console.log('[NotifSync] ⚠️ Nenhum usuário logado');
+        return;
+    }
     
     try {
-        usuarioAtual = JSON.parse(usuario);
+        const usuario = JSON.parse(usuarioSalvo);
+        _usuarioNotif = usuario;
         
         // Carregar notificações locais primeiro
-        const userId = usuarioAtual.id;
-        const saved = localStorage.getItem(`${userId}_notifications`);
-        if (saved) {
-            notifications = JSON.parse(saved);
-            atualizarBadgeEmTodasPaginas(notifications);
+        const userId = usuario.id || usuario.uid;
+        if (userId) {
+            const saved = localStorage.getItem(`${userId}_notifications`);
+            if (saved) {
+                try {
+                    notifications = JSON.parse(saved);
+                    window._notifications = notifications;
+                    atualizarBadgeEmTodasPaginas(notifications);
+                } catch(e) {}
+            }
         }
         
         // Depois buscar do Supabase
@@ -274,40 +363,49 @@ async function initNotificacoes() {
     }
 }
 
-// Auto-init
+// ==========================================
+// EXPORTAR FUNÇÕES GLOBAIS
+// ==========================================
+window.carregarNotificacoesDoAdmin = carregarNotificacoesDoAdmin;
+window.renderizarNotificacoesEmTodasPaginas = renderizarNotificacoesEmTodasPaginas;
+window.atualizarBadgeEmTodasPaginas = atualizarBadgeEmTodasPaginas;
+
+// Expor também para compatibilidade
+window.carregarNotificacoes = carregarNotificacoesDoAdmin;
+
+// ==========================================
+// INICIAR
+// ==========================================
 if (document.readyState === 'complete') {
-    setTimeout(initNotificacoes, 500);
+    setTimeout(initNotificacoes, 800);
 } else {
     document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(initNotificacoes, 500);
+        setTimeout(initNotificacoes, 800);
     });
 }
 
-// Escutar eventos de sincronização
+// Escutar eventos
 window.addEventListener('cloudDataLoaded', () => {
     console.log('[NotifSync] 📡 cloudDataLoaded - sincronizando...');
-    carregarNotificacoesDoAdmin();
+    setTimeout(carregarNotificacoesDoAdmin, 300);
 });
 
 window.addEventListener('storage', (e) => {
     if (e.key && e.key.includes('_notifications')) {
         console.log('[NotifSync] 📡 Mudança em outra aba');
-        const userId = usuarioAtual?.id;
-        if (userId && e.key.includes(userId)) {
+        const usuario = _usuarioNotif || window.usuarioAtual;
+        if (usuario && e.key.includes(usuario.id || usuario.uid)) {
             const saved = localStorage.getItem(e.key);
             if (saved) {
-                notifications = JSON.parse(saved);
-                atualizarBadgeEmTodasPaginas(notifications);
-                renderizarNotificacoesEmTodasPaginas(notifications);
+                try {
+                    notifications = JSON.parse(saved);
+                    window._notifications = notifications;
+                    atualizarBadgeEmTodasPaginas(notifications);
+                    renderizarNotificacoesEmTodasPaginas(notifications);
+                } catch(e) {}
             }
         }
     }
 });
-
-// ==========================================
-// EXPORTAR FUNÇÕES GLOBAIS
-// ==========================================
-window.carregarNotificacoesDoAdmin = carregarNotificacoesDoAdmin;
-window.notifications = notifications;
 
 console.log('[NotifSync] ✅ Módulo carregado!');
