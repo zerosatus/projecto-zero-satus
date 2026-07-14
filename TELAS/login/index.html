@@ -109,8 +109,14 @@
 
 <div id="toast" class="toast"></div>
 
-<!-- CORRIGIR A ORDEM - MOVER O supabase-client.js PARA ANTES DO SCRIPT.JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+<script>
+    // Fallback se o primeiro não carregar
+    if (typeof supabase === 'undefined') {
+        console.warn('[CDN] Fallback: carregando de outra fonte...');
+        document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.39.7/umd/supabase.min.js"><\/script>');
+    }
+</script>
 
 <!-- SERVIÇOS - ORDEM CORRIGIDA -->
 <script src="../mobile-telas/supabase-client.js"></script>     <!-- PRIMEIRO -->
