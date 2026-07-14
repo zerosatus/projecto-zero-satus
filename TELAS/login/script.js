@@ -1,4 +1,4 @@
-// login/script.js - COM TERMOS DE USO PERSISTENTES
+// login/script.js - COM TERMOS DE USO PERSISTENTES E VERIFICAÇÃO MELHORADA
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -70,6 +70,82 @@ function limparCamposFormulario() {
     }
 
     console.log('[Login] Campos do formulário limpos');
+}
+
+// ============================================
+// 🔥 WAIT FOR SUPABASE - VERSÃO MELHORADA
+// ============================================
+function waitForSupabase() {
+    return new Promise((resolve) => {
+        // Verifica se já está disponível
+        if (window.AuthService && window.AuthService.isReady && window.AuthService.isReady()) {
+            console.log('[Login] ✅ Supabase já disponível');
+            resolve();
+            return;
+        }
+        
+        if (window.supabaseClient) {
+            console.log('[Login] ✅ supabaseClient já disponível');
+            resolve();
+            return;
+        }
+
+        console.log('[Login] ⏳ Aguardando Supabase...');
+        
+        // Listener para o evento
+        const handler = () => {
+            console.log('[Login] 📡 Evento supabaseReady recebido');
+            window.removeEventListener('supabaseReady', handler);
+            resolve();
+        };
+        
+        window.addEventListener('supabaseReady', handler);
+
+        // Tentar inicializar manualmente
+        if (window.SupabaseClient?.initSupabase) {
+            console.log('[Login] 🔄 Tentando inicializar manualmente...');
+            window.SupabaseClient.initSupabase();
+        }
+
+        // Timeout com retry
+        let attempts = 0;
+        const checkInterval = setInterval(() => {
+            attempts++;
+            
+            const isReady = (window.AuthService && window.AuthService.isReady && window.AuthService.isReady()) 
+                            || window.supabaseClient;
+            
+            if (isReady) {
+                console.log('[Login] ✅ Supabase detectado via intervalo');
+                clearInterval(checkInterval);
+                window.removeEventListener('supabaseReady', handler);
+                resolve();
+            } else if (attempts > 20) {
+                // 20 * 500ms = 10 segundos
+                console.warn('[Login] ⚠️ Timeout aguardando Supabase');
+                clearInterval(checkInterval);
+                window.removeEventListener('supabaseReady', handler);
+                
+                // Última tentativa de inicialização
+                if (window.SupabaseClient?.initSupabase) {
+                    window.SupabaseClient.initSupabase();
+                    
+                    // Verificar novamente após 1s
+                    setTimeout(() => {
+                        if (window.supabaseClient || (window.AuthService && window.AuthService.isReady && window.AuthService.isReady())) {
+                            console.log('[Login] ✅ Supabase inicializado após timeout');
+                            resolve();
+                        } else {
+                            console.warn('[Login] ❌ Falha ao inicializar Supabase');
+                            resolve();
+                        }
+                    }, 1000);
+                } else {
+                    resolve();
+                }
+            }
+        }, 500);
+    });
 }
 
 // ============================================
@@ -842,41 +918,45 @@ window.forcarLogout = async function() {
 };
 
 // ============================================
-// WAIT FOR SUPABASE
-// ============================================
-function waitForSupabase() {
-    return new Promise((resolve) => {
-        if (window.AuthService) {
-            resolve();
-            return;
-        }
-
-        window.addEventListener('supabaseReady', () => {
-            console.log('[Login] Evento supabaseReady recebido');
-            resolve();
-        });
-
-        setTimeout(() => {
-            console.warn('[Login] Timeout aguardando Supabase');
-            resolve();
-        }, 10000);
-    });
-}
-
-// ============================================
-// LOGIN COM GOOGLE
+// 🔥 LOGIN COM GOOGLE - VERIFICAÇÃO MELHORADA
 // ============================================
 async function loginWithGoogle() {
-    console.log('[Google] Iniciando login com Google...');
-
-    if (!window.AuthService) {
-        showMessage('Sistema offline. Tente novamente.', true);
-        return;
-    }
+    console.log('[Google] 🚀 Iniciando login com Google...');
 
     // Validar termos antes de login com Google
     if (!validarTermos()) {
         return;
+    }
+
+    // VERIFICAR SE AUTH SERVICE ESTÁ DISPONÍVEL
+    if (!window.AuthService) {
+        console.error('[Google] ❌ AuthService não disponível');
+        showMessage('⏳ Aguarde o sistema carregar completamente...', true);
+        
+        // Tenta aguardar o Supabase
+        await waitForSupabase();
+        
+        if (!window.AuthService) {
+            showMessage('❌ Sistema indisponível. Recarregue a página.', true);
+            return;
+        }
+    }
+
+    // VERIFICAR SE O CLIENTE SUPABASE ESTÁ INICIALIZADO
+    if (!window.supabaseClient) {
+        console.warn('[Google] ⚠️ Cliente Supabase não inicializado, tentando inicializar...');
+        
+        if (window.SupabaseClient?.initSupabase) {
+            window.SupabaseClient.initSupabase();
+        }
+        
+        // Aguardar um pouco
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        if (!window.supabaseClient) {
+            showMessage('❌ Erro ao inicializar conexão. Tente novamente.', true);
+            return;
+        }
     }
 
     try {
@@ -886,6 +966,7 @@ async function loginWithGoogle() {
             googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
         }
 
+        console.log('[Google] ✅ Chamando AuthService.loginWithGoogle()');
         await window.AuthService.loginWithGoogle();
 
         if (googleBtn) {
@@ -894,7 +975,7 @@ async function loginWithGoogle() {
         }
 
     } catch (error) {
-        console.error('[Google] Erro:', error);
+        console.error('[Google] ❌ Erro:', error);
         showMessage('❌ Erro ao fazer login com Google: ' + error.message, true);
 
         const googleBtn = document.getElementById('google-login-btn');
@@ -909,18 +990,21 @@ async function loginWithGoogle() {
 // INICIALIZAÇÃO PRINCIPAL
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[Login] Inicializando...');
-    console.log('[Login] URL atual:', window.location.href);
+    console.log('[Login] 🚀 Inicializando...');
+    console.log('[Login] 📍 URL atual:', window.location.href);
 
+    // ============================================
+    // 🔥 AGUARDAR SUPABASE
+    // ============================================
     await waitForSupabase();
 
     if (!window.AuthService) {
-        console.error('[Login] AuthService não disponível!');
+        console.error('[Login] ❌ AuthService não disponível!');
         showMessage('❌ Erro ao carregar sistema. Recarregue a página.', true);
         return;
     }
 
-    console.log('[Login] AuthService disponível!');
+    console.log('[Login] ✅ AuthService disponível!');
 
     // ============================================
     // CONFIGURAR CHECKBOX DE TERMOS
@@ -948,13 +1032,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
-        console.log('[Google] Detectado callback do Google!');
+        console.log('[Google] 🔔 Detectado callback do Google!');
         const processed = await handleGoogleCallback();
         if (processed) {
-            console.log('[Google] Callback processado com sucesso!');
+            console.log('[Google] ✅ Callback processado com sucesso!');
             return;
         } else {
-            console.warn('[Google] Falha ao processar callback');
+            console.warn('[Google] ⚠️ Falha ao processar callback');
         }
     }
 
@@ -963,7 +1047,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ============================================
     const hasSession = await checkSessionWithRole();
     if (hasSession) {
-        console.log('[Login] Sessão ativa encontrada - redirecionando...');
+        console.log('[Login] ✅ Sessão ativa encontrada - redirecionando...');
         return;
     }
 
@@ -1031,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('[UI] Botão Google clicado');
+            console.log('[UI] 🖱️ Botão Google clicado');
             loginWithGoogle();
         });
     }
