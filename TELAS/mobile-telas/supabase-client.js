@@ -1,5 +1,46 @@
 // ==========================================
-// supabase-client.js - Cliente Supabase COMPLETO
+// 🔥 CARREGAMENTO AUTOMÁTICO DO SUPABASE
+// ==========================================
+(function carregarSupabase() {
+    // Se já existe, não faz nada
+    if (typeof supabase !== 'undefined') {
+        console.log('[Supabase] ✅ Supabase já carregado!');
+        return;
+    }
+    
+    console.log('[Supabase] 🔄 Carregando Supabase via CDN...');
+    
+    // Criar script para carregar o Supabase
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    script.async = false;
+    
+    script.onload = function() {
+        console.log('[Supabase] ✅ Supabase carregado com sucesso!');
+        // Inicializar cliente imediatamente
+        if (typeof supabase !== 'undefined' && !window.supabaseClient) {
+            window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('[Supabase] ✅ Cliente criado automaticamente!');
+            window.dispatchEvent(new CustomEvent('supabaseReady'));
+        }
+    };
+    
+    script.onerror = function() {
+        console.error('[Supabase] ❌ Falha ao carregar CDN!');
+        console.error('[Supabase] 📌 Verifique sua conexão com a internet');
+    };
+    
+    document.head.appendChild(script);
+})();
+
+// ==========================================
+// CONSTANTES DO SUPABASE
+// ==========================================
+const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
+
+// ... RESTANTE DO SEU CÓDIGO ..
+// // supabase-client.js - Cliente Supabase COMPLETO
 // ==========================================
 
 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
