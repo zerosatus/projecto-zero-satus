@@ -1,4 +1,4 @@
-// login/script.js - COM MODAL CUSTOMIZADO E REDIRECIONAMENTO CORRIGIDO
+// login/script.js - COM TERMOS DE USO PERSISTENTES
 
 let isRegisterMode = false;
 let pendingEmail = '';
@@ -7,6 +7,11 @@ let isProcessingAuth = false;
 let isCheckingSession = false;
 let tentativasLogin = 0;
 const MAX_TENTATIVAS_LOGIN = 3;
+
+// ============================================
+// CONSTANTES DE TERMOS
+// ============================================
+const TERMOS_ACEITOS_KEY = 'zero_satus_termos_aceitos';
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -65,6 +70,98 @@ function limparCamposFormulario() {
     }
 
     console.log('[Login] Campos do formulário limpos');
+}
+
+// ============================================
+// GERENCIADOR DE TERMOS
+// ============================================
+function verificarTermosAceitos() {
+    return localStorage.getItem(TERMOS_ACEITOS_KEY) === 'true';
+}
+
+function marcarTermosAceitos() {
+    localStorage.setItem(TERMOS_ACEITOS_KEY, 'true');
+    console.log('[Termos] Termos aceitos e salvos no localStorage');
+}
+
+function limparTermosAceitos() {
+    localStorage.removeItem(TERMOS_ACEITOS_KEY);
+    console.log('[Termos] Aceitação de termos removida');
+}
+
+function configurarCheckboxTermos() {
+    const checkbox = document.getElementById('aceitar-termos');
+    if (!checkbox) {
+        console.warn('[Termos] Checkbox não encontrado');
+        return;
+    }
+    
+    // Se já aceitou antes, marcar automaticamente e desabilitar
+    if (verificarTermosAceitos()) {
+        checkbox.checked = true;
+        checkbox.disabled = true;
+        checkbox.style.opacity = '0.6';
+        checkbox.title = 'Você já aceitou os termos anteriormente';
+        
+        // Adicionar indicador visual
+        const label = checkbox.closest('label');
+        if (label) {
+            const span = label.querySelector('span');
+            if (span) {
+                // Remover badge antigo se existir
+                const oldBadge = span.querySelector('.termos-badge');
+                if (oldBadge) oldBadge.remove();
+                
+                const badge = document.createElement('span');
+                badge.className = 'termos-badge';
+                badge.style.cssText = `
+                    background: #10b981;
+                    color: white;
+                    font-size: 10px;
+                    padding: 2px 10px;
+                    border-radius: 20px;
+                    margin-left: 8px;
+                    font-weight: 600;
+                    display: inline-block;
+                `;
+                badge.textContent = '✓ ACEITO';
+                span.appendChild(badge);
+            }
+        }
+        console.log('[Termos] Checkbox marcado e desabilitado (termos já aceitos)');
+    } else {
+        checkbox.checked = false;
+        checkbox.disabled = false;
+        checkbox.style.opacity = '1';
+        console.log('[Termos] Checkbox habilitado (termos não aceitos)');
+    }
+}
+
+function validarTermos() {
+    const checkbox = document.getElementById('aceitar-termos');
+    if (!checkbox) {
+        console.warn('[Termos] Checkbox não encontrado, permitindo continuar');
+        return true;
+    }
+    
+    // Se já aceitou antes, não precisa validar
+    if (verificarTermosAceitos()) {
+        return true;
+    }
+    
+    if (!checkbox.checked) {
+        showMessage('⚠️ Você precisa aceitar os Termos de Uso e Condições para continuar!', true);
+        checkbox.style.outline = '2px solid #ef4444';
+        checkbox.style.outlineOffset = '2px';
+        checkbox.style.borderRadius = '4px';
+        setTimeout(() => {
+            checkbox.style.outline = '';
+            checkbox.style.outlineOffset = '';
+        }, 3000);
+        return false;
+    }
+    
+    return true;
 }
 
 // ============================================
@@ -299,7 +396,6 @@ async function processarLogin(user) {
             
             if (role === 'admin') {
                 console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
-                // USAR REPLACE PARA NÃO PERMITIR VOLTAR
                 window.location.replace('../admin/index.html');
             } else {
                 const destino = isMobile ? '../mobile-telas/index.html' : '../inicio/index.html';
@@ -738,6 +834,7 @@ window.forcarLogout = async function() {
         }
         localStorage.clear();
         sessionStorage.clear();
+        limparTermosAceitos(); // Limpar também a aceitação dos termos
         limparCamposFormulario();
         window.location.reload();
         showMessage('✅ Sessão limpa!', false);
@@ -774,6 +871,11 @@ async function loginWithGoogle() {
 
     if (!window.AuthService) {
         showMessage('Sistema offline. Tente novamente.', true);
+        return;
+    }
+
+    // Validar termos antes de login com Google
+    if (!validarTermos()) {
         return;
     }
 
@@ -819,6 +921,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     console.log('[Login] AuthService disponível!');
+
+    // ============================================
+    // CONFIGURAR CHECKBOX DE TERMOS
+    // ============================================
+    configurarCheckboxTermos();
 
     // ============================================
     // VERIFICAR CALLBACK DE CONFIRMAÇÃO
@@ -934,6 +1041,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (emailForm) {
         emailForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Validar termos antes de prosseguir
+            if (!validarTermos()) {
+                return;
+            }
+            
             const email = document.getElementById('email')?.value.trim();
             const password = document.getElementById('password')?.value;
             const submitBtn = emailForm.querySelector('.btn-primary');
@@ -942,6 +1055,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showMessage('⚠️ Preencha e-mail e senha!', true);
                 return;
             }
+
+            // Marcar termos como aceitos após validação
+            marcarTermosAceitos();
 
             if (isRegisterMode) {
                 const nome = document.getElementById('nome')?.value.trim();
@@ -970,6 +1086,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         toggleLink.addEventListener('click', (e) => {
             e.preventDefault();
             toggleForm();
+            // Reconfigurar checkbox após toggle
+            setTimeout(configurarCheckboxTermos, 100);
         });
     }
 
@@ -1000,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Login com MODAL CUSTOMIZADO!', 'color: #10b981; font-size: 14px;');
+    console.log('%c✅ Login com MODAL CUSTOMIZADO e TERMOS DE USO!', 'color: #10b981; font-size: 14px;');
     console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
 
