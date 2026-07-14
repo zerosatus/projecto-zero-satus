@@ -1,5 +1,6 @@
 // ==========================================
 // notifications-sync.js - Com POP-UP e LOGS
+// VERSÃO CORRIGIDA - BUSCA NOTIFICAÇÕES DO ADMIN
 // ==========================================
 
 console.log('[NotifSync] 📬 Inicializando sincronização de notificações...');
@@ -598,7 +599,7 @@ document.addEventListener('click', (e) => {
     const bellBtn = e.target.closest('.icon-btn, .btn-notification, #bellBtn, .btn-bell, .icon-btn i');
     if (bellBtn) {
         console.log('[NotifSync] 🔔 Sino clicado - recarregando notificações');
-        setTimeout(() => carregarNotificacoesDoAdmin(), 300);
+        setTimeout(carregarNotificacoesDoAdmin(), 300);
     }
 });
 
@@ -681,6 +682,21 @@ setTimeout(() => {
     console.log('[NotifSync] ⏰ Forçando recarregamento após 3s...');
     carregarNotificacoesDoAdmin();
 }, 3000);
+
+// 🔥 RECARREGAR QUANDO A PÁGINA CARREGAR COMPLETAMENTE
+window.addEventListener('load', function() {
+    console.log('[NotifSync] 📄 Página carregada - buscando notificações...');
+    setTimeout(carregarNotificacoesDoAdmin, 500);
+});
+
+// 🔥 RECARREGAR NA PRIMEIRA INTERAÇÃO DO USUÁRIO
+document.addEventListener('click', function() {
+    if (!window._notifFirstInteraction) {
+        window._notifFirstInteraction = true;
+        console.log('[NotifSync] 👆 Primeira interação - buscando notificações...');
+        setTimeout(carregarNotificacoesDoAdmin, 300);
+    }
+});
 
 console.log('[NotifSync] ✅ Módulo carregado com POP-UP e LOGS detalhados!');
 console.log('[NotifSync] 📌 Use testarNotificacao() para testar pop-up');
