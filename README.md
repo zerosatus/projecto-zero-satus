@@ -103,6 +103,8 @@ sql
 SELECT id, email, nome, role, created_at FROM public.profiles ORDER BY created_at DESC;
 
 
+droga cara vai tomar no cuu
+
 
 
 
