@@ -11,15 +11,15 @@ let initAttempts = 0;
 const MAX_INIT_ATTEMPTS = 5;
 
 // ============================================
-// 🔥 INICIALIZAÇÃO COM RETRY
+// INICIALIZAR SUPABASE
 // ============================================
-function initSupabase(retries = 3) {
+function initSupabase() {
     if (supabaseClient) {
         return supabaseClient;
     }
     
     if (isInitializing) {
-        console.log('[Supabase] ⏳ Já inicializando, aguarde...');
+        console.log('[Supabase] ⏳ Já inicializando...');
         return null;
     }
     
@@ -30,10 +30,10 @@ function initSupabase(retries = 3) {
     try {
         if (typeof supabase === 'undefined') {
             console.warn('[Supabase] ⚠️ Biblioteca Supabase não carregada');
-            if (retries > 0 && initAttempts < MAX_INIT_ATTEMPTS) {
+            if (initAttempts < MAX_INIT_ATTEMPTS) {
                 setTimeout(() => {
                     isInitializing = false;
-                    initSupabase(retries - 1);
+                    initSupabase();
                 }, 500);
             } else {
                 isInitializing = false;
@@ -67,10 +67,10 @@ function initSupabase(retries = 3) {
         
     } catch (error) {
         console.error('[Supabase] ❌ Erro ao inicializar:', error);
-        if (retries > 0 && initAttempts < MAX_INIT_ATTEMPTS) {
+        if (initAttempts < MAX_INIT_ATTEMPTS) {
             setTimeout(() => {
                 isInitializing = false;
-                initSupabase(retries - 1);
+                initSupabase();
             }, 1000);
         }
         return null;
@@ -80,14 +80,7 @@ function initSupabase(retries = 3) {
 }
 
 // ============================================
-// INICIALIZAÇÃO AUTOMÁTICA
-// ============================================
-setTimeout(() => initSupabase(3), 0);
-setTimeout(() => { if (!supabaseClient) initSupabase(2); }, 1000);
-setTimeout(() => { if (!supabaseClient) initSupabase(1); }, 3000);
-
-// ============================================
-// FUNÇÃO PARA GERAR ID
+// GERAR ID
 // ============================================
 function generateId() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -142,7 +135,7 @@ async function compressImage(file) {
 }
 
 // ============================================
-// 🔥 SERVIÇO DE AUTENTICAÇÃO (COMPLETO)
+// SERVIÇO DE AUTENTICAÇÃO (COMPLETO)
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
@@ -678,7 +671,7 @@ const AuthService = {
     },
 
     // ============================================
-    // 🔥 MÉTODO PARA VERIFICAR DISPONIBILIDADE
+    // MÉTODO PARA VERIFICAR DISPONIBILIDADE
     // ============================================
     isReady() {
         return !!supabaseClient;
@@ -686,7 +679,7 @@ const AuthService = {
 };
 
 // ============================================
-// 🔥 SERVIÇO DE STORAGE (COMPLETO)
+// SERVIÇO DE STORAGE (COMPLETO)
 // ============================================
 const StorageService = {
     async uploadProfilePhoto(userId, file) {
@@ -827,7 +820,7 @@ const StorageService = {
 };
 
 // ============================================
-// 🔥 SERVIÇO DE BANCO DE DADOS (COMPLETO)
+// SERVIÇO DE BANCO DE DADOS (COMPLETO)
 // ============================================
 const DatabaseService = {
     async getCurrentUserId() {
@@ -835,9 +828,6 @@ const DatabaseService = {
         return user?.id || null;
     },
 
-    // ============================================
-    // 🔥 getUserProfile - COM LOGS DETALHADOS
-    // ============================================
     async getUserProfile(userId) {
         console.log('[Database] 🔍 Buscando perfil para userId:', userId);
         
@@ -877,9 +867,6 @@ const DatabaseService = {
         }
     },
 
-    // ============================================
-    // 🔥 updateUserProfile - COM LOGS DETALHADOS
-    // ============================================
     async updateUserProfile(userId, profile) {
         console.log('[Database] 🔄 Atualizando perfil para userId:', userId);
         
@@ -936,9 +923,6 @@ const DatabaseService = {
         }
     },
 
-    // ============================================
-    // 🔥 createProfile
-    // ============================================
     async createProfile(userId, email, nome, role = 'user') {
         console.log('[Database] ➕ Criando perfil para userId:', userId);
         
@@ -985,57 +969,32 @@ const DatabaseService = {
         }
     },
 
-    // ============================================
-    // 🔥 ensureUserData
-    // ============================================
     async ensureUserData(userId, email, nome) {
         console.log('[Database] 🔧 Verificando estrutura do usuário:', userId);
 
         try {
-            // Verificar/criar perfil
-            console.log('[Database] 📌 Passo 1: Verificando perfil...');
             let profile = await this.getUserProfile(userId);
-            
             if (!profile) {
-                console.log('[Database] 📌 Passo 1.1: Perfil não encontrado, criando...');
-                const created = await this.createProfile(userId, email, nome, 'user');
-                if (created) {
-                    console.log('[Database] ✅ Perfil criado com sucesso!');
-                } else {
-                    console.error('[Database] ❌ Falha ao criar perfil');
-                }
-            } else {
-                console.log('[Database] ✅ Perfil já existe para:', email);
-                console.log('[Database] 📋 Role atual:', profile.role || 'user');
+                console.log('[Database] 📝 Criando perfil...');
+                await this.createProfile(userId, email, nome, 'user');
             }
 
-            // Verificar/criar weekly_schedule
-            console.log('[Database] 📌 Passo 2: Verificando horário semanal...');
             let schedule = await this.getWeeklySchedule(userId);
             if (!schedule || Object.keys(schedule).length === 0) {
-                console.log('[Database] 📌 Passo 2.1: Criando horário padrão');
+                console.log('[Database] 📝 Criando horário padrão');
                 await this.saveWeeklySchedule(userId, { Seg: [], Ter: [], Qua: [], Qui: [], Sex: [] });
-                console.log('[Database] ✅ Horário padrão criado');
-            } else {
-                console.log('[Database] ✅ Horário semanal já existe');
             }
 
-            // Verificar/criar time_slots
-            console.log('[Database] 📌 Passo 3: Verificando time slots...');
             let slots = await this.getTimeSlots(userId);
             if (!slots || slots.length === 0) {
-                console.log('[Database] 📌 Passo 3.1: Criando time slots padrão');
+                console.log('[Database] 📝 Criando time slots padrão');
                 await this.saveTimeSlots(userId, ['08:00', '09:30', '11:00', '14:00', '15:30']);
-                console.log('[Database] ✅ Time slots padrão criados');
-            } else {
-                console.log('[Database] ✅ Time slots já existem');
             }
 
-            console.log('[Database] ✅ Estrutura do usuário verificada com sucesso!');
+            console.log('[Database] ✅ Estrutura do usuário verificada');
             return true;
-            
         } catch (error) {
-            console.error('[Database] ❌ Erro ao verificar estrutura do usuário:', error);
+            console.error('[Database] ❌ Erro ao verificar estrutura:', error);
             return false;
         }
     },
@@ -1625,7 +1584,7 @@ const DatabaseService = {
 };
 
 // ============================================
-// 🔥 EXPORTAR PARA USO GLOBAL
+// EXPORTAR PARA USO GLOBAL
 // ============================================
 window.SupabaseClient = {
     initSupabase: initSupabase,
@@ -1639,14 +1598,37 @@ window.DatabaseService = DatabaseService;
 window.StorageService = StorageService;
 
 // ============================================
-// 🔥 DISPARAR EVENTO DE PRONTO
+// 🔥 INICIALIZAR AUTOMATICAMENTE
+// ============================================
+
+// Inicializar imediatamente
+initSupabase();
+
+// Tentar novamente após 500ms
+setTimeout(() => {
+    if (!window.AuthService) {
+        console.log('[Supabase] 🔄 Segunda tentativa...');
+        initSupabase();
+    }
+}, 500);
+
+// Tentar novamente após 2s
+setTimeout(() => {
+    if (!window.AuthService) {
+        console.log('[Supabase] 🔄 Terceira tentativa...');
+        initSupabase();
+    }
+}, 2000);
+
+// ============================================
+// DISPARAR EVENTO DE PRONTO
 // ============================================
 setTimeout(() => {
     if (window.supabaseClient) {
         window.dispatchEvent(new CustomEvent('supabaseReady'));
         console.log('[Supabase] 📡 Evento supabaseReady disparado (final)');
     }
-}, 200);
+}, 300);
 
 console.log('[Supabase] ✅ Serviços carregados com sucesso!');
 console.log('[Supabase] 📊 AuthService disponível:', !!window.AuthService);
