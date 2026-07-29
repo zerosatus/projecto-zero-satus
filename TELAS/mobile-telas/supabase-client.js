@@ -139,12 +139,22 @@ async function compressImage(file) {
 // ============================================
 const AuthService = {
     async loginWithEmail(email, password) {
+        // 🔥 CHAMAR initSupabase() ANTES DE USAR
         const client = initSupabase();
-        if (!client) throw new Error('Supabase não inicializado');
+        if (!client) {
+            console.error('[Auth] ❌ Cliente não disponível, tentando inicializar...');
+            // Tentar inicializar novamente
+            const retry = initSupabase();
+            if (!retry) {
+                throw new Error('Supabase não inicializado. Tente novamente.');
+            }
+        }
+        
+        const finalClient = supabaseClient || client;
 
         console.log('[Auth] 🔐 Tentando login com email:', email);
 
-        const { data, error } = await client.auth.signInWithPassword({
+        const { data, error } = await finalClient.auth.signInWithPassword({
             email,
             password
         });
@@ -1598,13 +1608,14 @@ window.DatabaseService = DatabaseService;
 window.StorageService = StorageService;
 
 // ============================================
-// 🔥 INICIALIZAR AUTOMATICAMENTE
+// 🔥🔥🔥 INICIALIZAR AUTOMATICAMENTE (CORREÇÃO PRINCIPAL)
 // ============================================
 
-// Inicializar imediatamente
+// 1. Inicializar imediatamente
+console.log('[Supabase] 🔥 Inicializando automaticamente...');
 initSupabase();
 
-// Tentar novamente após 500ms
+// 2. Tentar novamente após 500ms
 setTimeout(() => {
     if (!window.AuthService) {
         console.log('[Supabase] 🔄 Segunda tentativa...');
@@ -1612,10 +1623,18 @@ setTimeout(() => {
     }
 }, 500);
 
-// Tentar novamente após 2s
+// 3. Tentar novamente após 1s
 setTimeout(() => {
     if (!window.AuthService) {
         console.log('[Supabase] 🔄 Terceira tentativa...');
+        initSupabase();
+    }
+}, 1000);
+
+// 4. Tentar novamente após 2s (última chance)
+setTimeout(() => {
+    if (!window.AuthService) {
+        console.log('[Supabase] 🔄 Quarta tentativa...');
         initSupabase();
     }
 }, 2000);
