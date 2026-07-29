@@ -91,13 +91,13 @@ user	4
 admin	1
 3. Verificar role de um usuário
 sql
-SELECT * FROM verificar_role('projectozerosatus@gmail.com');
+SELECT * FROM verificar_role('kkkkkkzerosatus@gmail.com');
 4. Diagnóstico de um usuário
 sql
-SELECT diagnosticar_usuario('projectozerosatus@gmail.com');
+SELECT diagnosticar_usuario('kkkkkkkzerosatus@gmail.com');
 5. Tornar um usuário admin
 sql
-SELECT tornar_admin('projectozerosatus@gmail.com');
+SELECT tornar_admin('kkkkkkzerosatus@gmail.com');
 6. Ver todos os usuários
 sql
 SELECT id, email, nome, role, created_at FROM public.profiles ORDER BY created_at DESC;
