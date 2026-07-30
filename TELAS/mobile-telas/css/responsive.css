@@ -1,0 +1,389 @@
+/* ============================================
+   responsive.css - RESPONSIVIDADE MOBILE/TABLET
+   ============================================ */
+
+/* ✅ Tablets (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 768px) {
+    .bottom-nav {
+        width: calc(100% - 60px);
+        max-width: 650px;
+        height: 80px;
+        border-radius: 25px;
+        bottom: 30px;
+    }
+    
+    .nav-item {
+        padding: 8px 18px;
+        font-size: 0.75rem;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.8rem;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 500px;
+    }
+    
+    .calendar-container {
+        padding: 20px;
+    }
+    
+    .calendar-day {
+        font-size: 0.9rem;
+        border-radius: 12px;
+    }
+    
+    .event-item {
+        padding: 18px;
+    }
+    
+    .event-modal-content {
+        max-width: 500px;
+    }
+}
+
+/* ✅ Celular Grande (481px - 767px) */
+@media (max-width: 767px) and (min-width: 481px) {
+    .bottom-nav {
+        width: calc(100% - 30px);
+        max-width: 500px;
+        height: 75px;
+        border-radius: 20px;
+        bottom: 20px;
+    }
+    
+    .nav-item {
+        padding: 6px 14px;
+        font-size: 0.7rem;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.6rem;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 90%;
+        margin: 40px auto;
+    }
+    
+    .schedule-grid {
+        min-width: 550px;
+    }
+}
+
+/* ✅ Celular Pequeno (até 480px) */
+@media (max-width: 480px) {
+    #app {
+        padding-bottom: 80px;
+    }
+    
+    .bottom-nav {
+        width: calc(100% - 20px);
+        max-width: 400px;
+        height: 65px;
+        border-radius: 18px;
+        bottom: 12px;
+        padding: 0 8px;
+    }
+    
+    .nav-item {
+        padding: 4px 8px;
+        font-size: 0.6rem;
+        min-width: 44px;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.3rem;
+        margin-bottom: 1px;
+    }
+    
+    .nav-item span {
+        font-size: 0.55rem;
+    }
+    
+    .nav-item.active::after {
+        width: 16px;
+        height: 2px;
+    }
+    
+    header {
+        padding: 15px;
+    }
+    
+    .greeting h1 {
+        font-size: 1.1rem;
+    }
+    
+    .greeting p {
+        font-size: 0.8rem;
+    }
+    
+    .view {
+        padding: 15px;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    
+    .card {
+        padding: 12px 8px;
+    }
+    
+    .card-number {
+        font-size: 1.3rem;
+    }
+    
+    .card-label {
+        font-size: 0.6rem;
+    }
+    
+    .frase-dia-card {
+        padding: 15px;
+    }
+    
+    .frase-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .frase-icon ion-icon {
+        font-size: 22px;
+    }
+    
+    .frase-dia-card p {
+        font-size: 13px;
+    }
+    
+    .schedule-grid {
+        min-width: 480px;
+        grid-template-columns: 45px repeat(5, 1fr);
+    }
+    
+    .time-slot {
+        font-size: 0.6rem;
+        padding: 10px 4px;
+    }
+    
+    .class-block {
+        font-size: 0.55rem;
+        padding: 4px 6px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .note-card-minimal {
+        min-height: 120px;
+        padding: 14px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 95%;
+        margin: 30px 10px;
+    }
+    
+    .tasks-filters {
+        gap: 6px;
+    }
+    
+    .filter-btn {
+        padding: 6px 12px;
+        font-size: 0.7rem;
+    }
+    
+    .task-item {
+        padding: 12px;
+    }
+    
+    .event-item {
+        padding: 12px;
+    }
+    
+    .profile-info {
+        padding: 20px 15px;
+    }
+    
+    .profile-avatar {
+        width: 70px;
+        height: 70px;
+        font-size: 1.6rem;
+    }
+    
+    .toast {
+        min-width: 200px;
+        font-size: 13px;
+        padding: 12px 16px;
+    }
+    
+    /* Calendário mobile */
+    .calendar-container {
+        padding: 10px;
+    }
+    
+    .calendar-day {
+        font-size: 0.7rem;
+        border-radius: 8px;
+    }
+    
+    .event-types {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .event-form .input-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ✅ Landscape para celulares */
+@media (max-height: 500px) and (orientation: landscape) {
+    header {
+        padding: 10px 15px;
+    }
+    
+    .greeting h1 {
+        font-size: 1rem;
+    }
+    
+    .greeting p {
+        font-size: 0.75rem;
+    }
+    
+    .profile-icon {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .profile-icon ion-icon {
+        font-size: 1rem;
+    }
+    
+    .bottom-nav {
+        height: 55px;
+        bottom: 10px;
+    }
+    
+    .nav-item ion-icon {
+        font-size: 1.2rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.5rem;
+    }
+    
+    .view {
+        padding: 10px 15px;
+    }
+    
+    .summary-cards {
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    
+    .card {
+        padding: 8px;
+    }
+    
+    .card-number {
+        font-size: 1.1rem;
+    }
+    
+    section {
+        margin-bottom: 10px;
+    }
+    
+    .schedule-grid {
+        min-width: 400px;
+        grid-template-columns: 40px repeat(5, 1fr);
+    }
+    
+    .day-header, .time-slot {
+        padding: 6px 4px;
+        font-size: 0.55rem;
+    }
+    
+    .class-cell {
+        min-height: 30px;
+        padding: 4px 2px;
+    }
+    
+    .class-block {
+        font-size: 0.5rem;
+        padding: 3px 4px;
+    }
+    
+    .calendar-container {
+        padding: 8px;
+    }
+    
+    .calendar-day {
+        font-size: 0.6rem;
+        border-radius: 6px;
+    }
+}
+
+/* ✅ Print - esconder navegação */
+@media print {
+    .bottom-nav {
+        display: none !important;
+    }
+    
+    header {
+        position: static !important;
+    }
+    
+    .view.hidden {
+        display: none !important;
+    }
+}
+
+/* ✅ Desktop - NUNCA MOSTRAR (mobile-only) */
+@media (min-width: 1025px) {
+    /* ✅ O app é mobile-only, mas se abrir no desktop,
+       mantém o layout mobile centralizado */
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #0a0a0f;
+    }
+    
+    #app {
+        max-width: 430px;
+        min-height: 100vh;
+        border-radius: 30px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+        padding-bottom: 90px;
+    }
+    
+    .bottom-nav {
+        max-width: 390px;
+    }
+}

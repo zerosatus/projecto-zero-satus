@@ -1,0 +1,432 @@
+/* ============================================
+   modals.css - MODAIS (Z-INDEX CORRIGIDO)
+   ============================================ */
+
+/* ============================================
+   GARANTIR QUE MODAIS FICAM ACIMA DA NAVEGAÇÃO
+   ============================================ */
+
+/* MODAL DE EVENTO */
+.event-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background-color: rgba(15, 17, 21, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow-y: auto;
+}
+
+.event-modal.active {
+    display: block;
+    animation: modalFadeIn 0.3s ease;
+}
+
+/* MODAL DE TAREFA */
+.task-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background-color: rgba(15, 17, 21, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow-y: auto;
+}
+
+.task-modal.active {
+    display: block;
+    animation: modalFadeIn 0.3s ease;
+}
+
+/* MODAL DE NOTIFICAÇÕES */
+.notifications-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background-color: rgba(0, 0, 0, 0.85);
+    overflow-y: auto;
+}
+
+.notifications-modal.active {
+    display: block;
+}
+
+/* MODAL DE CONFIRMAÇÃO */
+.confirm-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background-color: rgba(0, 0, 0, 0.85);
+    justify-content: center;
+    align-items: center;
+}
+
+.confirm-modal.active {
+    display: flex;
+}
+
+/* ============================================
+   ANIMAÇÃO DO MODAL
+   ============================================ */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ============================================
+   CONTEÚDO DO MODAL
+   ============================================ */
+.event-modal-content {
+    max-width: 400px;
+    margin: 20px auto;
+    padding: 24px;
+    background-color: var(--bg-color);
+    border-radius: 16px;
+    min-height: auto;
+}
+
+.task-modal-content {
+    max-width: 400px;
+    margin: 20px auto;
+    padding: 24px;
+    background-color: var(--bg-color);
+    border-radius: 16px;
+    min-height: auto;
+}
+
+.notifications-modal-content {
+    max-width: 375px;
+    margin: 60px auto;
+    background-color: var(--bg-color);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.confirm-modal-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 25px;
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+}
+
+/* ============================================
+   HEADER DO MODAL
+   ============================================ */
+.event-modal-header,
+.task-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.event-modal-header h2,
+.task-modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.notifications-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notifications-modal-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+/* ============================================
+   BOTÕES DOS MODAIS
+   ============================================ */
+.btn-back,
+.btn-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-back:hover,
+.btn-close:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-save {
+    background-color: var(--accent-purple);
+    padding: 14px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
+}
+
+.btn-save:active {
+    transform: scale(0.98);
+}
+
+/* ============================================
+   NOTIFICAÇÕES MODAL
+   ============================================ */
+.notifications-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-mark-read {
+    background: none;
+    border: none;
+    color: var(--accent-purple);
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-mark-read:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.btn-clear-all {
+    background: none;
+    border: none;
+    color: var(--accent-red);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-clear-all:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.notifications-tabs {
+    display: flex;
+    gap: 5px;
+    padding: 15px 20px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notification-tab {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.notification-tab.active {
+    background-color: var(--accent-purple);
+    color: white;
+    border-color: var(--accent-purple);
+}
+
+.notification-tab:hover:not(.active) {
+    border-color: var(--accent-purple);
+    color: var(--text-primary);
+}
+
+#notifications-list-modal {
+    padding: 10px 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-item-modal {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.notification-item-modal:hover {
+    background-color: #252a33;
+}
+
+.notification-item-modal.unread {
+    border-left: 3px solid var(--accent-purple);
+}
+
+.notification-item-modal.read {
+    opacity: 0.7;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.notification-icon.aula {
+    background-color: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.notification-icon.tarefa {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.notification-message {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 4px 0;
+}
+
+.notification-time {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.btn-close-modal {
+    width: calc(100% - 40px);
+    margin: 0 20px 20px;
+    padding: 12px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+    background-color: #252a33;
+}
+
+/* ============================================
+   CONFIRM MODAL
+   ============================================ */
+.confirm-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(239, 68, 68, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+}
+
+.confirm-icon ion-icon {
+    font-size: 1.8rem;
+    color: var(--accent-red);
+}
+
+.confirm-modal-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.confirm-modal-content p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 25px;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.confirm-buttons button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-cancel:hover {
+    background-color: #475569;
+}
+
+.btn-ok {
+    background-color: var(--accent-red);
+    color: white;
+}
+
+.btn-ok:hover {
+    background-color: #dc2626;
+}

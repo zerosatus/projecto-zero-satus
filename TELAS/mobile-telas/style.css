@@ -1,4 +1,8 @@
-/* ==================== VARIÁVEIS ==================== */
+/* ============================================
+   style.css - SPA COMPLETO
+   ============================================ */
+
+/* VARIÁVEIS */
 :root {
     --bg-color: #0f1115;
     --card-bg: #1a1d24;
@@ -12,262 +16,49 @@
     --nav-bg: #1a1d24;
 }
 
-
-/* ==================== DESATIVAR SELEÇÃO DE TEXTO PARA WEBVIEW ==================== */
-
-/* Desativa seleção de texto em todos os elementos */
-* {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-/* Permite seleção APENAS em inputs e textareas (necessário para formulários) */
-input, 
-textarea, 
-[contenteditable="true"],
-.note-editor-area textarea,
-.task-form input,
-.task-form textarea,
-.profile-form input,
-.profile-form textarea,
-.note-title-input {
-    -webkit-user-select: text !important;
-    -moz-user-select: text !important;
-    -ms-user-select: text !important;
-    user-select: text !important;
-}
-
-/* Remove o highlight azul ao tocar em elementos clicáveis */
-button,
-a,
-.nav-item,
-.menu-item,
-.task-item,
-.event-item,
-.note-card-minimal,
-.class-block,
-.btn-add,
-.list-item {
-    -webkit-tap-highlight-color: transparent;
-    cursor: pointer;
-}
-
-/* Opcional: desativa o menu de contexto ao pressionar longamente */
-body {
-    -webkit-touch-callout: none;
-    touch-action: manipulation;
-}
-/* ==================== GLOBAL ==================== */
+/* RESET */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Permite seleção em inputs */
+input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-primary);
-    display: flex;
-    justify-content: center;
-    align-items: center;
     min-height: 100vh;
-    padding: 20px;
+    padding: 0;
+    margin: 0;
+    overflow-x: hidden;
 }
 
-/* ==================== CONTAINER - SEM BORDA E RESPONSIVO ==================== */
-.mobile-container {
+/* ============================================
+   CONTAINER PRINCIPAL
+   ============================================ */
+#app {
     width: 100%;
-    max-width: 375px;
-    height: 812px;
+    max-width: 100%;
+    min-height: 100vh;
     background-color: var(--bg-color);
-    border-radius: 30px;
-    overflow-y: auto;
-    overflow-x: visible;
     position: relative;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    /* ✅ REMOVIDA A BORDA FINA */
-    /* border: 1px solid #333; */
-    padding-bottom: 80px;
     margin: 0 auto;
+    padding-bottom: 90px;
 }
 
-/* ==================== RESPONSIVIDADE - CELULAR E TABLET ==================== */
-
-/* Tablets (768px a 1024px) */
-@media (max-width: 1024px) and (min-width: 768px) {
-    .mobile-container {
-        max-width: 768px;
-        height: auto;
-        min-height: 812px;
-        border-radius: 20px;
-        padding-bottom: 100px;
-    }
-    
-    .summary-cards {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        padding: 0 30px 30px;
-    }
-    
-    .notes-grid-minimal {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        padding: 0 30px;
-    }
-    
-    .bottom-nav {
-        width: 768px;
-        max-width: calc(100% - 40px);
-        height: 80px;
-    }
-    
-    .nav-item {
-        padding: 8px 15px;
-        font-size: 0.8rem;
-    }
-    
-    .nav-item ion-icon {
-        font-size: 1.8rem;
-    }
-}
-
-/* Celulares grandes e tablets pequenos (481px a 767px) */
-@media (max-width: 767px) and (min-width: 481px) {
-    .mobile-container {
-        max-width: 100%;
-        height: auto;
-        min-height: 100vh;
-        border-radius: 0;
-        padding-bottom: 100px;
-        box-shadow: none;
-    }
-    
-    .summary-cards {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        padding: 0 20px 20px;
-    }
-    
-    .notes-grid-minimal {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        padding: 0 20px;
-    }
-    
-    .bottom-nav {
-        width: 100%;
-        max-width: 100%;
-        border-radius: 20px 20px 0 0;
-        bottom: 0;
-    }
-}
-
-/* Celulares (até 480px) */
-@media (max-width: 480px) {
-    body {
-        padding: 0;
-    }
-    
-    .mobile-container {
-        max-width: 100%;
-        height: 100vh;
-        border-radius: 0;
-        padding-bottom: 90px;
-        box-shadow: none;
-    }
-    
-    .summary-cards {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        padding: 0 15px 15px;
-    }
-    
-    .card {
-        padding: 12px 8px;
-    }
-    
-    .card-number {
-        font-size: 1.3rem;
-    }
-    
-    .card-label {
-        font-size: 0.65rem;
-    }
-    
-    .notes-grid-minimal {
-        grid-template-columns: 1fr;
-        gap: 10px;
-        padding: 0 15px;
-    }
-    
-    .bottom-nav {
-        width: 100%;
-        max-width: 100%;
-        height: 65px;
-        border-radius: 20px 20px 0 0;
-        bottom: 0;
-    }
-    
-    .nav-item {
-        padding: 5px 8px;
-        font-size: 0.65rem;
-    }
-    
-    .nav-item ion-icon {
-        font-size: 1.3rem;
-    }
-    
-    header {
-        padding: 15px;
-    }
-    
-    .greeting h1 {
-        font-size: 1.1rem;
-    }
-    
-    .greeting p {
-        font-size: 0.8rem;
-    }
-    
-    section {
-        padding: 10px 15px;
-    }
-    
-    .notes-header-minimal h1 {
-        font-size: 1.5rem;
-    }
-    
-    .btn-new-note {
-        width: 42px;
-        height: 42px;
-        font-size: 1.3rem;
-    }
-}
-
-/* Ajustes específicos para tablets em modo paisagem */
-@media (max-width: 1024px) and (orientation: landscape) {
-    .mobile-container {
-        max-width: 90vh;
-        height: 95vh;
-    }
-}
-
-/* Desktop - Mantém layout original (sem mudanças) */
-@media (min-width: 1025px) {
-    .mobile-container {
-        max-width: 375px;
-        height: 812px;
-        border-radius: 30px;
-        /* Borda removida permanentemente */
-    }
-}
-/* ==================== HEADER ==================== */
+/* ============================================
+   HEADER
+   ============================================ */
 header {
     padding: 20px;
     display: flex;
@@ -299,11 +90,6 @@ header {
     align-items: center;
     position: relative;
     cursor: pointer;
-    transition: all 0.2s;
-}
-
-.profile-icon:hover {
-    background-color: var(--border-color);
 }
 
 .profile-icon ion-icon {
@@ -327,12 +113,32 @@ header {
     font-weight: bold;
 }
 
-/* ==================== CARDS DE RESUMO ==================== */
+/* ============================================
+   VIEWS
+   ============================================ */
+.view {
+    display: block;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.view.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   CARDS DE RESUMO
+   ============================================ */
 .summary-cards {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    padding: 0 20px 20px;
+    margin-bottom: 20px;
 }
 
 .card {
@@ -363,9 +169,50 @@ header {
     color: var(--text-secondary);
 }
 
-/* ==================== SEÇÕES ==================== */
+/* ============================================
+   FRASE DO DIA
+   ============================================ */
+.frase-dia-card {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.08));
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.frase-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(139, 92, 246, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.frase-icon ion-icon {
+    font-size: 28px;
+    color: #a78bfa;
+}
+
+.frase-dia-card p {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-style: italic;
+    margin: 0;
+}
+
+/* ============================================
+   HORÁRIO SEMANAL
+   ============================================ */
 section {
-    padding: 10px 20px;
+    margin-bottom: 20px;
 }
 
 .section-header {
@@ -389,33 +236,15 @@ section {
     gap: 5px;
 }
 
-/* ==================== HORÁRIO SEMANAL ==================== */
 .schedule-wrapper {
     overflow-x: auto;
     border-radius: 12px;
-    margin-bottom: 10px;
-}
-
-.schedule-wrapper::-webkit-scrollbar {
-    height: 6px;
-}
-
-.schedule-wrapper::-webkit-scrollbar-track {
-    background: var(--bg-color);
-    border-radius: 10px;
-}
-
-.schedule-wrapper::-webkit-scrollbar-thumb {
-    background: var(--accent-purple);
-    border-radius: 10px;
 }
 
 .schedule-grid {
     display: grid;
     grid-template-columns: 55px repeat(5, 1fr);
     gap: 0;
-    text-align: center;
-    font-size: 0.7rem;
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -429,6 +258,7 @@ section {
     font-weight: 500;
     border-bottom: 1px solid var(--border-color);
     border-right: 1px solid var(--border-color);
+    text-align: center;
 }
 
 .time-slot {
@@ -452,7 +282,6 @@ section {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
 }
 
 .class-block {
@@ -460,19 +289,13 @@ section {
     padding: 6px 8px;
     font-weight: 600;
     font-size: 0.7rem;
-    cursor: pointer;
-    transition: transform 0.2s;
+    color: white;
     width: 90%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
     line-height: 1.2;
-}
-
-.class-block:hover {
-    transform: scale(1.05);
-    opacity: 0.9;
 }
 
 .class-block.empty {
@@ -482,7 +305,6 @@ section {
     cursor: default;
 }
 
-/* Cores das Matérias */
 .subject-custom {
     border-radius: 8px;
     padding: 6px 8px;
@@ -496,7 +318,9 @@ section {
     line-height: 1.2;
 }
 
-/* ==================== LISTAS ==================== */
+/* ============================================
+   LISTAS
+   ============================================ */
 .list-item {
     background-color: var(--card-bg);
     border-radius: 10px;
@@ -524,8 +348,10 @@ section {
     flex-shrink: 0;
 }
 
-.item-icon.matematica { background-color: rgba(99, 102, 241, 0.2); color: #6366f1; }
-.item-icon.notification { background-color: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+.item-icon.notification {
+    background-color: rgba(139, 92, 246, 0.2);
+    color: #8b5cf6;
+}
 
 .item-info {
     flex-grow: 1;
@@ -542,384 +368,553 @@ section {
     margin-top: 2px;
 }
 
-.item-arrow {
-    color: var(--text-secondary);
-}
-
-/* ==================== BARRA DE NAVEGAÇÃO ==================== */
-.bottom-nav {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 375px;
-    max-width: calc(100% - 40px);
-    height: 70px;
-    background-color: var(--nav-bg);
+/* ============================================
+   CALENDÁRIO
+   ============================================ */
+.calendar-container {
+    background-color: var(--card-bg);
     border: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border-radius: 20px;
-    z-index: 100;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
 }
 
-.nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 10px;
-    transition: all 0.2s;
-}
-
-.nav-item ion-icon {
-    font-size: 1.5rem;
-    margin-bottom: 2px;
-}
-
-.nav-item.active {
-    color: var(--text-primary);
-    background-color: var(--accent-purple);
-}
-
-/* ==================== GERAL ==================== */
-.hidden {
-    display: none !important;
-}
-
-.home-only {
-    display: block;
-}
-
-/* ==================== MODAL DE EDIÇÃO DE HORÁRIO ==================== */
-.edit-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color);
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.edit-modal.active {
-    display: block;
-}
-
-.edit-modal-content {
-    max-width: 375px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.edit-modal-header {
+.calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.edit-modal-header h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.btn-back, .btn-save {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-save {
-    background-color: var(--accent-purple);
-    padding: 8px 20px;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.edit-schedule-wrapper {
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-radius: 12px;
-    margin-bottom: 20px;
-}
-
-.edit-schedule-wrapper::-webkit-scrollbar {
-    height: 6px;
-}
-
-.edit-schedule-wrapper::-webkit-scrollbar-track {
-    background: var(--bg-color);
-    border-radius: 10px;
-}
-
-.edit-schedule-wrapper::-webkit-scrollbar-thumb {
-    background: var(--accent-purple);
-    border-radius: 10px;
-}
-
-.edit-schedule-grid {
-    display: grid;
-    grid-template-columns: 70px repeat(5, 1fr);
-    gap: 0;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    min-width: 700px;
-}
-
-.edit-schedule-grid .day-header,
-.edit-schedule-grid .time-slot {
-    background-color: var(--card-bg);
-    color: var(--text-secondary);
-    padding: 12px 5px;
-    font-size: 0.8rem;
-    border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
-}
-
-.edit-cell {
-    background-color: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
-    padding: 10px 5px;
-    min-height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-.edit-cell .class-block {
-    width: 90%;
-    border-radius: 8px;
-    padding: 8px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.edit-cell .class-block:hover {
-    transform: scale(1.05);
-}
-
-.btn-delete-row {
-    background: none;
-    border: none;
-    color: var(--accent-red);
-    font-size: 1rem;
-    cursor: pointer;
-    padding: 5px;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-}
-
-.btn-delete-row:hover {
-    opacity: 1;
-}
-
-.btn-add {
-    background-color: transparent;
-    border: 1px dashed var(--text-secondary);
-    color: var(--text-secondary);
-    border-radius: 8px;
-    padding: 8px;
-    font-size: 1.2rem;
-    cursor: pointer;
-    width: 80%;
-    min-height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-add:hover {
-    border-color: var(--accent-purple);
-    color: var(--accent-purple);
-}
-
-.add-time-section {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px;
-}
-
-.add-time-section h3 {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
     margin-bottom: 15px;
 }
 
-.add-time-controls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+.calendar-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
 }
 
-.add-time-controls input {
-    flex: 1;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 12px;
-    border-radius: 10px;
-    font-size: 0.9rem;
-}
-
-.add-time-controls button {
-    padding: 12px 20px;
+.calendar-header button {
+    background: none;
     border: none;
-    border-radius: 10px;
-    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1.2rem;
     cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
 }
 
-.btn-add-time {
-    background-color: var(--accent-purple);
-    color: white;
-}
-
-.btn-cancel-time {
+.calendar-header button:hover {
     background-color: var(--border-color);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.weekday {
+    text-align: center;
     color: var(--text-secondary);
-}
-
-/* ==================== MODAL DE MATÉRIA ==================== */
-.subject-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color);
-    z-index: 200;
-    overflow-y: auto;
-}
-
-.subject-modal.active {
-    display: block;
-}
-
-.subject-modal-content {
-    max-width: 375px;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-}
-
-.subject-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.subject-modal-header h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.subject-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.input-group label {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 10px 0;
     font-weight: 500;
 }
 
-.input-group input,
-.input-group select {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 10px;
-    padding: 12px 15px;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.2s;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
 }
 
-.input-group input:focus,
-.input-group select:focus {
+.calendar-day:hover {
+    background-color: var(--border-color);
+}
+
+.calendar-day.today {
+    background-color: var(--accent-purple);
+    color: white;
+    font-weight: 600;
+}
+
+.calendar-day.selected {
+    border: 2px solid var(--accent-purple);
+}
+
+.calendar-day.empty {
+    cursor: default;
+    background: transparent;
+}
+
+.calendar-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    background-color: var(--accent-green);
+    border-radius: 50%;
+}
+
+.events-section {
+    padding: 0 5px;
+}
+
+#events-list {
+    margin-top: 10px;
+}
+
+.event-item {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+
+.event-item:hover {
+    background-color: #252a33;
+}
+
+.event-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.event-info {
+    flex-grow: 1;
+}
+
+.event-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.event-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.event-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.event-actions ion-icon {
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+.event-actions ion-icon:hover {
+    color: var(--text-primary);
+}
+
+/* ============================================
+   TAREFAS
+   ============================================ */
+.tasks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.tasks-header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.btn-add-task {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    background-color: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.btn-add-task:hover {
+    transform: scale(1.1);
+}
+
+.tasks-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+}
+
+.tasks-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-btn {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background-color: var(--accent-purple);
+    color: white;
     border-color: var(--accent-purple);
 }
 
-.input-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-
-.color-options {
+.task-item {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 15px;
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 8px;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 10px;
 }
 
-.color-option {
-    width: 45px;
-    height: 45px;
+.task-item:hover {
+    background-color: #252a33;
+}
+
+.task-item.completed {
+    opacity: 0.6;
+}
+
+.task-item.completed .task-title {
+    text-decoration: line-through;
+}
+
+.task-item.prioridade-baixa {
+    border-left: 3px solid #10b981;
+}
+
+.task-item.prioridade-media {
+    border-left: 3px solid #f59e0b;
+}
+
+.task-item.prioridade-alta {
+    border-left: 3px solid #ef4444;
+}
+
+.task-color {
+    width: 4px;
+    height: 40px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.task-info {
+    flex-grow: 1;
+}
+
+.task-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
+.task-subject {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.task-date {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.task-check {
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.task-check:hover {
+    border-color: var(--accent-green);
+}
+
+.task-check.checked {
+    background-color: var(--accent-green);
+    border-color: var(--accent-green);
+}
+
+.task-check.checked ion-icon {
+    color: white;
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   NOTAS
+   ============================================ */
+.notes-header-minimal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.notes-header-minimal h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.btn-new-note {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    background: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    border: 2px solid transparent;
-    background-color: var(--card-bg);
 }
 
-.color-option.active {
+.notes-search-minimal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+}
+
+.notes-search-minimal ion-icon {
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+}
+
+.notes-search-minimal input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.notes-grid-minimal {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.note-card-minimal {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-card-minimal:hover {
+    transform: translateY(-4px);
     border-color: var(--accent-purple);
-    transform: scale(1.1);
-    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
-.color-circle {
-    width: 35px;
-    height: 35px;
+.note-title-minimal {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+}
+
+.note-preview-minimal {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex: 1;
+}
+
+.note-footer-minimal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.note-date-minimal {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.note-actions-minimal {
+    display: flex;
+    gap: 12px;
+}
+
+.note-actions-minimal ion-icon {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* ============================================
+   PERFIL
+   ============================================ */
+.profile-header {
+    margin-bottom: 30px;
+}
+
+.profile-header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.profile-info {
+    text-align: center;
+    padding: 30px 20px;
+    background-color: var(--card-bg);
+    border-radius: 15px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    background-color: var(--accent-purple);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+    font-size: 2rem;
+    font-weight: 600;
+    color: white;
+    overflow: hidden;
+    border: 3px solid var(--border-color);
+    position: relative;
 }
 
-.color-option:hover {
-    transform: scale(1.1);
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
-/* ==================== MODAL DE NOTIFICAÇÕES ==================== */
+.profile-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.profile-email {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.profile-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.menu-item:hover {
+    background-color: #252a33;
+}
+
+.menu-item ion-icon {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+}
+
+.menu-item span {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.menu-item .arrow {
+    color: var(--text-secondary);
+}
+
+.menu-item.logout {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.menu-item.logout ion-icon {
+    color: var(--accent-red);
+}
+
+.menu-item.logout span {
+    color: var(--accent-red);
+}
+
+/* ============================================
+   MODAIS
+   ============================================ */
 .notifications-modal {
     display: none;
     position: fixed;
@@ -964,16 +959,14 @@ section {
 }
 
 .btn-mark-read {
-    display: flex;
-    align-items: center;
-    gap: 5px;
     background: none;
     border: none;
     color: var(--accent-purple);
     font-size: 0.75rem;
     cursor: pointer;
-    padding: 8px 12px;
-    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .btn-clear-all {
@@ -982,8 +975,6 @@ section {
     color: var(--accent-red);
     font-size: 1.2rem;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
 }
 
 .notifications-tabs {
@@ -1008,7 +999,6 @@ section {
 .notification-tab.active {
     background-color: var(--accent-purple);
     color: white;
-    border-color: var(--accent-purple);
 }
 
 #notifications-list-modal {
@@ -1087,7 +1077,9 @@ section {
     cursor: pointer;
 }
 
-/* ==================== MODAL DE CONFIRMAÇÃO ==================== */
+/* ============================================
+   CONFIRM MODAL
+   ============================================ */
 .confirm-modal {
     display: none;
     position: fixed;
@@ -1169,7 +1161,9 @@ section {
     color: white;
 }
 
-/* ==================== TOAST ==================== */
+/* ============================================
+   TOAST
+   ============================================ */
 #toast-container {
     position: fixed;
     top: 20px;
@@ -1223,239 +1217,153 @@ section {
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* ... (todo CSS anterior) ... */
-
-/* ==================== ANIMAÇÃO DE SALVAMENTO ==================== */
-.btn-saving {
-    position: relative;
-    pointer-events: none;
-    opacity: 0.8;
-}
-
-.btn-saving::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid transparent;
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-@keyframes spin {
-    to { transform: translateY(-50%) rotate(360deg); }
-}
-
-
-/* ✅ NOVO: Esconder botão de Modo Foco na tela inicial */
-#focus-mode-btn {
-    display: none !important;
-}
-
-
-
-
-/* Botão de Logout Mobile */
-.logout-mobile-btn {
-    width: 100%;
-    padding: 14px 20px;
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    border-radius: 30px;
-    color: #ef4444;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.3s ease;
-}
-
-.logout-mobile-btn:hover {
-    background: rgba(239, 68, 68, 0.25);
-    border-color: #ef4444;
-    transform: scale(1.02);
-}
-
-.logout-mobile-btn ion-icon {
-    font-size: 1.2rem;
-}
-/* ==================== ESTILOS PARA REMOÇÃO DE HORÁRIOS ==================== */
-
-.time-slot-with-delete {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: var(--card-bg);
-    padding: 12px 8px;
-    border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
-}
-
-.time-slot-with-delete .time-slot-text {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    flex: 1;
-    text-align: center;
-}
-
-.btn-delete-time {
-    background: none;
-    border: none;
-    color: var(--accent-red);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.6;
-    transition: opacity 0.2s, transform 0.2s;
-}
-
-.btn-delete-time:hover {
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.btn-delete-time ion-icon {
-    font-size: 1rem;
-}
-
-.btn-delete-class {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.2s, transform 0.2s;
-    margin-top: 4px;
-}
-
-.btn-delete-class:hover {
-    opacity: 0.8;
-    transform: scale(1.1);
-}
-
-.btn-delete-class ion-icon {
-    font-size: 0.9rem;
-}
-
-/* Ajuste na grade de edição para o novo layout */
-.edit-schedule-grid {
-    display: grid;
-    grid-template-columns: 85px repeat(5, 1fr);
-    gap: 0;
-    background-color: var(--card-bg);
+/* ============================================
+   BOTTOM NAV
+   ============================================ */
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 375px;
+    max-width: calc(100% - 40px);
+    height: 70px;
+    background-color: var(--nav-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    min-width: 650px;
-}
-
-/* Ajuste para os botões de adicionar na edição */
-.edit-cell .btn-add {
-    background-color: transparent;
-    border: 1px dashed var(--text-secondary);
-    color: var(--text-secondary);
-    border-radius: 8px;
-    padding: 8px;
-    font-size: 1.2rem;
-    cursor: pointer;
-    width: 100%;
-    min-height: 35px;
     display: flex;
+    justify-content: space-around;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    border-radius: 20px;
+    z-index: 100;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
-.edit-cell .btn-add:hover {
-    border-color: var(--accent-purple);
-    color: var(--accent-purple);
-    background-color: rgba(139, 92, 246, 0.1);
-}
-
-/* Melhorias visuais para os blocos de matéria na edição */
-.edit-cell .class-block {
-    width: 100%;
-    border-radius: 8px;
-    padding: 8px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: white;
+.nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 10px;
+    transition: all 0.2s;
 }
 
-/* Responsividade para telas pequenas */
+.nav-item ion-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-item.active {
+    color: var(--text-primary);
+    background-color: var(--accent-purple);
+}
+
+/* ============================================
+   RESPONSIVIDADE
+   ============================================ */
+
+/* Tablets */
+@media (max-width: 1024px) and (min-width: 768px) {
+    .bottom-nav {
+        width: 768px;
+        height: 80px;
+    }
+    .nav-item {
+        padding: 8px 15px;
+        font-size: 0.8rem;
+    }
+    .nav-item ion-icon {
+        font-size: 1.8rem;
+    }
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    .notes-grid-minimal {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Celular Grande */
+@media (max-width: 767px) and (min-width: 481px) {
+    .bottom-nav {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .notes-grid-minimal {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Celular Pequeno */
 @media (max-width: 480px) {
-    .edit-schedule-grid {
-        min-width: 550px;
-        grid-template-columns: 75px repeat(5, 1fr);
+    #app {
+        padding-bottom: 90px;
     }
     
-    .time-slot-with-delete .time-slot-text {
-        font-size: 0.7rem;
+    .bottom-nav {
+        width: 100%;
+        max-width: 100%;
+        height: 65px;
+        border-radius: 20px 20px 0 0;
+        bottom: 0;
+    }
+    .nav-item {
+        padding: 5px 8px;
+        font-size: 0.65rem;
+    }
+    .nav-item ion-icon {
+        font-size: 1.3rem;
     }
     
-    .btn-delete-time ion-icon {
+    header {
+        padding: 15px;
+    }
+    .greeting h1 {
+        font-size: 1.1rem;
+    }
+    .greeting p {
         font-size: 0.8rem;
     }
     
-    .edit-cell .class-block {
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .card {
+        padding: 12px 8px;
+    }
+    .card-number {
+        font-size: 1.3rem;
+    }
+    .card-label {
         font-size: 0.65rem;
-        padding: 6px;
+    }
+    
+    .notes-grid-minimal {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .note-card-minimal {
+        min-height: 120px;
+    }
+    
+    .notifications-modal-content {
+        max-width: 95%;
+        margin: 30px 10px;
     }
 }
-/* Adicione no final do arquivo mobile-telas/style.css */
 
-/* Frase do Dia Mobile */
-.frase-dia-card {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.08));
-    border-radius: 20px;
-    padding: 20px;
-    margin: 10px 20px 20px 20px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    backdrop-filter: blur(10px);
-}
-
-.frase-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(139, 92, 246, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.frase-icon ion-icon {
-    font-size: 28px;
-    color: #a78bfa;
-}
-
-.frase-dia-card p {
-    flex: 1;
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--text-primary);
-    font-style: italic;
-    margin: 0;
+/* ============================================
+   UTILITÁRIOS
+   ============================================ */
+.hidden {
+    display: none !important;
 }

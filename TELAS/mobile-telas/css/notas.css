@@ -1,0 +1,129 @@
+/* ============================================
+   notas.css - NOTAS
+   ============================================ */
+
+.notes-header-minimal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.notes-header-minimal h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.notes-search-minimal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+}
+
+.notes-search-minimal ion-icon {
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+}
+
+.notes-search-minimal input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.notes-search-minimal input::placeholder {
+    color: var(--text-secondary);
+}
+
+.notes-grid-minimal {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.note-card-minimal {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-card-minimal:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent-purple);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+}
+
+.note-title-minimal {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+}
+
+.note-preview-minimal {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex: 1;
+}
+
+.note-footer-minimal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.note-date-minimal {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.note-actions-minimal {
+    display: flex;
+    gap: 12px;
+}
+
+.note-actions-minimal ion-icon {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.note-actions-minimal ion-icon:hover {
+    color: var(--text-primary);
+}
+
+.empty-notes-minimal {
+    grid-column: span 2;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-notes-minimal ion-icon {
+    font-size: 3.5rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}

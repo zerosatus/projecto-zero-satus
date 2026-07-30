@@ -1,0 +1,86 @@
+/* ============================================
+   dashboard.css - DASHBOARD
+   ============================================ */
+
+/* HORÁRIO SEMANAL */
+.schedule-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+}
+
+.schedule-grid {
+    display: grid;
+    grid-template-columns: 55px repeat(5, 1fr);
+    gap: 0;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    min-width: 650px;
+}
+
+.day-header {
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 12px 5px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.time-slot {
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 15px 8px;
+    font-size: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.class-cell {
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    padding: 8px 4px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.class-block {
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: white;
+    width: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.class-block.empty {
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: default;
+}
+
+.subject-custom {
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    line-height: 1.2;
+}
