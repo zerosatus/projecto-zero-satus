@@ -13,7 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- ========================================== -->
-    <!-- CSS MÓDULOS (Carregamento Otimizado)       -->
+    <!-- CSS MÓDULOS                               -->
     <!-- ========================================== -->
     
     <!-- CSS BASE (Sempre carregado) -->
@@ -22,12 +22,12 @@
     <link rel="stylesheet" href="css/modals.css">
     <link rel="stylesheet" href="css/responsive.css">
     
-    <!-- CSS DOS MÓDULOS (Carregamento dinâmico via JS) -->
-    <!-- <link rel="stylesheet" href="css/dashboard.css"> -->
-    <!-- <link rel="stylesheet" href="css/calendario.css"> -->
-    <!-- <link rel="stylesheet" href="css/tarefas.css"> -->
-    <!-- <link rel="stylesheet" href="css/notas.css"> -->
-    <!-- <link rel="stylesheet" href="css/perfil.css"> -->
+    <!-- CSS DOS MÓDULOS -->
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/calendario.css">
+    <link rel="stylesheet" href="css/tarefas.css">
+    <link rel="stylesheet" href="css/notas.css">
+    <link rel="stylesheet" href="css/perfil.css">
     
 </head>
 <body>
@@ -53,8 +53,11 @@
     <!-- ========================================== -->
     <main id="app-content">
         
-        <!-- VIEW: DASHBOARD -->
+        <!-- ========================================== -->
+        <!-- VIEW: DASHBOARD                            -->
+        <!-- ========================================== -->
         <section id="view-dashboard" class="view active">
+            <!-- Cards Resumo -->
             <div class="summary-cards">
                 <div class="card">
                     <div class="card-icon tarefas"><ion-icon name="book-outline"></ion-icon></div>
@@ -73,47 +76,54 @@
                 </div>
             </div>
 
+            <!-- Frase do Dia -->
             <div class="frase-dia-card">
                 <div class="frase-icon"><ion-icon name="bulb-outline"></ion-icon></div>
                 <p id="fraseDoDiaText">Carregando frase...</p>
             </div>
 
+            <!-- Horário Semanal -->
             <section>
                 <div class="section-header">
                     <h3 class="section-title">Horário Semanal</h3>
-                    <span class="edit-btn" id="toggle-edit-mode">Editar <ion-icon name="create-outline"></ion-icon></span>
+                    <button class="edit-btn" id="toggle-edit-mode">Editar <ion-icon name="create-outline"></ion-icon></button>
                 </div>
                 <div class="schedule-wrapper">
                     <div class="schedule-grid" id="schedule-grid"></div>
                 </div>
             </section>
 
+            <!-- Próximo Evento -->
             <section>
                 <div class="section-header">
                     <h3 class="section-title">Próximo Evento</h3>
-                    <span class="edit-btn" id="go-to-calendar">Ver calendário <ion-icon name="chevron-forward-outline"></ion-icon></span>
+                    <button class="edit-btn" id="go-to-calendar">Ver calendário <ion-icon name="chevron-forward-outline"></ion-icon></button>
                 </div>
                 <div id="next-event-container"></div>
             </section>
 
+            <!-- Tarefas Próximas -->
             <section>
                 <div class="section-header">
                     <h3 class="section-title">Tarefas Próximas</h3>
-                    <span class="edit-btn" id="go-to-tasks">Ver todas <ion-icon name="chevron-forward-outline"></ion-icon></span>
+                    <button class="edit-btn" id="go-to-tasks">Ver todas <ion-icon name="chevron-forward-outline"></ion-icon></button>
                 </div>
                 <div id="next-tasks-container"></div>
             </section>
 
+            <!-- Notificações -->
             <section>
                 <div class="section-header">
                     <h3 class="section-title">Notificações</h3>
-                    <span class="edit-btn" id="notification-bell-link">Ver todas <ion-icon name="chevron-forward-outline"></ion-icon></span>
+                    <button class="edit-btn" id="notification-bell-link">Ver todas <ion-icon name="chevron-forward-outline"></ion-icon></button>
                 </div>
                 <div id="notifications-list"></div>
             </section>
         </section>
 
-        <!-- VIEW: CALENDÁRIO -->
+        <!-- ========================================== -->
+        <!-- VIEW: CALENDÁRIO                           -->
+        <!-- ========================================== -->
         <section id="view-calendario" class="view hidden">
             <div class="calendar-container">
                 <div class="calendar-header">
@@ -122,12 +132,9 @@
                     <button id="next-month"><ion-icon name="chevron-forward-outline"></ion-icon></button>
                 </div>
                 <div class="calendar-grid">
-                    <div class="weekday">D</div>
-                    <div class="weekday">S</div>
-                    <div class="weekday">T</div>
-                    <div class="weekday">Q</div>
-                    <div class="weekday">Q</div>
-                    <div class="weekday">S</div>
+                    <div class="weekday">D</div><div class="weekday">S</div>
+                    <div class="weekday">T</div><div class="weekday">Q</div>
+                    <div class="weekday">Q</div><div class="weekday">S</div>
                     <div class="weekday">S</div>
                 </div>
                 <div class="calendar-grid" id="calendar-days"></div>
@@ -144,7 +151,9 @@
             </div>
         </section>
 
-        <!-- VIEW: TAREFAS -->
+        <!-- ========================================== -->
+        <!-- VIEW: TAREFAS                              -->
+        <!-- ========================================== -->
         <section id="view-tarefas" class="view hidden">
             <div class="tasks-header">
                 <h1>Tarefas</h1>
@@ -152,17 +161,17 @@
                     <ion-icon name="add-outline"></ion-icon>
                 </button>
             </div>
-
             <div class="tasks-filters">
                 <button class="filter-btn active" data-filter="todos">Todos</button>
                 <button class="filter-btn" data-filter="pendentes">Pendentes</button>
                 <button class="filter-btn" data-filter="concluidas">Concluídas</button>
             </div>
-
             <div id="tasks-list"></div>
         </section>
 
-        <!-- VIEW: NOTAS -->
+        <!-- ========================================== -->
+        <!-- VIEW: NOTAS                                -->
+        <!-- ========================================== -->
         <section id="view-notas" class="view hidden">
             <div class="notes-header-minimal">
                 <h1>Anotações</h1>
@@ -177,18 +186,42 @@
             <div class="notes-grid-minimal" id="notes-grid"></div>
         </section>
 
-        <!-- VIEW: PERFIL -->
+        <!-- ========================================== -->
+        <!-- VIEW: PERFIL                               -->
+        <!-- ========================================== -->
         <section id="view-perfil" class="view hidden">
             <div class="profile-header">
                 <h1>Perfil</h1>
             </div>
+
+            <!-- Estatísticas do Perfil -->
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="stat-tarefas">0</span>
+                    <span class="stat-label">Tarefas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="stat-notas">0</span>
+                    <span class="stat-label">Notas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="stat-eventos">0</span>
+                    <span class="stat-label">Eventos</span>
+                </div>
+            </div>
+
             <div class="profile-info">
                 <div class="profile-avatar" id="profile-avatar">
                     <span id="profile-initial">U</span>
+                    <div class="avatar-edit-badge">
+                        <ion-icon name="camera-outline"></ion-icon>
+                    </div>
                 </div>
                 <div class="profile-name" id="profile-name">Usuário</div>
                 <div class="profile-email" id="profile-email">usuario@email.com</div>
+                <span class="profile-role" style="display:none;">👑 ADMIN</span>
             </div>
+
             <div class="profile-menu">
                 <div class="menu-item" data-action="dados">
                     <ion-icon name="person-outline"></ion-icon>
@@ -210,18 +243,211 @@
                     <span>Aparência</span>
                     <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
                 </div>
+                <div class="menu-item" data-action="ajuda">
+                    <ion-icon name="help-circle-outline"></ion-icon>
+                    <span>Ajuda e Suporte</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item" data-action="sincronizar">
+                    <ion-icon name="cloud-upload-outline"></ion-icon>
+                    <span>Sincronizar com Nuvem</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                <div class="menu-item" data-action="deletar-foto">
+                    <ion-icon name="image-outline"></ion-icon>
+                    <span>Remover Foto de Perfil</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
                 <div class="menu-item logout" data-action="logout">
                     <ion-icon name="log-out-outline"></ion-icon>
                     <span>Sair da Conta</span>
                     <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
                 </div>
             </div>
+
+            <div class="version-info">
+                <span>Versão do App</span>
+                <span class="version-number">v2.0.0</span>
+            </div>
         </section>
 
     </main>
 
     <!-- ========================================== -->
-    <!-- MODAL DE EVENTO                           -->
+    <!-- BOTTOM NAV FIXO                           -->
+    <!-- ========================================== -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-view="dashboard">
+            <ion-icon name="home-outline"></ion-icon>
+            <span>Início</span>
+        </button>
+        <button class="nav-item" data-view="calendario">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span>Calendário</span>
+        </button>
+        <button class="nav-item" data-view="tarefas">
+            <ion-icon name="checkbox-outline"></ion-icon>
+            <span>Tarefas</span>
+        </button>
+        <button class="nav-item" data-view="notas">
+            <ion-icon name="document-text-outline"></ion-icon>
+            <span>Notas</span>
+        </button>
+        <button class="nav-item" data-view="perfil">
+            <ion-icon name="person-outline"></ion-icon>
+            <span>Perfil</span>
+        </button>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- MODAIS GLOBAIS                            -->
+    <!-- ========================================== -->
+    
+    <!-- Modal de Notificações -->
+    <div class="notifications-modal" id="notifications-modal">
+        <div class="notifications-modal-content">
+            <div class="notifications-modal-header">
+                <h2>Notificações</h2>
+                <div class="notifications-actions">
+                    <button class="btn-mark-read" id="btn-mark-read">
+                        <ion-icon name="checkmark-done-outline"></ion-icon> Marcar todas
+                    </button>
+                    <button class="btn-clear-all" id="btn-clear-all">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+            <div class="notifications-tabs">
+                <div class="notification-tab active" data-type="all">Todas</div>
+                <div class="notification-tab" data-type="unread">Não Lidas</div>
+                <div class="notification-tab" data-type="aulas">Aulas</div>
+                <div class="notification-tab" data-type="tarefas">Tarefas</div>
+            </div>
+            <div id="notifications-list-modal"></div>
+            <button class="btn-close-modal" id="btn-close-notifications">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div class="confirm-modal" id="confirm-modal">
+        <div class="confirm-modal-content">
+            <div class="confirm-icon"><ion-icon name="warning-outline"></ion-icon></div>
+            <h3 id="confirm-title">Confirmar ação</h3>
+            <p id="confirm-message">Tem certeza que deseja continuar?</p>
+            <div class="confirm-buttons">
+                <button class="btn-cancel" id="confirm-cancel">Cancelar</button>
+                <button class="btn-ok" id="confirm-ok">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: EDIÇÃO DE HORÁRIO (Dashboard)       -->
+    <!-- ========================================== -->
+    <div class="edit-modal" id="edit-modal">
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">
+                <button class="btn-back" id="btn-back">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Editar Horário Semanal</h2>
+                <button class="btn-save" id="btn-save">Concluir</button>
+            </div>
+            <p style="text-align:center;color:var(--text-secondary);margin-bottom:20px;font-size:0.8rem;">
+                Toque no <strong style="color:var(--accent-purple);">+</strong> para adicionar uma aula ou no ícone de lixeira para remover um horário.
+            </p>
+            <div class="edit-schedule-wrapper">
+                <div class="edit-schedule-grid" id="edit-schedule-grid"></div>
+            </div>
+            <div class="add-time-section">
+                <h3>Adicionar Novo Horário à Grade</h3>
+                <div class="add-time-controls">
+                    <input type="time" id="new-time-input" value="11:00">
+                    <button class="btn-add-time" id="btn-add-time">Adicionar</button>
+                    <button class="btn-cancel-time" id="btn-cancel-time">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: MATÉRIA (Dashboard)                 -->
+    <!-- ========================================== -->
+    <div class="subject-modal" id="subject-modal">
+        <div class="subject-modal-content">
+            <div class="subject-modal-header">
+                <button class="btn-back" data-modal="subject-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2 id="subject-modal-title">Adicionar Matéria</h2>
+                <button class="btn-close" data-modal="subject-modal">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <form class="subject-form">
+                <div class="input-group">
+                    <label>Nome da Matéria</label>
+                    <input type="text" id="subject-name-input" placeholder="Ex: Matemática">
+                </div>
+                <div class="input-group">
+                    <label>Professor (Opcional)</label>
+                    <input type="text" id="subject-teacher-input" placeholder="Nome do professor">
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Início</label>
+                        <input type="time" id="subject-start-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Fim</label>
+                        <input type="time" id="subject-end-input">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Dia da Semana</label>
+                    <select id="subject-day-input">
+                        <option value="Seg">Segunda-feira</option>
+                        <option value="Ter">Terça-feira</option>
+                        <option value="Qua">Quarta-feira</option>
+                        <option value="Qui">Quinta-feira</option>
+                        <option value="Sex">Sexta-feira</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Cor</label>
+                    <div class="color-options">
+                        <div class="color-option active" data-color="#6366f1">
+                            <div class="color-circle" style="background-color: #6366f1;"></div>
+                        </div>
+                        <div class="color-option" data-color="#ec4899">
+                            <div class="color-circle" style="background-color: #ec4899;"></div>
+                        </div>
+                        <div class="color-option" data-color="#ef4444">
+                            <div class="color-circle" style="background-color: #ef4444;"></div>
+                        </div>
+                        <div class="color-option" data-color="#10b981">
+                            <div class="color-circle" style="background-color: #10b981;"></div>
+                        </div>
+                        <div class="color-option" data-color="#f59e0b">
+                            <div class="color-circle" style="background-color: #f59e0b;"></div>
+                        </div>
+                        <div class="color-option" data-color="#8b5cf6">
+                            <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-save" id="btn-save-subject">
+                    <ion-icon name="save-outline"></ion-icon> Salvar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: EVENTO (Calendário)                 -->
     <!-- ========================================== -->
     <div class="event-modal" id="event-modal">
         <div class="event-modal-content">
@@ -305,7 +531,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL DE TAREFA                           -->
+    <!-- MODAL: TAREFA                              -->
     <!-- ========================================== -->
     <div class="task-modal" id="task-modal">
         <div class="task-modal-content">
@@ -370,79 +596,343 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL DE NOTIFICAÇÕES                     -->
+    <!-- MODAL: NOTA (Samsung Notes Style)          -->
     <!-- ========================================== -->
-    <div class="notifications-modal" id="notifications-modal">
-        <div class="notifications-modal-content">
-            <div class="notifications-modal-header">
-                <h2>Notificações</h2>
-                <div class="notifications-actions">
-                    <button class="btn-mark-read" id="btn-mark-read">
-                        <ion-icon name="checkmark-done-outline"></ion-icon> Marcar todas
+    <div class="note-modal-minimal" id="note-modal">
+        <div class="note-editor-container">
+            
+            <!-- Header do Editor -->
+            <div class="samsung-header">
+                <button class="samsung-back-btn" id="note-modal-back">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <input type="text" class="samsung-title-input" id="note-title-input" placeholder="Título" autocomplete="off">
+                <button class="samsung-done-btn" id="btn-save-note">Concluir</button>
+            </div>
+
+            <!-- Área de Edição -->
+            <div class="samsung-editor-wrapper">
+                <div id="note-content-input" class="samsung-editor" contenteditable="true" placeholder="Digite sua anotação..."></div>
+            </div>
+
+            <!-- Toolbar Inferior -->
+            <div class="samsung-toolbar-bottom">
+                <div class="samsung-toolbar-group">
+                    <button class="samsung-toolbar-btn" data-command="bold" title="Negrito">
+                        <span class="toolbar-label toolbar-bold">B</span>
                     </button>
-                    <button class="btn-clear-all" id="btn-clear-all">
-                        <ion-icon name="trash-outline"></ion-icon>
+                    <button class="samsung-toolbar-btn" data-command="italic" title="Itálico">
+                        <span class="toolbar-label toolbar-italic">I</span>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="underline" title="Sublinhado">
+                        <span class="toolbar-label toolbar-underline">U</span>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="strikeThrough" title="Tachado">
+                        <span class="toolbar-label toolbar-strike">S</span>
+                    </button>
+                </div>
+                
+                <div class="samsung-toolbar-divider"></div>
+                
+                <div class="samsung-toolbar-group">
+                    <button class="samsung-toolbar-btn" data-command="justifyLeft" title="Esquerda">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="justifyCenter" title="Centro">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="justifyRight" title="Direita">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
+                    </button>
+                </div>
+                
+                <div class="samsung-toolbar-divider"></div>
+                
+                <div class="samsung-toolbar-group">
+                    <button class="samsung-toolbar-btn" data-command="insertUnorderedList" title="Lista">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
                     </button>
                 </div>
             </div>
-            <div class="notifications-tabs">
-                <div class="notification-tab active" data-type="all">Todas</div>
-                <div class="notification-tab" data-type="unread">Não Lidas</div>
-                <div class="notification-tab" data-type="aulas">Aulas</div>
-                <div class="notification-tab" data-type="tarefas">Tarefas</div>
-            </div>
-            <div id="notifications-list-modal"></div>
-            <button class="btn-close-modal" id="btn-close-notifications">Fechar</button>
-        </div>
-    </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL DE CONFIRMAÇÃO                      -->
-    <!-- ========================================== -->
-    <div class="confirm-modal" id="confirm-modal">
-        <div class="confirm-modal-content">
-            <div class="confirm-icon"><ion-icon name="warning-outline"></ion-icon></div>
-            <h3 id="confirm-title">Confirmar ação</h3>
-            <p id="confirm-message">Tem certeza que deseja continuar?</p>
-            <div class="confirm-buttons">
-                <button class="btn-cancel" id="confirm-cancel">Cancelar</button>
-                <button class="btn-ok" id="confirm-ok">Confirmar</button>
+            <!-- Rodapé com Data -->
+            <div class="note-footer-info">
+                <span id="note-date-display"></span>
             </div>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- TOAST CONTAINER                           -->
+    <!-- TOOLBAR FLUTUANTE (Teclado)                -->
     <!-- ========================================== -->
-    <div id="toast-container"></div>
+    <div class="floating-toolbar" id="floating-toolbar">
+        <div class="floating-group">
+            <button class="ft-btn" data-command="bold" title="Negrito"><b>B</b></button>
+            <button class="ft-btn" data-command="italic" title="Itálico"><i>I</i></button>
+            <button class="ft-btn" data-command="underline" title="Sublinhado"><u>U</u></button>
+        </div>
+        <div class="ft-divider"></div>
+        <button class="ft-btn ft-done">Concluir</button>
+    </div>
 
     <!-- ========================================== -->
-    <!-- BOTTOM NAV FIXO - FORA DAS MODAIS        -->
+    <!-- MODAL: DADOS PESSOAIS (Perfil)             -->
     <!-- ========================================== -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" data-view="dashboard">
-            <ion-icon name="home-outline"></ion-icon>
-            <span>Início</span>
-        </button>
-        <button class="nav-item" data-view="calendario">
-            <ion-icon name="calendar-outline"></ion-icon>
-            <span>Calendário</span>
-        </button>
-        <button class="nav-item" data-view="tarefas">
-            <ion-icon name="checkbox-outline"></ion-icon>
-            <span>Tarefas</span>
-        </button>
-        <button class="nav-item" data-view="notas">
-            <ion-icon name="document-text-outline"></ion-icon>
-            <span>Notas</span>
-        </button>
-        <button class="nav-item" data-view="perfil">
-            <ion-icon name="person-outline"></ion-icon>
-            <span>Perfil</span>
-        </button>
-    </nav>
+    <div class="profile-modal" id="dados-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <button class="btn-back-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Dados Pessoais</h2>
+                <button class="btn-close-modal-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <form class="profile-form">
+                <div class="profile-avatar-edit">
+                    <div class="avatar-preview" id="avatar-preview">U</div>
+                    <button type="button" class="btn-change-avatar">
+                        <ion-icon name="camera-outline"></ion-icon>
+                    </button>
+                </div>
+                <div class="input-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="profile-name-input" placeholder="Seu nome">
+                </div>
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="profile-email-input" placeholder="seu@email.com">
+                </div>
+                <button type="button" class="btn-save" id="btn-save-dados">
+                    <ion-icon name="save-outline"></ion-icon> Salvar
+                </button>
+            </form>
+        </div>
+    </div>
 
-</div> <!-- FIM #app -->
+    <!-- ========================================== -->
+    <!-- MODAL: SEGURANÇA (Perfil)                  -->
+    <!-- ========================================== -->
+    <div class="profile-modal" id="seguranca-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <button class="btn-back-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Segurança</h2>
+                <button class="btn-close-modal-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <form class="profile-form">
+                <div class="security-info" style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(139,92,246,0.1);border-radius:10px;color:var(--text-secondary);font-size:0.8rem;">
+                    <ion-icon name="shield-checkmark-outline" style="color:var(--accent-purple);font-size:1.2rem;"></ion-icon>
+                    <span>Sua senha deve ter pelo menos 6 caracteres.</span>
+                </div>
+                <div class="input-group">
+                    <label>Senha Atual</label>
+                    <input type="password" id="current-password" placeholder="••••••">
+                </div>
+                <div class="input-group">
+                    <label>Nova Senha</label>
+                    <input type="password" id="new-password" placeholder="••••••">
+                </div>
+                <div class="input-group">
+                    <label>Confirmar Nova Senha</label>
+                    <input type="password" id="confirm-password" placeholder="••••••">
+                </div>
+                <button type="button" class="btn-save" id="btn-save-senha">
+                    <ion-icon name="save-outline"></ion-icon> Salvar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: NOTIFICAÇÕES (Perfil)               -->
+    <!-- ========================================== -->
+    <div class="profile-modal" id="notificacoes-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <button class="btn-back-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Notificações</h2>
+                <button class="btn-close-modal-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <form class="profile-form">
+                <div class="toggle-option">
+                    <div class="toggle-info">
+                        <ion-icon name="notifications-outline"></ion-icon>
+                        <div>
+                            <span class="toggle-title">Notificações Push</span>
+                            <span class="toggle-desc">Receber alertas no celular</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-push" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-option">
+                    <div class="toggle-info">
+                        <ion-icon name="mail-outline"></ion-icon>
+                        <div>
+                            <span class="toggle-title">E-mail Marketing</span>
+                            <span class="toggle-desc">Receber novidades por e-mail</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-email">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-option">
+                    <div class="toggle-info">
+                        <ion-icon name="book-outline"></ion-icon>
+                        <div>
+                            <span class="toggle-title">Lembretes de Aula</span>
+                            <span class="toggle-desc">Alertas antes das aulas</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-aulas" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-option">
+                    <div class="toggle-info">
+                        <ion-icon name="checkbox-outline"></ion-icon>
+                        <div>
+                            <span class="toggle-title">Lembretes de Tarefas</span>
+                            <span class="toggle-desc">Alertas de tarefas pendentes</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-tarefas" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button type="button" class="btn-save" id="btn-save-notificacoes">
+                    <ion-icon name="save-outline"></ion-icon> Salvar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: APARÊNCIA (Perfil)                  -->
+    <!-- ========================================== -->
+    <div class="profile-modal" id="aparencia-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <button class="btn-back-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Aparência</h2>
+                <button class="btn-close-modal-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <form class="profile-form">
+                <div class="input-group">
+                    <label>Tema</label>
+                    <div class="theme-options">
+                        <div class="theme-btn active" data-theme="dark">
+                            <ion-icon name="moon-outline"></ion-icon>
+                            <span>Escuro</span>
+                        </div>
+                        <div class="theme-btn" data-theme="light">
+                            <ion-icon name="sunny-outline"></ion-icon>
+                            <span>Claro</span>
+                        </div>
+                        <div class="theme-btn" data-theme="auto">
+                            <ion-icon name="desktop-outline"></ion-icon>
+                            <span>Auto</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Cor de Destaque</label>
+                    <div class="color-options">
+                        <div class="color-option active" data-accent="#8b5cf6">
+                            <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                        </div>
+                        <div class="color-option" data-accent="#6366f1">
+                            <div class="color-circle" style="background-color: #6366f1;"></div>
+                        </div>
+                        <div class="color-option" data-accent="#ec4899">
+                            <div class="color-circle" style="background-color: #ec4899;"></div>
+                        </div>
+                        <div class="color-option" data-accent="#10b981">
+                            <div class="color-circle" style="background-color: #10b981;"></div>
+                        </div>
+                        <div class="color-option" data-accent="#f59e0b">
+                            <div class="color-circle" style="background-color: #f59e0b;"></div>
+                        </div>
+                        <div class="color-option" data-accent="#ef4444">
+                            <div class="color-circle" style="background-color: #ef4444;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Tamanho da Fonte</label>
+                    <input type="range" id="font-size-slider" min="12" max="18" value="14">
+                    <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-secondary);">
+                        <span>Pequeno</span>
+                        <span>Médio</span>
+                        <span>Grande</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-save" id="btn-save-aparencia">
+                    <ion-icon name="save-outline"></ion-icon> Salvar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: AJUDA E SUPORTE (Perfil)            -->
+    <!-- ========================================== -->
+    <div class="profile-modal" id="ajuda-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <button class="btn-back-modal">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2>Ajuda e Suporte</h2>
+                <button class="btn-close-modal-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="help-buttons">
+                <div class="help-btn" id="btn-contato">
+                    <ion-icon name="logo-whatsapp"></ion-icon>
+                    <span>Falar no WhatsApp</span>
+                </div>
+                <div class="help-btn" id="btn-termos">
+                    <ion-icon name="document-text-outline"></ion-icon>
+                    <span>Termos de Uso</span>
+                </div>
+                <div class="help-btn" id="btn-privacidade">
+                    <ion-icon name="shield-checkmark-outline"></ion-icon>
+                    <span>Política de Privacidade</span>
+                </div>
+                <div class="help-btn" id="btn-avaliar">
+                    <ion-icon name="star-outline"></ion-icon>
+                    <span>Avaliar App</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
 
 <!-- ========================================== -->
 <!-- SCRIPTS                                   -->

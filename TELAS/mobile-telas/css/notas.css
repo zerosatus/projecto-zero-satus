@@ -1,6 +1,11 @@
 /* ============================================
-   notas.css - NOTAS
+   notas.css - ESTILOS DAS NOTAS (CORRIGIDO)
    ============================================ */
+
+/* ==================== VIEW NOTAS ==================== */
+#view-notas {
+    padding: 20px;
+}
 
 .notes-header-minimal {
     display: flex;
@@ -12,6 +17,28 @@
 .notes-header-minimal h1 {
     font-size: 1.5rem;
     font-weight: 700;
+    color: var(--text-primary);
+}
+
+.btn-new-note {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    background: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.btn-new-note:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
 }
 
 .notes-search-minimal {
@@ -23,11 +50,18 @@
     border-radius: 20px;
     padding: 12px 18px;
     margin-bottom: 24px;
+    transition: all 0.25s ease;
+}
+
+.notes-search-minimal:focus-within {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
 .notes-search-minimal ion-icon {
     color: var(--text-secondary);
     font-size: 1.2rem;
+    flex-shrink: 0;
 }
 
 .notes-search-minimal input {
@@ -55,7 +89,7 @@
     padding: 16px;
     border: 1px solid var(--border-color);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s ease;
     min-height: 140px;
     display: flex;
     flex-direction: column;
@@ -64,13 +98,18 @@
 .note-card-minimal:hover {
     transform: translateY(-4px);
     border-color: var(--accent-purple);
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
 }
 
 .note-title-minimal {
     font-weight: 600;
     font-size: 0.95rem;
     margin-bottom: 8px;
+    color: var(--text-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .note-preview-minimal {
@@ -108,13 +147,25 @@
     color: var(--text-secondary);
     font-size: 1rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    padding: 4px;
+    border-radius: 6px;
 }
 
 .note-actions-minimal ion-icon:hover {
     color: var(--text-primary);
+    background-color: var(--border-color);
 }
 
+.note-actions-minimal .edit-note:hover {
+    color: var(--accent-purple);
+}
+
+.note-actions-minimal .delete-note:hover {
+    color: var(--accent-red);
+}
+
+/* ==================== ESTADO VAZIO ==================== */
 .empty-notes-minimal {
     grid-column: span 2;
     text-align: center;
@@ -126,4 +177,250 @@
     font-size: 3.5rem;
     margin-bottom: 16px;
     opacity: 0.5;
+}
+
+.empty-notes-minimal p {
+    font-size: 0.95rem;
+}
+
+/* ==================== TOOLBAR FLUTUANTE (ÚNICA) ==================== */
+.floating-toolbar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 10px 16px;
+    z-index: 9999;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease-out;
+}
+
+.floating-toolbar.show {
+    display: flex;
+}
+
+.floating-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ft-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 40px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ft-btn:hover {
+    border-color: var(--accent-purple);
+    color: var(--text-primary);
+}
+
+.ft-btn:active {
+    background-color: var(--accent-purple);
+    border-color: var(--accent-purple);
+    color: white;
+}
+
+.ft-divider {
+    width: 1px;
+    height: 24px;
+    background-color: var(--border-color);
+}
+
+.ft-done {
+    background-color: var(--accent-green);
+    border: none;
+    color: white;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ft-done:hover {
+    transform: scale(1.05);
+}
+
+/* ============================================
+   MODAL DE EDIÇÃO - SAMSUNG NOTES
+   ============================================ */
+.note-modal-minimal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-color);
+    z-index: 200;
+    overflow: hidden;
+}
+
+.note-modal-minimal.active {
+    display: block;
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.note-editor-container {
+    max-width: 100%;
+    margin: 0 auto;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-color);
+}
+
+.samsung-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.samsung-back-btn {
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.samsung-back-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.samsung-title-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 17px;
+    font-weight: 600;
+    outline: none;
+    padding: 8px 4px;
+    min-width: 0;
+}
+
+.samsung-title-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.samsung-done-btn {
+    background: linear-gradient(135deg, var(--accent-green), #059669);
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.samsung-done-btn:hover {
+    transform: scale(1.05);
+}
+
+.samsung-editor-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+}
+
+.samsung-editor {
+    min-height: 100%;
+    color: var(--text-primary);
+    font-size: 16px;
+    line-height: 1.7;
+    outline: none;
+    padding-bottom: 200px;
+    word-wrap: break-word;
+}
+
+.samsung-editor:empty::before {
+    content: attr(placeholder);
+    color: var(--text-secondary);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.samsung-editor p { margin-bottom: 0.8rem; color: var(--text-primary); }
+.samsung-editor h1 { color: var(--accent-purple); margin: 1rem 0 0.5rem; font-size: 1.8rem; }
+.samsung-editor h2 { color: var(--accent-purple); margin: 0.8rem 0 0.4rem; font-size: 1.5rem; }
+.samsung-editor h3 { color: var(--text-primary); margin: 0.6rem 0 0.3rem; font-size: 1.2rem; }
+.samsung-editor ul, .samsung-editor ol { margin: 0.8rem 0; padding-left: 1.5rem; }
+
+/* ✅ REMOVIDA: samsung-toolbar-bottom */
+
+.note-footer-info {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    background-color: var(--card-bg);
+    flex-shrink: 0;
+}
+
+.note-footer-info span { font-size: 0.7rem; color: var(--text-secondary); }
+
+/* ==================== RESPONSIVIDADE ==================== */
+@media (max-width: 480px) {
+    #view-notas { padding: 15px; }
+    .notes-grid-minimal { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .note-card-minimal { min-height: 130px; padding: 14px; }
+    .note-title-minimal { font-size: 0.85rem; }
+    .note-preview-minimal { font-size: 0.7rem; -webkit-line-clamp: 2; }
+    .floating-toolbar { padding: 8px 12px; }
+    .ft-btn { padding: 6px 10px; font-size: 12px; min-width: 34px; }
+    .samsung-editor { font-size: 15px; }
+    .empty-notes-minimal { padding: 40px 16px; }
+    .empty-notes-minimal ion-icon { font-size: 2.5rem; }
+}
+
+@media (max-width: 1024px) and (min-width: 768px) {
+    .notes-grid-minimal { grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .note-card-minimal { min-height: 170px; padding: 18px; }
+    .samsung-editor { font-size: 17px; }
+}
+
+@media (min-width: 1025px) {
+    .notes-grid-minimal { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .note-card-minimal { min-height: 190px; padding: 20px; }
 }
