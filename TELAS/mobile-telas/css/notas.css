@@ -165,7 +165,7 @@
     color: var(--accent-red);
 }
 
-/* ==================== ESTADO VAZIO ==================== */
+/* ==================== ESTADO VAZIO (SEM BOTÃO) ==================== */
 .empty-notes-minimal {
     grid-column: span 2;
     text-align: center;
@@ -183,83 +183,8 @@
     font-size: 0.95rem;
 }
 
-/* ==================== TOOLBAR FLUTUANTE (ÚNICA) ==================== */
-.floating-toolbar {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: var(--card-bg);
-    border-top: 1px solid var(--border-color);
-    padding: 10px 16px;
-    z-index: 9999;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
-    animation: slideUp 0.3s ease-out;
-}
-
-.floating-toolbar.show {
-    display: flex;
-}
-
-.floating-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.ft-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    min-width: 40px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.ft-btn:hover {
-    border-color: var(--accent-purple);
-    color: var(--text-primary);
-}
-
-.ft-btn:active {
-    background-color: var(--accent-purple);
-    border-color: var(--accent-purple);
-    color: white;
-}
-
-.ft-divider {
-    width: 1px;
-    height: 24px;
-    background-color: var(--border-color);
-}
-
-.ft-done {
-    background-color: var(--accent-green);
-    border: none;
-    color: white;
-    font-weight: bold;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.ft-done:hover {
-    transform: scale(1.05);
-}
-
 /* ============================================
-   MODAL DE EDIÇÃO - SAMSUNG NOTES
+   MODAL DE EDIÇÃO - ESTILO SAMSUNG NOTES
    ============================================ */
 .note-modal-minimal {
     display: none;
@@ -388,7 +313,71 @@
 .samsung-editor h3 { color: var(--text-primary); margin: 0.6rem 0 0.3rem; font-size: 1.2rem; }
 .samsung-editor ul, .samsung-editor ol { margin: 0.8rem 0; padding-left: 1.5rem; }
 
-/* ✅ REMOVIDA: samsung-toolbar-bottom */
+/* ==================== TOOLBAR INFERIOR ==================== */
+.samsung-toolbar-bottom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+}
+
+.samsung-toolbar-bottom::-webkit-scrollbar { display: none; }
+
+.samsung-toolbar-group { display: flex; gap: 2px; flex-shrink: 0; }
+.samsung-toolbar-divider { width: 1px; height: 24px; background-color: var(--border-color); flex-shrink: 0; margin: 0 4px; }
+
+.samsung-toolbar-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.samsung-toolbar-btn:hover { background-color: var(--border-color); color: var(--text-primary); }
+.samsung-toolbar-btn:active { background-color: var(--accent-purple); color: white; }
+.samsung-toolbar-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+
+.toolbar-label { font-size: 16px; font-weight: 700; font-family: Georgia, 'Times New Roman', serif; }
+.toolbar-bold { font-weight: 900; }
+.toolbar-italic { font-style: italic; }
+.toolbar-underline { text-decoration: underline; }
+.toolbar-strike { text-decoration: line-through; }
+
+.samsung-toolbar-select {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    flex-shrink: 0;
+    min-width: 100px;
+    max-width: 130px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
+}
 
 .note-footer-info {
     padding: 12px 20px;
@@ -400,6 +389,71 @@
 
 .note-footer-info span { font-size: 0.7rem; color: var(--text-secondary); }
 
+/* ==================== TOOLBAR FLUTUANTE ==================== */
+.floating-toolbar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 10px 16px;
+    z-index: 9999;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease-out;
+}
+
+.floating-toolbar.show {
+    display: flex;
+}
+
+.floating-group { display: flex; gap: 8px; align-items: center; }
+
+.ft-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 40px;
+    transition: all 0.2s ease;
+}
+
+.ft-btn:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+.ft-btn:active { background-color: var(--accent-purple); border-color: var(--accent-purple); color: white; }
+
+.ft-select {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+}
+
+.ft-divider { width: 1px; height: 24px; background-color: var(--border-color); }
+
+.ft-done {
+    background-color: var(--accent-green);
+    border: none;
+    color: white;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ft-done:hover { transform: scale(1.05); }
+
 /* ==================== RESPONSIVIDADE ==================== */
 @media (max-width: 480px) {
     #view-notas { padding: 15px; }
@@ -407,9 +461,14 @@
     .note-card-minimal { min-height: 130px; padding: 14px; }
     .note-title-minimal { font-size: 0.85rem; }
     .note-preview-minimal { font-size: 0.7rem; -webkit-line-clamp: 2; }
+    .samsung-toolbar-bottom { padding: 8px 10px; gap: 4px; }
+    .samsung-toolbar-btn { width: 36px; height: 36px; min-width: 36px; }
+    .samsung-toolbar-btn svg { width: 16px; height: 16px; }
+    .toolbar-label { font-size: 14px; }
+    .samsung-toolbar-select { min-width: 90px; font-size: 12px; padding: 6px 24px 6px 8px; }
+    .samsung-editor { font-size: 15px; }
     .floating-toolbar { padding: 8px 12px; }
     .ft-btn { padding: 6px 10px; font-size: 12px; min-width: 34px; }
-    .samsung-editor { font-size: 15px; }
     .empty-notes-minimal { padding: 40px 16px; }
     .empty-notes-minimal ion-icon { font-size: 2.5rem; }
 }

@@ -69,6 +69,7 @@ class NotasModule {
         );
         
         if (filtered.length === 0) {
+            // ✅ REMOVIDO: Botão "Criar primeira anotação"
             grid.innerHTML = `
                 <div class="empty-notes-minimal">
                     <ion-icon name="document-text-outline"></ion-icon>
@@ -344,7 +345,25 @@ class NotasModule {
             }
         });
         
-        // ✅ Atalhos de teclado
+        // Toolbar INFERIOR (Samsung Notes Style)
+        document.querySelectorAll('#note-modal .samsung-toolbar-btn[data-command]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const command = btn.dataset.command;
+                this.formatText(command);
+            });
+        });
+        
+        // Seletor de formato da toolbar inferior
+        document.getElementById('format-block-select')?.addEventListener('change', (e) => {
+            const value = e.target.value;
+            if (value) {
+                this.formatText('formatBlock', value);
+                e.target.value = '';
+            }
+        });
+        
+        // Atalhos de teclado
         document.getElementById('note-content-input')?.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
                 switch(e.key.toLowerCase()) {
@@ -368,12 +387,12 @@ class NotasModule {
             }
         });
         
-        // ✅ Toolbar flutuante (única toolbar)
+        // Toolbar flutuante (teclado)
         this.setupFloatingToolbar();
     }
     
     // ============================================
-    // TOOLBAR FLUTUANTE (Única toolbar)
+    // TOOLBAR FLUTUANTE (Teclado)
     // ============================================
     setupFloatingToolbar() {
         const toolbar = document.getElementById('floating-toolbar');
@@ -396,7 +415,6 @@ class NotasModule {
         
         // Botões da toolbar flutuante
         toolbar.querySelectorAll('.ft-btn').forEach(btn => {
-            // Ignorar o botão "Concluir"
             if (btn.classList.contains('ft-done')) return;
             
             btn.addEventListener('click', (e) => {
@@ -408,6 +426,19 @@ class NotasModule {
                 editor.focus();
             });
         });
+        
+        // Seletor de estilo da toolbar flutuante
+        const select = toolbar.querySelector('.ft-select');
+        if (select) {
+            select.addEventListener('change', (e) => {
+                const value = e.target.value;
+                if (value) {
+                    this.formatText('formatBlock', value);
+                    e.target.value = '';
+                }
+                editor.focus();
+            });
+        }
         
         // Botão Concluir
         const doneBtn = toolbar.querySelector('.ft-done');
