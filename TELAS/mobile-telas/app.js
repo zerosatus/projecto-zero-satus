@@ -36,6 +36,7 @@ class App {
         this._profileUpdateTimeout = null;
         this._profileUpdateRetries = 0;
         this._maxProfileRetries = 3;
+        this._isAppReady = false;
         
         // CSS por módulo
         this.cssModules = {
@@ -214,74 +215,43 @@ class App {
     }
     
     // ============================================
-    // ⭐ AGUARDAR SUPABASE FICAR PRONTO
+    // ⭐ AGUARDAR SUPABASE FICAR PRONTO (CORRIGIDO)
     // ============================================
-    waitForSupabase() {
+    async waitForSupabase() {
+        // Verificar se já está disponível
+        if (this.getSupabase()) {
+            console.log('[SPA] ✅ Supabase já disponível');
+            return true;
+        }
+        
+        console.log('[SPA] ⏳ Aguardando Supabase inicializar...');
+        this.updateLoadingStatus('Conectando ao servidor...', 10);
+        
+        // Tentar inicializar manualmente se não estiver pronto
+        if (window.SupabaseClient?.initSupabase) {
+            console.log('[SPA] 🔄 Inicializando Supabase manualmente...');
+            window.SupabaseClient.initSupabase();
+        }
+        
+        // Aguardar até 10 segundos
+        let attempts = 0;
+        const maxAttempts = 50;
+        
         return new Promise((resolve) => {
-            // Se já está disponível, resolve imediatamente
-            if (this.getSupabase()) {
-                console.log('[SPA] ✅ Supabase já disponível');
-                resolve();
-                return;
-            }
-            
-            console.log('[SPA] ⏳ Aguardando Supabase inicializar...');
-            this.updateLoadingStatus('Conectando ao servidor...', 10);
-            
-            let resolved = false;
-            let attempts = 0;
-            const maxAttempts = 50; // 5 segundos (100ms cada)
-            
-            // Verificar periodicamente
-            const interval = setInterval(() => {
+            const checkInterval = setInterval(() => {
                 attempts++;
                 if (this.getSupabase()) {
-                    if (!resolved) {
-                        resolved = true;
-                        console.log('[SPA] ✅ Supabase pronto (verificação periódica)');
-                        this.updateLoadingStatus('Conectado!', 20);
-                        cleanup();
-                        resolve();
-                    }
+                    console.log('[SPA] ✅ Supabase pronto!');
+                    clearInterval(checkInterval);
+                    this.updateLoadingStatus('Conectado!', 20);
+                    resolve(true);
                 } else if (attempts >= maxAttempts) {
-                    if (!resolved) {
-                        resolved = true;
-                        console.warn('[SPA] ⚠️ Timeout aguardando Supabase - continuando sem ele');
-                        this.updateLoadingStatus('Modo offline - usando dados locais', 20);
-                        cleanup();
-                        resolve();
-                    }
+                    console.warn('[SPA] ⚠️ Timeout aguardando Supabase - continuando offline');
+                    clearInterval(checkInterval);
+                    this.updateLoadingStatus('Modo offline - usando dados locais', 20);
+                    resolve(false);
                 }
-            }, 100);
-            
-            // Ouvir evento de pronto
-            const onReady = () => {
-                if (!resolved) {
-                    resolved = true;
-                    console.log('[SPA] ✅ Supabase pronto via evento');
-                    this.updateLoadingStatus('Conectado!', 20);
-                    cleanup();
-                    resolve();
-                }
-            };
-            
-            const cleanup = () => {
-                clearInterval(interval);
-                window.removeEventListener('supabaseReady', onReady);
-            };
-            
-            window.addEventListener('supabaseReady', onReady);
-            
-            // Se o evento já foi disparado antes de adicionarmos o listener
-            setTimeout(() => {
-                if (this.getSupabase() && !resolved) {
-                    resolved = true;
-                    console.log('[SPA] ✅ Supabase disponível (verificação tardia)');
-                    this.updateLoadingStatus('Conectado!', 20);
-                    cleanup();
-                    resolve();
-                }
-            }, 300);
+            }, 200);
         });
     }
     
@@ -311,16 +281,14 @@ class App {
     }
     
     // ============================================
-    // ⭐ SETUP PROFILE OBSERVER (CORRIGIDO - SEM LOOP INFINITO)
+    // ⭐ SETUP PROFILE OBSERVER
     // ============================================
     setupProfileObserver() {
-        // Remover observer anterior se existir
         if (this._profileObserver) {
             this._profileObserver.disconnect();
             this._profileObserver = null;
         }
         
-        // Remover timeouts pendentes
         if (this._profileUpdateTimeout) {
             clearTimeout(this._profileUpdateTimeout);
             this._profileUpdateTimeout = null;
@@ -334,14 +302,12 @@ class App {
         
         console.log('[SPA] 🔍 Configurando Profile Observer...');
         
-        // Observer para mudanças na classe da view
         this._profileObserver = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                     const isActive = targetNode.classList.contains('active');
                     if (isActive) {
                         console.log('[SPA] 🔍 View perfil ativada via observer, atualizando...');
-                        // Resetar contador e atualizar
                         this._profileUpdateRetries = 0;
                         this.updateProfileUI();
                         this.updateProfileStats();
@@ -357,7 +323,6 @@ class App {
         
         console.log('[SPA] ✅ Profile Observer configurado com sucesso');
         
-        // Verificar se a view já está ativa no momento da configuração
         if (targetNode.classList.contains('active')) {
             console.log('[SPA] 🔍 View perfil já está ativa, atualizando...');
             this._profileUpdateRetries = 0;
@@ -367,7 +332,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ ATUALIZAR UI DO PERFIL (CORRIGIDO - SEM LOOP INFINITO)
+    // ⭐ ATUALIZAR UI DO PERFIL
     // ============================================
     updateProfileUI() {
         if (!this.user) {
@@ -375,7 +340,6 @@ class App {
             return;
         }
         
-        // ⭐ IMPEDIR LOOP INFINITO
         if (this._profileUpdateRetries >= this._maxProfileRetries) {
             console.log('[SPA] ⏹️ Máximo de tentativas atingido, parando atualizações');
             return;
@@ -390,7 +354,6 @@ class App {
         let elementsFound = 0;
         let elementsMissing = [];
         
-        // Atualizar elementos do perfil
         const profileName = document.getElementById('profile-name');
         if (profileName) {
             profileName.textContent = nome;
@@ -415,7 +378,6 @@ class App {
             elementsMissing.push('profile-initial');
         }
         
-        // Atualizar avatar preview
         const avatarPreview = document.getElementById('avatar-preview');
         if (avatarPreview) {
             avatarPreview.textContent = initial;
@@ -424,7 +386,6 @@ class App {
             elementsMissing.push('avatar-preview');
         }
         
-        // Atualizar campos do formulário de dados pessoais
         const profileNameInput = document.getElementById('profile-name-input');
         if (profileNameInput) {
             profileNameInput.value = nome;
@@ -441,7 +402,6 @@ class App {
             elementsMissing.push('profile-email-input');
         }
         
-        // Atualizar header
         const headerName = document.getElementById('header-name');
         if (headerName) {
             headerName.textContent = nome.split(' ')[0];
@@ -452,7 +412,6 @@ class App {
         
         console.log(`[SPA] 📊 Elementos encontrados: ${elementsFound}, faltando: ${elementsMissing.length}`);
         
-        // Se faltam elementos, incrementar contador e tentar novamente
         if (elementsMissing.length > 0 && elementsMissing.length < 7) {
             this._profileUpdateRetries++;
             console.warn(`[SPA] ⚠️ Elementos faltando (${this._profileUpdateRetries}/${this._maxProfileRetries}):`, elementsMissing.join(', '));
@@ -471,10 +430,10 @@ class App {
             }
         } else if (elementsMissing.length === 0) {
             console.log('[SPA] ✅ Perfil atualizado com sucesso:', { nome, email });
-            this._profileUpdateRetries = 0; // Resetar para futuras atualizações
+            this._profileUpdateRetries = 0;
         } else {
             console.warn('[SPA] ⚠️ Muitos elementos faltando, pode ser problema no HTML');
-            this._profileUpdateRetries = 0; // Resetar para não ficar tentando
+            this._profileUpdateRetries = 0;
         }
     }
     
@@ -529,7 +488,6 @@ class App {
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
         
-        // ⭐ ATUALIZAR PERFIL IMEDIATAMENTE com dados do usuário
         this._profileUpdateRetries = 0;
         this.updateProfileUI();
         
@@ -546,37 +504,55 @@ class App {
             console.warn('[SPA] ⚠️ CacheManager não disponível');
         }
         
-        // 4. Carregar módulos JavaScript
-        this.updateLoadingStatus('Carregando módulos...', 30);
+        // 4. Inicializar SyncHelper
+        this.updateLoadingStatus('Inicializando sincronização...', 30);
+        if (window.initSync) {
+            try {
+                await window.initSync();
+                console.log('[SPA] ✅ SyncHelper inicializado');
+            } catch(e) {
+                console.warn('[SPA] ⚠️ Erro ao inicializar SyncHelper:', e);
+            }
+        }
+        
+        // 5. Carregar módulos JavaScript
+        this.updateLoadingStatus('Carregando módulos...', 35);
         this.loadModules();
         
-        // 5. Carregar dados (com tentativas)
-        this.updateLoadingStatus('Carregando seus dados...', 35);
+        // 6. Carregar dados (com tentativas)
+        this.updateLoadingStatus('Carregando seus dados...', 40);
         await this.loadAllData();
         
-        // ⭐ ATUALIZAR PERFIL NOVAMENTE (agora com dados carregados)
+        // ⭐ ATUALIZAR PERFIL NOVAMENTE
         this._profileUpdateRetries = 0;
         this.updateProfileUI();
         this.updateProfileStats();
         
-        // 6. Configurar navegação
+        // 7. Configurar navegação
         this.updateLoadingStatus('Configurando...', 85);
         this.setupNavigation();
         
-        // 7. Configurar eventos
+        // 8. Configurar eventos
         this.setupEvents();
         
-        // 8. ⭐ Configurar observer do perfil
+        // 9. ⭐ Configurar observer do perfil
         this.setupProfileObserver();
         
-        // 9. Renderizar view inicial
+        // 10. Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 95);
         this.showView('dashboard');
         
-        // 10. Atualizar badge de notificações
+        // 11. Atualizar badge de notificações
         this.updateBadge();
         
-        // 11. ⭐ FECHAR LOADING
+        // 12. ⭐ FORÇAR SINCronização inicial
+        if (window.CacheManager && window.CacheManager.forceSync) {
+            setTimeout(() => {
+                window.CacheManager.forceSync().catch(() => {});
+            }, 2000);
+        }
+        
+        // 13. ⭐ FECHAR LOADING
         setTimeout(() => {
             this.updateLoadingStatus('Pronto!', 100);
             setTimeout(() => {
@@ -584,6 +560,7 @@ class App {
             }, 300);
         }, 500);
         
+        this._isAppReady = true;
         console.log('[SPA] ✅ Aplicação mobile pronta!');
     }
     
@@ -591,27 +568,22 @@ class App {
     // CARREGAR MÓDULOS
     // ============================================
     loadModules() {
-        // Dashboard
         if (typeof DashboardModule !== 'undefined') {
             this.modules.dashboard = new DashboardModule(this);
         }
         
-        // Calendário
         if (typeof CalendarioModule !== 'undefined') {
             this.modules.calendario = new CalendarioModule(this);
         }
         
-        // Tarefas
         if (typeof TarefasModule !== 'undefined') {
             this.modules.tarefas = new TarefasModule(this);
         }
         
-        // Notas
         if (typeof NotasModule !== 'undefined') {
             this.modules.notas = new NotasModule(this);
         }
         
-        // Perfil
         if (typeof PerfilModule !== 'undefined') {
             this.modules.perfil = new PerfilModule(this);
         }
@@ -634,7 +606,6 @@ class App {
         if (cached) {
             try {
                 const data = JSON.parse(cached);
-                // Validar dados
                 if (data && typeof data === 'object') {
                     this.data = {
                         ...this.data,
@@ -643,6 +614,11 @@ class App {
                     console.log('[SPA] 📦 Dados carregados do cache');
                     this.updateLoadingStatus('Dados do cache carregados', 70);
                     this.isLoading = false;
+                    
+                    // Já renderizar com dados do cache
+                    if (this.modules.dashboard) {
+                        this.modules.dashboard.render(this.data);
+                    }
                     return;
                 }
             } catch(e) {
@@ -650,51 +626,20 @@ class App {
             }
         }
         
-        // Se não tem cache ou cache inválido, tentar carregar do Supabase
+        // Tentar carregar do CacheManager (que já está conectado ao Supabase)
         try {
-            const client = this.getSupabase();
-            
-            if (!client) {
-                // Tentar novamente se ainda não atingiu o limite
-                if (retryCount < 5) {
-                    console.log(`[SPA] ⏳ Supabase não disponível, tentando novamente em ${(retryCount + 1) * 500}ms...`);
-                    this.updateLoadingStatus(`Tentando novamente... (${retryCount + 1}/5)`, 40);
-                    this.isLoading = false;
-                    await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 500));
-                    return this.loadAllData(retryCount + 1);
-                }
-                throw new Error('Supabase não disponível após múltiplas tentativas');
-            }
-            
-            console.log('[SPA] 🔍 Buscando dados do Supabase...');
-            this.updateLoadingStatus('Buscando dados do servidor...', 50);
-            
-            // Tentar chamar a RPC
-            const { data, error } = await client.rpc('get_user_full_data', {
-                user_id: this.user.id
-            });
-            
-            if (error) {
-                console.error('[SPA] ❌ Erro na RPC:', error);
-                // Se a RPC falhar, tentar carregar individualmente
-                await this.loadDataIndividually(client);
-                this.isLoading = false;
-                return;
-            }
-            
-            if (data) {
-                // Atualizar dados
-                this.data.tasks = data.tasks || [];
-                this.data.notes = data.notes || [];
-                this.data.calendarEvents = data.calendarEvents || [];
-                this.data.weeklySchedule = data.weeklySchedule || {};
-                this.data.timeSlots = data.timeSlots || [];
-                this.data.notifications = data.notifications || [];
-                this.data.disciplinas = data.disciplinas || [];
-                this.data.profile = data.profile || {};
+            if (window.CacheManager) {
+                const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
+                let loadedCount = 0;
                 
-                // ⭐ Settings - usar padrão se não vier
-                this.data.settings = data.settings || { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
+                for (const tipo of tipos) {
+                    const dados = window.CacheManager.get(tipo, null);
+                    if (dados !== null) {
+                        this.data[tipo] = dados;
+                        loadedCount++;
+                        console.log(`[SPA] 📊 ${tipo} carregado: ${Array.isArray(dados) ? dados.length : Object.keys(dados).length} itens`);
+                    }
+                }
                 
                 // Garantir dias da semana
                 const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
@@ -704,190 +649,35 @@ class App {
                     }
                 });
                 
+                // Settings
+                if (!this.data.settings || typeof this.data.settings !== 'object') {
+                    this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
+                }
+                
                 // Salvar cache
                 sessionStorage.setItem('app_data', JSON.stringify(this.data));
                 
-                console.log('[SPA] ✅ Dados carregados do Supabase:', {
-                    tasks: this.data.tasks.length,
-                    notes: this.data.notes.length,
-                    events: this.data.calendarEvents.length
-                });
-                
+                console.log(`[SPA] ✅ Dados carregados do CacheManager (${loadedCount} tipos)`);
                 this.updateLoadingStatus('Dados carregados!', 80);
+                this.isLoading = false;
+                
+                // Renderizar com os dados carregados
+                if (this.modules.dashboard) {
+                    this.modules.dashboard.render(this.data);
+                }
+                return;
             }
-            
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao carregar dados:', error);
-            
-            // Se não tem dados e é a primeira tentativa, tentar carregar do localStorage
-            if (retryCount === 0) {
-                this.updateLoadingStatus('Carregando dados locais...', 50);
-                this.loadDataFromLocalStorage();
-            }
+            console.error('[SPA] ❌ Erro ao carregar dados do CacheManager:', error);
         }
         
+        // Fallback: localStorage com ID do usuário
+        this.loadDataFromLocalStorage();
         this.isLoading = false;
     }
     
     // ============================================
-    // ⭐ CARREGAR DADOS INDIVIDUALMENTE (FALLBACK) - CORRIGIDO
-    // ============================================
-    async loadDataIndividually(client) {
-        console.log('[SPA] 🔍 Carregando dados individualmente...');
-        this.updateLoadingStatus('Carregando dados (individual)...', 50);
-        
-        let loadedCount = 0;
-        const totalTypes = 7; // tasks, notes, events, schedule, disciplinas, notifications, settings
-        
-        try {
-            // Tasks
-            this.updateLoadingStatus(`Carregando tarefas... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            const { data: tasks } = await client
-                .from('tasks')
-                .select('*')
-                .eq('user_id', this.user.id);
-            if (tasks) this.data.tasks = tasks.map(t => ({
-                id: t.id,
-                nome: t.title,
-                descricao: t.description,
-                disciplina: t.subject,
-                prioridade: t.priority,
-                prazo: t.date,
-                completed: t.completed || false,
-                favorita: t.favorita || false,
-                subtasks: t.subtasks || [],
-                dataCriacao: t.created_at,
-                dataConclusao: t.completed ? t.updated_at : null
-            }));
-            loadedCount++;
-            
-            // Notes
-            this.updateLoadingStatus(`Carregando anotações... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            const { data: notes } = await client
-                .from('notes')
-                .select('*')
-                .eq('user_id', this.user.id);
-            if (notes) this.data.notes = notes.map(n => ({
-                id: n.id,
-                title: n.title || 'Sem título',
-                content: n.content || '',
-                date: n.created_at,
-                dataModificacao: n.updated_at
-            }));
-            loadedCount++;
-            
-            // Calendar Events
-            this.updateLoadingStatus(`Carregando eventos... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            const { data: events } = await client
-                .from('calendar_events')
-                .select('*')
-                .eq('user_id', this.user.id);
-            if (events) this.data.calendarEvents = events.map(e => ({
-                id: e.id,
-                title: e.title,
-                description: e.description || '',
-                date: e.date,
-                start: e.start_time,
-                end: e.end_time,
-                type: e.type || 'aula',
-                color: e.color || '#8b5cf6',
-                repeat: e.repeat_type || 'nao',
-                reminder: e.reminder || false
-            }));
-            loadedCount++;
-            
-            // Weekly Schedule
-            this.updateLoadingStatus(`Carregando horário... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            const { data: schedule } = await client
-                .from('weekly_schedule')
-                .select('schedule')
-                .eq('user_id', this.user.id)
-                .single();
-            if (schedule) {
-                this.data.weeklySchedule = schedule.schedule || {};
-                const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-                dias.forEach(day => {
-                    if (!this.data.weeklySchedule[day]) {
-                        this.data.weeklySchedule[day] = [];
-                    }
-                });
-            }
-            loadedCount++;
-            
-            // Disciplinas
-            this.updateLoadingStatus(`Carregando disciplinas... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            const { data: disciplinas } = await client
-                .from('disciplinas')
-                .select('*')
-                .eq('user_id', this.user.id);
-            if (disciplinas) this.data.disciplinas = disciplinas;
-            loadedCount++;
-            
-            // Notifications
-            this.updateLoadingStatus(`Carregando notificações... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            const { data: notifications } = await client
-                .from('notifications')
-                .select('*')
-                .eq('user_id', this.user.id);
-            if (notifications) this.data.notifications = notifications.map(n => ({
-                id: n.id,
-                title: n.title || 'Notificação',
-                message: n.message || '',
-                type: n.type || 'info',
-                read: n.read || false,
-                time: n.created_at
-            }));
-            loadedCount++;
-            
-            // ⭐⭐⭐ USER SETTINGS - SEGURO (NUNCA FALHA) ⭐⭐⭐
-            this.updateLoadingStatus(`Carregando configurações... (${loadedCount}/${totalTypes})`, 50 + (loadedCount * 4));
-            // Usa valores padrão e NUNCA lança erro
-            this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
-            
-            try {
-                const { data: settings, error: settingsErr } = await client
-                    .from('user_settings')
-                    .select('*')
-                    .eq('user_id', this.user.id)
-                    .single();
-                
-                // Se não houve erro E tem dados, usa eles
-                if (!settingsErr && settings) {
-                    this.data.settings = {
-                        theme: settings.theme || 'dark',
-                        accent: settings.accent_color || '#8b5cf6',
-                        fontSize: settings.font_size || 14
-                    };
-                    console.log('[SPA] ✅ Settings carregados com sucesso');
-                } else {
-                    // Qualquer erro (inclusive 406) - usa padrão
-                    console.log('[SPA] ℹ️ Settings não encontrados - usando padrão');
-                }
-            } catch (settingsError) {
-                // Qualquer exceção - usa padrão (NUNCA FALHA)
-                console.log('[SPA] ℹ️ Erro ao carregar settings - usando padrão');
-            }
-            loadedCount++;
-            
-            // ⭐ Se por algum motivo os settings ficaram vazios, garantir padrão
-            if (!this.data.settings || typeof this.data.settings !== 'object') {
-                this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
-            }
-            
-            // Salvar cache
-            sessionStorage.setItem('app_data', JSON.stringify(this.data));
-            
-            this.updateLoadingStatus('Dados carregados!', 80);
-            console.log('[SPA] ✅ Dados carregados individualmente');
-            
-        } catch (error) {
-            console.error('[SPA] ❌ Erro ao carregar dados individualmente:', error);
-            this.loadDataFromLocalStorage();
-        }
-    }
-    
-    // ============================================
-    // CARREGAR DO LOCALSTORAGE (FALLBACK FINAL)
+    // CARREGAR DO LOCALSTORAGE (FALLBACK)
     // ============================================
     loadDataFromLocalStorage() {
         console.log('[SPA] 📂 Tentando carregar do localStorage...');
@@ -917,16 +707,34 @@ class App {
             }
         }
         
-        // ⭐ Settings padrão (nunca falha)
-        this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
+        // Settings padrão
+        if (!this.data.settings || typeof this.data.settings !== 'object') {
+            this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
+        }
         
         if (loaded) {
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
             this.updateLoadingStatus(`Dados locais carregados (${loadedCount} tipos)`, 80);
             console.log('[SPA] ✅ Dados carregados do localStorage');
+            
+            if (this.modules.dashboard) {
+                this.modules.dashboard.render(this.data);
+            }
         } else {
             this.updateLoadingStatus('Nenhum dado encontrado', 70);
             console.log('[SPA] ℹ️ Nenhum dado encontrado no localStorage - usando dados vazios');
+            
+            // Inicializar com dados vazios
+            const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+            dias.forEach(day => {
+                if (!this.data.weeklySchedule[day]) {
+                    this.data.weeklySchedule[day] = [];
+                }
+            });
+            
+            if (this.modules.dashboard) {
+                this.modules.dashboard.render(this.data);
+            }
         }
     }
     
@@ -941,50 +749,38 @@ class App {
             // Salvar no cache
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
             
-            // Salvar no localStorage
+            // Salvar no localStorage (com userId)
             const userId = this.user.id;
             const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
             
             for (const type of types) {
                 const key = `${userId}_${type}`;
-                if (this.data[type]) {
+                if (this.data[type] !== undefined && this.data[type] !== null) {
                     localStorage.setItem(key, JSON.stringify(this.data[type]));
                 }
             }
             
-            // Sincronizar em background
-            this.syncInBackground();
+            // Salvar no CacheManager (que envia para o Supabase)
+            if (window.CacheManager) {
+                for (const type of types) {
+                    if (this.data[type] !== undefined && this.data[type] !== null) {
+                        window.CacheManager.set(type, this.data[type], true);
+                    }
+                }
+                // Forçar sincronização
+                setTimeout(() => {
+                    if (window.CacheManager && window.CacheManager.forceSync) {
+                        window.CacheManager.forceSync().catch(() => {});
+                    }
+                }, 500);
+            }
             
+            console.log('[SPA] ✅ Dados salvos');
         } catch (error) {
             console.error('[SPA] ❌ Erro ao salvar:', error);
         }
         
         setTimeout(() => { this.isSaving = false; }, 500);
-    }
-    
-    // ============================================
-    // SINCRONIZAR EM BACKGROUND
-    // ============================================
-    syncInBackground() {
-        if (!window.CacheManager) return;
-        
-        // Salvar via CacheManager
-        const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
-        for (const type of types) {
-            if (this.data[type]) {
-                window.CacheManager.set(type, this.data[type], true);
-            }
-        }
-        
-        if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => {
-                window.CacheManager.forceSync();
-            });
-        } else {
-            setTimeout(() => {
-                window.CacheManager.forceSync();
-            }, 1000);
-        }
     }
     
     // ============================================
@@ -1000,7 +796,6 @@ class App {
             });
         });
         
-        // Links internos do dashboard
         document.getElementById('go-to-calendar')?.addEventListener('click', () => {
             this.showView('calendario');
         });
@@ -1015,32 +810,27 @@ class App {
     }
     
     // ============================================
-    // SHOW VIEW (CORRIGIDO - SEM LOOP)
+    // SHOW VIEW
     // ============================================
     showView(viewName) {
         console.log(`[SPA] 📄 Mostrando: ${viewName}`);
         
-        // Carregar CSS do módulo (se ainda não carregado)
         this.loadCSS(viewName);
         
-        // Esconder todas
         document.querySelectorAll('.view').forEach(v => {
             v.classList.remove('active');
             v.classList.add('hidden');
         });
         
-        // Mostrar selecionada
         const view = document.getElementById(`view-${viewName}`);
         if (view) {
             view.classList.remove('hidden');
             view.classList.add('active');
             
-            // Atualizar nav
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.view === viewName);
             });
             
-            // Atualizar header
             const subtitles = {
                 dashboard: 'Bem-vindo de volta 👋',
                 calendario: 'Meu Calendário 📅',
@@ -1051,7 +841,6 @@ class App {
             const subtitleEl = document.getElementById('header-subtitle');
             if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
             
-            // ⭐ Se for a view de perfil, atualizar os dados (apenas uma vez)
             if (viewName === 'perfil') {
                 console.log('[SPA] 🔍 Atualizando perfil via showView...');
                 this._profileUpdateRetries = 0;
@@ -1059,7 +848,6 @@ class App {
                 this.updateProfileStats();
             }
             
-            // Chamar módulo para renderizar
             if (this.modules[viewName]) {
                 this.modules[viewName].render(this.data);
             }
@@ -1150,7 +938,6 @@ class App {
     // EVENTOS
     // ============================================
     setupEvents() {
-        // Notificações
         document.getElementById('notification-bell')?.addEventListener('click', () => {
             this.openNotifications();
         });
@@ -1189,7 +976,6 @@ class App {
             });
         });
         
-        // Escutar mudanças no storage (outras abas)
         window.addEventListener('storage', (e) => {
             if (e.key === 'app_data' && !this.isSaving) {
                 try {
@@ -1202,7 +988,6 @@ class App {
             }
         });
         
-        // Escutar eventos do CacheManager
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[SPA] 📡 Dados da nuvem atualizados');
             this.loadAllData();
@@ -1211,7 +996,6 @@ class App {
             }
         });
         
-        // Escutar evento de força de atualização
         window.addEventListener('forceRefresh', () => {
             console.log('[SPA] 🔄 Forçando atualização da UI');
             if (this.modules[this.currentView]) {
@@ -1219,7 +1003,6 @@ class App {
             }
         });
         
-        // Escutar eventos de atualização de dados
         ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'disciplinas', 'notifications'].forEach(type => {
             window.addEventListener(`${type}Updated`, (e) => {
                 if (e.detail) {
@@ -1232,6 +1015,17 @@ class App {
                 }
             });
         });
+        
+        // Evento de sincronização
+        window.addEventListener('syncCompleted', (e) => {
+            console.log('[SPA] 📡 Sincronização concluída:', e.detail);
+            if (e.detail && e.detail.success) {
+                this.loadAllData();
+                if (this.modules[this.currentView]) {
+                    this.modules[this.currentView].render(this.data);
+                }
+            }
+        });
     }
 }
 
@@ -1239,7 +1033,6 @@ class App {
 // INICIALIZAR
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Aguardar um pouco para os scripts carregarem
     setTimeout(() => {
         window.app = new App();
     }, 100);

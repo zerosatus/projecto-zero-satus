@@ -1,5 +1,5 @@
 // ==========================================
-// cache-manager.js - GERENCIADOR DE CACHE COMPLETO
+// cache-manager.js - GERENCIADOR DE CACHE COMPLETO (CORRIGIDO)
 // ==========================================
 
 console.log('[CacheManager] 🔄 Inicializando CacheManager...');
@@ -20,6 +20,7 @@ class SimpleCacheManager {
         this._syncDebounce = 2000;
         this._profilePhotoCache = null;
         this.isLoading = false;
+        this._syncTimeout = null;
     }
 
     init() {
@@ -46,6 +47,7 @@ class SimpleCacheManager {
         if (usuario) {
             try {
                 const user = JSON.parse(usuario);
+                // PRIORIDADE: id (UUID) sobre uid
                 this.currentUserId = user.id || user.uid;
                 console.log('[CacheManager] ✅ User ID obtido:', this.currentUserId);
                 return this.currentUserId;
@@ -57,6 +59,9 @@ class SimpleCacheManager {
         return null;
     }
 
+    // ============================================
+    // ⭐ GET - USANDO SEMPRE userId
+    // ============================================
     get(key, defaultValue = null) {
         try {
             if (this._dataCache.has(key)) {
@@ -72,13 +77,22 @@ class SimpleCacheManager {
             const data = localStorage.getItem(storageKey);
             
             if (data === null) {
-                const oldData = localStorage.getItem(key);
-                if (oldData !== null) {
-                    localStorage.setItem(storageKey, oldData);
-                    localStorage.removeItem(key);
-                    const parsed = JSON.parse(oldData);
-                    this._dataCache.set(key, parsed);
-                    return parsed;
+                // Tentar migrar do formato antigo (email)
+                const usuario = localStorage.getItem('usuarioLogado');
+                if (usuario) {
+                    try {
+                        const user = JSON.parse(usuario);
+                        const oldKey = `${key}_${user.email}`;
+                        const oldData = localStorage.getItem(oldKey);
+                        if (oldData !== null) {
+                            localStorage.setItem(storageKey, oldData);
+                            localStorage.removeItem(oldKey);
+                            const parsed = JSON.parse(oldData);
+                            this._dataCache.set(key, parsed);
+                            console.log(`[CacheManager] ✅ Migrado ${key} do formato antigo`);
+                            return parsed;
+                        }
+                    } catch(e) {}
                 }
                 return defaultValue;
             }
@@ -92,6 +106,9 @@ class SimpleCacheManager {
         }
     }
 
+    // ============================================
+    // ⭐ SET - USANDO SEMPRE userId
+    // ============================================
     set(key, value, notify = true) {
         const userId = this.getCurrentUserId();
         if (!userId) {
@@ -124,6 +141,7 @@ class SimpleCacheManager {
             localStorage.setItem(storageKey, JSON.stringify(value));
             this._dataCache.set(key, value);
 
+            // Também salvar com email para compatibilidade (mas userId é o principal)
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
@@ -201,10 +219,13 @@ class SimpleCacheManager {
         }
     }
 
+    // ============================================
+    // ⭐ SALVAR NA NUVEM
+    // ============================================
     async saveToCloud(key, value, userId) {
         if (!window.DatabaseService || !userId) {
             console.warn('[CacheManager] ⚠️ DatabaseService ou userId não disponível');
-            return;
+            return false;
         }
 
         try {
@@ -239,13 +260,15 @@ class SimpleCacheManager {
                     break;
                 default:
                     console.log(`[CacheManager] ⚠️ Tipo não reconhecido: ${key}`);
-                    return;
+                    return false;
             }
             
             console.log(`[CacheManager] ✅ ${key} salvo na nuvem (${Array.isArray(value) ? value.length : Object.keys(value).length} itens)`);
+            return true;
         } catch (error) {
             console.error(`[CacheManager] ❌ Erro ao salvar ${key} na nuvem:`, error);
             this._addToSaveQueue(key, value, userId);
+            return false;
         }
     }
 
@@ -267,6 +290,9 @@ class SimpleCacheManager {
         };
     }
 
+    // ============================================
+    // ⭐ CARREGAR DA NUVEM
+    // ============================================
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
         if (!userId || !window.DatabaseService) {
@@ -307,7 +333,16 @@ class SimpleCacheManager {
                         
                         if (currentLocal !== newDataStr) {
                             localStorage.setItem(storageKey, newDataStr);
-                            localStorage.setItem(key, newDataStr);
+                            // Também salvar com email para compatibilidade
+                            const usuario = localStorage.getItem('usuarioLogado');
+                            if (usuario) {
+                                try {
+                                    const user = JSON.parse(usuario);
+                                    if (user.email) {
+                                        localStorage.setItem(`${key}_${user.email}`, newDataStr);
+                                    }
+                                } catch(e) {}
+                            }
                             this._dataCache.set(key, data);
                             hasChanges = true;
                             
@@ -357,8 +392,19 @@ class SimpleCacheManager {
         }
     }
 
+    // ============================================
+    // ⭐ FORÇAR SINCRONIZAÇÃO
+    // ============================================
     async forceSync() {
         console.log('[CacheManager] 🔄 Forçando sincronização...');
+        
+        // Primeiro, enviar todos os dados pendentes para a nuvem
+        if (this._saveQueue.length > 0) {
+            console.log(`[CacheManager] 📤 Enviando ${this._saveQueue.length} itens pendentes...`);
+            await this._processSaveQueue();
+        }
+        
+        // Depois, carregar da nuvem
         return await this.loadFromCloud(true);
     }
 
@@ -377,6 +423,10 @@ class SimpleCacheManager {
         if (this._saveTimeout) {
             clearTimeout(this._saveTimeout);
             this._saveTimeout = null;
+        }
+        if (this._syncTimeout) {
+            clearTimeout(this._syncTimeout);
+            this._syncTimeout = null;
         }
         console.log('[CacheManager] ✅ Logout realizado');
     }

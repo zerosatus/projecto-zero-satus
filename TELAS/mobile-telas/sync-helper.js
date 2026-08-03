@@ -50,13 +50,17 @@
 
         Object.assign(config, options);
 
-        if (!window.DatabaseService) {
+        // Aguardar DatabaseService
+        let attempts = 0;
+        while (!window.DatabaseService && attempts < 10) {
             log('Aguardando DatabaseService...', 'warn');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            if (!window.DatabaseService) {
-                log('DatabaseService não encontrado!', 'error');
-                return false;
-            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+        }
+
+        if (!window.DatabaseService) {
+            log('DatabaseService não encontrado após aguardar!', 'error');
+            return false;
         }
 
         if (!window.CacheManager) {
@@ -90,20 +94,17 @@
         log('Usuário identificado: ' + userId);
 
         try {
+            // Tentar carregar da nuvem
             const loaded = await window.CacheManager.loadFromCloud(true);
 
             if (loaded) {
                 log('Dados carregados da nuvem com sucesso!', 'success');
+                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
             } else {
                 log('Nenhum dado encontrado na nuvem', 'warn');
+                // Criar estrutura inicial
+                await window.DatabaseService.ensureUserData(userId, usuario.email, usuario.nome);
             }
-
-            setTimeout(() => {
-                if (window.CacheManager && window.CacheManager.startRealtimeSync) {
-                    window.CacheManager.startRealtimeSync();
-                    log('Realtime sync iniciado', 'success');
-                }
-            }, 1000);
 
             if (config.autoSync) {
                 startPeriodicSync();
@@ -113,6 +114,12 @@
             lastSyncTime = Date.now();
 
             log('Sistema de sincronização inicializado com sucesso!', 'success');
+            
+            // Disparar evento
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('syncReady'));
+            }, 100);
+
             return loaded;
 
         } catch (error) {
@@ -170,10 +177,12 @@
             for (const type of dataTypes) {
                 try {
                     const data = window.CacheManager.get(type, null);
-                    if (data !== null) {
-                        await window.CacheManager.saveToCloud(type, data, userId);
-                        syncCount++;
-                        log('✅ ' + type + ' sincronizado');
+                    if (data !== null && data !== undefined) {
+                        const saved = await window.CacheManager.saveToCloud(type, data, userId);
+                        if (saved) {
+                            syncCount++;
+                            log('✅ ' + type + ' sincronizado');
+                        }
                     }
                 } catch (error) {
                     errorCount++;
@@ -182,7 +191,11 @@
                 }
             }
 
+            // Processar fila de retry
             await processRetryQueue();
+
+            // Carregar da nuvem para garantir consistência
+            await window.CacheManager.loadFromCloud(true);
 
             lastSyncTime = Date.now();
             log('Sincronização concluída: ' + syncCount + ' tipos sincronizados, ' + errorCount + ' erros',
@@ -222,10 +235,12 @@
 
             try {
                 const data = window.CacheManager.get(item.type, null);
-                if (data !== null) {
-                    await window.CacheManager.saveToCloud(item.type, data, userId);
-                    log('✅ Retry bem-sucedido para ' + item.type);
-                    continue;
+                if (data !== null && data !== undefined) {
+                    const saved = await window.CacheManager.saveToCloud(item.type, data, userId);
+                    if (saved) {
+                        log('✅ Retry bem-sucedido para ' + item.type);
+                        continue;
+                    }
                 }
             } catch (error) {
                 log('❌ Retry falhou para ' + item.type + ': ' + error.message, 'error');
@@ -285,11 +300,18 @@
     window.refreshAllData = function() {
         log('🔄 Recarregando dados da UI...');
 
-        const pathname = window.location.pathname;
-
         window.dispatchEvent(new CustomEvent('forceRefresh'));
 
-        if (pathname.includes('/inicio/') || pathname.includes('/mobile-telas/')) {
+        // Verificar se estamos no mobile ou desktop
+        const isMobile = document.querySelector('.bottom-nav') !== null;
+
+        if (isMobile && window.app) {
+            // Mobile: recarregar via app
+            if (window.app.modules && window.app.modules.dashboard) {
+                window.app.modules.dashboard.render(window.app.data);
+            }
+        } else {
+            // Desktop: recarregar via funções específicas
             if (typeof atualizarFraseDoDiaMobile === 'function') atualizarFraseDoDiaMobile();
             if (typeof atualizarFraseDoDiaDesktop === 'function') atualizarFraseDoDiaDesktop();
             if (typeof atualizarEstatisticasMini === 'function') atualizarEstatisticasMini();
@@ -298,30 +320,10 @@
             if (typeof atualizarListaDisciplinas === 'function') atualizarListaDisciplinas();
         }
 
-        if (pathname.includes('/tarefas/')) {
-            if (typeof renderizarTarefas === 'function') renderizarTarefas();
-            if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
-            if (typeof renderizarDisciplinas === 'function') renderizarDisciplinas();
-        }
-
-        if (pathname.includes('/calendario/')) {
-            if (typeof renderCalendar === 'function') renderCalendar();
-            if (typeof renderEvents === 'function') renderEvents();
-        }
-
-        if (pathname.includes('/anotacoes/') || pathname.includes('/notas/')) {
-            if (typeof renderNotes === 'function') renderNotes();
-            if (typeof carregarAnotacoes === 'function') carregarAnotacoes();
-        }
-
-        if (pathname.includes('/perfil/')) {
-            if (typeof loadProfileData === 'function') loadProfileData();
-            if (typeof carregarFotoPerfil === 'function') carregarFotoPerfil();
-        }
-
         log('UI recarregada', 'success');
     };
 
+    // Event listeners
     window.addEventListener('cloudDataLoaded', (event) => {
         setTimeout(() => {
             log('Cloud data loaded, atualizando UI');
@@ -397,6 +399,7 @@
         };
     };
 
+    // Inicialização automática
     document.addEventListener('DOMContentLoaded', () => {
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {
