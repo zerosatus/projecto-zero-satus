@@ -1,5 +1,5 @@
 // ============================================
-// modules/dashboard.js - DASHBOARD COMPLETO
+// modules/dashboard.js - DASHBOARD COMPLETO (COM SYNC FORÇADO)
 // ============================================
 
 class DashboardModule {
@@ -28,7 +28,6 @@ class DashboardModule {
         this.notifications = data.notifications || [];
         this.disciplinas = data.disciplinas || [];
         
-        // Garantir dias da semana
         this.days.forEach(day => {
             if (!this.weeklySchedule[day]) this.weeklySchedule[day] = [];
         });
@@ -51,7 +50,6 @@ class DashboardModule {
     // RENDER CARDS
     // ============================================
     renderCards() {
-        // Contar disciplinas únicas
         const disciplinas = new Set();
         if (this.weeklySchedule) {
             Object.values(this.weeklySchedule).forEach(day => {
@@ -463,13 +461,29 @@ class DashboardModule {
     }
     
     // ============================================
-    // SALVAR HORÁRIO
+    // SALVAR HORÁRIO (COM SYNC FORÇADO)
     // ============================================
     async saveSchedule() {
         this.app.data.weeklySchedule = this.weeklySchedule;
         this.app.data.timeSlots = this.timeSlots;
         await this.app.saveAllData();
-        console.log('[Dashboard] ✅ Horário salvo');
+        
+        // ⭐ FORÇAR SINCRONIZAÇÃO IMEDIATA
+        if (window.CacheManager && window.CacheManager.forceSync) {
+            setTimeout(() => {
+                window.CacheManager.forceSync().catch(() => {});
+            }, 500);
+        }
+        
+        // ⭐ DISPARAR EVENTO PARA ATUALIZAR OUTRAS TELAS
+        window.dispatchEvent(new CustomEvent('scheduleUpdated', { 
+            detail: { 
+                weeklySchedule: this.weeklySchedule, 
+                timeSlots: this.timeSlots 
+            } 
+        }));
+        
+        console.log('[Dashboard] ✅ Horário salvo e sincronizado');
     }
     
     // ============================================
