@@ -1,5 +1,5 @@
 // ============================================
-// modules/perfil.js - PERFIL COMPLETO
+// modules/perfil.js - PERFIL COMPLETO (COM DIAGNÓSTICO)
 // ============================================
 
 class PerfilModule {
@@ -376,6 +376,48 @@ class PerfilModule {
     }
     
     // ============================================
+    // ⭐ DIAGNÓSTICO
+    // ============================================
+    diagnostico() {
+        console.log('========== 🔍 DIAGNÓSTICO ==========');
+        console.log('1. Supabase Client:', !!window.supabaseClient);
+        console.log('2. AuthService:', !!window.AuthService);
+        console.log('3. DatabaseService:', !!window.DatabaseService);
+        console.log('4. CacheManager:', !!window.CacheManager);
+        console.log('5. SyncHelper:', typeof window.initSync === 'function');
+        console.log('6. SyncHelper inicializado:', window.getSyncStatus ? window.getSyncStatus().initialized : 'N/A');
+        console.log('7. Usuário ID:', this.app.user?.id);
+        console.log('8. Usuário Nome:', this.app.user?.nome);
+        console.log('9. Dados no app:', {
+            tasks: this.app.data.tasks?.length || 0,
+            notes: this.app.data.notes?.length || 0,
+            events: this.app.data.calendarEvents?.length || 0,
+            schedule: Object.keys(this.app.data.weeklySchedule || {}).length
+        });
+        console.log('10. Cache Status:', window.getCacheStatus ? window.getCacheStatus() : 'N/A');
+        console.log('11. Fila de salvamento:', window.CacheManager?._saveQueue?.length || 0);
+        console.log('12. Status do Sync:', window.getSyncStatus ? window.getSyncStatus() : 'Não disponível');
+        
+        // Tentar forçar sync manualmente
+        if (window.CacheManager) {
+            console.log('🔄 Forçando sync manual...');
+            window.CacheManager.forceSync().then(result => {
+                console.log('✅ Sync manual concluído:', result ? 'Sucesso com alterações' : 'Sucesso sem alterações');
+                if (typeof showToast === 'function') {
+                    showToast(result ? '✅ Sincronização concluída!' : '✅ Dados já estão sincronizados', 'success');
+                }
+            }).catch(error => {
+                console.error('❌ Sync manual falhou:', error);
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro na sincronização: ' + error.message, 'error');
+                }
+            });
+        }
+        
+        alert('🔍 Diagnóstico concluído! Verifique o console (F12) para mais detalhes.');
+    }
+    
+    // ============================================
     // LOGOUT
     // ============================================
     logout() {
@@ -383,7 +425,9 @@ class PerfilModule {
         
         // Sincronizar antes de sair
         if (window.CacheManager) {
-            window.CacheManager.forceSync();
+            window.CacheManager.forceSync().then(() => {
+                console.log('[Perfil] Dados sincronizados antes do logout');
+            }).catch(() => {});
         }
         
         localStorage.removeItem('usuarioLogado');
@@ -441,6 +485,9 @@ class PerfilModule {
                         break;
                     case 'sincronizar':
                         this.forceSync();
+                        break;
+                    case 'diagnostico':
+                        this.diagnostico();
                         break;
                     case 'logout':
                         this.logout();
@@ -591,17 +638,17 @@ class PerfilModule {
         }
         
         try {
-            await window.CacheManager.forceSync();
+            const result = await window.CacheManager.forceSync();
             await this.app.loadAllData();
             this.render(this.app.data);
             
             if (typeof showToast === 'function') {
-                showToast('✅ Dados sincronizados!', 'success');
+                showToast(result ? '✅ Dados sincronizados!' : '✅ Dados já estão sincronizados!', 'success');
             }
         } catch (error) {
             console.error('[Perfil] Erro na sincronização:', error);
             if (typeof showToast === 'function') {
-                showToast('❌ Erro ao sincronizar', 'error');
+                showToast('❌ Erro ao sincronizar: ' + error.message, 'error');
             }
         }
     }
