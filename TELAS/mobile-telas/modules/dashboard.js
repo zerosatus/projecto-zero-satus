@@ -1,5 +1,5 @@
 // ============================================
-// modules/dashboard.js - DASHBOARD COMPLETO (COM SYNC FORÇADO)
+// modules/dashboard.js - DASHBOARD COMPLETO (COM SYNC FORÇADO E FRASE UTC)
 // ============================================
 
 class DashboardModule {
@@ -10,6 +10,7 @@ class DashboardModule {
         this.selectedSubjectColor = '#6366f1';
         this.days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         this.isSaving = false;
+        this._fraseAtual = '';
         
         console.log('[Dashboard] 📊 Módulo inicializado');
     }
@@ -247,14 +248,57 @@ class DashboardModule {
     }
     
     // ============================================
-    // FRASE DO DIA
+    // ⭐ FRASE DO DIA (CORRIGIDA COM UTC)
     // ============================================
     updateFraseDoDia() {
         const el = document.getElementById('fraseDoDiaText');
-        if (el && window.FrasesDoDia) {
-            el.textContent = window.FrasesDoDia.getFraseDoDia();
-        } else if (el) {
+        if (!el) {
+            console.warn('[Dashboard] ⚠️ Elemento fraseDoDiaText não encontrado');
+            return;
+        }
+        
+        // ⭐ USAR A MESMA FUNÇÃO DO daily-phrases.js
+        if (window.FrasesDoDia) {
+            try {
+                // Usar a função principal que já usa UTC
+                const frase = window.FrasesDoDia.getFraseDoDia();
+                
+                // Verificar se a frase mudou (evita atualizações desnecessárias)
+                if (this._fraseAtual !== frase) {
+                    this._fraseAtual = frase;
+                    el.textContent = frase;
+                    
+                    // Log para debug
+                    const info = window.FrasesDoDia.getFraseDoDiaComData ? 
+                        window.FrasesDoDia.getFraseDoDiaComData() : 
+                        { data: 'N/A', indice: 'N/A' };
+                    
+                    console.log('[Dashboard] 📝 Frase do dia atualizada:', {
+                        frase: frase,
+                        data: info.data || 'N/A',
+                        indice: info.indice || 'N/A'
+                    });
+                }
+            } catch (error) {
+                console.warn('[Dashboard] ⚠️ Erro ao buscar frase do dia:', error);
+                el.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
+            }
+        } else {
+            console.warn('[Dashboard] ⚠️ FrasesDoDia não disponível');
             el.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
+        }
+    }
+    
+    // ============================================
+    // ⭐ FORÇAR ATUALIZAÇÃO DA FRASE (PARA TESTES)
+    // ============================================
+    forceUpdateFrase() {
+        console.log('[Dashboard] 🔄 Forçando atualização da frase...');
+        this._fraseAtual = '';
+        this.updateFraseDoDia();
+        
+        if (typeof showToast === 'function') {
+            showToast('🔄 Frase atualizada!', 'info');
         }
     }
     
@@ -590,6 +634,26 @@ class DashboardModule {
                 this.selectedSubjectColor = option.dataset.color;
             });
         });
+        
+        // ⭐ ESCUTAR EVENTO DE RECARREGAMENTO DA FRASE
+        window.addEventListener('forceRefresh', () => {
+            console.log('[Dashboard] 🔄 ForceRefresh recebido, atualizando frase...');
+            this._fraseAtual = '';
+            this.updateFraseDoDia();
+        });
+        
+        // ⭐ ESCUTAR MUDANÇAS DE DATA (para atualizar a frase à meia-noite)
+        // Verificar a cada minuto se a data mudou
+        let ultimaData = new Date().toDateString();
+        setInterval(() => {
+            const dataAtual = new Date().toDateString();
+            if (dataAtual !== ultimaData) {
+                ultimaData = dataAtual;
+                console.log('[Dashboard] 📅 Data mudou, atualizando frase...');
+                this._fraseAtual = '';
+                this.updateFraseDoDia();
+            }
+        }, 60000); // Verificar a cada minuto
     }
 }
 
