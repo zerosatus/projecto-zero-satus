@@ -40,6 +40,7 @@ class App {
         this._isInitializing = false;
         this._syncRetryCount = 0;
         this._maxSyncRetries = 3;
+        this._saveTimeout = null;
         
         // CSS por módulo
         this.cssModules = {
@@ -789,7 +790,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO)
+    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO E SYNC FORÇADO)
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
@@ -801,7 +802,7 @@ class App {
             // Salvar no sessionStorage
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
             
-            // Salvar no localStorage
+            // Salvar no localStorage com userId (PADRONIZADO)
             const userId = this.user.id;
             const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
             
@@ -809,6 +810,11 @@ class App {
                 const key = `${userId}_${type}`;
                 if (this.data[type] !== undefined && this.data[type] !== null) {
                     localStorage.setItem(key, JSON.stringify(this.data[type]));
+                    
+                    // ⭐ TAMBÉM SALVAR COM EMAIL PARA COMPATIBILIDADE
+                    if (this.user.email) {
+                        localStorage.setItem(`${type}_${this.user.email}`, JSON.stringify(this.data[type]));
+                    }
                 }
             }
             
@@ -832,22 +838,33 @@ class App {
                 
                 console.log(`[SPA] 📊 ${savedCount} tipos salvos, ${failedCount} falhas`);
                 
-                // ⭐ FORÇAR SYNC COM VERIFICAÇÃO
+                // ⭐ FORÇAR SYNC COM VERIFICAÇÃO (IMEDIATO)
                 if (savedCount > 0) {
-                    setTimeout(async () => {
-                        try {
-                            console.log('[SPA] 🔄 Forçando sincronização após salvar...');
-                            const result = await window.CacheManager.forceSync();
-                            console.log('[SPA] ✅ Sync concluído:', result ? 'Sucesso' : 'Sem alterações');
-                            
-                            // Notificar sucesso
-                            window.dispatchEvent(new CustomEvent('syncCompleted', {
-                                detail: { success: result, source: 'saveAllData' }
-                            }));
-                        } catch (error) {
-                            console.error('[SPA] ❌ Erro no sync após salvar:', error);
+                    try {
+                        console.log('[SPA] 🔄 Forçando sincronização imediata...');
+                        const result = await window.CacheManager.forceSync();
+                        console.log('[SPA] ✅ Sync concluído:', result ? 'Sucesso' : 'Sem alterações');
+                        
+                        // Notificar sucesso
+                        window.dispatchEvent(new CustomEvent('syncCompleted', {
+                            detail: { success: result, source: 'saveAllData' }
+                        }));
+                    } catch (error) {
+                        console.error('[SPA] ❌ Erro no sync imediato:', error);
+                        
+                        // Tentar novamente em 3s
+                        if (this._saveTimeout) {
+                            clearTimeout(this._saveTimeout);
                         }
-                    }, 1000);
+                        this._saveTimeout = setTimeout(async () => {
+                            try {
+                                console.log('[SPA] 🔄 Tentando sync novamente (delay)...');
+                                await window.CacheManager.forceSync();
+                            } catch(e) {
+                                console.error('[SPA] ❌ Erro no sync delay:', e);
+                            }
+                        }, 3000);
+                    }
                 }
             } else {
                 console.error('[SPA] ❌ CacheManager não disponível!');

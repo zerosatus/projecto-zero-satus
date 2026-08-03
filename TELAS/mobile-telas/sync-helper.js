@@ -7,8 +7,9 @@
     let isSyncing = false;
     let lastSyncTime = 0;
     let syncInterval = null;
-    let pendingChanges = new Map();
     let retryQueue = [];
+    let _syncAttempts = 0;
+    const MAX_SYNC_ATTEMPTS = 5;
     const SYNC_INTERVAL = 30000;
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 5000;
@@ -50,23 +51,24 @@
 
         Object.assign(config, options);
 
-        // Aguardar DatabaseService
+        // ⭐ ESPERAR DatabaseService CARREGAR (MAIS TEMPO)
         let attempts = 0;
-        while (!window.DatabaseService && attempts < 15) {
+        while (!window.DatabaseService && attempts < 20) {
             log('Aguardando DatabaseService...', 'warn');
             await new Promise(resolve => setTimeout(resolve, 500));
             attempts++;
             
-            // Tentar inicializar manualmente
-            if (window.SupabaseClient?.initSupabase && attempts % 3 === 0) {
+            // Tentar inicializar manualmente a cada 3 tentativas
+            if (attempts % 3 === 0 && window.SupabaseClient?.initSupabase) {
                 log('Tentando inicializar Supabase...', 'warn');
                 await window.SupabaseClient.initSupabase();
             }
         }
 
         if (!window.DatabaseService) {
-            log('DatabaseService não encontrado após aguardar!', 'error');
-            return false;
+            log('DatabaseService não encontrado! Continuando em modo offline', 'warn');
+            // ⭐ CONTINUAR MESMO ASSIM - modo offline
+            // Vai tentar novamente depois
         }
 
         if (!window.CacheManager) {
@@ -100,21 +102,29 @@
         log('Usuário identificado: ' + userId.substring(0, 8) + '...');
 
         try {
-            // Tentar carregar da nuvem
-            log('Carregando dados da nuvem...');
-            const loaded = await window.CacheManager.loadFromCloud(true);
+            // ⭐ TENTAR CARREGAR DA NUVEM (se DatabaseService disponível)
+            if (window.DatabaseService) {
+                log('Carregando dados da nuvem...');
+                const loaded = await window.CacheManager.loadFromCloud(true);
 
-            if (loaded) {
-                log('Dados carregados da nuvem com sucesso!', 'success');
-                window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+                if (loaded) {
+                    log('Dados carregados da nuvem com sucesso!', 'success');
+                    window.dispatchEvent(new CustomEvent('cloudDataLoaded'));
+                } else {
+                    log('Nenhum dado encontrado na nuvem', 'warn');
+                    // ⭐ CRIAR ESTRUTURA INICIAL
+                    try {
+                        await window.DatabaseService.ensureUserData(userId, usuario.email, usuario.nome);
+                        log('Estrutura inicial criada', 'success');
+                    } catch(e) {
+                        log('Erro ao criar estrutura: ' + e.message, 'warn');
+                    }
+                }
             } else {
-                log('Nenhum dado encontrado na nuvem', 'warn');
-                // Criar estrutura inicial
-                log('Criando estrutura inicial do usuário...');
-                await window.DatabaseService.ensureUserData(userId, usuario.email, usuario.nome);
-                log('Estrutura inicial criada', 'success');
+                log('⚠️ DatabaseService indisponível - pulando carga da nuvem', 'warn');
             }
 
+            // ⭐ INICIAR SYNC PERIÓDICO
             if (config.autoSync) {
                 startPeriodicSync();
             }
@@ -128,7 +138,7 @@
                 window.dispatchEvent(new CustomEvent('syncReady'));
             }, 100);
 
-            return loaded;
+            return true;
 
         } catch (error) {
             log('Erro ao inicializar sync: ' + error.message, 'error');
@@ -164,19 +174,27 @@
             return;
         }
 
+        // ⭐ VERIFICAR SE DatabaseService ESTÁ DISPONÍVEL
+        if (!window.DatabaseService) {
+            log('⚠️ DatabaseService não disponível, sync adiado', 'warn');
+            // Tentar reinicializar
+            if (window.SupabaseClient?.initSupabase) {
+                await window.SupabaseClient.initSupabase();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            if (!window.DatabaseService) {
+                return;
+            }
+        }
+
         isSyncing = true;
+        _syncAttempts = 0;
         log('Iniciando sincronização...');
 
         try {
             const userId = window.CacheManager?.getCurrentUserId();
             if (!userId) {
                 log('Usuário não encontrado para sync', 'warn');
-                return;
-            }
-
-            // Verificar DatabaseService
-            if (!window.DatabaseService) {
-                log('DatabaseService não disponível', 'error');
                 return;
             }
 
@@ -191,7 +209,8 @@
             for (const type of dataTypes) {
                 try {
                     const data = window.CacheManager.get(type, null);
-                    if (data !== null && data !== undefined) {
+                    if (data !== null && data !== undefined && 
+                        (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
                         const saved = await window.CacheManager.saveToCloud(type, data, userId);
                         if (saved) {
                             syncCount++;
@@ -200,6 +219,8 @@
                             errorCount++;
                             log('⚠️ Falha ao sincronizar ' + type, 'warn');
                         }
+                    } else {
+                        log('ℹ️ ' + type + ' vazio, ignorando');
                     }
                 } catch (error) {
                     errorCount++;
@@ -213,8 +234,8 @@
                 await processRetryQueue();
             }
 
-            // Carregar da nuvem para garantir consistência
-            if (syncCount > 0 || retryQueue.length === 0) {
+            // Carregar da nuvem para garantir consistência (se houver alterações)
+            if (syncCount > 0) {
                 await window.CacheManager.loadFromCloud(true);
             }
 
@@ -306,6 +327,11 @@
                 return false;
             }
 
+            if (!window.DatabaseService) {
+                log('DatabaseService não disponível', 'error');
+                return false;
+            }
+
             await window.CacheManager.loadFromCloud(true);
             log('Dados recarregados da nuvem', 'success');
 
@@ -345,6 +371,9 @@
             }
         } else {
             // Desktop
+            if (typeof carregarDadosDoCache === 'function') {
+                carregarDadosDoCache();
+            }
             if (typeof atualizarFraseDoDiaDesktop === 'function') atualizarFraseDoDiaDesktop();
             if (typeof atualizarEstatisticasMini === 'function') atualizarEstatisticasMini();
             if (typeof atualizarHorarioDesktop === 'function') atualizarHorarioDesktop();
@@ -352,6 +381,8 @@
             if (typeof renderizarTarefas === 'function') renderizarTarefas();
             if (typeof renderizarAnotacoes === 'function') renderizarAnotacoes();
             if (typeof renderizarEventos === 'function') renderizarEventos();
+            if (typeof atualizarBadgeManual === 'function') atualizarBadgeManual();
+            if (typeof carregarNotificacoesRecentes === 'function') carregarNotificacoesRecentes();
         }
 
         log('UI recarregada', 'success');
@@ -425,6 +456,8 @@
             syncing: isSyncing,
             lastSync: lastSyncTime ? new Date(lastSyncTime).toLocaleString() : 'Nunca',
             retryQueue: retryQueue.length,
+            dbAvailable: !!window.DatabaseService,
+            cacheAvailable: !!window.CacheManager,
             config: {
                 autoSync: config.autoSync,
                 syncInterval: config.syncInterval,
@@ -433,7 +466,7 @@
         };
     };
 
-    // Inicialização automática
+    // ⭐ INICIALIZAÇÃO AUTOMÁTICA
     document.addEventListener('DOMContentLoaded', () => {
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {
@@ -441,11 +474,11 @@
                 if (!isInitialized) {
                     window.initSync();
                 }
-            }, 500);
+            }, 1000);
         }
     });
 
     log('Sync Helper carregado com sucesso!');
-    log('Versão: 2.1.0');
+    log('Versão: 2.2.0');
 
 })();

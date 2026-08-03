@@ -23,6 +23,7 @@ class SimpleCacheManager {
         this._syncTimeout = null;
         this._initAttempts = 0;
         this._maxInitAttempts = 5;
+        this._syncInProgress = false;
     }
 
     init() {
@@ -33,6 +34,13 @@ class SimpleCacheManager {
         console.log('[CacheManager] ✅ Inicializando...');
         this.isInitialized = true;
         this.getCurrentUserId();
+
+        // Verificar se StorageKeys está disponível e migrar dados
+        if (window.StorageKeys && typeof window.StorageKeys.migrarDadosAntigos === 'function') {
+            setTimeout(() => {
+                window.StorageKeys.migrarDadosAntigos();
+            }, 100);
+        }
 
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('cacheReady'));
@@ -45,12 +53,22 @@ class SimpleCacheManager {
             return this.currentUserId;
         }
 
+        // Tentar via StorageKeys primeiro
+        if (window.StorageKeys && typeof window.StorageKeys.getCurrentUserId === 'function') {
+            const userId = window.StorageKeys.getCurrentUserId();
+            if (userId) {
+                this.currentUserId = userId;
+                console.log('[CacheManager] ✅ User ID obtido via StorageKeys:', this.currentUserId);
+                return this.currentUserId;
+            }
+        }
+
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {
             try {
                 const user = JSON.parse(usuario);
                 this.currentUserId = user.id || user.uid;
-                console.log('[CacheManager] ✅ User ID obtido:', this.currentUserId);
+                console.log('[CacheManager] ✅ User ID obtido do localStorage:', this.currentUserId);
                 return this.currentUserId;
             } catch(e) {
                 console.error('[CacheManager] ❌ Erro ao parsear usuário:', e);
@@ -61,7 +79,7 @@ class SimpleCacheManager {
     }
 
     // ============================================
-    // ⭐ GET - USANDO SEMPRE userId
+    // ⭐ GET - USANDO SEMPRE userId (PADRONIZADO)
     // ============================================
     get(key, defaultValue = null) {
         try {
@@ -74,11 +92,12 @@ class SimpleCacheManager {
                 return defaultValue;
             }
 
+            // ⭐ USAR SEMPRE O MESMO PADRÃO
             const storageKey = `${userId}_${key}`;
             const data = localStorage.getItem(storageKey);
             
             if (data === null) {
-                // Tentar migrar do formato antigo (email)
+                // ⭐ TENTAR MIGRAR DO FORMATO ANTIGO (COM EMAIL)
                 const usuario = localStorage.getItem('usuarioLogado');
                 if (usuario) {
                     try {
@@ -87,13 +106,14 @@ class SimpleCacheManager {
                         const oldData = localStorage.getItem(oldKey);
                         if (oldData !== null) {
                             localStorage.setItem(storageKey, oldData);
-                            localStorage.removeItem(oldKey);
                             const parsed = JSON.parse(oldData);
                             this._dataCache.set(key, parsed);
-                            console.log(`[CacheManager] ✅ Migrado ${key} do formato antigo`);
+                            console.log(`[CacheManager] ✅ Migrado ${key} do formato antigo (email)`);
                             return parsed;
                         }
-                    } catch(e) {}
+                    } catch(e) {
+                        console.warn(`[CacheManager] ⚠️ Erro ao migrar ${key}:`, e);
+                    }
                 }
                 return defaultValue;
             }
@@ -108,7 +128,7 @@ class SimpleCacheManager {
     }
 
     // ============================================
-    // ⭐ SET - USANDO SEMPRE userId (COM LOGS)
+    // ⭐ SET - USANDO SEMPRE userId (PADRONIZADO)
     // ============================================
     set(key, value, notify = true) {
         const userId = this.getCurrentUserId();
@@ -126,6 +146,7 @@ class SimpleCacheManager {
         }
 
         try {
+            // ⭐ USAR SEMPRE O MESMO PADRÃO
             const storageKey = `${userId}_${key}`;
 
             const currentData = localStorage.getItem(storageKey);
@@ -141,10 +162,11 @@ class SimpleCacheManager {
 
             this._savingFlags.set(flagKey, true);
             
+            // Salvar no localStorage com o padrão userId
             localStorage.setItem(storageKey, JSON.stringify(value));
             this._dataCache.set(key, value);
 
-            // Também salvar com email para compatibilidade
+            // ⭐ TAMBÉM SALVAR COM EMAIL PARA COMPATIBILIDADE
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
@@ -155,6 +177,7 @@ class SimpleCacheManager {
                 } catch(e) {}
             }
 
+            // Adicionar à fila para enviar ao Supabase
             this._addToSaveQueue(key, value, userId);
 
             if (notify) {
@@ -189,6 +212,7 @@ class SimpleCacheManager {
     _addToSaveQueue(key, value, userId) {
         this._saveQueue.push({ key, value, userId });
         console.log(`[CacheManager] 📋 ${key} adicionado à fila (${this._saveQueue.length} itens)`);
+        // Processar a fila imediatamente
         this._processSaveQueue();
     }
 
@@ -386,13 +410,14 @@ class SimpleCacheManager {
                 try {
                     console.log(`[CacheManager] 🔍 Buscando ${key}...`);
                     const data = await getter(userId);
-                    if (data !== null && data !== undefined) {
+                    if (data !== null && data !== undefined && data.length > 0) {
                         const storageKey = `${userId}_${key}`;
                         const newDataStr = JSON.stringify(data);
                         const currentLocal = localStorage.getItem(storageKey);
                         
                         if (currentLocal !== newDataStr) {
                             localStorage.setItem(storageKey, newDataStr);
+                            // Também salvar com email para compatibilidade
                             const usuario = localStorage.getItem('usuarioLogado');
                             if (usuario) {
                                 try {
@@ -455,6 +480,12 @@ class SimpleCacheManager {
     // ⭐ FORÇAR SINCRONIZAÇÃO (COM RETORNO)
     // ============================================
     async forceSync() {
+        if (this._syncInProgress) {
+            console.log('[CacheManager] ⏳ Sync já em andamento...');
+            return false;
+        }
+        
+        this._syncInProgress = true;
         console.log('[CacheManager] 🔄 Forçando sincronização...');
         
         try {
@@ -486,6 +517,8 @@ class SimpleCacheManager {
         } catch (error) {
             console.error('[CacheManager] ❌ Erro no forceSync:', error);
             return false;
+        } finally {
+            this._syncInProgress = false;
         }
     }
 
