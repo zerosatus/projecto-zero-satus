@@ -47,7 +47,6 @@ class SimpleCacheManager {
         if (usuario) {
             try {
                 const user = JSON.parse(usuario);
-                // PRIORIDADE: id (UUID) sobre uid
                 this.currentUserId = user.id || user.uid;
                 console.log('[CacheManager] ✅ User ID obtido:', this.currentUserId);
                 return this.currentUserId;
@@ -141,7 +140,7 @@ class SimpleCacheManager {
             localStorage.setItem(storageKey, JSON.stringify(value));
             this._dataCache.set(key, value);
 
-            // Também salvar com email para compatibilidade (mas userId é o principal)
+            // Também salvar com email para compatibilidade
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
@@ -333,7 +332,6 @@ class SimpleCacheManager {
                         
                         if (currentLocal !== newDataStr) {
                             localStorage.setItem(storageKey, newDataStr);
-                            // Também salvar com email para compatibilidade
                             const usuario = localStorage.getItem('usuarioLogado');
                             if (usuario) {
                                 try {
@@ -398,13 +396,11 @@ class SimpleCacheManager {
     async forceSync() {
         console.log('[CacheManager] 🔄 Forçando sincronização...');
         
-        // Primeiro, enviar todos os dados pendentes para a nuvem
         if (this._saveQueue.length > 0) {
             console.log(`[CacheManager] 📤 Enviando ${this._saveQueue.length} itens pendentes...`);
             await this._processSaveQueue();
         }
         
-        // Depois, carregar da nuvem
         return await this.loadFromCloud(true);
     }
 
@@ -576,7 +572,7 @@ if (typeof window.CacheManager === 'undefined') {
     console.log('[CacheManager] ✅ Instância global criada');
 }
 
-// Funções globais para facilitar o uso
+// Funções globais
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
@@ -596,10 +592,3 @@ window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 
 console.log('[CacheManager] ✅ CacheManager v3.0 carregado com sucesso!');
-console.log('[CacheManager] 📌 Funções disponíveis:');
-console.log('   - getCached(key, defaultValue)');
-console.log('   - setCached(key, value, notify)');
-console.log('   - forceSyncCloud()');
-console.log('   - getTasks(), setTasks()');
-console.log('   - getNotes(), setNotes()');
-console.log('   - getDisciplinas(), setDisciplinas()');

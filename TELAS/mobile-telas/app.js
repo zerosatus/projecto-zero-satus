@@ -37,6 +37,7 @@ class App {
         this._profileUpdateRetries = 0;
         this._maxProfileRetries = 3;
         this._isAppReady = false;
+        this._isInitializing = false;
         
         // CSS por módulo
         this.cssModules = {
@@ -215,10 +216,9 @@ class App {
     }
     
     // ============================================
-    // ⭐ AGUARDAR SUPABASE FICAR PRONTO (CORRIGIDO)
+    // ⭐ AGUARDAR SUPABASE FICAR PRONTO
     // ============================================
     async waitForSupabase() {
-        // Verificar se já está disponível
         if (this.getSupabase()) {
             console.log('[SPA] ✅ Supabase já disponível');
             return true;
@@ -227,13 +227,11 @@ class App {
         console.log('[SPA] ⏳ Aguardando Supabase inicializar...');
         this.updateLoadingStatus('Conectando ao servidor...', 10);
         
-        // Tentar inicializar manualmente se não estiver pronto
         if (window.SupabaseClient?.initSupabase) {
             console.log('[SPA] 🔄 Inicializando Supabase manualmente...');
             window.SupabaseClient.initSupabase();
         }
         
-        // Aguardar até 10 segundos
         let attempts = 0;
         const maxAttempts = 50;
         
@@ -256,10 +254,9 @@ class App {
     }
     
     // ============================================
-    // GET SUPABASE CLIENT (MELHORADO)
+    // GET SUPABASE CLIENT
     // ============================================
     getSupabase() {
-        // Tentar obter via diferentes formas
         if (window.SupabaseClient?.getClient) {
             const client = window.SupabaseClient.getClient();
             if (client) return client;
@@ -332,28 +329,29 @@ class App {
     }
     
     // ============================================
-    // ⭐ ATUALIZAR UI DO PERFIL
+    // ⭐ ATUALIZAR UI DO PERFIL (CORRIGIDO - SEM LOOP)
     // ============================================
     updateProfileUI() {
         if (!this.user) {
             console.warn('[SPA] ⚠️ Usuário não disponível para atualizar perfil');
             return;
         }
-        
+
         if (this._profileUpdateRetries >= this._maxProfileRetries) {
             console.log('[SPA] ⏹️ Máximo de tentativas atingido, parando atualizações');
             return;
         }
-        
+
         const nome = this.user.nome || this.user.displayName || this.user.email?.split('@')[0] || 'Usuário';
         const email = this.user.email || 'usuario@email.com';
         const initial = nome.charAt(0).toUpperCase();
-        
-        console.log(`[SPA] 📝 Atualizando perfil (tentativa ${this._profileUpdateRetries + 1}/${this._maxProfileRetries}):`, { nome, email });
-        
+
+        console.log(`[SPA] 📝 Atualizando perfil (tentativa ${this._profileUpdateRetries + 1}/${this._maxProfileRetries})`);
+
         let elementsFound = 0;
         let elementsMissing = [];
-        
+
+        // Atualizar elementos do perfil
         const profileName = document.getElementById('profile-name');
         if (profileName) {
             profileName.textContent = nome;
@@ -361,7 +359,7 @@ class App {
         } else {
             elementsMissing.push('profile-name');
         }
-        
+
         const profileEmail = document.getElementById('profile-email');
         if (profileEmail) {
             profileEmail.textContent = email;
@@ -369,15 +367,17 @@ class App {
         } else {
             elementsMissing.push('profile-email');
         }
-        
+
+        // ⭐ CORREÇÃO: Verificar se profile-initial existe
         const profileInitial = document.getElementById('profile-initial');
         if (profileInitial) {
             profileInitial.textContent = initial;
             elementsFound++;
         } else {
-            elementsMissing.push('profile-initial');
+            // Não é crítico - apenas log
+            console.log('[SPA] ℹ️ profile-initial não encontrado - ignorando');
         }
-        
+
         const avatarPreview = document.getElementById('avatar-preview');
         if (avatarPreview) {
             avatarPreview.textContent = initial;
@@ -385,7 +385,7 @@ class App {
         } else {
             elementsMissing.push('avatar-preview');
         }
-        
+
         const profileNameInput = document.getElementById('profile-name-input');
         if (profileNameInput) {
             profileNameInput.value = nome;
@@ -393,7 +393,7 @@ class App {
         } else {
             elementsMissing.push('profile-name-input');
         }
-        
+
         const profileEmailInput = document.getElementById('profile-email-input');
         if (profileEmailInput) {
             profileEmailInput.value = email;
@@ -401,7 +401,7 @@ class App {
         } else {
             elementsMissing.push('profile-email-input');
         }
-        
+
         const headerName = document.getElementById('header-name');
         if (headerName) {
             headerName.textContent = nome.split(' ')[0];
@@ -409,30 +409,32 @@ class App {
         } else {
             elementsMissing.push('header-name');
         }
-        
+
         console.log(`[SPA] 📊 Elementos encontrados: ${elementsFound}, faltando: ${elementsMissing.length}`);
-        
-        if (elementsMissing.length > 0 && elementsMissing.length < 7) {
+
+        // ⭐ CORREÇÃO: Só tentar novamente se faltarem elementos CRÍTICOS
+        const criticalMissing = elementsMissing.filter(el => 
+            el === 'profile-name' || 
+            el === 'profile-email' || 
+            el === 'profile-name-input' ||
+            el === 'profile-email-input'
+        );
+
+        if (criticalMissing.length > 0 && this._profileUpdateRetries < this._maxProfileRetries) {
             this._profileUpdateRetries++;
-            console.warn(`[SPA] ⚠️ Elementos faltando (${this._profileUpdateRetries}/${this._maxProfileRetries}):`, elementsMissing.join(', '));
+            console.warn(`[SPA] ⚠️ Elementos críticos faltando (${this._profileUpdateRetries}/${this._maxProfileRetries}):`, criticalMissing.join(', '));
             
-            if (this._profileUpdateRetries < this._maxProfileRetries) {
-                const delay = this._profileUpdateRetries * 300;
-                console.log(`[SPA] 🔄 Tentando novamente em ${delay}ms...`);
-                if (this._profileUpdateTimeout) {
-                    clearTimeout(this._profileUpdateTimeout);
-                }
-                this._profileUpdateTimeout = setTimeout(() => {
-                    this.updateProfileUI();
-                }, delay);
-            } else {
-                console.warn('[SPA] ⚠️ Máximo de tentativas atingido para atualizar perfil');
+            if (this._profileUpdateTimeout) {
+                clearTimeout(this._profileUpdateTimeout);
             }
-        } else if (elementsMissing.length === 0) {
-            console.log('[SPA] ✅ Perfil atualizado com sucesso:', { nome, email });
+            this._profileUpdateTimeout = setTimeout(() => {
+                this.updateProfileUI();
+            }, this._profileUpdateRetries * 300);
+        } else if (criticalMissing.length === 0) {
+            console.log('[SPA] ✅ Perfil atualizado com sucesso');
             this._profileUpdateRetries = 0;
         } else {
-            console.warn('[SPA] ⚠️ Muitos elementos faltando, pode ser problema no HTML');
+            console.warn('[SPA] ⚠️ Não foi possível atualizar todos os elementos do perfil');
             this._profileUpdateRetries = 0;
         }
     }
@@ -456,14 +458,18 @@ class App {
     }
     
     // ============================================
-    // INICIALIZAÇÃO (CORRIGIDA)
+    // INICIALIZAÇÃO
     // ============================================
     async init() {
-        // ⭐ CRIAR OVERLAY DE LOADING
+        if (this._isInitializing) {
+            console.log('[SPA] ⏳ Já inicializando...');
+            return;
+        }
+        this._isInitializing = true;
+        
         this.createLoadingOverlay();
         this.updateLoadingStatus('Inicializando...', 5);
         
-        // 1. Verificar usuário
         const usuarioSalvo = localStorage.getItem('usuarioLogado');
         if (!usuarioSalvo) {
             window.location.href = '../login/index.html';
@@ -483,7 +489,6 @@ class App {
         
         this.updateLoadingStatus(`Olá, ${this.user.nome || 'Usuário'}!`, 10);
         
-        // Atualizar nome no header
         const nomeExibicao = this.user.nome || this.user.displayName || this.user.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
@@ -491,10 +496,10 @@ class App {
         this._profileUpdateRetries = 0;
         this.updateProfileUI();
         
-        // 2. ⭐ AGUARDAR SUPABASE FICAR PRONTO
+        // Aguardar Supabase
         await this.waitForSupabase();
         
-        // 3. Inicializar CacheManager
+        // Inicializar CacheManager
         this.updateLoadingStatus('Inicializando cache...', 25);
         if (window.CacheManager) {
             window.CacheManager.init();
@@ -504,7 +509,7 @@ class App {
             console.warn('[SPA] ⚠️ CacheManager não disponível');
         }
         
-        // 4. Inicializar SyncHelper
+        // Inicializar SyncHelper
         this.updateLoadingStatus('Inicializando sincronização...', 30);
         if (window.initSync) {
             try {
@@ -515,44 +520,44 @@ class App {
             }
         }
         
-        // 5. Carregar módulos JavaScript
+        // Carregar módulos
         this.updateLoadingStatus('Carregando módulos...', 35);
         this.loadModules();
         
-        // 6. Carregar dados (com tentativas)
+        // Carregar dados
         this.updateLoadingStatus('Carregando seus dados...', 40);
         await this.loadAllData();
         
-        // ⭐ ATUALIZAR PERFIL NOVAMENTE
+        // Atualizar perfil
         this._profileUpdateRetries = 0;
         this.updateProfileUI();
         this.updateProfileStats();
         
-        // 7. Configurar navegação
+        // Configurar navegação
         this.updateLoadingStatus('Configurando...', 85);
         this.setupNavigation();
         
-        // 8. Configurar eventos
+        // Configurar eventos
         this.setupEvents();
         
-        // 9. ⭐ Configurar observer do perfil
+        // Configurar observer do perfil
         this.setupProfileObserver();
         
-        // 10. Renderizar view inicial
+        // Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 95);
         this.showView('dashboard');
         
-        // 11. Atualizar badge de notificações
+        // Atualizar badge
         this.updateBadge();
         
-        // 12. ⭐ FORÇAR SINCronização inicial
+        // Forçar sincronização inicial
         if (window.CacheManager && window.CacheManager.forceSync) {
             setTimeout(() => {
                 window.CacheManager.forceSync().catch(() => {});
             }, 2000);
         }
         
-        // 13. ⭐ FECHAR LOADING
+        // Fechar loading
         setTimeout(() => {
             this.updateLoadingStatus('Pronto!', 100);
             setTimeout(() => {
@@ -561,6 +566,7 @@ class App {
         }, 500);
         
         this._isAppReady = true;
+        this._isInitializing = false;
         console.log('[SPA] ✅ Aplicação mobile pronta!');
     }
     
@@ -592,7 +598,7 @@ class App {
     }
     
     // ============================================
-    // CARREGAR DADOS (COM RETRY)
+    // CARREGAR DADOS
     // ============================================
     async loadAllData(retryCount = 0) {
         if (this.isLoading) return;
@@ -615,7 +621,6 @@ class App {
                     this.updateLoadingStatus('Dados do cache carregados', 70);
                     this.isLoading = false;
                     
-                    // Já renderizar com dados do cache
                     if (this.modules.dashboard) {
                         this.modules.dashboard.render(this.data);
                     }
@@ -626,7 +631,7 @@ class App {
             }
         }
         
-        // Tentar carregar do CacheManager (que já está conectado ao Supabase)
+        // Tentar carregar do CacheManager
         try {
             if (window.CacheManager) {
                 const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
@@ -641,7 +646,6 @@ class App {
                     }
                 }
                 
-                // Garantir dias da semana
                 const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
                 dias.forEach(day => {
                     if (!this.data.weeklySchedule[day]) {
@@ -649,19 +653,16 @@ class App {
                     }
                 });
                 
-                // Settings
                 if (!this.data.settings || typeof this.data.settings !== 'object') {
                     this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
                 }
                 
-                // Salvar cache
                 sessionStorage.setItem('app_data', JSON.stringify(this.data));
                 
                 console.log(`[SPA] ✅ Dados carregados do CacheManager (${loadedCount} tipos)`);
                 this.updateLoadingStatus('Dados carregados!', 80);
                 this.isLoading = false;
                 
-                // Renderizar com os dados carregados
                 if (this.modules.dashboard) {
                     this.modules.dashboard.render(this.data);
                 }
@@ -671,7 +672,7 @@ class App {
             console.error('[SPA] ❌ Erro ao carregar dados do CacheManager:', error);
         }
         
-        // Fallback: localStorage com ID do usuário
+        // Fallback: localStorage
         this.loadDataFromLocalStorage();
         this.isLoading = false;
     }
@@ -707,7 +708,6 @@ class App {
             }
         }
         
-        // Settings padrão
         if (!this.data.settings || typeof this.data.settings !== 'object') {
             this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
         }
@@ -724,7 +724,6 @@ class App {
             this.updateLoadingStatus('Nenhum dado encontrado', 70);
             console.log('[SPA] ℹ️ Nenhum dado encontrado no localStorage - usando dados vazios');
             
-            // Inicializar com dados vazios
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
                 if (!this.data.weeklySchedule[day]) {
@@ -746,10 +745,8 @@ class App {
         this.isSaving = true;
         
         try {
-            // Salvar no cache
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
             
-            // Salvar no localStorage (com userId)
             const userId = this.user.id;
             const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
             
@@ -760,14 +757,12 @@ class App {
                 }
             }
             
-            // Salvar no CacheManager (que envia para o Supabase)
             if (window.CacheManager) {
                 for (const type of types) {
                     if (this.data[type] !== undefined && this.data[type] !== null) {
                         window.CacheManager.set(type, this.data[type], true);
                     }
                 }
-                // Forçar sincronização
                 setTimeout(() => {
                     if (window.CacheManager && window.CacheManager.forceSync) {
                         window.CacheManager.forceSync().catch(() => {});
@@ -1016,13 +1011,25 @@ class App {
             });
         });
         
-        // Evento de sincronização
         window.addEventListener('syncCompleted', (e) => {
             console.log('[SPA] 📡 Sincronização concluída:', e.detail);
             if (e.detail && e.detail.success) {
                 this.loadAllData();
                 if (this.modules[this.currentView]) {
                     this.modules[this.currentView].render(this.data);
+                }
+            }
+        });
+        
+        // ⭐ EVENTO PARA FORÇAR SINCronização DO HORÁRIO
+        window.addEventListener('scheduleUpdated', (e) => {
+            console.log('[SPA] 📡 Horário atualizado via evento');
+            if (e.detail) {
+                this.data.weeklySchedule = e.detail;
+                this.data.timeSlots = e.detail.timeSlots || this.data.timeSlots;
+                sessionStorage.setItem('app_data', JSON.stringify(this.data));
+                if (this.modules.dashboard) {
+                    this.modules.dashboard.render(this.data);
                 }
             }
         });

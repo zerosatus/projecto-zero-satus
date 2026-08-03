@@ -115,7 +115,6 @@
 
             log('Sistema de sincronização inicializado com sucesso!', 'success');
             
-            // Disparar evento
             setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('syncReady'));
             }, 100);
@@ -306,18 +305,30 @@
         const isMobile = document.querySelector('.bottom-nav') !== null;
 
         if (isMobile && window.app) {
-            // Mobile: recarregar via app
             if (window.app.modules && window.app.modules.dashboard) {
                 window.app.modules.dashboard.render(window.app.data);
             }
+            if (window.app.modules && window.app.modules.calendario) {
+                window.app.modules.calendario.render(window.app.data);
+            }
+            if (window.app.modules && window.app.modules.tarefas) {
+                window.app.modules.tarefas.render(window.app.data);
+            }
+            if (window.app.modules && window.app.modules.notas) {
+                window.app.modules.notas.render(window.app.data);
+            }
+            if (window.app.modules && window.app.modules.perfil) {
+                window.app.modules.perfil.render(window.app.data);
+            }
         } else {
-            // Desktop: recarregar via funções específicas
-            if (typeof atualizarFraseDoDiaMobile === 'function') atualizarFraseDoDiaMobile();
+            // Desktop
             if (typeof atualizarFraseDoDiaDesktop === 'function') atualizarFraseDoDiaDesktop();
             if (typeof atualizarEstatisticasMini === 'function') atualizarEstatisticasMini();
             if (typeof atualizarHorarioDesktop === 'function') atualizarHorarioDesktop();
-            if (typeof renderizarHorario === 'function') renderizarHorario();
             if (typeof atualizarListaDisciplinas === 'function') atualizarListaDisciplinas();
+            if (typeof renderizarTarefas === 'function') renderizarTarefas();
+            if (typeof renderizarAnotacoes === 'function') renderizarAnotacoes();
+            if (typeof renderizarEventos === 'function') renderizarEventos();
         }
 
         log('UI recarregada', 'success');
