@@ -1,4 +1,5 @@
 // daily-phrases.js - Lista de frases motivacionais, reflexivas e divertidas (com toque africano e moçambicano)
+// ⭐ CORRIGIDO: Usa UTC para evitar problemas de fuso horário
 
 const FRASES_DO_DIA = [
     // Frases clássicas (mantidas algumas)
@@ -42,19 +43,64 @@ const FRASES_DO_DIA = [
     "Nossos avós não tinham relógio, mas sabiam a hora de tudo."
 ];
 
-// Função que retorna uma frase baseada na data atual
+// ⭐ Função que retorna uma frase baseada na data atual (USANDO UTC)
 function getFraseDoDia() {
     const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const diaDoAno = Math.floor((hoje - new Date(ano, 0, 0)) / (1000 * 60 * 60 * 24));
+    
+    // ⭐ USAR UTC para evitar problemas de fuso horário
+    // Isso garante que a frase seja a mesma em todos os dispositivos,
+    // independente do fuso horário (Moçambique, Brasil, Portugal, etc.)
+    const ano = hoje.getUTCFullYear();
+    const mes = hoje.getUTCMonth();
+    const dia = hoje.getUTCDate();
+    
+    // Criar data UTC para calcular o dia do ano
+    const dataUTC = new Date(Date.UTC(ano, mes, dia));
+    const inicioAno = new Date(Date.UTC(ano, 0, 0));
+    const diffMs = dataUTC - inicioAno;
+    const diaDoAno = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // Calcular índice baseado no dia do ano + ano (para variar entre anos)
     const indice = (diaDoAno + ano) % FRASES_DO_DIA.length;
+    
     return FRASES_DO_DIA[indice];
+}
+
+// ⭐ Função que retorna a frase do dia com a data atual (para debug)
+function getFraseDoDiaComData() {
+    const hoje = new Date();
+    const ano = hoje.getUTCFullYear();
+    const mes = hoje.getUTCMonth() + 1;
+    const dia = hoje.getUTCDate();
+    
+    const frase = getFraseDoDia();
+    const dataStr = `${dia.toString().padStart(2, '0')}/${mes.toString().padStart(2, '0')}/${ano}`;
+    
+    return {
+        frase: frase,
+        data: dataStr,
+        indice: (Math.floor((new Date(Date.UTC(ano, mes - 1, dia)) - new Date(Date.UTC(ano, 0, 0))) / (1000 * 60 * 60 * 24)) + ano) % FRASES_DO_DIA.length,
+        totalFrases: FRASES_DO_DIA.length
+    };
+}
+
+// ⭐ Função para forçar uma frase específica (para testes)
+function getFrasePorIndice(indice) {
+    if (indice >= 0 && indice < FRASES_DO_DIA.length) {
+        return FRASES_DO_DIA[indice];
+    }
+    return getFraseDoDia();
 }
 
 // Exportar para uso global
 window.FrasesDoDia = {
     getFraseDoDia: getFraseDoDia,
-    todasFrases: FRASES_DO_DIA
+    getFraseDoDiaComData: getFraseDoDiaComData,
+    getFrasePorIndice: getFrasePorIndice,
+    todasFrases: FRASES_DO_DIA,
+    totalFrases: FRASES_DO_DIA.length
 };
 
-console.log('[Frases] Módulo carregado com', FRASES_DO_DIA.length, 'frases disponíveis (incluindo sabedoria africana e moçambicana 🇲🇿)');
+console.log('[Frases] ✅ Módulo carregado com', FRASES_DO_DIA.length, 'frases disponíveis (incluindo sabedoria africana e moçambicana 🇲🇿)');
+console.log('[Frases] 📅 Frase do dia (UTC):', getFraseDoDia());
+console.log('[Frases] 📊 Info:', getFraseDoDiaComData());
