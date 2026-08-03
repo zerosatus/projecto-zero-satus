@@ -38,6 +38,8 @@ class App {
         this._maxProfileRetries = 3;
         this._isAppReady = false;
         this._isInitializing = false;
+        this._syncRetryCount = 0;
+        this._maxSyncRetries = 3;
         
         // CSS por módulo
         this.cssModules = {
@@ -505,6 +507,7 @@ class App {
             window.CacheManager.init();
             window.CacheManager.currentUserId = this.user.id;
             console.log('[SPA] ✅ CacheManager inicializado');
+            console.log('[SPA] 📊 Status do Cache:', window.CacheManager.getStatus());
         } else {
             console.warn('[SPA] ⚠️ CacheManager não disponível');
         }
@@ -550,12 +553,9 @@ class App {
         // Atualizar badge
         this.updateBadge();
         
-        // Forçar sincronização inicial
-        if (window.CacheManager && window.CacheManager.forceSync) {
-            setTimeout(() => {
-                window.CacheManager.forceSync().catch(() => {});
-            }, 2000);
-        }
+        // ⭐ FORÇAR SINCRONIZAÇÃO INICIAL COM VERIFICAÇÃO
+        this.updateLoadingStatus('Sincronizando dados...', 90);
+        await this.forceInitialSync();
         
         // Fechar loading
         setTimeout(() => {
@@ -568,6 +568,57 @@ class App {
         this._isAppReady = true;
         this._isInitializing = false;
         console.log('[SPA] ✅ Aplicação mobile pronta!');
+    }
+    
+    // ============================================
+    // ⭐ FORÇAR SINCRONIZAÇÃO INICIAL
+    // ============================================
+    async forceInitialSync() {
+        try {
+            console.log('[SPA] 🔄 Forçando sincronização inicial...');
+            
+            if (!window.CacheManager) {
+                console.warn('[SPA] ⚠️ CacheManager não disponível');
+                return false;
+            }
+            
+            // Verificar DatabaseService
+            if (!window.DatabaseService) {
+                console.warn('[SPA] ⚠️ DatabaseService não disponível, tentando inicializar...');
+                if (window.SupabaseClient?.initSupabase) {
+                    await window.SupabaseClient.initSupabase();
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                if (!window.DatabaseService) {
+                    console.error('[SPA] ❌ DatabaseService não disponível');
+                    return false;
+                }
+            }
+            
+            // Tentar sincronizar
+            const result = await window.CacheManager.forceSync();
+            console.log('[SPA] ✅ Sincronização inicial:', result ? 'com alterações' : 'sem alterações');
+            
+            // Atualizar dados após sincronização
+            await this.loadAllData();
+            if (this.modules[this.currentView]) {
+                this.modules[this.currentView].render(this.data);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('[SPA] ❌ Erro na sincronização inicial:', error);
+            
+            // Tentar novamente após 3s
+            if (this._syncRetryCount < this._maxSyncRetries) {
+                this._syncRetryCount++;
+                console.log(`[SPA] 🔄 Tentativa ${this._syncRetryCount}/${this._maxSyncRetries} em 3s...`);
+                setTimeout(() => {
+                    this.forceInitialSync();
+                }, 3000);
+            }
+            return false;
+        }
     }
     
     // ============================================
@@ -639,7 +690,7 @@ class App {
                 
                 for (const tipo of tipos) {
                     const dados = window.CacheManager.get(tipo, null);
-                    if (dados !== null) {
+                    if (dados !== null && dados !== undefined) {
                         this.data[tipo] = dados;
                         loadedCount++;
                         console.log(`[SPA] 📊 ${tipo} carregado: ${Array.isArray(dados) ? dados.length : Object.keys(dados).length} itens`);
@@ -738,15 +789,19 @@ class App {
     }
     
     // ============================================
-    // SALVAR DADOS
+    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO)
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
         this.isSaving = true;
         
+        console.log('[SPA] 💾 Salvando dados...');
+        
         try {
+            // Salvar no sessionStorage
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
             
+            // Salvar no localStorage
             const userId = this.user.id;
             const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
             
@@ -757,22 +812,50 @@ class App {
                 }
             }
             
+            // ⭐ SALVAR NO CACHEMANAGER COM VERIFICAÇÃO
             if (window.CacheManager) {
+                console.log('[SPA] 💾 Salvando no CacheManager...');
+                let savedCount = 0;
+                let failedCount = 0;
+                
                 for (const type of types) {
                     if (this.data[type] !== undefined && this.data[type] !== null) {
-                        window.CacheManager.set(type, this.data[type], true);
+                        const result = window.CacheManager.set(type, this.data[type], true);
+                        if (result) {
+                            savedCount++;
+                        } else {
+                            failedCount++;
+                            console.warn(`[SPA] ⚠️ Falha ao salvar ${type} no CacheManager`);
+                        }
                     }
                 }
-                setTimeout(() => {
-                    if (window.CacheManager && window.CacheManager.forceSync) {
-                        window.CacheManager.forceSync().catch(() => {});
-                    }
-                }, 500);
+                
+                console.log(`[SPA] 📊 ${savedCount} tipos salvos, ${failedCount} falhas`);
+                
+                // ⭐ FORÇAR SYNC COM VERIFICAÇÃO
+                if (savedCount > 0) {
+                    setTimeout(async () => {
+                        try {
+                            console.log('[SPA] 🔄 Forçando sincronização após salvar...');
+                            const result = await window.CacheManager.forceSync();
+                            console.log('[SPA] ✅ Sync concluído:', result ? 'Sucesso' : 'Sem alterações');
+                            
+                            // Notificar sucesso
+                            window.dispatchEvent(new CustomEvent('syncCompleted', {
+                                detail: { success: result, source: 'saveAllData' }
+                            }));
+                        } catch (error) {
+                            console.error('[SPA] ❌ Erro no sync após salvar:', error);
+                        }
+                    }, 1000);
+                }
+            } else {
+                console.error('[SPA] ❌ CacheManager não disponível!');
             }
             
-            console.log('[SPA] ✅ Dados salvos');
+            console.log('[SPA] ✅ Dados salvos com sucesso');
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao salvar:', error);
+            console.error('[SPA] ❌ Erro ao salvar dados:', error);
         }
         
         setTimeout(() => { this.isSaving = false; }, 500);
@@ -1025,7 +1108,7 @@ class App {
         window.addEventListener('scheduleUpdated', (e) => {
             console.log('[SPA] 📡 Horário atualizado via evento');
             if (e.detail) {
-                this.data.weeklySchedule = e.detail;
+                this.data.weeklySchedule = e.detail.weeklySchedule || this.data.weeklySchedule;
                 this.data.timeSlots = e.detail.timeSlots || this.data.timeSlots;
                 sessionStorage.setItem('app_data', JSON.stringify(this.data));
                 if (this.modules.dashboard) {

@@ -21,6 +21,8 @@ class SimpleCacheManager {
         this._profilePhotoCache = null;
         this.isLoading = false;
         this._syncTimeout = null;
+        this._initAttempts = 0;
+        this._maxInitAttempts = 5;
     }
 
     init() {
@@ -106,14 +108,16 @@ class SimpleCacheManager {
     }
 
     // ============================================
-    // ⭐ SET - USANDO SEMPRE userId
+    // ⭐ SET - USANDO SEMPRE userId (COM LOGS)
     // ============================================
     set(key, value, notify = true) {
         const userId = this.getCurrentUserId();
         if (!userId) {
-            console.warn('[CacheManager] ⚠️ Usuário não logado para set:', key);
+            console.error(`[CacheManager] ❌ Usuário não logado para set: ${key}`);
             return false;
         }
+
+        console.log(`[CacheManager] 📝 set(${key}) - userId: ${userId.substring(0, 8)}..., itens: ${Array.isArray(value) ? value.length : 'N/A'}`);
 
         const flagKey = `${userId}_${key}`;
         if (this._savingFlags.get(flagKey)) {
@@ -197,6 +201,21 @@ class SimpleCacheManager {
         console.log(`[CacheManager] 🔄 Processando fila (${this._saveQueue.length} itens)...`);
         
         try {
+            // Verificar se DatabaseService está disponível
+            if (!window.DatabaseService) {
+                console.warn('[CacheManager] ⚠️ DatabaseService não disponível, tentando inicializar...');
+                if (window.SupabaseClient?.initSupabase) {
+                    await window.SupabaseClient.initSupabase();
+                }
+                // Aguardar um pouco
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                if (!window.DatabaseService) {
+                    console.error('[CacheManager] ❌ DatabaseService ainda não disponível, fila mantida');
+                    return;
+                }
+            }
+
             while (this._saveQueue.length > 0) {
                 const item = this._saveQueue.shift();
                 const userId = item.userId || this.getCurrentUserId();
@@ -204,7 +223,13 @@ class SimpleCacheManager {
                     console.warn('[CacheManager] ❌ Sem userId para salvar:', item.key);
                     continue;
                 }
-                await this.saveToCloud(item.key, item.value, userId);
+                const result = await this.saveToCloud(item.key, item.value, userId);
+                if (!result) {
+                    // Se falhou, recolocar na fila
+                    console.warn(`[CacheManager] ⚠️ Falha ao salvar ${item.key}, recolocando na fila`);
+                    this._saveQueue.push(item);
+                    break;
+                }
             }
         } catch (error) {
             console.error('[CacheManager] ❌ Erro ao processar fila:', error);
@@ -212,49 +237,68 @@ class SimpleCacheManager {
             this._isSaving = false;
             
             if (this._saveQueue.length > 0) {
-                console.log('[CacheManager] 🔄 Novos itens na fila, continuando...');
-                setTimeout(() => this._processSaveQueue(), 500);
+                console.log('[CacheManager] 🔄 Novos itens na fila, continuando em 2s...');
+                setTimeout(() => this._processSaveQueue(), 2000);
             }
         }
     }
 
     // ============================================
-    // ⭐ SALVAR NA NUVEM
+    // ⭐ SALVAR NA NUVEM (COM VERIFICAÇÃO)
     // ============================================
     async saveToCloud(key, value, userId) {
-        if (!window.DatabaseService || !userId) {
-            console.warn('[CacheManager] ⚠️ DatabaseService ou userId não disponível');
+        // ⭐ VERIFICAR SE DatabaseService ESTÁ DISPONÍVEL
+        if (!window.DatabaseService) {
+            console.error('[CacheManager] ❌ DatabaseService não disponível para salvar:', key);
+            
+            // Tentar inicializar novamente
+            if (window.SupabaseClient?.initSupabase) {
+                console.log('[CacheManager] 🔄 Tentando inicializar Supabase...');
+                await window.SupabaseClient.initSupabase();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            if (!window.DatabaseService) {
+                console.error('[CacheManager] ❌ DatabaseService ainda não disponível');
+                return false;
+            }
+        }
+
+        if (!userId) {
+            console.error('[CacheManager] ❌ userId não disponível para salvar:', key);
             return false;
         }
 
         try {
-            console.log(`[CacheManager] 💾 Salvando ${key} na nuvem...`);
+            console.log(`[CacheManager] 💾 Salvando ${key} na nuvem para userId: ${userId.substring(0, 8)}...`);
             
+            let result = false;
             switch(key) {
                 case 'tasks':
-                    await window.DatabaseService.saveTasks(userId, value);
+                    result = await window.DatabaseService.saveTasks(userId, value);
                     break;
                 case 'notes':
-                    await window.DatabaseService.saveNotes(userId, value);
+                    result = await window.DatabaseService.saveNotes(userId, value);
                     break;
                 case 'calendarEvents':
-                    await window.DatabaseService.saveCalendarEvents(userId, value);
+                    result = await window.DatabaseService.saveCalendarEvents(userId, value);
                     break;
                 case 'weeklySchedule':
-                    await window.DatabaseService.saveWeeklySchedule(userId, value);
+                    result = await window.DatabaseService.saveWeeklySchedule(userId, value);
                     break;
                 case 'timeSlots':
-                    await window.DatabaseService.saveTimeSlots(userId, value);
+                    result = await window.DatabaseService.saveTimeSlots(userId, value);
                     break;
                 case 'notifications':
-                    await window.DatabaseService.saveNotifications(userId, value);
+                    result = await window.DatabaseService.saveNotifications(userId, value);
                     break;
                 case 'disciplinas':
-                    await window.DatabaseService.saveDisciplinas(userId, value);
+                    result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
                 case 'usuarioLogado':
                     if (value.id && value.email) {
                         await window.DatabaseService.ensureUserData(value.id, value.email, value.nome);
+                        result = true;
                     }
                     break;
                 default:
@@ -262,10 +306,15 @@ class SimpleCacheManager {
                     return false;
             }
             
-            console.log(`[CacheManager] ✅ ${key} salvo na nuvem (${Array.isArray(value) ? value.length : Object.keys(value).length} itens)`);
-            return true;
+            if (result) {
+                console.log(`[CacheManager] ✅ ${key} salvo na nuvem (${Array.isArray(value) ? value.length : Object.keys(value).length} itens)`);
+            } else {
+                console.error(`[CacheManager] ❌ Falha ao salvar ${key} na nuvem`);
+            }
+            
+            return result;
         } catch (error) {
-            console.error(`[CacheManager] ❌ Erro ao salvar ${key} na nuvem:`, error);
+            console.error(`[CacheManager] ❌ Erro ao salvar ${key} na nuvem:`, error.message);
             this._addToSaveQueue(key, value, userId);
             return false;
         }
@@ -294,9 +343,21 @@ class SimpleCacheManager {
     // ============================================
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
-        if (!userId || !window.DatabaseService) {
-            console.warn('[CacheManager] ⚠️ Não foi possível carregar da nuvem');
+        if (!userId) {
+            console.warn('[CacheManager] ⚠️ Não foi possível carregar da nuvem: userId não encontrado');
             return false;
+        }
+
+        if (!window.DatabaseService) {
+            console.warn('[CacheManager] ⚠️ DatabaseService não disponível, tentando inicializar...');
+            if (window.SupabaseClient?.initSupabase) {
+                await window.SupabaseClient.initSupabase();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            if (!window.DatabaseService) {
+                console.error('[CacheManager] ❌ DatabaseService não disponível para carregar');
+                return false;
+            }
         }
 
         if (this.isLoading && !force) {
@@ -305,7 +366,7 @@ class SimpleCacheManager {
         }
 
         this.isLoading = true;
-        console.log('[CacheManager] ☁️ Carregando dados da nuvem para:', userId);
+        console.log('[CacheManager] ☁️ Carregando dados da nuvem para:', userId.substring(0, 8) + '...');
         let hasChanges = false;
 
         try {
@@ -391,17 +452,41 @@ class SimpleCacheManager {
     }
 
     // ============================================
-    // ⭐ FORÇAR SINCRONIZAÇÃO
+    // ⭐ FORÇAR SINCRONIZAÇÃO (COM RETORNO)
     // ============================================
     async forceSync() {
         console.log('[CacheManager] 🔄 Forçando sincronização...');
         
-        if (this._saveQueue.length > 0) {
-            console.log(`[CacheManager] 📤 Enviando ${this._saveQueue.length} itens pendentes...`);
-            await this._processSaveQueue();
+        try {
+            // Verificar DatabaseService
+            if (!window.DatabaseService) {
+                console.warn('[CacheManager] ⚠️ DatabaseService não disponível, tentando inicializar...');
+                if (window.SupabaseClient?.initSupabase) {
+                    await window.SupabaseClient.initSupabase();
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                if (!window.DatabaseService) {
+                    console.error('[CacheManager] ❌ DatabaseService não disponível');
+                    return false;
+                }
+            }
+            
+            // Processar fila pendente
+            if (this._saveQueue.length > 0) {
+                console.log(`[CacheManager] 📤 Enviando ${this._saveQueue.length} itens pendentes...`);
+                await this._processSaveQueue();
+            }
+            
+            // Carregar da nuvem
+            const result = await this.loadFromCloud(true);
+            this._lastSyncTime = Date.now();
+            
+            console.log('[CacheManager] ✅ Sincronização concluída:', result ? 'com alterações' : 'sem alterações');
+            return result;
+        } catch (error) {
+            console.error('[CacheManager] ❌ Erro no forceSync:', error);
+            return false;
         }
-        
-        return await this.loadFromCloud(true);
     }
 
     async logout() {
@@ -409,6 +494,14 @@ class SimpleCacheManager {
         if (window.RealtimeSyncManager) {
             window.RealtimeSyncManager.disconnect();
         }
+        
+        // Tentar sincronizar antes de sair
+        try {
+            await this.forceSync();
+        } catch(e) {
+            console.warn('[CacheManager] ⚠️ Erro ao sincronizar no logout:', e);
+        }
+        
         this.currentUserId = null;
         this.listeners.clear();
         this._savingFlags.clear();
@@ -564,6 +657,18 @@ class SimpleCacheManager {
             window.RealtimeSyncManager.init(userId);
         }
     }
+
+    getStatus() {
+        return {
+            isInitialized: this.isInitialized,
+            userId: this.currentUserId,
+            dataCacheSize: this._dataCache.size,
+            saveQueueSize: this._saveQueue.length,
+            isSaving: this._isSaving,
+            isLoading: this.isLoading,
+            lastSyncTime: this._lastSyncTime ? new Date(this._lastSyncTime).toLocaleString() : 'Nunca'
+        };
+    }
 }
 
 // Instância global
@@ -590,5 +695,11 @@ window.getNotifications = () => window.CacheManager.get('notifications', []);
 window.setNotifications = (notifications, notify) => window.CacheManager.set('notifications', notifications, notify);
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
+window.getCacheStatus = () => window.CacheManager.getStatus();
 
-console.log('[CacheManager] ✅ CacheManager v3.0 carregado com sucesso!');
+console.log('[CacheManager] ✅ CacheManager v4.0 carregado com sucesso!');
+console.log('[CacheManager] 📌 Funções disponíveis:');
+console.log('   - getCached(key, defaultValue)');
+console.log('   - setCached(key, value, notify)');
+console.log('   - forceSyncCloud()');
+console.log('   - getCacheStatus()');

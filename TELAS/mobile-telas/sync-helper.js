@@ -52,10 +52,16 @@
 
         // Aguardar DatabaseService
         let attempts = 0;
-        while (!window.DatabaseService && attempts < 10) {
+        while (!window.DatabaseService && attempts < 15) {
             log('Aguardando DatabaseService...', 'warn');
             await new Promise(resolve => setTimeout(resolve, 500));
             attempts++;
+            
+            // Tentar inicializar manualmente
+            if (window.SupabaseClient?.initSupabase && attempts % 3 === 0) {
+                log('Tentando inicializar Supabase...', 'warn');
+                await window.SupabaseClient.initSupabase();
+            }
         }
 
         if (!window.DatabaseService) {
@@ -91,10 +97,11 @@
         }
 
         window.CacheManager.currentUserId = userId;
-        log('Usuário identificado: ' + userId);
+        log('Usuário identificado: ' + userId.substring(0, 8) + '...');
 
         try {
             // Tentar carregar da nuvem
+            log('Carregando dados da nuvem...');
             const loaded = await window.CacheManager.loadFromCloud(true);
 
             if (loaded) {
@@ -103,7 +110,9 @@
             } else {
                 log('Nenhum dado encontrado na nuvem', 'warn');
                 // Criar estrutura inicial
+                log('Criando estrutura inicial do usuário...');
                 await window.DatabaseService.ensureUserData(userId, usuario.email, usuario.nome);
+                log('Estrutura inicial criada', 'success');
             }
 
             if (config.autoSync) {
@@ -165,6 +174,12 @@
                 return;
             }
 
+            // Verificar DatabaseService
+            if (!window.DatabaseService) {
+                log('DatabaseService não disponível', 'error');
+                return;
+            }
+
             const dataTypes = [
                 'tasks', 'notes', 'calendarEvents',
                 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'
@@ -181,6 +196,9 @@
                         if (saved) {
                             syncCount++;
                             log('✅ ' + type + ' sincronizado');
+                        } else {
+                            errorCount++;
+                            log('⚠️ Falha ao sincronizar ' + type, 'warn');
                         }
                     }
                 } catch (error) {
@@ -191,10 +209,14 @@
             }
 
             // Processar fila de retry
-            await processRetryQueue();
+            if (retryQueue.length > 0) {
+                await processRetryQueue();
+            }
 
             // Carregar da nuvem para garantir consistência
-            await window.CacheManager.loadFromCloud(true);
+            if (syncCount > 0 || retryQueue.length === 0) {
+                await window.CacheManager.loadFromCloud(true);
+            }
 
             lastSyncTime = Date.now();
             log('Sincronização concluída: ' + syncCount + ' tipos sincronizados, ' + errorCount + ' erros',
@@ -305,6 +327,7 @@
         const isMobile = document.querySelector('.bottom-nav') !== null;
 
         if (isMobile && window.app) {
+            // Mobile: recarregar via app
             if (window.app.modules && window.app.modules.dashboard) {
                 window.app.modules.dashboard.render(window.app.data);
             }
