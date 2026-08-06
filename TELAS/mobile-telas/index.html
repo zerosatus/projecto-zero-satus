@@ -1054,10 +1054,10 @@ const checkInterval = setInterval(() => {
 <script src="modules/ia.js"></script>
 
 
-<!-- ⭐ IA OPENROUTER - CÓDIGO EMBUTIDO CORRIGIDO -->
+<!-- ⭐ IA OPENROUTER - CÓDIGO CORRIGIDO (COM PROXY) -->
 <script>
 // ============================================
-// openrouter-service.js - MODELO CORRIGIDO
+// openrouter-service.js - VERSÃO COM PROXY
 // ============================================
 
 console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DIRETAMENTE DO INDEX...');
@@ -1070,22 +1070,19 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DIRETAMENTE DO INDEX...');
             constructor() {
                 this.apiKey = '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';
                 
-                // ⭐ USAR URL DIRETA (O PROXY ESTÁ DANDO 404)
-                this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+                // ⭐ USAR O PROXY DA VERCEL (EVITA CSP)
+                this.apiUrl = '/api/openrouter';
                 
-                // ⭐⭐ MODELO GRATUITO QUE FUNCIONA! ⭐⭐
+                // ⭐ MODELO GRATUITO QUE FUNCIONA
                 this.model = 'google/gemini-2.0-flash-exp:free';
-                // OU:
-                // this.model = 'meta-llama/llama-3.2-3b-instruct:free';
-                // this.model = 'mistralai/mistral-7b-instruct:free';
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
                 console.log('[OpenRouter] 🤖 Modelo:', this.model);
+                console.log('[OpenRouter] 📡 Proxy:', this.apiUrl);
             }
             
             async sendMessage(prompt, context = '') {
-                console.log('[OpenRouter] 📤 Enviando para:', this.model);
-                console.log('[OpenRouter] 📝 Prompt:', prompt.substring(0, 50) + '...');
+                console.log('[OpenRouter] 📤 Enviando para proxy...');
                 
                 try {
                     // ⭐ ADICIONAR GÍRIAS AO PROMPT
@@ -1106,10 +1103,8 @@ Resposta (com gírias moçambicanas):
                     const response = await fetch(this.apiUrl, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${this.apiKey}`,
                             'Content-Type': 'application/json',
-                            'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
-                            'X-Title': 'Zero Satus App'
+                            'X-API-Key': this.apiKey
                         },
                         body: JSON.stringify({
                             model: this.model,
@@ -1138,6 +1133,9 @@ Resposta (com gírias moçambicanas):
                         if (response.status === 429) {
                             return { success: false, error: '⏳ Limite diário atingido. Volta amanhã, magaia!' };
                         }
+                        if (response.status === 404) {
+                            return { success: false, error: '🌐 Proxy não encontrado. Verifique o vercel.json!' };
+                        }
                         
                         return { 
                             success: false, 
@@ -1150,7 +1148,7 @@ Resposta (com gírias moçambicanas):
                     
                     if (data.choices && data.choices.length > 0) {
                         const text = data.choices[0].message.content;
-                        console.log('[OpenRouter] 📬 Texto:', text.substring(0, 50) + '...');
+                        console.log('[OpenRouter] 📬 Texto recebido!');
                         return { success: true, text: text };
                     }
 
@@ -1172,8 +1170,7 @@ Resposta (com gírias moçambicanas):
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
         console.log('[OpenRouter] 🔑 Chave:', service.apiKey.substring(0, 20) + '...');
         console.log('[OpenRouter] 🤖 Modelo:', service.model);
-        
-        window.dispatchEvent(new CustomEvent('openrouterLoaded'));
+        console.log('[OpenRouter] 📡 Proxy:', service.apiUrl);
         
     } catch (error) {
         console.error('[OpenRouter] ❌ ERRO FATAL:', error);
