@@ -1,5 +1,5 @@
 /* ============================================
-   ia.css - ESTILOS DA TELA DE IA
+   ia.css - ESTILOS DA IA COM GÍRIA
    ============================================ */
 
 #view-ia {
@@ -11,10 +11,11 @@
     background-color: var(--bg-color);
 }
 
+/* HEADER */
 .ia-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    gap: 12px;
     padding: 15px 0;
     flex-shrink: 0;
 }
@@ -25,21 +26,14 @@
     background: linear-gradient(135deg, var(--accent-purple), #a78bfa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text;
     margin: 0;
 }
 
 .ia-subtitle {
     font-size: 0.8rem;
     color: var(--text-secondary);
-    margin-top: 2px;
 }
 
-.ia-header-icon {
-    font-size: 1.8rem;
-    color: var(--accent-purple);
-}
-/* Botão de voltar */
 .ia-back-btn {
     width: 40px;
     height: 40px;
@@ -52,19 +46,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
     flex-shrink: 0;
-    align-self: center;
 }
+
 .ia-back-btn:hover {
     border-color: var(--accent-purple);
     color: var(--accent-purple);
-    transform: translateX(-2px);
-}
-.ia-back-btn:active {
-    transform: scale(0.9);
 }
 
+/* MENSAGENS */
 .ia-messages-wrapper {
     flex: 1;
     overflow-y: auto;
@@ -83,10 +73,10 @@
     border-radius: 10px;
 }
 
-/* Estado Vazio */
+/* ESTADO VAZIO */
 .ia-empty-state {
     text-align: center;
-    margin-top: 20px;
+    margin-top: 30px;
     color: var(--text-secondary);
 }
 
@@ -107,26 +97,54 @@
     font-size: 0.85rem;
 }
 
-/* Mensagens */
+/* MENSAGENS */
 .ia-message {
     display: flex;
-    flex-direction: column;
-    max-width: 88%;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 90%;
+    animation: iaFadeIn 0.3s ease;
+}
+
+@keyframes iaFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .ia-message-user {
     align-self: flex-end;
+    flex-direction: row-reverse;
 }
 
 .ia-message-ai {
     align-self: flex-start;
 }
 
+.ia-message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.ia-message-user .ia-message-avatar {
+    background: var(--accent-purple);
+    border-color: var(--accent-purple);
+}
+
 .ia-message-content {
     padding: 12px 16px;
     border-radius: 16px;
     font-size: 0.9rem;
-    line-height: 1.4;
+    line-height: 1.6;
+    word-wrap: break-word;
+    max-width: 100%;
 }
 
 .ia-message-user .ia-message-content {
@@ -146,12 +164,43 @@
     font-size: 0.6rem;
     color: var(--text-secondary);
     margin-top: 4px;
-    padding: 0 4px;
+    text-align: center;
 }
 
-/* ============================================
-   CARDS DE AÇÃO RÁPIDOS
-   ============================================ */
+/* LOADING */
+.ia-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.ia-dots span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.ia-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ia-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+    30% { transform: translateY(-8px); opacity: 1; }
+}
+
+.ia-loading .ia-message-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ia-loading .ia-dots span {
+    background: var(--accent-purple);
+}
+
+/* CARDS DE AÇÃO */
 .ia-quick-actions {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -163,12 +212,11 @@
 .ia-action-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 14px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     text-align: center;
     gap: 8px;
     cursor: pointer;
@@ -178,7 +226,6 @@
 
 .ia-action-card:hover {
     border-color: var(--accent-purple);
-    background: rgba(139, 92, 246, 0.05);
     transform: translateY(-3px);
 }
 
@@ -197,12 +244,11 @@
     line-height: 1.2;
 }
 
-/* Área de Input */
+/* INPUT */
 .ia-input-area {
     display: flex;
     gap: 12px;
     padding: 10px 0;
-    background-color: var(--bg-color);
     flex-shrink: 0;
     border-top: 1px solid var(--border-color);
 }
@@ -211,12 +257,12 @@
     flex: 1;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 20px;
-    padding: 12px 16px;
+    border-radius: 24px;
+    padding: 12px 18px;
     color: var(--text-primary);
     font-size: 0.9rem;
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
 }
 
 .ia-input-area input:focus {
@@ -225,8 +271,8 @@
 }
 
 .ia-send-btn {
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     background: var(--accent-purple);
     border: none;
@@ -236,41 +282,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
     flex-shrink: 0;
+    transition: all 0.25s ease;
 }
 
 .ia-send-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
 }
 
-.ia-send-btn:active {
-    transform: scale(0.95);
-}
-
-/* ============================================
-   FOOTER WARNING
-   ============================================ */
+/* FOOTER */
 .ia-footer-warning {
     text-align: center;
-    padding: 8px 0 4px 0;
+    padding: 6px 0;
     flex-shrink: 0;
 }
 
 .ia-footer-warning span {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     color: var(--text-secondary);
-    opacity: 0.6;
+    opacity: 0.5;
 }
 
-/* ============================================
-   BOTÃO FLUTUANTE (FAB) - CANTO INFERIOR DIREITO
-   ============================================ */
+/* BOTÃO FLUTUANTE */
 .fab-ia {
     position: fixed;
-    bottom: 100px; /* Acima da barra de navegação */
-    right: 20px;   /* ✅ CANTO DIREITO (como era antes) */
+    bottom: 100px;
+    right: 20px;
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -279,12 +317,12 @@
     color: white;
     font-size: 1.8rem;
     cursor: pointer;
-    z-index: 999; /* ✅ GARANTE QUE FICA ACIMA DE TUDO */
+    z-index: 999;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 6px 30px rgba(139, 92, 246, 0.5);
+    transition: all 0.3s ease;
 }
 
 .fab-ia:hover {
@@ -295,43 +333,16 @@
     transform: scale(0.9);
 }
 
-/* Esconder o botão quando a tela de IA estiver ativa */
-#view-ia.active ~ .fab-ia {
-    display: none;
-}
-
+/* RESPONSIVIDADE */
 @media (max-width: 480px) {
-    .fab-ia {
-        width: 54px;
-        height: 54px;
-        font-size: 1.5rem;
-        bottom: 85px;
-        right: 15px;
-    }
-}
-
-
-
-/* Responsividade do botão */
-@media (max-width: 480px) {
-    .fab-ia {
-        width: 54px;
-        height: 54px;
-        font-size: 1.5rem;
-        bottom: 85px;
-    }
-    .ia-quick-actions {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 6px;
-    }
-    .ia-action-card {
-        min-height: 65px;
-        padding: 10px 4px;
-    }
-    .ia-action-card ion-icon {
-        font-size: 1.3rem;
-    }
-    .ia-action-card span {
-        font-size: 0.6rem;
-    }
+    #view-ia { padding: 0 14px 14px 14px; }
+    .ia-header h1 { font-size: 1.1rem; }
+    .ia-back-btn { width: 34px; height: 34px; font-size: 1rem; }
+    .ia-message-avatar { width: 28px; height: 28px; font-size: 1rem; }
+    .ia-message-content { font-size: 0.85rem; padding: 10px 14px; }
+    .ia-quick-actions { gap: 6px; }
+    .ia-action-card { min-height: 65px; padding: 10px 4px; }
+    .ia-action-card ion-icon { font-size: 1.3rem; }
+    .ia-action-card span { font-size: 0.6rem; }
+    .fab-ia { width: 52px; height: 52px; font-size: 1.5rem; bottom: 85px; right: 14px; }
 }
