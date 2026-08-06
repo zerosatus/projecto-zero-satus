@@ -162,16 +162,26 @@ class IAModule {
             fabBtn.replaceWith(fabBtn.cloneNode(true));
             const newFab = document.getElementById('btn-open-ia');
             
-            newFab.addEventListener('click', () => {
-                console.log('[IA] 🔥 Botão clicado, abrindo tela...');
-                if (this.app && typeof this.app.showView === 'function') {
-                    this.app.showView('ia');
+                    newFab.addEventListener('click', () => {
+             console.log('[IA] 🔥 Botão clicado, abrindo tela...');
+             this._previousView = this.app.currentView;  // ⭐ guarda de onde veio
+             if (this.app && typeof this.app.showView === 'function') {
+                 this.app.showView('ia');
                 } else {
                     console.warn('[IA] ⚠️ App não está pronto ou showView não existe.');
                 }
             });
         } else {
             console.warn('[IA] ⚠️ Botão #btn-open-ia não encontrado no DOM.');
+                 // ⭐ BOTÃO DE VOLTAR
+     const backBtn = document.getElementById('btn-back-ia');
+     if (backBtn) {
+         backBtn.replaceWith(backBtn.cloneNode(true)); // evita listener duplicado
+         document.getElementById('btn-back-ia').addEventListener('click', () => {
+             console.log('[IA] 🔙 Voltando...');
+             this.app.showView(this._previousView || 'dashboard');
+         });
+     }
         }
     }
 }

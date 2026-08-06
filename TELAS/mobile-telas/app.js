@@ -548,9 +548,11 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
         // Configurar eventos
         this.setupEvents();
         
-        // Configurar observer do perfil
-        this.setupProfileObserver();
-        
+           // Configurar observer do perfil
+     this.setupProfileObserver();
+
+     // ⭐ CONECTA O BOTÃO DA IA NA INICIALIZAÇÃO
+     if (this.modules.ia) this.modules.ia.setupEvents();
         // Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 95);
         this.showView('dashboard');
@@ -652,7 +654,7 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
 
         // ✅ ADICIONADO O MÓDULO DA IA
         if (typeof IAModule !== 'undefined') {
-            this.modules.ia = new IAModule(this);
+             this.modules.ia = new IAModule(this);
         }
         
         console.log('[SPA] 📦 Módulos carregados:', Object.keys(this.modules));
@@ -953,11 +955,15 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
                 this.updateProfileStats();
             }
             
-            if (this.modules[viewName]) {
-                this.modules[viewName].render(this.data);
-            }
-            
-            this.currentView = viewName;
+                    if (this.modules[viewName]) {
+             this.modules[viewName].render(this.data);
+         }
+         // ⭐ ESCONDE A BARRA DE NAVEGAÇÃO NA TELA DE IA
+         const navBar = document.querySelector('.nav-item')?.parentElement;
+         if (navBar) {
+             navBar.style.display = (viewName === 'ia') ? 'none' : '';
+         }
+         this.currentView = viewName;
         }
     }
     
