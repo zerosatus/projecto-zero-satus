@@ -1624,3 +1624,82 @@ BEGIN
     RAISE NOTICE '⚠️ IMPORTANTE: Saia e entre novamente!';
     RAISE NOTICE '============================================';
 END $$;
+
+
+
+
+
+
+
+
+
+
+colar a parte no canto 
+-- ============================================
+-- HABILITAR REALTIME PARA NOTIFICAÇÕES
+-- ============================================
+
+ALTER TABLE public.notifications REPLICA IDENTITY FULL;
+
+CREATE OR REPLACE FUNCTION notify_new_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM pg_notify(
+        'notification_' || NEW.user_id,
+        json_build_object(
+            'id', NEW.id,
+            'title', NEW.title,
+            'message', NEW.message,
+            'type', NEW.type,
+            'created_at', NEW.created_at
+        )::text
+    );
+    
+    IF NEW.read = true AND OLD.read = false THEN
+        PERFORM pg_notify(
+            'notification_read',
+            json_build_object(
+                'notification_id', NEW.id,
+                'user_id', NEW.user_id
+            )::text
+        );
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_notify_notification ON public.notifications;
+
+CREATE TRIGGER trigger_notify_notification
+    AFTER INSERT OR UPDATE OF read ON public.notifications
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_new_notification();
+
+-- ============================================
+-- VERIFICAR SE FUNCIONOU (VERSÃO CORRIGIDA)
+-- ============================================
+SELECT 
+    tablename,
+    CASE 
+        WHEN relreplident = 'f' THEN 'FULL'
+        WHEN relreplident = 'd' THEN 'DEFAULT'
+        WHEN relreplident = 'n' THEN 'NOTHING'
+        WHEN relreplident = 'i' THEN 'INDEX'
+        ELSE 'DESCONHECIDO'
+    END as replica_identity
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_catalog.pg_tables t ON t.tablename = c.relname AND t.schemaname = n.nspname
+WHERE t.tablename = 'notifications'
+AND t.schemaname = 'public';
+
+DO $$
+BEGIN
+    RAISE NOTICE '============================================';
+    RAISE NOTICE '✅ REALTIME PARA NOTIFICACOES ATIVADO!';
+    RAISE NOTICE '============================================';
+    RAISE NOTICE '📬 Tabela: public.notifications';
+    RAISE NOTICE '🔔 Canal: notification_{user_id}';
+    RAISE NOTICE '============================================';
+END $$;
