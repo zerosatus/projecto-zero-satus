@@ -1,147 +1,167 @@
 // ==========================================
-// audit-logs.js - LOGS DE AUDITORIA
+// audit-logs.js - LOGS DE AUDITORIA REAIS
 // ==========================================
 
 console.log('[AuditLogs] 📋 Carregando módulo de logs de auditoria...');
 
-// ==========================================
-// DADOS ESTÁTICOS (MOCK)
-// ==========================================
-const mockAuditLogs = [
-    {
-        id: '1',
-        type: 'admin',
-        action: 'Usuário tornado ADMIN',
-        description: 'O administrador tornou um usuário como ADMIN',
-        user: 'Sistema',
-        userEmail: 'system@zerosatus.com',
-        target: 'Usuário',
-        timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        ip: '192.168.1.100'
-    },
-    {
-        id: '2',
-        type: 'security',
-        action: 'Tentativa de login falha',
-        description: 'Tentativa de login falhou para um email não autorizado',
-        user: 'Sistema',
-        userEmail: 'system@zerosatus.com',
-        target: 'Email desconhecido',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-        ip: '192.168.1.105'
-    },
-    {
-        id: '3',
-        type: 'post',
-        action: 'Post criado',
-        description: 'Novo post criado no blog',
-        user: 'Administrador',
-        userEmail: 'admin@zerosatus.com',
-        target: 'Novo Post',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        ip: '192.168.1.100'
-    },
-    {
-        id: '4',
-        type: 'user',
-        action: 'Usuário banido',
-        description: 'Um usuário foi banido da plataforma',
-        user: 'Administrador',
-        userEmail: 'admin@zerosatus.com',
-        target: 'Usuário Banido',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-        ip: '192.168.1.100'
-    },
-    {
-        id: '5',
-        type: 'admin',
-        action: 'Acesso ao painel admin',
-        description: 'Administrador acessou o painel administrativo',
-        user: 'Administrador',
-        userEmail: 'admin@zerosatus.com',
-        target: 'Painel Admin',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-        ip: '192.168.1.100'
-    }
-];
+let auditLogsCache = [];
+let logsFilter = 'all';
 
 // ==========================================
-// CARREGAR LOGS DE AUDITORIA
+// CARREGAR LOGS DO SUPABASE
 // ==========================================
-function loadAuditLogs() {
+async function loadAuditLogs() {
     console.log('[AuditLogs] 📋 Carregando logs de auditoria...');
     
     const filter = document.getElementById('logFilter')?.value || 'all';
-    const timelineContainer = document.getElementById('logsTimeline');
+    logsFilter = filter;
     
+    const timelineContainer = document.getElementById('logsTimeline');
     if (!timelineContainer) return;
 
-    // Filtrar logs
-    let filteredLogs = mockAuditLogs;
-    if (filter !== 'all') {
-        filteredLogs = mockAuditLogs.filter(log => log.type === filter);
-    }
-    
-    // Ordenar por data (mais recente primeiro)
-    filteredLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    // Atualizar estatísticas
-    const elTotal = document.getElementById('totalLogs');
-    const elWarnings = document.getElementById('warningLogs');
-    const elSecurity = document.getElementById('securityLogs');
-    const elToday = document.getElementById('todayLogs');
-    
-    if (elTotal) elTotal.textContent = mockAuditLogs.length;
-    if (elWarnings) elWarnings.textContent = mockAuditLogs.filter(l => l.type === 'post' || l.type === 'user').length;
-    if (elSecurity) elSecurity.textContent = mockAuditLogs.filter(l => l.type === 'security').length;
-    if (elToday) elToday.textContent = mockAuditLogs.filter(l => {
-        const logDate = new Date(l.timestamp);
-        const today = new Date();
-        return logDate.toDateString() === today.toDateString();
-    }).length;
-    
-    // Renderizar timeline
-    if (filteredLogs.length === 0) {
+    timelineContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+            <p style="margin-top: 15px;">Carregando logs...</p>
+        </div>
+    `;
+
+    try {
+        const client = window.supabaseClient;
+        if (!client) {
+            throw new Error('Supabase não inicializado');
+        }
+
+        // Buscar logs do Supabase
+        let query = client
+            .from('audit_logs')
+            .select('*, profiles(nome)')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (filter !== 'all') {
+            query = query.eq('tipo', filter);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('[AuditLogs] ❌ Erro:', error);
+            throw error;
+        }
+
+        auditLogsCache = data || [];
+        console.log(`[AuditLogs] ✅ ${auditLogsCache.length} logs carregados`);
+
+        // Atualizar estatísticas
+        await updateLogStats();
+
+        // Renderizar timeline
+        renderTimeline(auditLogsCache);
+
+    } catch (error) {
+        console.error('[AuditLogs] ❌ Erro ao carregar logs:', error);
         timelineContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--danger);">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem;"></i>
+                <p style="margin-top: 15px;">Erro ao carregar logs: ${error.message}</p>
+                <button class="btn-secondary" onclick="loadAuditLogs()" style="margin-top: 10px;">
+                    <i class="fas fa-sync"></i> Tentar novamente
+                </button>
+            </div>
+        `;
+    }
+}
+
+// ==========================================
+// ATUALIZAR ESTATÍSTICAS
+// ==========================================
+async function updateLogStats() {
+    try {
+        const client = window.supabaseClient;
+        if (!client) return;
+
+        const { data, error } = await client.rpc('get_logs_stats');
+
+        if (error) {
+            console.error('[AuditLogs] ❌ Erro stats:', error);
+            return;
+        }
+
+        if (data && data.length > 0) {
+            const stats = data[0];
+            document.getElementById('totalLogs').textContent = stats.total_logs || 0;
+            document.getElementById('warningLogs').textContent = stats.logs_seguranca || 0;
+            document.getElementById('securityLogs').textContent = stats.logs_seguranca || 0;
+            document.getElementById('todayLogs').textContent = stats.logs_hoje || 0;
+        }
+    } catch (error) {
+        console.error('[AuditLogs] ❌ Erro stats:', error);
+    }
+}
+
+// ==========================================
+// RENDERIZAR TIMELINE
+// ==========================================
+function renderTimeline(logs) {
+    const container = document.getElementById('logsTimeline');
+    if (!container) return;
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-muted);">
                 <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
-                <p>Nenhum log encontrado para este filtro</p>
+                <p>Nenhum log encontrado</p>
             </div>
         `;
         return;
     }
+
+    let html = '<div class="timeline">';
     
-    timelineContainer.innerHTML = `
-        <div class="timeline">
-            ${filteredLogs.map(log => `
-                <div class="timeline-item ${log.type}">
-                    <div class="timeline-header">
-                        <h4 class="timeline-title">
-                            ${getLogIcon(log.type)} ${log.action}
-                        </h4>
-                        <div class="timeline-time">
-                            <i class="fas fa-clock"></i>
-                            ${formatLogTime(log.timestamp)}
-                        </div>
+    logs.forEach(log => {
+        const logType = log.tipo || 'system';
+        const logIcon = getLogIcon(logType);
+        const typeLabel = getLogTypeLabel(logType);
+        const nomeUsuario = log.profiles?.nome || log.user_email || 'Sistema';
+        
+        html += `
+            <div class="timeline-item ${logType}">
+                <div class="timeline-header">
+                    <h4 class="timeline-title">
+                        ${logIcon} ${log.acao || 'Ação'}
+                    </h4>
+                    <div class="timeline-time">
+                        <i class="fas fa-clock"></i>
+                        ${formatLogTime(log.created_at)}
                     </div>
-                    <p class="timeline-description">${log.description}</p>
-                    <div class="timeline-meta">
-                        <span class="timeline-badge ${log.type}">${getLogTypeLabel(log.type)}</span>
-                        <div class="timeline-user">
-                            <i class="fas fa-user"></i>
-                            ${log.user} (${log.userEmail})
-                        </div>
+                </div>
+                <p class="timeline-description">${log.descricao || 'Sem descrição'}</p>
+                <div class="timeline-meta">
+                    <span class="timeline-badge ${logType}">${typeLabel}</span>
+                    <div class="timeline-user">
+                        <i class="fas fa-user"></i>
+                        ${nomeUsuario}
+                    </div>
+                    ${log.ip ? `
                         <div class="timeline-user">
                             <i class="fas fa-network-wired"></i>
                             IP: ${log.ip}
                         </div>
-                    </div>
+                    ` : ''}
+                    ${log.user_agent ? `
+                        <div class="timeline-user" style="font-size: 10px; color: var(--text-muted);">
+                            <i class="fas fa-laptop"></i>
+                            ${log.user_agent.substring(0, 50)}${log.user_agent.length > 50 ? '...' : ''}
+                        </div>
+                    ` : ''}
                 </div>
-            `).join('')}
-        </div>
-    `;
+            </div>
+        `;
+    });
     
-    console.log('[AuditLogs] ✅ Logs carregados:', filteredLogs.length);
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 // ==========================================
@@ -152,22 +172,25 @@ function getLogIcon(type) {
         user: '<i class="fas fa-user" style="color: #10b981;"></i>',
         admin: '<i class="fas fa-user-shield" style="color: var(--primary);"></i>',
         security: '<i class="fas fa-shield-alt" style="color: #ef4444;"></i>',
-        post: '<i class="fas fa-newspaper" style="color: #f59e0b;"></i>'
+        post: '<i class="fas fa-newspaper" style="color: #f59e0b;"></i>',
+        system: '<i class="fas fa-cog" style="color: #3b82f6;"></i>'
     };
     return icons[type] || '<i class="fas fa-info-circle"></i>';
 }
 
 function getLogTypeLabel(type) {
     const labels = {
-        user: 'Usuário',
-        admin: 'Admin',
-        security: 'Segurança',
-        post: 'Post'
+        user: '👤 Usuário',
+        admin: '👑 Admin',
+        security: '🔒 Segurança',
+        post: '📝 Post',
+        system: '⚙️ Sistema'
     };
     return labels[type] || type;
 }
 
 function formatLogTime(timestamp) {
+    if (!timestamp) return 'Data desconhecida';
     try {
         const date = new Date(timestamp);
         const now = new Date();
@@ -180,7 +203,7 @@ function formatLogTime(timestamp) {
         if (diffMins < 60) return `${diffMins} min atrás`;
         if (diffHours < 24) return `${diffHours}h atrás`;
         if (diffDays < 7) return `${diffDays} dias atrás`;
-        return date.toLocaleDateString('pt-BR');
+        return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     } catch (e) {
         return timestamp;
     }
@@ -189,40 +212,105 @@ function formatLogTime(timestamp) {
 // ==========================================
 // EXPORTAR LOGS
 // ==========================================
-window.exportLogs = function() {
+window.exportLogs = async function() {
     console.log('[AuditLogs] 📥 Exportando logs...');
     
-    const headers = ['ID', 'Tipo', 'Ação', 'Descrição', 'Usuário', 'Email', 'Alvo', 'Timestamp', 'IP'];
-    const rows = mockAuditLogs.map(log => [
-        log.id,
-        log.type,
-        log.action,
-        `"${log.description.replace(/"/g, '""')}"`,
-        log.user,
-        log.userEmail,
-        log.target,
-        log.timestamp,
-        log.ip
-    ]);
+    try {
+        const client = window.supabaseClient;
+        if (!client) {
+            showToast('❌ Supabase não inicializado', true);
+            return;
+        }
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `logs-auditoria-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+        let query = client
+            .from('audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
 
-    showToast('📥 Logs exportados com sucesso!');
+        if (logsFilter !== 'all') {
+            query = query.eq('tipo', logsFilter);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            showToast('⚠️ Nenhum log para exportar', true);
+            return;
+        }
+
+        const headers = ['ID', 'Usuário', 'Email', 'Ação', 'Descrição', 'Tipo', 'IP', 'User Agent', 'Data'];
+        const rows = data.map(log => [
+            log.id,
+            log.user_id || 'Sistema',
+            log.user_email || '',
+            `"${(log.acao || '').replace(/"/g, '""')}"`,
+            `"${(log.descricao || '').replace(/"/g, '""')}"`,
+            log.tipo || '',
+            log.ip || '',
+            `"${(log.user_agent || '').replace(/"/g, '""')}"`,
+            log.created_at || ''
+        ]);
+
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `logs-auditoria-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast('📥 Logs exportados com sucesso!');
+
+    } catch (error) {
+        console.error('[AuditLogs] ❌ Erro:', error);
+        showToast('❌ Erro ao exportar: ' + error.message, true);
+    }
 };
 
 // ==========================================
-// ATUALIZAR QUANDO MUDAR FILTRO
+// FUNÇÃO PARA REGISTRAR LOG (CHAMADA DO FRONTEND)
+// ==========================================
+window.registrarLog = async function(acao, descricao, tipo = 'system', detalhes = {}) {
+    try {
+        const client = window.supabaseClient;
+        if (!client) return false;
+
+        // Buscar usuário atual
+        const { data: { user } } = await client.auth.getUser();
+        const userId = user?.id || null;
+
+        const { data, error } = await client.rpc('registrar_log', {
+            p_user_id: userId,
+            p_acao: acao,
+            p_descricao: descricao,
+            p_tipo: tipo,
+            p_detalhes: detalhes
+        });
+
+        if (error) {
+            console.error('[AuditLogs] ❌ Erro ao registrar log:', error);
+            return false;
+        }
+
+        console.log('[AuditLogs] ✅ Log registrado:', acao);
+        return true;
+
+    } catch (error) {
+        console.error('[AuditLogs] ❌ Erro:', error);
+        return false;
+    }
+};
+
+// ==========================================
+// EVENTOS
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     const logFilter = document.getElementById('logFilter');
