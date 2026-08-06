@@ -482,3 +482,32 @@
     log('Versão: 2.2.0');
 
 })();
+
+// ============================================
+// INTEGRAÇÃO COM REALTIME - Adicione ao final do sync-helper.js
+// ============================================
+
+// Adicionar listener para novas notificações
+window.addEventListener('newNotification', (event) => {
+    const notification = event.detail?.notification;
+    if (notification) {
+        console.log('[Sync] 📬 Nova notificação via Realtime:', notification.title);
+        
+        if (typeof atualizarBadgeManual === 'function') {
+            atualizarBadgeManual();
+        }
+        
+        setTimeout(() => {
+            window.refreshAllData();
+        }, 300);
+    }
+});
+
+// Adicionar listener para notificações lidas
+window.addEventListener('notificationsUpdated', () => {
+    if (typeof atualizarBadgeManual === 'function') {
+        setTimeout(atualizarBadgeManual, 100);
+    }
+});
+
+console.log('[Sync] ✅ Integração com Realtime configurada');
