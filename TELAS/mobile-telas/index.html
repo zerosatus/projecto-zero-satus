@@ -1054,13 +1054,13 @@ const checkInterval = setInterval(() => {
 <script src="modules/ia.js"></script>
 
 
-<!-- ⭐ IA OPENROUTER - CÓDIGO CORRIGIDO (MODELO ESTÁVEL) -->
+<!-- ⭐ IA OPENROUTER - VERSÃO DEFINITIVA (SEM PROXY) -->
 <script>
 // ============================================
 // openrouter-service.js - VERSÃO DEFINITIVA
 // ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DIRETAMENTE DO INDEX...');
+console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DEFINITIVO...');
 
 (function() {
     'use strict';
@@ -1068,24 +1068,25 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DIRETAMENTE DO INDEX...');
     try {
         class OpenRouterService {
             constructor() {
+                // ⭐ SUA CHAVE
                 this.apiKey = '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';
                 
-                // ⭐ USAR O PROXY DA VERCEL
-                this.apiUrl = '/api/openrouter';
+                // ⭐ URL DIRETA (SEM PROXY)
+                this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
                 
-                // ⭐ MODELO GRATUITO CONFIÁVEL
-                this.model = 'meta-llama/llama-3.2-3b-instruct:free';
+                // ⭐ MODELO GRATUITO QUE FUNCIONA (testado em 2026)
+                this.model = 'mistralai/mistral-7b-instruct:free';
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
                 console.log('[OpenRouter] 🤖 Modelo:', this.model);
-                console.log('[OpenRouter] 📡 Proxy:', this.apiUrl);
+                console.log('[OpenRouter] 📡 URL:', this.apiUrl);
             }
             
             async sendMessage(prompt, context = '') {
-                console.log('[OpenRouter] 📤 Enviando para proxy...');
+                console.log('[OpenRouter] 📤 Enviando mensagem...');
                 
                 try {
-                    // ⭐ ADICIONAR GÍRIAS AO PROMPT
+                    // ⭐ CONSTRUIR PROMPT COM GÍRIAS MOÇAMBICANAS
                     const fullPrompt = `
 ${context}
 
@@ -1100,11 +1101,15 @@ Usuário: ${prompt}
 Resposta (com gírias moçambicanas):
 `;
 
+                    console.log('[OpenRouter] 📤 Enviando para:', this.model);
+                    
                     const response = await fetch(this.apiUrl, {
                         method: 'POST',
                         headers: {
+                            'Authorization': `Bearer ${this.apiKey}`,
                             'Content-Type': 'application/json',
-                            'X-API-Key': this.apiKey
+                            'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
+                            'X-Title': 'Zero Satus App'
                         },
                         body: JSON.stringify({
                             model: this.model,
@@ -1125,40 +1130,60 @@ Resposta (com gírias moçambicanas):
 
                     if (!response.ok) {
                         const error = await response.json().catch(() => ({}));
-                        console.error('[OpenRouter] ❌ Erro:', response.status, error);
+                        console.error('[OpenRouter] ❌ Erro HTTP:', response.status, error);
+                        
+                        // ⭐ SE O MODELO NÃO EXISTIR, TENTAR FALLBACK
+                        if (response.status === 404 && error.error?.message?.includes('No endpoints found')) {
+                            console.log('[OpenRouter] ⚠️ Modelo não encontrado, tentando fallback...');
+                            // Tenta com outro modelo gratuito
+                            const fallbackModels = [
+                                'meta-llama/llama-3.2-3b-instruct:free',
+                                'google/gemini-2.0-flash-exp:free',
+                                'qwen/qwen-2.5-7b-instruct:free'
+                            ];
+                            
+                            for (const fallback of fallbackModels) {
+                                try {
+                                    console.log(`[OpenRouter] 🔄 Tentando fallback: ${fallback}`);
+                                    const fallbackResponse = await fetch(this.apiUrl, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Authorization': `Bearer ${this.apiKey}`,
+                                            'Content-Type': 'application/json',
+                                            'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
+                                            'X-Title': 'Zero Satus App'
+                                        },
+                                        body: JSON.stringify({
+                                            model: fallback,
+                                            messages: [
+                                                { role: 'system', content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas.' },
+                                                { role: 'user', content: fullPrompt }
+                                            ],
+                                            temperature: 0.8,
+                                            max_tokens: 1024
+                                        })
+                                    });
+                                    
+                                    if (fallbackResponse.ok) {
+                                        const data = await fallbackResponse.json();
+                                        if (data.choices && data.choices.length > 0) {
+                                            console.log(`[OpenRouter] ✅ Fallback ${fallback} funcionou!`);
+                                            return { success: true, text: data.choices[0].message.content };
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn(`[OpenRouter] ⚠️ Fallback ${fallback} falhou:`, e);
+                                }
+                            }
+                            
+                            return { success: false, error: '🌐 Nenhum modelo gratuito disponível. Tente novamente mais tarde.' };
+                        }
                         
                         if (response.status === 401 || response.status === 403) {
                             return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
                         }
                         if (response.status === 429) {
                             return { success: false, error: '⏳ Limite diário atingido. Volta amanhã, magaia!' };
-                        }
-                        if (response.status === 404) {
-                            // Tentar com outro modelo se este falhar
-                            console.warn('[OpenRouter] ⚠️ Modelo não encontrado, tentando fallback...');
-                            // Fallback para mistral
-                            const fallbackModel = 'mistralai/mistral-7b-instruct:free';
-                            const fallbackResponse = await fetch(this.apiUrl, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-API-Key': this.apiKey
-                                },
-                                body: JSON.stringify({
-                                    model: fallbackModel,
-                                    messages: [
-                                        { role: 'system', content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas.' },
-                                        { role: 'user', content: fullPrompt }
-                                    ],
-                                    temperature: 0.8,
-                                    max_tokens: 1024
-                                })
-                            });
-                            if (fallbackResponse.ok) {
-                                const fallbackData = await fallbackResponse.json();
-                                return { success: true, text: fallbackData.choices[0].message.content };
-                            }
-                            return { success: false, error: '🌐 Modelo não disponível. Tente novamente mais tarde.' };
                         }
                         
                         return { 
@@ -1194,7 +1219,7 @@ Resposta (com gírias moçambicanas):
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
         console.log('[OpenRouter] 🔑 Chave:', service.apiKey.substring(0, 20) + '...');
         console.log('[OpenRouter] 🤖 Modelo:', service.model);
-        console.log('[OpenRouter] 📡 Proxy:', service.apiUrl);
+        console.log('[OpenRouter] 📡 URL:', service.apiUrl);
         
     } catch (error) {
         console.error('[OpenRouter] ❌ ERRO FATAL:', error);
@@ -1204,7 +1229,7 @@ Resposta (com gírias moçambicanas):
         window.GeminiService = window.OpenRouterService;
     }
     
-    console.log('🔥🔥🔥 [OpenRouter] FIM DO CARREGAMENTO DIRETO');
+    console.log('🔥🔥🔥 [OpenRouter] FIM DO CARREGAMENTO');
 })();
 </script>
 
