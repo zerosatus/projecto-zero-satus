@@ -1,0 +1,312 @@
+/* ============================================
+   ia.css - ESTILOS DA TELA DE IA
+   ============================================ */
+
+#view-ia {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 0 20px 20px 20px;
+    overflow: hidden;
+    background-color: var(--bg-color);
+}
+
+.ia-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 15px 0;
+    flex-shrink: 0;
+}
+
+.ia-header h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent-purple), #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.ia-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.ia-header-icon {
+    font-size: 1.8rem;
+    color: var(--accent-purple);
+}
+
+.ia-messages-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.ia-messages-wrapper::-webkit-scrollbar {
+    width: 4px;
+}
+.ia-messages-wrapper::-webkit-scrollbar-thumb {
+    background: var(--accent-purple);
+    border-radius: 10px;
+}
+
+/* Estado Vazio */
+.ia-empty-state {
+    text-align: center;
+    margin-top: 20px;
+    color: var(--text-secondary);
+}
+
+.ia-empty-icon {
+    font-size: 3rem;
+    color: var(--accent-purple);
+    opacity: 0.5;
+    margin-bottom: 10px;
+}
+
+.ia-empty-state h3 {
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-size: 1.1rem;
+}
+
+.ia-empty-state p {
+    font-size: 0.85rem;
+}
+
+/* Mensagens */
+.ia-message {
+    display: flex;
+    flex-direction: column;
+    max-width: 88%;
+}
+
+.ia-message-user {
+    align-self: flex-end;
+}
+
+.ia-message-ai {
+    align-self: flex-start;
+}
+
+.ia-message-content {
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.ia-message-user .ia-message-content {
+    background: var(--accent-purple);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.ia-message-ai .ia-message-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+}
+
+.ia-message-time {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    padding: 0 4px;
+}
+
+/* ============================================
+   CARDS DE AÇÃO RÁPIDOS
+   ============================================ */
+.ia-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-shrink: 0;
+}
+
+.ia-action-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    min-height: 80px;
+}
+
+.ia-action-card:hover {
+    border-color: var(--accent-purple);
+    background: rgba(139, 92, 246, 0.05);
+    transform: translateY(-3px);
+}
+
+.ia-action-card:active {
+    transform: scale(0.95);
+}
+
+.ia-action-card ion-icon {
+    font-size: 1.6rem;
+    color: var(--accent-purple);
+}
+
+.ia-action-card span {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    line-height: 1.2;
+}
+
+/* Área de Input */
+.ia-input-area {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    background-color: var(--bg-color);
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.ia-input-area input {
+    flex: 1;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.ia-input-area input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.ia-send-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.ia-send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+
+.ia-send-btn:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   FOOTER WARNING
+   ============================================ */
+.ia-footer-warning {
+    text-align: center;
+    padding: 8px 0 4px 0;
+    flex-shrink: 0;
+}
+
+.ia-footer-warning span {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+/* ============================================
+   BOTÃO FLUTUANTE (FAB) - CANTO INFERIOR DIREITO
+   ============================================ */
+.fab-ia {
+    position: fixed;
+    bottom: 100px; /* Acima da barra de navegação */
+    right: 20px;   /* ✅ CANTO DIREITO (como era antes) */
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
+    border: none;
+    color: white;
+    font-size: 1.8rem;
+    cursor: pointer;
+    z-index: 999; /* ✅ GARANTE QUE FICA ACIMA DE TUDO */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.fab-ia:hover {
+    transform: scale(1.1) translateY(-4px);
+}
+
+.fab-ia:active {
+    transform: scale(0.9);
+}
+
+/* Esconder o botão quando a tela de IA estiver ativa */
+#view-ia.active ~ .fab-ia {
+    display: none;
+}
+
+@media (max-width: 480px) {
+    .fab-ia {
+        width: 54px;
+        height: 54px;
+        font-size: 1.5rem;
+        bottom: 85px;
+        right: 15px;
+    }
+}
+
+
+
+/* Responsividade do botão */
+@media (max-width: 480px) {
+    .fab-ia {
+        width: 54px;
+        height: 54px;
+        font-size: 1.5rem;
+        bottom: 85px;
+    }
+    .ia-quick-actions {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    .ia-action-card {
+        min-height: 65px;
+        padding: 10px 4px;
+    }
+    .ia-action-card ion-icon {
+        font-size: 1.3rem;
+    }
+    .ia-action-card span {
+        font-size: 0.6rem;
+    }
+}

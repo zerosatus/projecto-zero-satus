@@ -29,6 +29,9 @@
     <link rel="stylesheet" href="css/notas.css">
     <link rel="stylesheet" href="css/perfil.css">
     
+    <!-- CSS DA IA -->
+    <link rel="stylesheet" href="css/ia.css">
+    
 </head>
 <body>
 
@@ -271,7 +274,59 @@
             </div>
         </section>
 
+        <!-- ========================================== -->
+        <!-- VIEW: IA (COLE AQUI!)                       -->
+        <!-- ========================================== -->
+        <section id="view-ia" class="view hidden">
+            <div class="ia-header">
+                <div>
+                    <h1>Assistente IA</h1>
+                    <p class="ia-subtitle">Seu mentor de estudos inteligente 🧠</p>
+                </div>
+                <ion-icon name="sparkles" class="ia-header-icon"></ion-icon>
+            </div>
+            
+            <div class="ia-messages-wrapper" id="ia-messages-container">
+                <!-- Mensagens serão renderizadas aqui -->
+            </div>
+
+            <!-- Cards de Ação Rápidos -->
+            <div class="ia-quick-actions" id="ia-quick-actions">
+                <div class="ia-action-card" data-prompt="Me ajude a organizar meus estudos para a prova de matemática">
+                    <ion-icon name="calculator-outline"></ion-icon>
+                    <span>Organizar estudos</span>
+                </div>
+                <div class="ia-action-card" data-prompt="Me dê dicas para focar melhor nos estudos">
+                    <ion-icon name="bulb-outline"></ion-icon>
+                    <span>Dicas de foco</span>
+                </div>
+                <div class="ia-action-card" data-prompt="Quais são as melhores técnicas para memorizar conteúdo?">
+                    <ion-icon name="brain-outline"></ion-icon>
+                    <span>Técnicas de memorização</span>
+                </div>
+            </div>
+            
+            <div class="ia-input-area">
+                <input type="text" id="ia-input" placeholder="Pergunte algo sobre seus estudos..." autocomplete="off">
+                <button id="ia-send-btn" class="ia-send-btn">
+                    <ion-icon name="send-outline"></ion-icon>
+                </button>
+            </div>
+
+            <!-- Aviso no rodapé -->
+            <div class="ia-footer-warning">
+                <span>Ao usar a IA, você está ajudando a treinar o modelo. Use com responsabilidade! 🧠</span>
+            </div>
+        </section>
+
     </main>
+
+    <!-- ========================================== -->
+    <!-- BOTÃO FLUTUANTE DA IA (Centralizado)        -->
+    <!-- ========================================== -->
+    <button class="fab-ia" id="btn-open-ia">
+        <ion-icon name="sparkles-outline"></ion-icon>
+    </button>
 
     <!-- ========================================== -->
     <!-- BOTTOM NAV FIXO                           -->
@@ -480,49 +535,49 @@
                     </div>
                 </div>
                 <div class="input-group">
-    <label>Tipo de Evento</label>
-    <div class="event-types">
-        <button type="button" class="type-btn active" data-type="aula">
-            <ion-icon name="book-outline"></ion-icon>
-            <span>Aula</span>
-        </button>
-        <button type="button" class="type-btn" data-type="prova">
-            <ion-icon name="document-outline"></ion-icon>
-            <span>Prova</span>
-        </button>
-        <button type="button" class="type-btn" data-type="tarefa">
-            <ion-icon name="checkbox-outline"></ion-icon>
-            <span>Tarefa</span>
-        </button>
-        <button type="button" class="type-btn" data-type="outro">
-            <ion-icon name="calendar-outline"></ion-icon>
-            <span>Outro</span>
-        </button>
-    </div>
-</div>
-             <div class="input-group">
-    <label>Cor</label>
-    <div class="color-options">
-        <button type="button" class="color-option active" data-color="#6366f1">
-            <div class="color-circle" style="background-color: #6366f1;"></div>
-        </button>
-        <button type="button" class="color-option" data-color="#ec4899">
-            <div class="color-circle" style="background-color: #ec4899;"></div>
-        </button>
-        <button type="button" class="color-option" data-color="#ef4444">
-            <div class="color-circle" style="background-color: #ef4444;"></div>
-        </button>
-        <button type="button" class="color-option" data-color="#10b981">
-            <div class="color-circle" style="background-color: #10b981;"></div>
-        </button>
-        <button type="button" class="color-option" data-color="#f59e0b">
-            <div class="color-circle" style="background-color: #f59e0b;"></div>
-        </button>
-        <button type="button" class="color-option" data-color="#8b5cf6">
-            <div class="color-circle" style="background-color: #8b5cf6;"></div>
-        </button>
-    </div>
-</div>
+                    <label>Tipo de Evento</label>
+                    <div class="event-types">
+                        <button type="button" class="type-btn active" data-type="aula">
+                            <ion-icon name="book-outline"></ion-icon>
+                            <span>Aula</span>
+                        </button>
+                        <button type="button" class="type-btn" data-type="prova">
+                            <ion-icon name="document-outline"></ion-icon>
+                            <span>Prova</span>
+                        </button>
+                        <button type="button" class="type-btn" data-type="tarefa">
+                            <ion-icon name="checkbox-outline"></ion-icon>
+                            <span>Tarefa</span>
+                        </button>
+                        <button type="button" class="type-btn" data-type="outro">
+                            <ion-icon name="calendar-outline"></ion-icon>
+                            <span>Outro</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Cor</label>
+                    <div class="color-options">
+                        <button type="button" class="color-option active" data-color="#6366f1">
+                            <div class="color-circle" style="background-color: #6366f1;"></div>
+                        </button>
+                        <button type="button" class="color-option" data-color="#ec4899">
+                            <div class="color-circle" style="background-color: #ec4899;"></div>
+                        </button>
+                        <button type="button" class="color-option" data-color="#ef4444">
+                            <div class="color-circle" style="background-color: #ef4444;"></div>
+                        </button>
+                        <button type="button" class="color-option" data-color="#10b981">
+                            <div class="color-circle" style="background-color: #10b981;"></div>
+                        </button>
+                        <button type="button" class="color-option" data-color="#f59e0b">
+                            <div class="color-circle" style="background-color: #f59e0b;"></div>
+                        </button>
+                        <button type="button" class="color-option" data-color="#8b5cf6">
+                            <div class="color-circle" style="background-color: #8b5cf6;"></div>
+                        </button>
+                    </div>
+                </div>
                 <button type="button" class="btn-save" id="btn-save-event">
                     <ion-icon name="save-outline"></ion-icon> Salvar Evento
                 </button>
@@ -596,106 +651,87 @@
     </div>
 
     <!-- ========================================== -->
-<!-- VIEW: NOTAS                                -->
-<!-- ========================================== -->
-<section id="view-notas" class="view hidden">
-    <div class="notes-header-minimal">
-        <h1>Anotações</h1>
-        <button class="btn-new-note" id="btn-add-note">
-            <ion-icon name="add-outline"></ion-icon>
-        </button>
-    </div>
-    <div class="notes-search-minimal">
-        <ion-icon name="search-outline"></ion-icon>
-        <input type="text" id="notes-search-input" placeholder="Pesquisar anotações...">
-    </div>
-    <div class="notes-grid-minimal" id="notes-grid"></div>
-</section>
-
-<!-- ========================================== -->
-<!-- MODAL: NOTA (Samsung Notes Style)          -->
-<!-- ========================================== -->
-<div class="note-modal-minimal" id="note-modal">
-    <div class="note-editor-container">
-        
-        <!-- Header do Editor -->
-        <div class="samsung-header">
-            <button class="samsung-back-btn" id="note-modal-back">
-                <ion-icon name="arrow-back-outline"></ion-icon>
-            </button>
-            <input type="text" class="samsung-title-input" id="note-title-input" placeholder="Título" autocomplete="off">
-            <button class="samsung-done-btn" id="btn-save-note">Concluir</button>
-        </div>
-
-        <!-- Área de Edição -->
-        <div class="samsung-editor-wrapper">
-            <div id="note-content-input" class="samsung-editor" contenteditable="true" placeholder="Digite sua anotação..."></div>
-        </div>
-
-        <!-- Toolbar INFERIOR (Estilo Samsung Notes) -->
-        <div class="samsung-toolbar-bottom">
-            <!-- Grupo 1: Estilos de Texto -->
-            <div class="samsung-toolbar-group">
-                <button class="samsung-toolbar-btn" data-command="bold" title="Negrito">
-                    <span class="toolbar-label toolbar-bold">B</span>
-                </button>
-                <button class="samsung-toolbar-btn" data-command="italic" title="Itálico">
-                    <span class="toolbar-label toolbar-italic">I</span>
-                </button>
-                <button class="samsung-toolbar-btn" data-command="underline" title="Sublinhado">
-                    <span class="toolbar-label toolbar-underline">U</span>
-                </button>
-                <button class="samsung-toolbar-btn" data-command="strikeThrough" title="Tachado">
-                    <span class="toolbar-label toolbar-strike">S</span>
-                </button>
-            </div>
+    <!-- MODAL: NOTA (Samsung Notes Style)          -->
+    <!-- ========================================== -->
+    <div class="note-modal-minimal" id="note-modal">
+        <div class="note-editor-container">
             
-            <div class="samsung-toolbar-divider"></div>
-            
-            <!-- Grupo 2: Alinhamento -->
-            <div class="samsung-toolbar-group">
-                <button class="samsung-toolbar-btn" data-command="justifyLeft" title="Esquerda">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+            <!-- Header do Editor -->
+            <div class="samsung-header">
+                <button class="samsung-back-btn" id="note-modal-back">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
                 </button>
-                <button class="samsung-toolbar-btn" data-command="justifyCenter" title="Centro">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
-                </button>
-                <button class="samsung-toolbar-btn" data-command="justifyRight" title="Direita">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
-                </button>
-            </div>
-            
-            <div class="samsung-toolbar-divider"></div>
-            
-            <!-- Grupo 3: Listas -->
-            <div class="samsung-toolbar-group">
-                <button class="samsung-toolbar-btn" data-command="insertUnorderedList" title="Lista">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                </button>
-                <button class="samsung-toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
-                </button>
+                <input type="text" class="samsung-title-input" id="note-title-input" placeholder="Título" autocomplete="off">
+                <button class="samsung-done-btn" id="btn-save-note">Concluir</button>
             </div>
 
-            <div class="samsung-toolbar-divider"></div>
+            <!-- Área de Edição -->
+            <div class="samsung-editor-wrapper">
+                <div id="note-content-input" class="samsung-editor" contenteditable="true" placeholder="Digite sua anotação..."></div>
+            </div>
 
-            <!-- Seletor de Formato -->
-            <select class="samsung-toolbar-select" id="format-block-select">
-                <option value="p">Parágrafo</option>
-                <option value="h1">Título 1</option>
-                <option value="h2">Título 2</option>
-                <option value="h3">Título 3</option>
-            </select>
-        </div>
+            <!-- Toolbar INFERIOR (Estilo Samsung Notes) -->
+            <div class="samsung-toolbar-bottom">
+                <!-- Grupo 1: Estilos de Texto -->
+                <div class="samsung-toolbar-group">
+                    <button class="samsung-toolbar-btn" data-command="bold" title="Negrito">
+                        <span class="toolbar-label toolbar-bold">B</span>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="italic" title="Itálico">
+                        <span class="toolbar-label toolbar-italic">I</span>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="underline" title="Sublinhado">
+                        <span class="toolbar-label toolbar-underline">U</span>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="strikeThrough" title="Tachado">
+                        <span class="toolbar-label toolbar-strike">S</span>
+                    </button>
+                </div>
+                
+                <div class="samsung-toolbar-divider"></div>
+                
+                <!-- Grupo 2: Alinhamento -->
+                <div class="samsung-toolbar-group">
+                    <button class="samsung-toolbar-btn" data-command="justifyLeft" title="Esquerda">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="justifyCenter" title="Centro">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="justifyRight" title="Direita">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
+                    </button>
+                </div>
+                
+                <div class="samsung-toolbar-divider"></div>
+                
+                <!-- Grupo 3: Listas -->
+                <div class="samsung-toolbar-group">
+                    <button class="samsung-toolbar-btn" data-command="insertUnorderedList" title="Lista">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    </button>
+                    <button class="samsung-toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
+                    </button>
+                </div>
 
-        <!-- Rodapé com Data -->
-        <div class="note-footer-info">
-            <span id="note-date-display"></span>
+                <div class="samsung-toolbar-divider"></div>
+
+                <!-- Seletor de Formato -->
+                <select class="samsung-toolbar-select" id="format-block-select">
+                    <option value="p">Parágrafo</option>
+                    <option value="h1">Título 1</option>
+                    <option value="h2">Título 2</option>
+                    <option value="h3">Título 3</option>
+                </select>
+            </div>
+
+            <!-- Rodapé com Data -->
+            <div class="note-footer-info">
+                <span id="note-date-display"></span>
+            </div>
         </div>
     </div>
-</div>
-
-
 
     <!-- ========================================== -->
     <!-- MODAL: DADOS PESSOAIS (Perfil)             -->
@@ -1012,9 +1048,11 @@ const checkInterval = setInterval(() => {
 <script src="modules/tarefas.js"></script>
 <script src="modules/notas.js"></script>
 <script src="modules/perfil.js"></script>
+<script src="modules/ia.js"></script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
+
 
 </body>
 </html>

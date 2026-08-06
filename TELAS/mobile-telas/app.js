@@ -48,7 +48,8 @@ class App {
             calendario: 'css/calendario.css',
             tarefas: 'css/tarefas.css',
             notas: 'css/notas.css',
-            perfil: 'css/perfil.css'
+            perfil: 'css/perfil.css',
+            ia: 'css/ia.css'
         };
         
         this.init();
@@ -648,6 +649,11 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
         if (typeof PerfilModule !== 'undefined') {
             this.modules.perfil = new PerfilModule(this);
         }
+
+        // ✅ ADICIONADO O MÓDULO DA IA
+        if (typeof IAModule !== 'undefined') {
+            this.modules.ia = new IAModule(this);
+        }
         
         console.log('[SPA] 📦 Módulos carregados:', Object.keys(this.modules));
     }
@@ -934,7 +940,8 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
                 calendario: 'Meu Calendário 📅',
                 tarefas: 'Gerenciador de Tarefas 📋',
                 notas: 'Minhas Anotações 📝',
-                perfil: 'Configurações da Conta 👤'
+                perfil: 'Configurações da Conta 👤',
+                ia: 'Assistente IA 🤖'
             };
             const subtitleEl = document.getElementById('header-subtitle');
             if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
