@@ -1054,10 +1054,10 @@ const checkInterval = setInterval(() => {
 <script src="modules/ia.js"></script>
 
 
-<!-- ⭐ IA OPENROUTER - CÓDIGO CORRIGIDO (COM PROXY) -->
+<!-- ⭐ IA OPENROUTER - CÓDIGO CORRIGIDO (MODELO ESTÁVEL) -->
 <script>
 // ============================================
-// openrouter-service.js - VERSÃO COM PROXY
+// openrouter-service.js - VERSÃO DEFINITIVA
 // ============================================
 
 console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DIRETAMENTE DO INDEX...');
@@ -1070,11 +1070,11 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DIRETAMENTE DO INDEX...');
             constructor() {
                 this.apiKey = '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';
                 
-                // ⭐ USAR O PROXY DA VERCEL (EVITA CSP)
+                // ⭐ USAR O PROXY DA VERCEL
                 this.apiUrl = '/api/openrouter';
                 
-                // ⭐ MODELO GRATUITO QUE FUNCIONA
-                this.model = 'google/gemini-2.0-flash-exp:free';
+                // ⭐ MODELO GRATUITO CONFIÁVEL
+                this.model = 'meta-llama/llama-3.2-3b-instruct:free';
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
                 console.log('[OpenRouter] 🤖 Modelo:', this.model);
@@ -1134,7 +1134,31 @@ Resposta (com gírias moçambicanas):
                             return { success: false, error: '⏳ Limite diário atingido. Volta amanhã, magaia!' };
                         }
                         if (response.status === 404) {
-                            return { success: false, error: '🌐 Proxy não encontrado. Verifique o vercel.json!' };
+                            // Tentar com outro modelo se este falhar
+                            console.warn('[OpenRouter] ⚠️ Modelo não encontrado, tentando fallback...');
+                            // Fallback para mistral
+                            const fallbackModel = 'mistralai/mistral-7b-instruct:free';
+                            const fallbackResponse = await fetch(this.apiUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-API-Key': this.apiKey
+                                },
+                                body: JSON.stringify({
+                                    model: fallbackModel,
+                                    messages: [
+                                        { role: 'system', content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas.' },
+                                        { role: 'user', content: fullPrompt }
+                                    ],
+                                    temperature: 0.8,
+                                    max_tokens: 1024
+                                })
+                            });
+                            if (fallbackResponse.ok) {
+                                const fallbackData = await fallbackResponse.json();
+                                return { success: true, text: fallbackData.choices[0].message.content };
+                            }
+                            return { success: false, error: '🌐 Modelo não disponível. Tente novamente mais tarde.' };
                         }
                         
                         return { 
