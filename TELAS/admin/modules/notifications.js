@@ -615,3 +615,22 @@ window.deletarNotificacao = deletarNotificacao;
 window.exportarNotificacoes = exportarNotificacoes;
 
 console.log('[Notif] ✅ Módulo de notificações carregado com sucesso!');
+
+// ============================================
+// FORÇAR RECARGA DAS NOTIFICAÇÕES (REALTIME)
+// Adicione ao final do notifications.js
+// ============================================
+
+function forcarRecargaNotificacoes() {
+    console.log('[Notif] 🔄 Forçando recarga das notificações...');
+    
+    if (window.reloadNotifications) {
+        window.reloadNotifications().then(() => {
+            console.log('[Notif] ✅ Notificações recarregadas via Realtime');
+        });
+    }
+    
+    loadNotifications();
+}
+
+window.forcarRecargaNotificacoes = forcarRecargaNotificacoes;
