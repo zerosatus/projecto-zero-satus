@@ -3,14 +3,21 @@
 // ============================================
 
 const GEMINI_CONFIG = {
-    API_KEY: 'AIzaSyCWznVpiNlyUZL_5lTacQ-S_fYNR3L1fo0',
+    // ⭐ SUA CHAVE API (ATUALIZADA)
+    API_KEY: 'AQ.Ab8RN6JJL50uy9HPH8XpqSqsQoNEJQeDq-Hhs0DWZtAlxW1MQw',
+    
+    // URL da API
     API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    
+    // Configurações de geração
     generationConfig: {
         temperature: 0.8,
         maxOutputTokens: 1024,
         topP: 0.9,
         topK: 40
     },
+    
+    // Configurações de segurança
     safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -36,4 +43,5 @@ window.GeminiConfig = GEMINI_CONFIG;
 window.GiriasMocambicanas = GIRIAS_MOCAMBICANAS;
 window.getGiria = getGiria;
 
-console.log('[Gemini] ✅ Configuração carregada! 🇲🇿');
+console.log('[Gemini] ✅ Configuração carregada com sua chave! 🇲🇿');
+console.log('[Gemini] 🔑 Chave:', GEMINI_CONFIG.API_KEY.substring(0, 10) + '...');
