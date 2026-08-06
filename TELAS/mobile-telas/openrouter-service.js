@@ -1,19 +1,17 @@
 // ============================================
-// openrouter-service.js - COM PROXY
+// openrouter-service.js - DIRETO (sem proxy)
 // ============================================
 
 class OpenRouterService {
     constructor() {
-        // ⭐ SUA CHAVE
         this.apiKey = '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';
         
-        // ⭐ USAR PROXY (EVITA CORS)
-        this.apiUrl = '/api/openrouter';
+        // 🔥 USAR URL DIRETA (sem proxy)
+        this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
         
-        // ⭐ MODELO GRATUITO
         this.model = 'deepseek/deepseek-chat:free';
         
-        console.log('[OpenRouter] 🚀 Serviço com proxy inicializado!');
+        console.log('[OpenRouter] 🚀 Serviço inicializado (URL direta)');
         console.log('[OpenRouter] 🔑 Chave:', this.apiKey.substring(0, 20) + '...');
         console.log('[OpenRouter] 💰 Modelo GRÁTIS:', this.model);
     }
@@ -37,13 +35,15 @@ Usuário: ${prompt}
 Resposta (com gírias moçambicanas):
 `;
 
-            console.log('[OpenRouter] 📤 Enviando para proxy...');
+            console.log('[OpenRouter] 📤 Enviando para:', this.apiUrl);
             
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
                     'Content-Type': 'application/json',
-                    'X-API-Key': this.apiKey
+                    'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
+                    'X-Title': 'Zero Satus App'
                 },
                 body: JSON.stringify({
                     model: this.model,
@@ -67,7 +67,7 @@ Resposta (com gírias moçambicanas):
                 console.error('[OpenRouter] ❌ Erro:', response.status, error);
                 
                 if (response.status === 401 || response.status === 403) {
-                    return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
+                    return { success: false, error: '🔑 Chave inválida! Verifique sua chave OpenRouter.' };
                 }
                 if (response.status === 429) {
                     return { success: false, error: '⏳ Limite diário atingido (200 req/dia). Volta amanhã, magaia!' };
@@ -95,10 +95,11 @@ Resposta (com gírias moçambicanas):
         } catch (error) {
             console.error('[OpenRouter] ❌ Erro:', error);
             
+            // Verifica se é erro de rede/CORS
             if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
                 return { 
                     success: false, 
-                    error: '🌐 Erro de conexão! Verifique sua internet ou use o Live Server, magaia.' 
+                    error: '🌐 Erro de conexão! Verifique sua internet. Se estiver no localhost, tente usar o Live Server ou servidor HTTPS, magaia.' 
                 };
             }
             
@@ -107,12 +108,9 @@ Resposta (com gírias moçambicanas):
     }
 }
 
-// ⭐ INICIALIZAR
 window.OpenRouterService = new OpenRouterService();
-
-// ⭐ ALIAS PARA COMPATIBILIDADE (o ia.js usa window.GeminiService)
 window.GeminiService = window.OpenRouterService;
 
-console.log('[OpenRouter] ✅ Serviço com proxy carregado! 🇲🇿');
+console.log('[OpenRouter] ✅ Serviço carregado! 🇲🇿');
 console.log('[OpenRouter] 📊 Modelo:', window.OpenRouterService.model);
 console.log('[OpenRouter] 💰 Status: GRÁTIS (200 req/dia)');
