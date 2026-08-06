@@ -371,13 +371,11 @@ class App {
             elementsMissing.push('profile-email');
         }
 
-        // ⭐ CORREÇÃO: Verificar se profile-initial existe
         const profileInitial = document.getElementById('profile-initial');
         if (profileInitial) {
             profileInitial.textContent = initial;
             elementsFound++;
         } else {
-            // Não é crítico - apenas log
             console.log('[SPA] ℹ️ profile-initial não encontrado - ignorando');
         }
 
@@ -415,7 +413,6 @@ class App {
 
         console.log(`[SPA] 📊 Elementos encontrados: ${elementsFound}, faltando: ${elementsMissing.length}`);
 
-        // ⭐ CORREÇÃO: Só tentar novamente se faltarem elementos CRÍTICOS
         const criticalMissing = elementsMissing.filter(el => 
             el === 'profile-name' || 
             el === 'profile-email' || 
@@ -1133,6 +1130,124 @@ class App {
                 }
             }
         });
+
+        // ⭐⭐⭐ NOVOS LISTENERS PARA NOTIFICAÇÕES EM TEMPO REAL ⭐⭐⭐
+        window.addEventListener('newNotification', (e) => {
+            console.log('[App] 📬 Nova notificação recebida via Realtime!');
+            
+            // Buscar a notificação do Supabase
+            if (this.user && this.getSupabase()) {
+                this.getSupabase()
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', this.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10)
+                    .then(({ data, error }) => {
+                        if (!error && data && data.length > 0) {
+                            const notificacoes = data.map(n => ({
+                                id: n.id,
+                                title: n.title || 'Notificação',
+                                message: n.message || '',
+                                type: n.type || 'info',
+                                read: n.read || false,
+                                time: n.created_at
+                            }));
+                            
+                            // Atualizar dados
+                            this.data.notifications = notificacoes;
+                            
+                            // Salvar no cache
+                            if (window.CacheManager) {
+                                window.CacheManager.set('notifications', notificacoes, true);
+                            }
+                            
+                            // Atualizar UI
+                            if (this.modules.dashboard) {
+                                this.modules.dashboard.renderNotifications();
+                            }
+                            this.updateBadge();
+                            
+                            // Mostrar toast
+                            if (data.length > 0 && typeof showToast === 'function') {
+                                showToast(`📬 ${data[0].title || 'Nova notificação'}`, 'info');
+                            }
+                        }
+                    })
+                    .catch(err => console.warn('[App] ⚠️ Erro ao buscar notificação:', err));
+            }
+        });
+
+        window.addEventListener('notificationsUpdated', () => {
+            console.log('[App] 📬 Notificações atualizadas!');
+            
+            // Recarregar do Supabase
+            if (this.user && this.getSupabase()) {
+                this.getSupabase()
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', this.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10)
+                    .then(({ data, error }) => {
+                        if (!error && data && data.length > 0) {
+                            const notificacoes = data.map(n => ({
+                                id: n.id,
+                                title: n.title || 'Notificação',
+                                message: n.message || '',
+                                type: n.type || 'info',
+                                read: n.read || false,
+                                time: n.created_at
+                            }));
+                            
+                            this.data.notifications = notificacoes;
+                            if (window.CacheManager) {
+                                window.CacheManager.set('notifications', notificacoes, true);
+                            }
+                            if (this.modules.dashboard) {
+                                this.modules.dashboard.renderNotifications();
+                            }
+                            this.updateBadge();
+                        }
+                    })
+                    .catch(err => console.warn('[App] ⚠️ Erro ao atualizar notificações:', err));
+            }
+        });
+
+        // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE AO INICIAR
+        setTimeout(() => {
+            if (this.user && this.getSupabase()) {
+                this.getSupabase()
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', this.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(20)
+                    .then(({ data, error }) => {
+                        if (!error && data && data.length > 0) {
+                            const notificacoes = data.map(n => ({
+                                id: n.id,
+                                title: n.title || 'Notificação',
+                                message: n.message || '',
+                                type: n.type || 'info',
+                                read: n.read || false,
+                                time: n.created_at
+                            }));
+                            
+                            this.data.notifications = notificacoes;
+                            if (window.CacheManager) {
+                                window.CacheManager.set('notifications', notificacoes, true);
+                            }
+                            if (this.modules.dashboard) {
+                                this.modules.dashboard.renderNotifications();
+                            }
+                            this.updateBadge();
+                            console.log('[App] ✅ Notificações carregadas do Supabase:', notificacoes.length);
+                        }
+                    })
+                    .catch(err => console.warn('[App] ⚠️ Erro ao carregar notificações:', err));
+            }
+        }, 2000);
     }
 }
 
