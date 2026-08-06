@@ -27,9 +27,9 @@ class IAModule {
             container.innerHTML = `
                 <div class="ia-empty-state">
                     <div class="ia-empty-icon"><ion-icon name="sparkles-outline"></ion-icon></div>
-                    <h3>🇲🇿 Olá, magaia! Tá fixe?</h3>
+                    <h3>Kmk, boss! Na boa?</h3>
                     <p>Pergunta sobre estudos, tarefas ou dicas!</p>
-                    <p style="font-size:0.7rem;color:var(--text-secondary);">Tamos juntos! 💪</p>
+                    <p style="font-size:0.7rem;color:var(--text-secondary);">Fala qualquer cena! </p>
                 </div>
             `;
             const actions = document.getElementById('ia-quick-actions');
@@ -95,7 +95,7 @@ class IAModule {
             <div class="ia-message-avatar">🤖</div>
             <div class="ia-message-content">
                 <span class="ia-dots"><span>.</span><span>.</span><span>.</span></span>
-                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">Tá a pensar, magaia...</span>
+                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">To a pensar broo bolas baxas...</span>
             </div>
         `;
         container.appendChild(loadingDiv);
@@ -125,7 +125,7 @@ class IAModule {
                 }
             } else {
                 console.error('[IA] ❌ Nenhum serviço de IA disponível!');
-                response = '⚠️ Serviço de IA não disponível. Tenta recarregar a página, magaia!';
+                response = '⚠️ Serviço de IA não disponível. Tenta recarregar a página broo!';
             }
 
             loadingDiv.remove();
@@ -141,7 +141,7 @@ class IAModule {
             loadingDiv.remove();
             this.messages.push({
                 role: 'assistant',
-                content: '❌ Desculpa, magaia! Tive um problema. Tenta novamente, tamos juntos! 🇲🇿',
+                content: '❌ Sorry la masta! Tive um problema. Tenta denovo, valeu!',
                 time: new Date().toLocaleTimeString()
             });
             this.renderChat();
@@ -163,7 +163,7 @@ Nome: ${user.nome || 'Estudante'}
 Tarefas pendentes: ${pendentes}
 Disciplinas: ${(data.disciplinas || []).length}
 
-Responda com gírias moçambicanas como: magaia, fixe, bué, bora, arranja, tamos juntos!
+Responda com gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos!
 `;
     }
 
