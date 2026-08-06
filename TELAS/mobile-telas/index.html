@@ -1055,10 +1055,10 @@ const checkInterval = setInterval(() => {
 
 
 <script>// ============================================
-// openrouter-service.js - CORRIGIDO
+// openrouter-service.js - VERSÃO ATUALIZADA (Agosto 2026)
 // ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
+console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
 
 (function() {
     'use strict';
@@ -1069,23 +1069,40 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                 this.apiKey = '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';
                 this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
                 
-                // ⭐ MODELOS GRATUITOS QUE REALMENTE FUNCIONAM (2026)
+                // ⭐ MODELOS GRATUITOS CONFIRMADOS (Agosto 2026)
                 this.models = [
-                    'mistralai/mistral-7b-instruct:free',
-                    'microsoft/phi-3-mini-128k-instruct:free',
-                    'meta-llama/llama-3.1-8b-instruct:free'
+                    // ⭐ ROTEADORES OFICIAIS (RECOMENDADOS)
+                    'openrouter/free',           // Seleciona automaticamente o melhor modelo gratuito[reference:31]
+                    'openrouter/free-coder',     // Especializado em código[reference:32]
+                    'openrouter/free-large',     // Modelos de grande porte[reference:33]
+                    
+                    // ⭐ MODELOS ESPECÍFICOS (FALLBACK)
+                    'nvidia/nemotron-3-ultra:free',
+                    'nvidia/nemotron-3-super:free',
+                    'poolside/laguna-s-2.1:free',
+                    'cohere/north-mini-code:free',
+                    'google/gemini-2.0-flash-exp:free',
+                    'google/gemma-4-26b-a4b:free',
+                    'meta-llama/llama-3.3-70b-instruct:free',
+                    'deepseek/deepseek-chat-v3-0324:free',
+                    'deepseek/deepseek-r1:free',
+                    'qwen/qwen-3-coder:free',
+                    'qwen/qwen-3-next-80b-a3b:free',
+                    'openrouter/quasar-alpha:free',
+                    'openrouter/cypher-alpha:free',
+                    'openrouter/optimus-alpha:free',
+                    'moonshotai/kimi-k2:free',
+                    'inclusionai/ling-2.6-flash:free'
                 ];
-                this.currentModelIndex = 0;
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
-                console.log('[OpenRouter] 🤖 Modelos:', this.models);
-                console.log('[OpenRouter] 📡 URL:', this.apiUrl);
+                console.log(`[OpenRouter] 🤖 ${this.models.length} modelos disponíveis`);
             }
             
             async sendMessage(prompt, context = '') {
                 console.log('[OpenRouter] 📤 Enviando mensagem...');
                 
-                // ⭐ TENTAR CADA MODELO ATÉ UM FUNCIONAR
+                // ⭐ TENTA CADA MODELO ATÉ UM FUNCIONAR
                 for (let i = 0; i < this.models.length; i++) {
                     const model = this.models[i];
                     console.log(`[OpenRouter] 🔄 Tentando modelo ${i+1}/${this.models.length}: ${model}`);
@@ -1103,7 +1120,7 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                 
                 return { 
                     success: false, 
-                    error: '🌐 Nenhum modelo disponível. Tenta novamente mais tarde, magaia!' 
+                    error: '🌐 Nenhum modelo disponível no momento. Tenta novamente mais tarde, magaia!' 
                 };
             }
             
@@ -1156,11 +1173,9 @@ Resposta (com gírias moçambicanas):
                         errorText = await response.text() || '';
                     }
                     
-                    // ⭐ SE FOR 404, TENTA PRÓXIMO MODELO
                     if (response.status === 404) {
                         return { success: false, error: `Modelo não encontrado`, modelError: true };
                     }
-                    
                     if (response.status === 401 || response.status === 403) {
                         return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
                     }
@@ -1193,9 +1208,7 @@ Resposta (com gírias moçambicanas):
         window.GeminiService = service;
 
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
-        console.log('[OpenRouter] 🔑 Chave:', service.apiKey.substring(0, 20) + '...');
-        console.log('[OpenRouter] 🤖 Modelos:', service.models);
-        console.log('[OpenRouter] 📡 URL:', service.apiUrl);
+        console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
         
     } catch (error) {
         console.error('[OpenRouter] ❌ ERRO FATAL:', error);
