@@ -1,5 +1,5 @@
 // ============================================
-// modules/dashboard.js - DASHBOARD COMPLETO (COM SYNC FORÇADO E FRASE UTC)
+// modules/dashboard.js - DASHBOARD COMPLETO (COM NOTIFICAÇÕES REALTIME)
 // ============================================
 
 class DashboardModule {
@@ -41,7 +41,7 @@ class DashboardModule {
         this.renderSchedule();
         this.renderNextEvents();
         this.renderNextTasks();
-        this.renderNotifications();
+        this.renderNotifications(); // ← CHAMADA CORRIGIDA
         this.updateFraseDoDia();
         this.updateBadge();
         this.setupEvents();
@@ -209,14 +209,79 @@ class DashboardModule {
     }
     
     // ============================================
-    // RENDER NOTIFICAÇÕES
+    // ⭐ RENDER NOTIFICAÇÕES (BUSCANDO DO SUPABASE)
     // ============================================
-    renderNotifications() {
+    async renderNotifications() {
         const container = document.getElementById('notifications-list');
         if (!container) return;
-        
-        const naoLidas = this.notifications.filter(n => !n.read).slice(0, 3);
-        
+
+        // 🔥 BUSCAR DO SUPABASE EM TEMPO REAL
+        let notificacoes = [];
+
+        try {
+            const client = window.supabaseClient;
+            if (client && this.app.user) {
+                const { data, error } = await client
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', this.app.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (error) {
+                    console.warn('[Dashboard] ⚠️ Erro ao buscar notificações:', error);
+                } else if (data && data.length > 0) {
+                    notificacoes = data.map(n => ({
+                        id: n.id,
+                        title: n.title || 'Notificação',
+                        message: n.message || '',
+                        type: n.type || 'info',
+                        read: n.read || false,
+                        time: n.created_at
+                    }));
+                    console.log('[Dashboard] ✅ Notificações carregadas do Supabase:', notificacoes.length);
+                    
+                    // Atualizar cache
+                    if (window.CacheManager) {
+                        window.CacheManager.set('notifications', notificacoes, true);
+                    }
+                    
+                    // Atualizar localStorage
+                    if (this.app.user) {
+                        localStorage.setItem(`${this.app.user.id}_notifications`, JSON.stringify(notificacoes));
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[Dashboard] ⚠️ Erro ao buscar do Supabase:', e);
+        }
+
+        // FALLBACK: CacheManager
+        if (notificacoes.length === 0 && window.CacheManager) {
+            const cached = window.CacheManager.get('notifications', null);
+            if (cached && cached.length > 0) {
+                notificacoes = cached;
+                console.log('[Dashboard] 📦 Notificações do CacheManager:', notificacoes.length);
+            }
+        }
+
+        // FALLBACK: localStorage
+        if (notificacoes.length === 0 && this.app.user) {
+            const userId = this.app.user.id;
+            const saved = localStorage.getItem(`${userId}_notifications`);
+            if (saved) {
+                try {
+                    notificacoes = JSON.parse(saved);
+                    console.log('[Dashboard] 📦 Notificações do localStorage:', notificacoes.length);
+                } catch(e) {}
+            }
+        }
+
+        // Atualizar badge
+        this.updateBadge(notificacoes);
+
+        const naoLidas = notificacoes.filter(n => !n.read).slice(0, 3);
+
         if (naoLidas.length === 0) {
             container.innerHTML = `
                 <div class="list-item" onclick="app.openNotifications()">
@@ -229,7 +294,7 @@ class DashboardModule {
             `;
             return;
         }
-        
+
         let html = '';
         naoLidas.forEach(notif => {
             html += `
@@ -248,6 +313,18 @@ class DashboardModule {
     }
     
     // ============================================
+    // ⭐ UPDATE BADGE (CORRIGIDO)
+    // ============================================
+    updateBadge(notificacoes) {
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
+
+        const naoLidas = (notificacoes || this.notifications || []).filter(n => !n.read).length;
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+    
+    // ============================================
     // ⭐ FRASE DO DIA (CORRIGIDA COM UTC)
     // ============================================
     updateFraseDoDia() {
@@ -257,61 +334,20 @@ class DashboardModule {
             return;
         }
         
-        // ⭐ USAR A MESMA FUNÇÃO DO daily-phrases.js
         if (window.FrasesDoDia) {
             try {
-                // Usar a função principal que já usa UTC
                 const frase = window.FrasesDoDia.getFraseDoDia();
-                
-                // Verificar se a frase mudou (evita atualizações desnecessárias)
                 if (this._fraseAtual !== frase) {
                     this._fraseAtual = frase;
                     el.textContent = frase;
-                    
-                    // Log para debug
-                    const info = window.FrasesDoDia.getFraseDoDiaComData ? 
-                        window.FrasesDoDia.getFraseDoDiaComData() : 
-                        { data: 'N/A', indice: 'N/A' };
-                    
-                    console.log('[Dashboard] 📝 Frase do dia atualizada:', {
-                        frase: frase,
-                        data: info.data || 'N/A',
-                        indice: info.indice || 'N/A'
-                    });
                 }
             } catch (error) {
                 console.warn('[Dashboard] ⚠️ Erro ao buscar frase do dia:', error);
                 el.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
             }
         } else {
-            console.warn('[Dashboard] ⚠️ FrasesDoDia não disponível');
             el.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
         }
-    }
-    
-    // ============================================
-    // ⭐ FORÇAR ATUALIZAÇÃO DA FRASE (PARA TESTES)
-    // ============================================
-    forceUpdateFrase() {
-        console.log('[Dashboard] 🔄 Forçando atualização da frase...');
-        this._fraseAtual = '';
-        this.updateFraseDoDia();
-        
-        if (typeof showToast === 'function') {
-            showToast('🔄 Frase atualizada!', 'info');
-        }
-    }
-    
-    // ============================================
-    // BADGE
-    // ============================================
-    updateBadge() {
-        const badge = document.getElementById('notification-badge');
-        if (!badge) return;
-        
-        const naoLidas = this.notifications.filter(n => !n.read).length;
-        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
     
     // ============================================
@@ -512,14 +548,12 @@ class DashboardModule {
         this.app.data.timeSlots = this.timeSlots;
         await this.app.saveAllData();
         
-        // ⭐ FORÇAR SINCRONIZAÇÃO IMEDIATA
         if (window.CacheManager && window.CacheManager.forceSync) {
             setTimeout(() => {
                 window.CacheManager.forceSync().catch(() => {});
             }, 500);
         }
         
-        // ⭐ DISPARAR EVENTO PARA ATUALIZAR OUTRAS TELAS
         window.dispatchEvent(new CustomEvent('scheduleUpdated', { 
             detail: { 
                 weeklySchedule: this.weeklySchedule, 
@@ -642,7 +676,17 @@ class DashboardModule {
             this.updateFraseDoDia();
         });
         
-        // ⭐ ESCUTAR MUDANÇAS DE DATA (para atualizar a frase à meia-noite)
+        // ⭐ ESCUTAR NOVAS NOTIFICAÇÕES EM TEMPO REAL
+        window.addEventListener('newNotification', (e) => {
+            console.log('[Dashboard] 📬 Nova notificação recebida!');
+            this.renderNotifications();
+        });
+
+        window.addEventListener('notificationsUpdated', () => {
+            console.log('[Dashboard] 📬 Notificações atualizadas!');
+            this.renderNotifications();
+        });
+        
         // Verificar a cada minuto se a data mudou
         let ultimaData = new Date().toDateString();
         setInterval(() => {
@@ -653,7 +697,7 @@ class DashboardModule {
                 this._fraseAtual = '';
                 this.updateFraseDoDia();
             }
-        }, 60000); // Verificar a cada minuto
+        }, 60000);
     }
 }
 
