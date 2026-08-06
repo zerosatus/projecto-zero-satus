@@ -1,5 +1,5 @@
 // ============================================
-// modules/ia.js - MÓDULO DA IA COM GÍRIA
+// modules/ia.js - MÓDULO DA IA COM GÍRIA (CORRIGIDO)
 // ============================================
 
 class IAModule {
@@ -67,7 +67,7 @@ class IAModule {
         badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
 
-    // ⭐ ENVIAR MENSAGEM COM GÍRIA
+    // ⭐ ENVIAR MENSAGEM COM GÍRIA (CORRIGIDO)
     async sendMessage(text) {
         if (!text) {
             const input = document.getElementById('ia-input');
@@ -105,17 +105,27 @@ class IAModule {
             const context = this.buildUserContext();
             let response;
 
-            if (window.GeminiService) {
-                const result = await window.GeminiService.sendMessage(text, context);
-                response = result.success ? result.text : `❌ ${result.error}`;
+            // ⭐ VERIFICAR SE O SERVIÇO ESTÁ DISPONÍVEL
+            console.log('[IA] 🔍 Verificando serviços...');
+            console.log('[IA] window.GeminiService:', window.GeminiService ? '✅' : '❌');
+            console.log('[IA] window.OpenRouterService:', window.OpenRouterService ? '✅' : '❌');
+
+            // ⭐ TENTAR USAR O GeminiService (que é o alias do OpenRouter)
+            const service = window.GeminiService || window.OpenRouterService;
+
+            if (service) {
+                console.log('[IA] 📤 Enviando para serviço...');
+                const result = await service.sendMessage(text, context);
+                console.log('[IA] 📬 Resultado:', result);
+                
+                if (result.success) {
+                    response = result.text;
+                } else {
+                    response = `❌ ${result.error}`;
+                }
             } else {
-                // Fallback com gíria
-                const fallbacks = [
-                    'Tá fixe, mano! Conecta com a internet e tenta de novo. 🇲🇿',
-                    'Arranja-se! Mas preciso de internet para te ajudar. Bora lá!',
-                    'Magaia, tamos com problemas técnicos. Tenta mais tarde, tá?'
-                ];
-                response = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                console.error('[IA] ❌ Nenhum serviço de IA disponível!');
+                response = '⚠️ Serviço de IA não disponível. Tenta recarregar a página, magaia!';
             }
 
             loadingDiv.remove();
@@ -127,6 +137,7 @@ class IAModule {
             this.renderChat();
 
         } catch (error) {
+            console.error('[IA] ❌ Erro:', error);
             loadingDiv.remove();
             this.messages.push({
                 role: 'assistant',
@@ -176,7 +187,6 @@ Responda com gírias moçambicanas como: magaia, fixe, bué, bora, arranja, tamo
             };
         }
 
-        // ⭐ BOTÃO FLUTUANTE - ABRE A IA
         if (fabBtn) {
             fabBtn.onclick = () => {
                 this._previousView = this.app.currentView;
@@ -184,14 +194,12 @@ Responda com gírias moçambicanas como: magaia, fixe, bué, bora, arranja, tamo
             };
         }
 
-        // ⭐ BOTÃO VOLTAR
         if (backBtn) {
             backBtn.onclick = () => {
                 this.app.showView(this._previousView || 'dashboard');
             };
         }
 
-        // ⭐ CARDS DE AÇÃO
         document.querySelectorAll('.ia-action-card').forEach(card => {
             card.onclick = () => {
                 const prompt = card.dataset.prompt;
