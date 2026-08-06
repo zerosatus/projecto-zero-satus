@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Manutenção</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: #1a1a2e;
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid #2a2a4a;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        .subtitle { color: #94a3b8; margin-bottom: 24px; }
+        .status-card {
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .status-card.active { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .status-card.inactive { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .status-indicator.active { background: #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+        .status-indicator.inactive { background: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+        .status-text { font-weight: 600; }
+        .status-sub { font-size: 13px; color: #94a3b8; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-activate {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        .btn-activate:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4); }
+        .btn-deactivate {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .btn-deactivate:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4); }
+        .btn-back {
+            background: transparent;
+            border: 1px solid #2a2a4a;
+            color: #94a3b8;
+            margin-top: 12px;
+        }
+        .btn-back:hover { background: #2a2a4a; color: white; }
+        .message-input { margin: 16px 0; }
+        .message-input textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0f0f1e;
+            border: 1px solid #2a2a4a;
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 60px;
+        }
+        .message-input textarea:focus { outline: none; border-color: #8b5cf6; }
+        label { font-size: 13px; color: #94a3b8; display: block; margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ Controle de Manutenção</h1>
+        <p class="subtitle">Ative ou desative o modo manutenção do sistema</p>
+
+        <div class="status-card" id="status-card">
+            <div class="status-indicator" id="status-indicator"></div>
+            <div>
+                <div class="status-text" id="status-text">Carregando...</div>
+                <div class="status-sub" id="status-sub">Status atual do sistema</div>
+            </div>
+        </div>
+
+        <div class="message-input">
+            <label>Mensagem personalizada (opcional)</label>
+            <textarea id="custom-message" placeholder="Digite uma mensagem para exibir na tela de manutenção..."></textarea>
+        </div>
+
+        <button class="btn" id="action-btn" onclick="toggleMaintenance()">
+            <i class="fas fa-power-off"></i>
+            Ativar Manutenção
+        </button>
+
+        <button class="btn btn-back" onclick="window.location.href='../inicio/index.html'">
+            <i class="fas fa-arrow-left"></i>
+            Voltar ao Painel
+        </button>
+    </div>
+
+    <script src="../maintenance-config.js"></script>
+    <script>
+        let isActive = false;
+
+        function updateUI() {
+            const config = window.MAINTENANCE_CONFIG || {};
+            const enabled = window.isMaintenanceMode ? window.isMaintenanceMode() : false;
+            isActive = enabled;
+
+            const card = document.getElementById('status-card');
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            const sub = document.getElementById('status-sub');
+            const btn = document.getElementById('action-btn');
+
+            if (enabled) {
+                card.className = 'status-card active';
+                indicator.className = 'status-indicator active';
+                text.textContent = '🔴 Manutenção ATIVA';
+                sub.textContent = 'Usuários serão redirecionados para a tela de manutenção';
+                btn.innerHTML = '<i class="fas fa-power-off"></i> Desativar Manutenção';
+                btn.className = 'btn btn-deactivate';
+            } else {
+                card.className = 'status-card inactive';
+                indicator.className = 'status-indicator inactive';
+                text.textContent = '🟢 Sistema NORMAL';
+                sub.textContent = 'Todos os usuários têm acesso normal ao sistema';
+                btn.innerHTML = '<i class="fas fa-power-off"></i> Ativar Manutenção';
+                btn.className = 'btn btn-activate';
+            }
+        }
+
+        function toggleMaintenance() {
+            const enabled = window.isMaintenanceMode ? window.isMaintenanceMode() : false;
+            const message = document.getElementById('custom-message').value.trim();
+
+            if (window.setMaintenanceMode) {
+                window.setMaintenanceMode(!enabled, message || null);
+            } else {
+                // Fallback
+                const newState = !enabled;
+                localStorage.setItem('maintenance_override', newState ? 'true' : 'false');
+                localStorage.setItem('maintenance_mode', JSON.stringify({
+                    enabled: newState,
+                    message: message || '',
+                    timestamp: new Date().toISOString()
+                }));
+                alert(newState ? '🔴 Manutenção ATIVADA!' : '🟢 Manutenção DESATIVADA!');
+                updateUI();
+            }
+
+            setTimeout(updateUI, 500);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUI();
+
+            // Carregar mensagem atual se existir
+            try {
+                const saved = localStorage.getItem('maintenance_mode');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.message) {
+                        document.getElementById('custom-message').value = data.message;
+                    }
+                }
+            } catch(e) {}
+        });
+
+        // Escutar mudanças
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'maintenance_mode' || e.key === 'maintenance_override') {
+                setTimeout(updateUI, 300);
+            }
+        });
+    </script>
+</body>
+</html>
