@@ -5,7 +5,7 @@
 class OpenRouterService {
     constructor() {
         // ⭐ SUA CHAVE (JÁ CONFIGURADA)
-        this.apiKey = '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';
+        this.apiKey = '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';
         
         this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
         
