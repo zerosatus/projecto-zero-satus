@@ -80,15 +80,21 @@ class App {
         `;
         
         // Logo/Ícone
-        const icon = document.createElement('div');
-        icon.style.cssText = `
-            font-size: 48px;
-            margin-bottom: 20px;
-            animation: pulse 1.5s ease-in-out infinite;
-        `;
-        icon.innerHTML = '📚';
-        
-        // Spinner
+// Logo/Ícone
+const icon = document.createElement('div');
+icon.style.cssText = `
+    font-size: 48px;
+    margin-bottom: 20px;
+    animation: pulse 1.5s ease-in-out infinite;
+`;
+icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
+    <img src='https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png' 
+         border='0' 
+         alt='logo1-removebg-preview'
+         style='width: 120px; height: 120px; object-fit: contain;'>
+</a>`;
+
+// Spinner
         const spinner = document.createElement('div');
         spinner.style.cssText = `
             width: 50px;
