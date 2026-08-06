@@ -283,8 +283,8 @@
             <ion-icon name="arrow-back"></ion-icon>
         </button>
         <div>
-            <h1>Assistente IA</h1>
-            <div class="ia-subtitle">Seu ajudante de estudos 🤖</div>
+            <h1>Zero IA</h1>
+            <div class="ia-subtitle">Seu ajudante de estudos </div>
         </div>
         <div class="ia-header-icon"><ion-icon name="sparkles"></ion-icon></div>
     </div>
@@ -1096,11 +1096,11 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
                 ];
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
-                console.log(`[OpenRouter] 🤖 ${this.models.length} modelos disponíveis`);
+                console.log(`[OpenRouter]  ${this.models.length} modelos disponíveis`);
             }
             
             async sendMessage(prompt, context = '') {
-                console.log('[OpenRouter] 📤 Enviando mensagem...');
+                console.log('[OpenRouter]  Bro, calma um coche...');
                 
                 // ⭐ TENTA CADA MODELO ATÉ UM FUNCIONAR
                 for (let i = 0; i < this.models.length; i++) {
@@ -1120,7 +1120,7 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
                 
                 return { 
                     success: false, 
-                    error: '🌐 Nenhum modelo disponível no momento. Tenta novamente mais tarde, magaia!' 
+                    error: '🌐 Nenhum modelo disponível no momento. Tenta novamente mais tarde, masta!' 
                 };
             }
             
@@ -1130,9 +1130,9 @@ ${context}
 
 INSTRUÇÕES:
 1. Responda em português de Moçambique 🇲🇿
-2. Use gírias locais: magaia, fixe, bué, bora, arranja, tamos juntos
+2. Use gírias locais: broo, nice, maning, go, txuna, tamos juntos
 3. Seja amigável, motivador e prático
-4. Use emojis: 🇲🇿 📚 💪 🎯 ✨
+4. Use emojis:
 
 Usuário: ${prompt}
 
@@ -1152,7 +1152,7 @@ Resposta (com gírias moçambicanas):
                         messages: [
                             { 
                                 role: 'system', 
-                                content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: magaia, fixe, bué, bora, arranja, tamos juntos. Seja motivador e prático.' 
+                                content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: broo, nice, bué, go, txuna, tamos juntos. Seja motivador e prático.' 
                             },
                             { role: 'user', content: fullPrompt }
                         ],
@@ -1180,7 +1180,7 @@ Resposta (com gírias moçambicanas):
                         return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
                     }
                     if (response.status === 429) {
-                        return { success: false, error: '⏳ Limite diário atingido. Volta amanhã, magaia!' };
+                        return { success: false, error: 'Broo! Ce ja uso maning vai ver outra cena do toorrow' };
                     }
                     
                     return { 
