@@ -1054,13 +1054,11 @@ const checkInterval = setInterval(() => {
 <script src="modules/ia.js"></script>
 
 
-<!-- ⭐ IA OPENROUTER - VERSÃO DEFINITIVA (SEM PROXY) -->
-<script>
 // ============================================
-// openrouter-service.js - VERSÃO DEFINITIVA
+// openrouter-service.js - CORRIGIDO
 // ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DEFINITIVO...');
+console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
 
 (function() {
     'use strict';
@@ -1068,31 +1066,54 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO DEFINITIVO...');
     try {
         class OpenRouterService {
             constructor() {
-                // ⭐ SUA CHAVE
                 this.apiKey = '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';
-                
-                // ⭐ URL DIRETA (SEM PROXY)
                 this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
                 
-                // ⭐ MODELO GRATUITO QUE FUNCIONA (testado em 2026)
-                this.model = 'mistralai/mistral-7b-instruct:free';
+                // ⭐ MODELOS GRATUITOS QUE REALMENTE FUNCIONAM (2026)
+                this.models = [
+                    'mistralai/mistral-7b-instruct:free',
+                    'microsoft/phi-3-mini-128k-instruct:free',
+                    'meta-llama/llama-3.1-8b-instruct:free'
+                ];
+                this.currentModelIndex = 0;
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
-                console.log('[OpenRouter] 🤖 Modelo:', this.model);
+                console.log('[OpenRouter] 🤖 Modelos:', this.models);
                 console.log('[OpenRouter] 📡 URL:', this.apiUrl);
             }
             
             async sendMessage(prompt, context = '') {
                 console.log('[OpenRouter] 📤 Enviando mensagem...');
                 
-                try {
-                    // ⭐ CONSTRUIR PROMPT COM GÍRIAS MOÇAMBICANAS
-                    const fullPrompt = `
+                // ⭐ TENTAR CADA MODELO ATÉ UM FUNCIONAR
+                for (let i = 0; i < this.models.length; i++) {
+                    const model = this.models[i];
+                    console.log(`[OpenRouter] 🔄 Tentando modelo ${i+1}/${this.models.length}: ${model}`);
+                    
+                    try {
+                        const result = await this.tryModel(model, prompt, context);
+                        if (result.success) {
+                            return result;
+                        }
+                        console.log(`[OpenRouter] ⚠️ Modelo ${model} falhou:`, result.error);
+                    } catch (e) {
+                        console.log(`[OpenRouter] ⚠️ Modelo ${model} deu erro:`, e);
+                    }
+                }
+                
+                return { 
+                    success: false, 
+                    error: '🌐 Nenhum modelo disponível. Tenta novamente mais tarde, magaia!' 
+                };
+            }
+            
+            async tryModel(model, prompt, context) {
+                const fullPrompt = `
 ${context}
 
-INSTRUÇÕES IMPORTANTES:
+INSTRUÇÕES:
 1. Responda em português de Moçambique 🇲🇿
-2. Use gírias locais como: magaia, fixe, bué, bora, arranja, tamos juntos
+2. Use gírias locais: magaia, fixe, bué, bora, arranja, tamos juntos
 3. Seja amigável, motivador e prático
 4. Use emojis: 🇲🇿 📚 💪 🎯 ✨
 
@@ -1101,112 +1122,67 @@ Usuário: ${prompt}
 Resposta (com gírias moçambicanas):
 `;
 
-                    console.log('[OpenRouter] 📤 Enviando para:', this.model);
-                    
-                    const response = await fetch(this.apiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${this.apiKey}`,
-                            'Content-Type': 'application/json',
-                            'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
-                            'X-Title': 'Zero Satus App'
-                        },
-                        body: JSON.stringify({
-                            model: this.model,
-                            messages: [
-                                { 
-                                    role: 'system', 
-                                    content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: magaia, fixe, bué, bora, arranja, tamos juntos. Seja motivador e prático.' 
-                                },
-                                { role: 'user', content: fullPrompt }
-                            ],
-                            temperature: 0.8,
-                            max_tokens: 1024,
-                            top_p: 0.9
-                        })
-                    });
+                const response = await fetch(this.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
+                        'X-Title': 'Zero Satus App'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { 
+                                role: 'system', 
+                                content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: magaia, fixe, bué, bora, arranja, tamos juntos. Seja motivador e prático.' 
+                            },
+                            { role: 'user', content: fullPrompt }
+                        ],
+                        temperature: 0.8,
+                        max_tokens: 1024,
+                        top_p: 0.9
+                    })
+                });
 
-                    console.log('[OpenRouter] 📥 Status:', response.status);
+                console.log(`[OpenRouter] 📥 Status ${model}:`, response.status);
 
-                    if (!response.ok) {
-                        const error = await response.json().catch(() => ({}));
-                        console.error('[OpenRouter] ❌ Erro HTTP:', response.status, error);
-                        
-                        // ⭐ SE O MODELO NÃO EXISTIR, TENTAR FALLBACK
-                        if (response.status === 404 && error.error?.message?.includes('No endpoints found')) {
-                            console.log('[OpenRouter] ⚠️ Modelo não encontrado, tentando fallback...');
-                            // Tenta com outro modelo gratuito
-                            const fallbackModels = [
-                                'meta-llama/llama-3.2-3b-instruct:free',
-                                'google/gemini-2.0-flash-exp:free',
-                                'qwen/qwen-2.5-7b-instruct:free'
-                            ];
-                            
-                            for (const fallback of fallbackModels) {
-                                try {
-                                    console.log(`[OpenRouter] 🔄 Tentando fallback: ${fallback}`);
-                                    const fallbackResponse = await fetch(this.apiUrl, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Authorization': `Bearer ${this.apiKey}`,
-                                            'Content-Type': 'application/json',
-                                            'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
-                                            'X-Title': 'Zero Satus App'
-                                        },
-                                        body: JSON.stringify({
-                                            model: fallback,
-                                            messages: [
-                                                { role: 'system', content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas.' },
-                                                { role: 'user', content: fullPrompt }
-                                            ],
-                                            temperature: 0.8,
-                                            max_tokens: 1024
-                                        })
-                                    });
-                                    
-                                    if (fallbackResponse.ok) {
-                                        const data = await fallbackResponse.json();
-                                        if (data.choices && data.choices.length > 0) {
-                                            console.log(`[OpenRouter] ✅ Fallback ${fallback} funcionou!`);
-                                            return { success: true, text: data.choices[0].message.content };
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.warn(`[OpenRouter] ⚠️ Fallback ${fallback} falhou:`, e);
-                                }
-                            }
-                            
-                            return { success: false, error: '🌐 Nenhum modelo gratuito disponível. Tente novamente mais tarde.' };
-                        }
-                        
-                        if (response.status === 401 || response.status === 403) {
-                            return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
-                        }
-                        if (response.status === 429) {
-                            return { success: false, error: '⏳ Limite diário atingido. Volta amanhã, magaia!' };
-                        }
-                        
-                        return { 
-                            success: false, 
-                            error: `Erro ${response.status}: ${error.error?.message || 'Falha na comunicação'}` 
-                        };
+                if (!response.ok) {
+                    let errorText = '';
+                    try {
+                        const errorJson = await response.json();
+                        errorText = errorJson.error?.message || '';
+                    } catch (e) {
+                        errorText = await response.text() || '';
                     }
-
-                    const data = await response.json();
-                    console.log('[OpenRouter] ✅ Resposta recebida!');
                     
-                    if (data.choices && data.choices.length > 0) {
-                        const text = data.choices[0].message.content;
-                        console.log('[OpenRouter] 📬 Texto recebido!');
-                        return { success: true, text: text };
+                    // ⭐ SE FOR 404, TENTA PRÓXIMO MODELO
+                    if (response.status === 404) {
+                        return { success: false, error: `Modelo não encontrado`, modelError: true };
                     }
-
-                    return { success: false, error: 'Resposta inesperada' };
-
-                } catch (error) {
-                    console.error('[OpenRouter] ❌ Erro:', error);
-                    return { success: false, error: error.message || 'Erro de conexão' };
+                    
+                    if (response.status === 401 || response.status === 403) {
+                        return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
+                    }
+                    if (response.status === 429) {
+                        return { success: false, error: '⏳ Limite diário atingido. Volta amanhã, magaia!' };
+                    }
+                    
+                    return { 
+                        success: false, 
+                        error: `Erro ${response.status}: ${errorText || 'Falha na comunicação'}` 
+                    };
                 }
+
+                const data = await response.json();
+                console.log(`[OpenRouter] ✅ Resposta recebida de ${model}!`);
+                
+                if (data.choices && data.choices.length > 0) {
+                    const text = data.choices[0].message.content;
+                    return { success: true, text: text };
+                }
+
+                return { success: false, error: 'Resposta inesperada' };
             }
         }
 
@@ -1218,7 +1194,7 @@ Resposta (com gírias moçambicanas):
 
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
         console.log('[OpenRouter] 🔑 Chave:', service.apiKey.substring(0, 20) + '...');
-        console.log('[OpenRouter] 🤖 Modelo:', service.model);
+        console.log('[OpenRouter] 🤖 Modelos:', service.models);
         console.log('[OpenRouter] 📡 URL:', service.apiUrl);
         
     } catch (error) {
@@ -1231,7 +1207,6 @@ Resposta (com gírias moçambicanas):
     
     console.log('🔥🔥🔥 [OpenRouter] FIM DO CARREGAMENTO');
 })();
-</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
