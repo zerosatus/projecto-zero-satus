@@ -1,27 +1,27 @@
 // ============================================
-// openrouter-service.js - SERVIÇO OPENROUTER (GRÁTIS)
+// openrouter-service.js - COM PROXY
 // ============================================
 
 class OpenRouterService {
     constructor() {
-        // ⭐ SUA CHAVE (JÁ CONFIGURADA)
+        // ⭐ SUA CHAVE
         this.apiKey = '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';
         
-        this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+        // ⭐ USAR PROXY (EVITA CORS)
+        this.apiUrl = '/api/openrouter';
         
-        // ⭐ MODELO GRATUITO - MELHOR PARA PORTUGUÊS
+        // ⭐ MODELO GRATUITO
         this.model = 'deepseek/deepseek-chat:free';
         
-        console.log('[OpenRouter] 🚀 Serviço inicializado com modelo gratuito!');
-        console.log('[OpenRouter] 💰 Custo: GRÁTIS (200 req/dia)');
+        console.log('[OpenRouter] 🚀 Serviço com proxy inicializado!');
+        console.log('[OpenRouter] 🔑 Chave:', this.apiKey.substring(0, 20) + '...');
+        console.log('[OpenRouter] 💰 Modelo GRÁTIS:', this.model);
     }
     
     async sendMessage(prompt, context = '') {
         try {
-            // ⭐ PEGAR GÍRIA ALEATÓRIA
             const saudacao = window.getGiria?.('saudacoes') || 'Tá fixe?';
             
-            // ⭐ CONSTRUIR PROMPT COM GÍRIAS MOÇAMBICANAS
             const fullPrompt = `
 ${context}
 
@@ -30,29 +30,27 @@ INSTRUÇÕES IMPORTANTES:
 2. Use gírias locais como: magaia, fixe, bué, bora, arranja, tamos juntos, massa, campeão
 3. Seja amigável, motivador e prático
 4. Comece com "${saudacao}" quando apropriado
-5. Use emojis ocasionalmente: 🇲🇿 📚 💪 🎯 ✨
+5. Use emojis: 🇲🇿 📚 💪 🎯 ✨
 
 Usuário: ${prompt}
 
 Resposta (com gírias moçambicanas):
 `;
 
-            console.log('[OpenRouter] 📤 Enviando para:', this.model);
+            console.log('[OpenRouter] 📤 Enviando para proxy...');
             
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
                     'Content-Type': 'application/json',
-                    'HTTP-Referer': window.location.origin || 'https://localhost',
-                    'X-Title': 'Zero Satus App'
+                    'X-API-Key': this.apiKey
                 },
                 body: JSON.stringify({
                     model: this.model,
                     messages: [
                         { 
                             role: 'system', 
-                            content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: magaia, fixe, bué, bora, arranja, tamos juntos, massa, campeão, etc. Seja motivador e prático.' 
+                            content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: magaia, fixe, bué, bora, arranja, tamos juntos, massa, campeão. Seja motivador e prático.' 
                         },
                         { role: 'user', content: fullPrompt }
                     ],
@@ -68,24 +66,14 @@ Resposta (com gírias moçambicanas):
                 const error = await response.json().catch(() => ({}));
                 console.error('[OpenRouter] ❌ Erro:', response.status, error);
                 
-                // ⭐ MENSAGENS DE ERRO AMIGÁVEIS
                 if (response.status === 401 || response.status === 403) {
-                    return { 
-                        success: false, 
-                        error: '🔑 Chave inválida! Verifique sua chave OpenRouter.' 
-                    };
+                    return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
                 }
                 if (response.status === 429) {
-                    return { 
-                        success: false, 
-                        error: '⏳ Limite diário atingido (200 req/dia). Volta amanhã, magaia!' 
-                    };
+                    return { success: false, error: '⏳ Limite diário atingido (200 req/dia). Volta amanhã, magaia!' };
                 }
                 if (response.status === 402) {
-                    return { 
-                        success: false, 
-                        error: '💳 Precisa de créditos. Use um modelo gratuito (com :free).' 
-                    };
+                    return { success: false, error: '💳 Precisa de créditos. Use modelo com :free.' };
                 }
                 
                 return { 
@@ -106,6 +94,14 @@ Resposta (com gírias moçambicanas):
 
         } catch (error) {
             console.error('[OpenRouter] ❌ Erro:', error);
+            
+            if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+                return { 
+                    success: false, 
+                    error: '🌐 Erro de conexão! Verifique sua internet ou use o Live Server, magaia.' 
+                };
+            }
+            
             return { success: false, error: error.message || 'Erro de conexão' };
         }
     }
@@ -114,9 +110,9 @@ Resposta (com gírias moçambicanas):
 // ⭐ INICIALIZAR
 window.OpenRouterService = new OpenRouterService();
 
-// ⭐ ALIAS PARA COMPATIBILIDADE (não precisa mudar o ia.js)
+// ⭐ ALIAS PARA COMPATIBILIDADE (o ia.js usa window.GeminiService)
 window.GeminiService = window.OpenRouterService;
 
-console.log('[OpenRouter] ✅ Serviço carregado! 🇲🇿');
+console.log('[OpenRouter] ✅ Serviço com proxy carregado! 🇲🇿');
 console.log('[OpenRouter] 📊 Modelo:', window.OpenRouterService.model);
 console.log('[OpenRouter] 💰 Status: GRÁTIS (200 req/dia)');
