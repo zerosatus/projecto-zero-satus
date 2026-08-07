@@ -1,5 +1,5 @@
 // ============================================
-// modules/notas.js - NOTAS COMPLETO (CORRIGIDO)
+// modules/notas.js - NOTAS CORRIGIDO (SEM FANTASMAS)
 // ============================================
 
 class NotasModule {
@@ -11,6 +11,7 @@ class NotasModule {
         this.isSaving = false;
         this.isLoading = false;
         this._lastNotesString = '';
+        this._isSubmitting = false;
         
         console.log('[Notas] 📝 Módulo inicializado');
     }
@@ -25,9 +26,33 @@ class NotasModule {
         this.notifications = data.notifications || [];
         this._lastNotesString = JSON.stringify(this.notes);
         
+        // ⭐ LIMPAR NOTAS FANTASMAS NA RENDERIZAÇÃO
+        this.limparNotasFantasma();
         this.renderNotes();
         this.updateBadge();
         this.setupEvents();
+    }
+    
+    // ============================================
+    // ⭐ LIMPAR NOTAS FANTASMAS
+    // ============================================
+    limparNotasFantasma() {
+        const antes = this.notes.length;
+        
+        this.notes = this.notes.filter(note => {
+            const hasTitle = note.title && note.title.trim().length > 0;
+            const hasContent = note.content && note.content.trim().length > 0 && 
+                              note.content !== '<br>' && 
+                              note.content !== '<div><br></div>' &&
+                              note.content !== '<p><br></p>';
+            return hasTitle || hasContent;
+        });
+        
+        if (this.notes.length !== antes) {
+            console.log(`[Notas] 🧹 Removidas ${antes - this.notes.length} notas fantasmas`);
+            this._lastNotesString = JSON.stringify(this.notes);
+            this.salvarDados();
+        }
     }
     
     // ============================================
@@ -38,9 +63,12 @@ class NotasModule {
         this.isSaving = true;
         
         try {
+            // Limpar antes de salvar
+            this.limparNotasFantasma();
+            
             this.app.data.notes = this.notes;
             await this.app.saveAllData();
-            console.log('[Notas] ✅ Dados salvos');
+            console.log('[Notas] ✅ Dados salvos:', this.notes.length);
         } catch (error) {
             console.error('[Notas] ❌ Erro ao salvar:', error);
         }
@@ -54,6 +82,9 @@ class NotasModule {
     renderNotes() {
         const grid = document.getElementById('notes-grid');
         if (!grid) return;
+        
+        // ⭐ LIMPAR NOVAMENTE ANTES DE RENDERIZAR
+        this.limparNotasFantasma();
         
         let filtered = [...this.notes];
         if (this.searchTerm) {
@@ -69,7 +100,6 @@ class NotasModule {
         );
         
         if (filtered.length === 0) {
-            // ✅ REMOVIDO: Botão "Criar primeira anotação"
             grid.innerHTML = `
                 <div class="empty-notes-minimal">
                     <ion-icon name="document-text-outline"></ion-icon>
@@ -209,12 +239,19 @@ class NotasModule {
         const modal = document.getElementById('note-modal');
         if (modal) modal.classList.remove('active');
         this.editingNoteId = null;
+        this._isSubmitting = false;
     }
     
     // ============================================
-    // SALVAR NOTA
+    // ⭐ SALVAR NOTA (CORRIGIDO - PREVINE FANTASMAS)
     // ============================================
     async saveNote() {
+        // ⭐ PREVINE CLICK DUPLO
+        if (this._isSubmitting) {
+            console.log('[Notas] ⏳ Já está salvando, aguarde...');
+            return false;
+        }
+        
         const titleInput = document.getElementById('note-title-input');
         const contentInput = document.getElementById('note-content-input');
         
@@ -227,70 +264,112 @@ class NotasModule {
         
         const title = titleInput.value.trim();
         const content = contentInput.innerHTML;
-        const isEmpty = !title && (!content || content === '<br>' || content === '<div><br></div>');
         
-        if (!this.editingNoteId) {
-            if (isEmpty) {
-                this.closeNoteModal();
-                return false;
-            }
-            
-            const now = new Date().toISOString();
-            const novaNota = {
-                id: Date.now().toString(),
-                title: title || 'Sem título',
-                content: content || '',
-                date: now,
-                dataModificacao: now
-            };
-            
-            this.notes.unshift(novaNota);
-            this._lastNotesString = JSON.stringify(this.notes);
-            await this.salvarDados();
-            this.renderNotes();
-            this.updateBadge();
+        // ⭐ VERIFICAR SE A NOTA É VAZIA (FANTASMA)
+        const isEmpty = !title && (!content || content === '<br>' || content === '<div><br></div>' || content === '<p><br></p>' || content === '');
+        
+        // Se estiver criando uma nova nota e estiver vazia, fechar sem salvar
+        if (!this.editingNoteId && isEmpty) {
             this.closeNoteModal();
-            
-            if (typeof showToast === 'function') {
-                showToast('📝 Anotação criada!', 'success');
-            }
-            return true;
+            return false;
         }
         
-        const noteIndex = this.notes.findIndex(n => n.id == this.editingNoteId);
-        if (noteIndex === -1) {
-            if (typeof showToast === 'function') {
-                showToast('Anotação não encontrada', 'error');
+        // Se estiver editando e estiver vazia, perguntar se quer excluir
+        if (this.editingNoteId && isEmpty) {
+            if (confirm('Esta anotação está vazia. Deseja excluí-la?')) {
+                await this.deleteNote(this.editingNoteId);
+                this.closeNoteModal();
+                return true;
             }
             return false;
         }
         
-        const oldNote = this.notes[noteIndex];
-        const newTitle = title || oldNote.title || 'Sem título';
-        const newContent = content || '';
+        this._isSubmitting = true;
         
-        if (oldNote.title === newTitle && oldNote.content === newContent) {
+        try {
+            if (!this.editingNoteId) {
+                // ⭐ CRIAR NOVA NOTA (APENAS SE NÃO ESTIVER VAZIA)
+                const now = new Date().toISOString();
+                const novaNota = {
+                    id: Date.now().toString(),
+                    title: title || 'Sem título',
+                    content: content || '',
+                    date: now,
+                    dataModificacao: now
+                };
+                
+                // ⭐ VERIFICAR SE JÁ EXISTE NOTA IGUAL (EVITA DUPLICAÇÃO)
+                const existe = this.notes.some(n => 
+                    n.title === novaNota.title && 
+                    n.content === novaNota.content &&
+                    Math.abs(new Date(n.date) - new Date(now)) < 5000
+                );
+                
+                if (!existe) {
+                    this.notes.unshift(novaNota);
+                    this._lastNotesString = JSON.stringify(this.notes);
+                    await this.salvarDados();
+                    this.renderNotes();
+                    this.updateBadge();
+                    
+                    if (typeof showToast === 'function') {
+                        showToast('📝 Anotação criada!', 'success');
+                    }
+                } else {
+                    console.log('[Notas] ⚠️ Nota duplicada, ignorando');
+                    if (typeof showToast === 'function') {
+                        showToast('⚠️ Anotação já existe!', 'info');
+                    }
+                }
+            } else {
+                // ⭐ EDITAR NOTA EXISTENTE
+                const noteIndex = this.notes.findIndex(n => n.id == this.editingNoteId);
+                if (noteIndex === -1) {
+                    if (typeof showToast === 'function') {
+                        showToast('Anotação não encontrada', 'error');
+                    }
+                    return false;
+                }
+                
+                const oldNote = this.notes[noteIndex];
+                const newTitle = title || oldNote.title || 'Sem título';
+                const newContent = content || '';
+                
+                // Se não houve mudança, apenas fechar
+                if (oldNote.title === newTitle && oldNote.content === newContent) {
+                    this.closeNoteModal();
+                    return true;
+                }
+                
+                this.notes[noteIndex] = {
+                    ...oldNote,
+                    title: newTitle,
+                    content: newContent,
+                    dataModificacao: new Date().toISOString()
+                };
+                
+                this._lastNotesString = JSON.stringify(this.notes);
+                await this.salvarDados();
+                this.renderNotes();
+                this.updateBadge();
+                
+                if (typeof showToast === 'function') {
+                    showToast('✅ Anotação salva!', 'success');
+                }
+            }
+            
             this.closeNoteModal();
             return true;
+            
+        } catch (error) {
+            console.error('[Notas] ❌ Erro ao salvar:', error);
+            if (typeof showToast === 'function') {
+                showToast('❌ Erro ao salvar anotação', 'error');
+            }
+            return false;
+        } finally {
+            this._isSubmitting = false;
         }
-        
-        this.notes[noteIndex] = {
-            ...oldNote,
-            title: newTitle,
-            content: newContent,
-            dataModificacao: new Date().toISOString()
-        };
-        
-        this._lastNotesString = JSON.stringify(this.notes);
-        await this.salvarDados();
-        this.renderNotes();
-        this.updateBadge();
-        this.closeNoteModal();
-        
-        if (typeof showToast === 'function') {
-            showToast('✅ Anotação salva!', 'success');
-        }
-        return true;
     }
     
     // ============================================
@@ -319,23 +398,35 @@ class NotasModule {
     // EVENTOS DA UI
     // ============================================
     setupEvents() {
+        // Busca
         document.getElementById('notes-search-input')?.addEventListener('input', (e) => {
             this.searchTerm = e.target.value;
             this.renderNotes();
         });
         
+        // Botão nova nota
         document.getElementById('btn-add-note')?.addEventListener('click', () => {
             this.openNoteModal(null);
         });
         
+        // Fechar modal - botão voltar
         document.getElementById('note-modal-back')?.addEventListener('click', () => {
             this.closeNoteModal();
         });
         
+        // Fechar modal - clique fora
+        document.getElementById('note-modal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeNoteModal();
+            }
+        });
+        
+        // Botão salvar
         document.getElementById('btn-save-note')?.addEventListener('click', () => {
             this.saveNote();
         });
         
+        // Tecla Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const modal = document.getElementById('note-modal');
@@ -345,12 +436,21 @@ class NotasModule {
             }
         });
         
+        // ⭐ Ctrl+Enter para salvar
+        document.getElementById('note-content-input')?.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                this.saveNote();
+            }
+        });
+        
         // Toolbar INFERIOR (Samsung Notes Style)
         document.querySelectorAll('#note-modal .samsung-toolbar-btn[data-command]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 const command = btn.dataset.command;
                 this.formatText(command);
+                document.getElementById('note-content-input')?.focus();
             });
         });
         
@@ -361,9 +461,10 @@ class NotasModule {
                 this.formatText('formatBlock', value);
                 e.target.value = '';
             }
+            document.getElementById('note-content-input')?.focus();
         });
         
-        // Atalhos de teclado
+        // Atalhos de teclado (Ctrl+B, Ctrl+I, Ctrl+U)
         document.getElementById('note-content-input')?.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
                 switch(e.key.toLowerCase()) {
@@ -380,10 +481,6 @@ class NotasModule {
                         this.formatText('underline');
                         break;
                 }
-            }
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                this.saveNote();
             }
         });
         
@@ -448,6 +545,27 @@ class NotasModule {
             });
         }
     }
+    
+    // ============================================
+    // ⭐ LIMPEZA MANUAL (CHAMAR DO CONSOLE SE PRECISAR)
+    // ============================================
+    limparNotasFantasmaManual() {
+        const antes = this.notes.length;
+        this.limparNotasFantasma();
+        if (antes !== this.notes.length) {
+            this.salvarDados();
+            this.renderNotes();
+            console.log(`[Notas] 🧹 Limpeza manual: ${antes} -> ${this.notes.length} notas`);
+            if (typeof showToast === 'function') {
+                showToast(`🧹 ${antes - this.notes.length} notas fantasmas removidas!`, 'success');
+            }
+        } else {
+            if (typeof showToast === 'function') {
+                showToast('✅ Nenhuma nota fantasma encontrada!', 'info');
+            }
+        }
+        return this.notes.length;
+    }
 }
 
-console.log('[Notas] ✅ Módulo carregado!');
+console.log('[Notas] ✅ Módulo carregado (corrigido - sem fantasmas)!');
