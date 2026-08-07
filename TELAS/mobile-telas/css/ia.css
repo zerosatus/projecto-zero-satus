@@ -346,3 +346,37 @@
     .ia-action-card span { font-size: 0.6rem; }
     .fab-ia { width: 52px; height: 52px; font-size: 1.5rem; bottom: 85px; right: 14px; }
 }
+
+/* ============================================
+   ia.css - ESTILOS DA IA (ADICIONAR NO FINAL)
+   ============================================ */
+
+/* ⭐ BOTÃO ALTERNAR GÍRIA */
+.ia-toggle-btn {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    font-size: 0.7rem !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    transition: all 0.3s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.ia-toggle-btn:hover {
+    border-color: var(--accent-purple) !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
+.ia-toggle-btn:active {
+    transform: scale(0.95) !important;
+}
+
+#giria-status {
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
