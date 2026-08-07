@@ -531,6 +531,51 @@ section {
 }
 
 /* ============================================
+   PERMITIR COPIAR TEXTO NAS MENSAGENS DA IA
+   ============================================ */
+
+/* Permitir seleção em todas as mensagens da IA */
+.ia-message-content,
+.ia-message-content *,
+.ia-message .ia-message-content,
+#ia-messages-container .ia-message-content,
+.ia-message-ai .ia-message-content {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    cursor: text;
+}
+
+/* Permitir seleção apenas no texto da IA (não nas mensagens do usuário) */
+.ia-message-ai .ia-message-content {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* Também permitir seleção no container de mensagens */
+#ia-messages-container {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* Estilização do botão de copiar */
+.ia-copy-hint {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    display: block;
+    margin-top: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+.ia-copy-hint:hover {
+    opacity: 1;
+    color: var(--accent-purple);
+}
+
+/* ============================================
    RESPONSIVIDADE DA TELA DE LOADING
    ============================================ */
 
