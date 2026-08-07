@@ -274,53 +274,63 @@
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: IA (COLE AQUI!)                       -->
-        <!-- ========================================== -->
-        <section id="view-ia" class="view hidden">
-                <div class="ia-header">
+
+<!-- ========================================== -->
+<!-- VIEW: IA                                   -->
+<!-- ========================================== -->
+<section id="view-ia" class="view hidden">
+    <div class="ia-header">
         <button class="ia-back-btn" id="btn-back-ia" title="Voltar">
             <ion-icon name="arrow-back"></ion-icon>
         </button>
         <div>
             <h1>Zero IA</h1>
-            <div class="ia-subtitle">Seu ajudante de estudos </div>
+            <div class="ia-subtitle">Seu ajudante de estudos</div>
         </div>
-        <div class="ia-header-icon"><ion-icon name="sparkles"></ion-icon></div>
+        <!-- ⭐ BOTÃO ALTERNAR GÍRIA (ADICIONADO) -->
+        <button class="ia-toggle-btn" id="btn-toggle-giria" 
+                style="background:var(--card-bg);border:1px solid var(--border-color);
+                       color:var(--text-primary);padding:6px 12px;border-radius:20px;
+                       font-size:0.7rem;cursor:pointer;display:flex;align-items:center;gap:6px;
+                       transition:all 0.3s ease;flex-shrink:0;"
+                title="Alternar entre modo normal e modo gíria">
+            <ion-icon name="chatbubbles-outline"></ion-icon>
+            <span id="giria-status">Normal</span>
+        </button>
     </div>
-            
-            <div class="ia-messages-wrapper" id="ia-messages-container">
-                <!-- Mensagens serão renderizadas aqui -->
-            </div>
+    
+    <div class="ia-messages-wrapper" id="ia-messages-container">
+        <!-- Mensagens serão renderizadas aqui -->
+    </div>
 
-            <!-- Cards de Ação Rápidos -->
-            <div class="ia-quick-actions" id="ia-quick-actions">
-                <div class="ia-action-card" data-prompt="Me ajude a organizar meus estudos para a prova de matemática">
-                    <ion-icon name="calculator-outline"></ion-icon>
-                    <span>Organizar estudos</span>
-                </div>
-                <div class="ia-action-card" data-prompt="Me dê dicas para focar melhor nos estudos">
-                    <ion-icon name="bulb-outline"></ion-icon>
-                    <span>Dicas de foco</span>
-                </div>
-                <div class="ia-action-card" data-prompt="Quais são as melhores técnicas para memorizar conteúdo?">
-                    <ion-icon name="brain-outline"></ion-icon>
-                    <span>Técnicas de memorização</span>
-                </div>
-            </div>
-            
-            <div class="ia-input-area">
-                <input type="text" id="ia-input" placeholder="Pergunte algo sobre seus estudos..." autocomplete="off">
-                <button id="ia-send-btn" class="ia-send-btn">
-                    <ion-icon name="send-outline"></ion-icon>
-                </button>
-            </div>
+    <!-- Cards de Ação Rápidos -->
+    <div class="ia-quick-actions" id="ia-quick-actions">
+        <div class="ia-action-card" data-prompt="Me ajude a organizar meus estudos para a prova de matemática">
+            <ion-icon name="calculator-outline"></ion-icon>
+            <span>Organizar estudos</span>
+        </div>
+        <div class="ia-action-card" data-prompt="Me dê dicas para focar melhor nos estudos">
+            <ion-icon name="bulb-outline"></ion-icon>
+            <span>Dicas de foco</span>
+        </div>
+        <div class="ia-action-card" data-prompt="Quais são as melhores técnicas para memorizar conteúdo?">
+            <ion-icon name="brain-outline"></ion-icon>
+            <span>Técnicas de memorização</span>
+        </div>
+    </div>
+    
+    <div class="ia-input-area">
+        <input type="text" id="ia-input" placeholder="Pergunte algo sobre seus estudos..." autocomplete="off">
+        <button id="ia-send-btn" class="ia-send-btn">
+            <ion-icon name="send-outline"></ion-icon>
+        </button>
+    </div>
 
-            <!-- Aviso no rodapé -->
-            <div class="ia-footer-warning">
-                <span>Ao usar a IA, você está ajudando a treinar o modelo. Use com responsabilidade! 🧠</span>
-            </div>
-        </section>
+    <!-- Aviso no rodapé com dica dos comandos -->
+    <div class="ia-footer-warning">
+        <span>💬 Digite <strong>"fala com gíria"</strong> para ativar ou <strong>"fala normal"</strong> para desativar • Use com responsabilidade! 🧠</span>
+    </div>
+</section>
 
     </main>
 
@@ -1053,12 +1063,12 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-
-<script>// ============================================
-// openrouter-service.js - VERSÃO ATUALIZADA (Agosto 2026)
+<script>
+// ============================================
+// openrouter-service.js - VERSÃO CORRIGIDA (COM SUPORTE A MODO NORMAL/GÍRIA)
 // ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
+console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
 
 (function() {
     'use strict';
@@ -1072,9 +1082,9 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
                 // ⭐ MODELOS GRATUITOS CONFIRMADOS (Agosto 2026)
                 this.models = [
                     // ⭐ ROTEADORES OFICIAIS (RECOMENDADOS)
-                    'openrouter/free',           // Seleciona automaticamente o melhor modelo gratuito[reference:31]
-                    'openrouter/free-coder',     // Especializado em código[reference:32]
-                    'openrouter/free-large',     // Modelos de grande porte[reference:33]
+                    'openrouter/free',
+                    'openrouter/free-coder',
+                    'openrouter/free-large',
                     
                     // ⭐ MODELOS ESPECÍFICOS (FALLBACK)
                     'nvidia/nemotron-3-ultra:free',
@@ -1096,11 +1106,16 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
                 ];
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
-                console.log(`[OpenRouter]  ${this.models.length} modelos disponíveis`);
+                console.log(`[OpenRouter] 📦 ${this.models.length} modelos disponíveis`);
             }
             
+            // ============================================
+            // ⭐ SEND MESSAGE (CORRIGIDO - USA O CONTEXTO PASSADO)
+            // ============================================
             async sendMessage(prompt, context = '') {
-                console.log('[OpenRouter]  Bro, calma um coche...');
+                console.log('[OpenRouter] 📤 Enviando mensagem...');
+                console.log('[OpenRouter] 📝 Prompt:', prompt.substring(0, 60) + '...');
+                console.log('[OpenRouter] 📋 Contexto recebido (primeiras 100 caracteres):', context.substring(0, 100));
                 
                 // ⭐ TENTA CADA MODELO ATÉ UM FUNCIONAR
                 for (let i = 0; i < this.models.length; i++) {
@@ -1114,30 +1129,31 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO ATUALIZADA...');
                         }
                         console.log(`[OpenRouter] ⚠️ Modelo ${model} falhou:`, result.error);
                     } catch (e) {
-                        console.log(`[OpenRouter] ⚠️ Modelo ${model} deu erro:`, e);
+                        console.log(`[OpenRouter] ⚠️ Modelo ${model} deu erro:`, e.message);
                     }
                 }
                 
                 return { 
                     success: false, 
-                    error: '🌐 Nenhum modelo disponível no momento. Tenta novamente mais tarde, masta!' 
+                    error: '🌐 Nenhum modelo disponível no momento. Tenta novamente mais tarde!' 
                 };
             }
             
+            // ============================================
+            // ⭐ TRY MODEL (CORRIGIDO - USA O CONTEXTO COMPLETO)
+            // ============================================
             async tryModel(model, prompt, context) {
+                // ⭐ O CONTEXTO JÁ VEM DO IA.JS COM AS INSTRUÇÕES DE ESTILO
+                // NÃO PRECISA ADICIONAR MAIS INSTRUÇÕES AQUI
                 const fullPrompt = `
 ${context}
 
-INSTRUÇÕES:
-1. Responda em português de Moçambique 🇲🇿
-2. Use gírias locais: broo, nice, maning, go, txuna, tamos juntos
-3. Seja amigável, motivador e prático
-4. Use emojis:
-
 Usuário: ${prompt}
 
-Resposta (com gírias moçambicanas):
+Resposta:
 `;
+
+                console.log(`[OpenRouter] 📤 Enviando para ${model}...`);
 
                 const response = await fetch(this.apiUrl, {
                     method: 'POST',
@@ -1152,7 +1168,7 @@ Resposta (com gírias moçambicanas):
                         messages: [
                             { 
                                 role: 'system', 
-                                content: 'Você é um assistente educacional amigável que fala com gírias moçambicanas. Use: broo, nice, bué, go, txuna, tamos juntos. Seja motivador e prático.' 
+                                content: 'Você é um assistente educacional. Siga as instruções de estilo fornecidas no contexto. Adapte seu tom e linguagem conforme indicado.' 
                             },
                             { role: 'user', content: fullPrompt }
                         ],
@@ -1180,7 +1196,7 @@ Resposta (com gírias moçambicanas):
                         return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
                     }
                     if (response.status === 429) {
-                        return { success: false, error: 'Broo! Ce ja uso maning vai ver outra cena do toorrow' };
+                        return { success: false, error: '⏳ Muitas requisições! Tenta novamente em alguns segundos.' };
                     }
                     
                     return { 
@@ -1197,23 +1213,34 @@ Resposta (com gírias moçambicanas):
                     return { success: true, text: text };
                 }
 
-                return { success: false, error: 'Resposta inesperada' };
+                return { success: false, error: 'Resposta inesperada da IA' };
             }
         }
 
         console.log('[OpenRouter] 📦 Criando instância...');
         const service = new OpenRouterService();
 
+        // ⭐ EXPORTAR PARA O WINDOW
         window.OpenRouterService = service;
         window.GeminiService = service;
 
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
         console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
+        console.log('[OpenRouter] 📌 Modo: Respeita as instruções de estilo do contexto');
+        
+        // ⭐ DISPARAR EVENTO
+        window.dispatchEvent(new CustomEvent('openrouterLoaded', { 
+            detail: { service } 
+        }));
         
     } catch (error) {
         console.error('[OpenRouter] ❌ ERRO FATAL:', error);
+        // ⭐ FALLBACK
         window.OpenRouterService = {
-            sendMessage: async () => ({ success: false, error: 'Erro ao carregar serviço' })
+            sendMessage: async () => ({ 
+                success: false, 
+                error: 'Erro ao carregar serviço de IA. Recarregue a página.' 
+            })
         };
         window.GeminiService = window.OpenRouterService;
     }
