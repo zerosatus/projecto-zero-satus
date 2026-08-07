@@ -81,21 +81,20 @@ class App {
         `;
         
         // Logo/Ícone
-// Logo/Ícone
-const icon = document.createElement('div');
-icon.style.cssText = `
-    font-size: 48px;
-    margin-bottom: 20px;
-    animation: pulse 1.5s ease-in-out infinite;
-`;
-icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
-    <img src='https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png' 
-         border='0' 
-         alt='logo1-removebg-preview'
-         style='width: 120px; height: 120px; object-fit: contain;'>
-</a>`;
+        const icon = document.createElement('div');
+        icon.style.cssText = `
+            font-size: 48px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        `;
+        icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
+            <img src='https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png' 
+                 border='0' 
+                 alt='logo1-removebg-preview'
+                 style='width: 120px; height: 120px; object-fit: contain;'>
+        </a>`;
 
-// Spinner
+        // Spinner
         const spinner = document.createElement('div');
         spinner.style.cssText = `
             width: 50px;
@@ -548,11 +547,12 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
         // Configurar eventos
         this.setupEvents();
         
-           // Configurar observer do perfil
-     this.setupProfileObserver();
-
-     // ⭐ CONECTA O BOTÃO DA IA NA INICIALIZAÇÃO
-     if (this.modules.ia) this.modules.ia.setupEvents();
+        // Configurar observer do perfil
+        this.setupProfileObserver();
+        
+        // ⭐ CONECTA O BOTÃO DA IA NA INICIALIZAÇÃO
+        if (this.modules.ia) this.modules.ia.setupEvents();
+        
         // Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 95);
         this.showView('dashboard');
@@ -916,7 +916,7 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
     }
     
     // ============================================
-    // SHOW VIEW
+    // SHOW VIEW - COMPLETO COM CONTROLE DO BOTÃO IA
     // ============================================
     showView(viewName) {
         console.log(`[SPA] 📄 Mostrando: ${viewName}`);
@@ -955,15 +955,27 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
                 this.updateProfileStats();
             }
             
-                    if (this.modules[viewName]) {
-             this.modules[viewName].render(this.data);
-         }
-         // ⭐ ESCONDE A BARRA DE NAVEGAÇÃO NA TELA DE IA
-         const navBar = document.querySelector('.nav-item')?.parentElement;
-         if (navBar) {
-             navBar.style.display = (viewName === 'ia') ? 'none' : '';
-         }
-         this.currentView = viewName;
+            // ⭐⭐⭐ CONTROLE DO BOTÃO FLUTUANTE DA IA ⭐⭐⭐
+            const fabIa = document.getElementById('btn-open-ia');
+            if (fabIa) {
+                if (viewName === 'ia') {
+                    fabIa.style.display = 'none';
+                } else {
+                    fabIa.style.display = 'flex';
+                }
+            }
+            
+            // ⭐ ESCONDE A BARRA DE NAVEGAÇÃO NA TELA DE IA
+            const navBar = document.querySelector('.bottom-nav');
+            if (navBar) {
+                navBar.style.display = (viewName === 'ia') ? 'none' : 'flex';
+            }
+            
+            if (this.modules[viewName]) {
+                this.modules[viewName].render(this.data);
+            }
+            
+            this.currentView = viewName;
         }
     }
     
@@ -1267,6 +1279,38 @@ icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
                     .catch(err => console.warn('[App] ⚠️ Erro ao carregar notificações:', err));
             }
         }, 2000);
+
+        // ⭐⭐⭐ CONTROLE DO BOTÃO FLUTUANTE DA IA - OBSERVER ⭐⭐⭐
+        const fabIa = document.getElementById('btn-open-ia');
+        
+        // Observer para mudanças na view
+        const observer = new MutationObserver(() => {
+            const viewIa = document.getElementById('view-ia');
+            if (fabIa) {
+                if (viewIa && viewIa.classList.contains('active')) {
+                    fabIa.style.display = 'none';
+                } else {
+                    fabIa.style.display = 'flex';
+                }
+            }
+        });
+
+        // Observar mudanças na classe das views
+        document.querySelectorAll('.view').forEach(view => {
+            observer.observe(view, { attributes: true, attributeFilter: ['class'] });
+        });
+
+        // Verificação inicial
+        setTimeout(() => {
+            const viewIa = document.getElementById('view-ia');
+            if (fabIa) {
+                if (viewIa && viewIa.classList.contains('active')) {
+                    fabIa.style.display = 'none';
+                } else {
+                    fabIa.style.display = 'flex';
+                }
+            }
+        }, 100);
     }
 }
 
