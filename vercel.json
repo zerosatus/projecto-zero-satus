@@ -5,9 +5,7 @@
       "destination": "https://openrouter.ai/api/v1/chat/completions"
     }
   ],
-
-
-"headers": [
+  "headers": [
     {
       "source": "/(.*)",
       "headers": [
