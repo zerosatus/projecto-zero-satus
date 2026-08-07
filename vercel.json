@@ -1,4 +1,12 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/openrouter",
+      "destination": "https://openrouter.ai/api/v1/chat/completions"
+    }
+  ],
+
+
   "headers": [
     {
       "source": "/(.*)",
@@ -15,12 +23,6 @@
         { "key": "X-Vercel-Mitigated", "value": "" },
         { "key": "Access-Control-Allow-Origin", "value": "https://zerosatus.vercel.app" }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/openrouter",
-      "destination": "https://openrouter.ai/api/v1/chat/completions"
     }
   ]
 }
