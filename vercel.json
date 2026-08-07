@@ -4,22 +4,6 @@
       "source": "/api/openrouter",
       "destination": "https://openrouter.ai/api/v1/chat/completions"
     }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
-        { "key": "X-Vercel-Id", "value": "" },
-        { "key": "X-Vercel-Cache", "value": "" },
-        { "key": "X-Vercel-Error", "value": "" },
-        { "key": "X-Vercel-Mitigated", "value": "" },
-        { "key": "Access-Control-Allow-Origin", "value": "https://zerosatus.vercel.app" }
-      ]
-    }
+
   ]
 }
