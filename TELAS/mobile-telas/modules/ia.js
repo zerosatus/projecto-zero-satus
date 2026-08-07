@@ -55,6 +55,7 @@ class IAModule {
         let html = '';
         this.messages.forEach((msg) => {
             const isUser = msg.role === 'user';
+            const isAI = !isUser;
             const content = this.app.escapeHtml(msg.content)
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -62,7 +63,10 @@ class IAModule {
             html += `
                 <div class="ia-message ${isUser ? 'ia-message-user' : 'ia-message-ai'}">
                     <div class="ia-message-avatar">${isUser ? '👤' : '🤖'}</div>
-                    <div class="ia-message-content">${content}</div>
+                    <div class="ia-message-content" ${isAI ? 'style="user-select:text;-webkit-user-select:text;"' : ''}>
+                        ${content}
+                        ${isAI ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)">📋 Copiar</span>` : ''}
+                    </div>
                     <div class="ia-message-time">${msg.time || new Date().toLocaleTimeString()}</div>
                 </div>
             `;
@@ -409,4 +413,69 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 }
 
-console.log('[IA] ✅ Módulo carregado com controle de gíria!');
+// ============================================
+// ⭐ FUNÇÃO GLOBAL PARA COPIAR MENSAGENS DA IA
+// ============================================
+
+window.copyMessage = function(element) {
+    try {
+        // Encontrar o conteúdo da mensagem
+        const messageContent = element.closest('.ia-message-content');
+        if (!messageContent) return;
+        
+        // Pegar o texto (ignorando o hint de cópia)
+        const text = messageContent.textContent.replace('📋 Copiar', '').trim();
+        
+        // Copiar usando a API moderna
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    // Feedback visual
+                    const originalText = element.textContent;
+                    element.textContent = '✅ Copiado!';
+                    setTimeout(() => {
+                        element.textContent = originalText;
+                    }, 2000);
+                })
+                .catch(() => {
+                    // Fallback: método antigo
+                    fallbackCopy(text, element);
+                });
+        } else {
+            // Fallback: método antigo
+            fallbackCopy(text, element);
+        }
+    } catch (error) {
+        console.error('[IA] Erro ao copiar:', error);
+    }
+};
+
+function fallbackCopy(text, element) {
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.top = '-1000px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        const originalText = element.textContent;
+        element.textContent = '✅ Copiado!';
+        setTimeout(() => {
+            element.textContent = originalText;
+        }, 2000);
+    } catch (err) {
+        console.error('[IA] Fallback copy falhou:', err);
+        const originalText = element.textContent;
+        element.textContent = '❌ Erro ao copiar';
+        setTimeout(() => {
+            element.textContent = originalText;
+        }, 2000);
+    }
+}
+
+console.log('[IA] ✅ Função copyMessage registrada globalmente');
+console.log('[IA] ✅ Módulo carregado com controle de gíria e suporte a cópia!');
