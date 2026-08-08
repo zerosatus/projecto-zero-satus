@@ -1068,11 +1068,10 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// openrouter-service.js - VERSÃO CORRIGIDA
-// COM LIMITE DE 20 PERGUNTAS POR DIA
+// openrouter-service.js - VERSÃO DEFINITIVA (SOMENTE ROTEADORES OFICIAIS)
 // ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
+console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
 
 (function() {
     'use strict';
@@ -1088,27 +1087,21 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                 this.apiKey = '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';
                 this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
                 
-                // ⭐ MODELOS GRATUITOS CONFIRMADOS (Agosto 2026)
+                // ⭐ SOMENTE ROTEADORES OFICIAIS (GARANTEM MODELOS GRATUITOS)
+                // Fonte: https://openrouter.ai/docs#models
                 this.models = [
-                    'openrouter/free',
-                    'openrouter/free-coder',
-                    'openrouter/free-large',
-                    'google/gemini-2.0-flash-exp:free',
-                    'google/gemma-4-26b-a4b:free',
-                    'meta-llama/llama-3.3-70b-instruct:free',
-                    'deepseek/deepseek-chat-v3-0324:free',
-                    'deepseek/deepseek-r1:free',
-                    'qwen/qwen-3-coder:free',
-                    'qwen/qwen-3-next-80b-a3b:free',
-                    'microsoft/phi-3.5-mini-128k:free',
-                    'mistralai/mistral-7b-instruct:free',
-                    'nvidia/nemotron-3-ultra:free',
-                    'cohere/north-mini-code:free'
+                    'openrouter/free',        // Roteador principal
+                    'openrouter/free-coder',  // Para código
+                    'openrouter/free-large'   // Para tarefas maiores
                 ];
                 
-                // ⭐ CACHE DE RESPOSTAS
+                // ⭐ CACHE DE RESPOSTAS (válido por 1 hora)
                 this._cache = new Map();
                 this._cacheMaxSize = 50;
+                
+                // ⭐ BACKOFF PARA 429
+                this._backoffDelay = 1000; // 1 segundo inicial
+                this._maxBackoff = 10000; // 10 segundos máximo
                 
                 // ⭐ INICIALIZAR LIMITE
                 this._resetarLimiteDiario();
@@ -1191,7 +1184,7 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
             }
             
             // ============================================
-            // ⭐ SEND MESSAGE
+            // ⭐ SEND MESSAGE (COM BACKOFF)
             // ============================================
             
             async sendMessage(prompt, context = '') {
@@ -1210,6 +1203,8 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                     return { success: true, text: cached, fromCache: true };
                 }
                 
+                let delay = this._backoffDelay;
+                
                 for (let i = 0; i < this.models.length; i++) {
                     const model = this.models[i];
                     console.log(`[OpenRouter] 🔄 Tentando modelo ${i+1}/${this.models.length}: ${model}`);
@@ -1219,8 +1214,21 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                         if (result.success) {
                             this._incrementarUso();
                             this._saveToCache(prompt, context, result.text);
+                            // Resetar backoff após sucesso
+                            this._backoffDelay = 1000;
                             return result;
                         }
+                        
+                        // Se for 429, aumentar backoff e esperar
+                        if (result.status === 429) {
+                            console.log(`[OpenRouter] ⏳ Rate limit (429), aguardando ${delay}ms...`);
+                            await this._sleep(delay);
+                            delay = Math.min(delay * 2, this._maxBackoff);
+                            // Tentar novamente com o mesmo modelo
+                            i--;
+                            continue;
+                        }
+                        
                         console.log(`[OpenRouter] ⚠️ Modelo ${model} falhou:`, result.error);
                     } catch (e) {
                         console.log(`[OpenRouter] ⚠️ Modelo ${model} deu erro:`, e.message);
@@ -1282,14 +1290,15 @@ Resposta:
                         errorText = await response.text() || '';
                     }
                     
+                    // Retornar status específico para 429
+                    if (response.status === 429) {
+                        return { success: false, error: '⏳ Muitas requisições! Aguarde...', status: 429 };
+                    }
                     if (response.status === 404) {
                         return { success: false, error: `Modelo não encontrado`, modelError: true };
                     }
                     if (response.status === 401 || response.status === 403) {
                         return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
-                    }
-                    if (response.status === 429) {
-                        return { success: false, error: '⏳ Muitas requisições! Tenta novamente em alguns segundos.' };
                     }
                     
                     return { 
@@ -1307,6 +1316,14 @@ Resposta:
                 }
 
                 return { success: false, error: 'Resposta inesperada da IA' };
+            }
+            
+            // ============================================
+            // ⭐ UTILITÁRIO SLEEP
+            // ============================================
+            
+            _sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
             }
         }
 
@@ -1330,7 +1347,7 @@ Resposta:
         };
 
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
-        console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
+        console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados (somente roteadores oficiais)`);
         console.log(`[OpenRouter] 📊 Limite: ${LIMITE_DIARIO} perguntas/dia`);
         
         window.dispatchEvent(new CustomEvent('openrouterLoaded', { 
@@ -1349,7 +1366,8 @@ Resposta:
     }
     
     console.log('🔥🔥🔥 [OpenRouter] FIM DO CARREGAMENTO');
-})();</script>
+})();
+</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
