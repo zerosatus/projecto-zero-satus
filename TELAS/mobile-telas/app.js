@@ -1,5 +1,4 @@
-// ============================================
-// app.js - SPA COMPLETO (MOBILE-ONLY) - CORRIGIDO
+// app.js - COMPLETO E CORRIGIDO (NOTIFICAÇÕES E NOTAS)
 // ============================================
 
 console.log('[SPA] 🚀 Iniciando aplicação mobile...');
@@ -41,6 +40,7 @@ class App {
         this._syncRetryCount = 0;
         this._maxSyncRetries = 3;
         this._saveTimeout = null;
+        this._notificationRefreshTimeout = null;
         
         // CSS por módulo
         this.cssModules = {
@@ -338,7 +338,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ ATUALIZAR UI DO PERFIL (CORRIGIDO - SEM LOOP)
+    // ⭐ ATUALIZAR UI DO PERFIL
     // ============================================
     updateProfileUI() {
         if (!this.user) {
@@ -564,6 +564,10 @@ class App {
         this.updateLoadingStatus('Sincronizando dados...', 90);
         await this.forceInitialSync();
         
+        // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE
+        this.updateLoadingStatus('Carregando notificações...', 92);
+        await this.loadNotificationsFromSupabase();
+        
         // Fechar loading
         setTimeout(() => {
             this.updateLoadingStatus('Pronto!', 100);
@@ -575,6 +579,68 @@ class App {
         this._isAppReady = true;
         this._isInitializing = false;
         console.log('[SPA] ✅ Aplicação mobile pronta!');
+    }
+    
+    // ============================================
+    // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE
+    // ============================================
+    async loadNotificationsFromSupabase() {
+        try {
+            const client = this.getSupabase();
+            if (!client || !this.user) {
+                console.log('[SPA] ℹ️ Supabase ou usuário não disponível para carregar notificações');
+                return;
+            }
+
+            console.log('[SPA] 📬 Carregando notificações do Supabase...');
+            
+            const { data, error } = await client
+                .from('notifications')
+                .select('*')
+                .eq('user_id', this.user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                console.warn('[SPA] ⚠️ Erro ao carregar notificações:', error);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                const notificacoes = data.map(n => ({
+                    id: n.id,
+                    title: n.title || 'Notificação',
+                    message: n.message || '',
+                    type: n.type || 'info',
+                    read: n.read || false,
+                    time: n.created_at
+                }));
+
+                // Atualizar dados
+                this.data.notifications = notificacoes;
+                
+                // Salvar no cache
+                if (window.CacheManager) {
+                    window.CacheManager.set('notifications', notificacoes, true);
+                }
+                
+                // Salvar no localStorage com userId
+                const key = `${this.user.id}_notifications`;
+                localStorage.setItem(key, JSON.stringify(notificacoes));
+
+                console.log(`[SPA] ✅ ${notificacoes.length} notificações carregadas do Supabase`);
+                
+                // Atualizar badge
+                this.updateBadge();
+                
+                // Notificar UI
+                window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+            } else {
+                console.log('[SPA] ℹ️ Nenhuma notificação encontrada no Supabase');
+            }
+        } catch (error) {
+            console.error('[SPA] ❌ Erro ao carregar notificações:', error);
+        }
     }
     
     // ============================================
@@ -652,7 +718,6 @@ class App {
             this.modules.perfil = new PerfilModule(this);
         }
 
-        // ✅ ADICIONADO O MÓDULO DA IA
         if (typeof IAModule !== 'undefined') {
              this.modules.ia = new IAModule(this);
         }
@@ -703,7 +768,26 @@ class App {
                 for (const tipo of tipos) {
                     const dados = window.CacheManager.get(tipo, null);
                     if (dados !== null && dados !== undefined) {
-                        this.data[tipo] = dados;
+                        // ⭐ FILTRAR NOTAS FANTASMAS
+                        if (tipo === 'notes' && Array.isArray(dados)) {
+                            const filtradas = dados.filter(n => {
+                                const hasTitle = n.title && n.title.trim().length > 0;
+                                const hasContent = n.content && n.content.trim().length > 0 && 
+                                                  n.content !== '<br>' && 
+                                                  n.content !== '<div><br></div>' &&
+                                                  n.content !== '<p><br></p>';
+                                return hasTitle || hasContent;
+                            });
+                            if (filtradas.length !== dados.length) {
+                                console.log(`[SPA] 🧹 Removidas ${dados.length - filtradas.length} notas fantasmas do cache`);
+                                this.data[tipo] = filtradas;
+                                window.CacheManager.set(tipo, filtradas, true);
+                            } else {
+                                this.data[tipo] = dados;
+                            }
+                        } else {
+                            this.data[tipo] = dados;
+                        }
                         loadedCount++;
                         console.log(`[SPA] 📊 ${tipo} carregado: ${Array.isArray(dados) ? dados.length : Object.keys(dados).length} itens`);
                     }
@@ -760,7 +844,26 @@ class App {
                 try {
                     const parsed = JSON.parse(data);
                     if (parsed && (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0)) {
-                        this.data[type] = parsed;
+                        // ⭐ FILTRAR NOTAS FANTASMAS
+                        if (type === 'notes' && Array.isArray(parsed)) {
+                            const filtradas = parsed.filter(n => {
+                                const hasTitle = n.title && n.title.trim().length > 0;
+                                const hasContent = n.content && n.content.trim().length > 0 && 
+                                                  n.content !== '<br>' && 
+                                                  n.content !== '<div><br></div>' &&
+                                                  n.content !== '<p><br></p>';
+                                return hasTitle || hasContent;
+                            });
+                            if (filtradas.length !== parsed.length) {
+                                console.log(`[SPA] 🧹 Removidas ${parsed.length - filtradas.length} notas fantasmas do localStorage`);
+                                this.data[type] = filtradas;
+                                localStorage.setItem(key, JSON.stringify(filtradas));
+                            } else {
+                                this.data[type] = parsed;
+                            }
+                        } else {
+                            this.data[type] = parsed;
+                        }
                         loaded = true;
                         loadedCount++;
                         console.log(`[SPA] 📂 ${type} carregado do localStorage (${Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length} itens)`);
@@ -801,7 +904,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO E SYNC FORÇADO)
+    // ⭐ SALVAR DADOS
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
@@ -810,10 +913,26 @@ class App {
         console.log('[SPA] 💾 Salvando dados...');
         
         try {
+            // ⭐ FILTRAR NOTAS FANTASMAS ANTES DE SALVAR
+            if (Array.isArray(this.data.notes)) {
+                const antes = this.data.notes.length;
+                this.data.notes = this.data.notes.filter(n => {
+                    const hasTitle = n.title && n.title.trim().length > 0;
+                    const hasContent = n.content && n.content.trim().length > 0 && 
+                                      n.content !== '<br>' && 
+                                      n.content !== '<div><br></div>' &&
+                                      n.content !== '<p><br></p>';
+                    return hasTitle || hasContent;
+                });
+                if (this.data.notes.length !== antes) {
+                    console.log(`[SPA] 🧹 Removidas ${antes - this.data.notes.length} notas fantasmas ao salvar`);
+                }
+            }
+            
             // Salvar no sessionStorage
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
             
-            // Salvar no localStorage com userId (PADRONIZADO)
+            // Salvar no localStorage com userId
             const userId = this.user.id;
             const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
             
@@ -829,7 +948,7 @@ class App {
                 }
             }
             
-            // ⭐ SALVAR NO CACHEMANAGER COM VERIFICAÇÃO
+            // ⭐ SALVAR NO CACHEMANAGER
             if (window.CacheManager) {
                 console.log('[SPA] 💾 Salvando no CacheManager...');
                 let savedCount = 0;
@@ -849,21 +968,19 @@ class App {
                 
                 console.log(`[SPA] 📊 ${savedCount} tipos salvos, ${failedCount} falhas`);
                 
-                // ⭐ FORÇAR SYNC COM VERIFICAÇÃO (IMEDIATO)
+                // ⭐ FORÇAR SYNC
                 if (savedCount > 0) {
                     try {
                         console.log('[SPA] 🔄 Forçando sincronização imediata...');
                         const result = await window.CacheManager.forceSync();
                         console.log('[SPA] ✅ Sync concluído:', result ? 'Sucesso' : 'Sem alterações');
                         
-                        // Notificar sucesso
                         window.dispatchEvent(new CustomEvent('syncCompleted', {
                             detail: { success: result, source: 'saveAllData' }
                         }));
                     } catch (error) {
                         console.error('[SPA] ❌ Erro no sync imediato:', error);
                         
-                        // Tentar novamente em 3s
                         if (this._saveTimeout) {
                             clearTimeout(this._saveTimeout);
                         }
@@ -916,7 +1033,7 @@ class App {
     }
     
     // ============================================
-    // SHOW VIEW - COMPLETO COM CONTROLE DO BOTÃO IA
+    // SHOW VIEW
     // ============================================
     showView(viewName) {
         console.log(`[SPA] 📄 Mostrando: ${viewName}`);
@@ -955,7 +1072,7 @@ class App {
                 this.updateProfileStats();
             }
             
-            // ⭐⭐⭐ CONTROLE DO BOTÃO FLUTUANTE DA IA ⭐⭐⭐
+            // ⭐ CONTROLE DO BOTÃO FLUTUANTE DA IA
             const fabIa = document.getElementById('btn-open-ia');
             if (fabIa) {
                 if (viewName === 'ia') {
@@ -980,7 +1097,7 @@ class App {
     }
     
     // ============================================
-    // NOTIFICAÇÕES
+    // ⭐ NOTIFICAÇÕES - CORRIGIDO (APAGA DO SUPABASE)
     // ============================================
     openNotifications() {
         const modal = document.getElementById('notifications-modal');
@@ -1010,8 +1127,9 @@ class App {
         
         let html = '';
         filtered.forEach(notif => {
+            const isRead = notif.read || false;
             html += `
-                <div class="notification-item-modal ${notif.read ? 'read' : 'unread'}">
+                <div class="notification-item-modal ${isRead ? 'read' : 'unread'}" data-id="${notif.id}">
                     <div class="notification-icon ${notif.type || 'info'}">
                         <ion-icon name="notifications-outline"></ion-icon>
                     </div>
@@ -1019,11 +1137,199 @@ class App {
                         <div class="notification-title">${this.escapeHtml(notif.title)}</div>
                         <div class="notification-message">${this.escapeHtml(notif.message)}</div>
                         <div class="notification-time">${this.formatTimeAgo(notif.time)}</div>
+                        ${!isRead ? '<span style="font-size:0.6rem;color:var(--accent-purple);font-weight:600;">● Nova</span>' : ''}
                     </div>
+                    <button class="btn-delete-notification" data-id="${notif.id}" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;padding:4px;">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
                 </div>
             `;
         });
         container.innerHTML = html;
+        
+        // ⭐ EVENTO PARA DELETAR NOTIFICAÇÃO INDIVIDUAL
+        container.querySelectorAll('.btn-delete-notification').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                await this.deleteNotification(id);
+            });
+        });
+    }
+    
+    // ============================================
+    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL (DO SUPABASE)
+    // ============================================
+    async deleteNotification(id) {
+        try {
+            const client = this.getSupabase();
+            if (client && this.user) {
+                // Deletar do Supabase
+                const { error } = await client
+                    .from('notifications')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', this.user.id);
+
+                if (error) {
+                    console.error('[SPA] ❌ Erro ao deletar notificação do Supabase:', error);
+                    // Tentar deletar localmente mesmo com erro
+                }
+            }
+
+            // Deletar localmente
+            this.data.notifications = this.data.notifications.filter(n => n.id != id);
+            
+            // Salvar no localStorage
+            if (this.user) {
+                const key = `${this.user.id}_notifications`;
+                localStorage.setItem(key, JSON.stringify(this.data.notifications));
+            }
+            
+            // Salvar no CacheManager
+            if (window.CacheManager) {
+                window.CacheManager.set('notifications', this.data.notifications, true);
+            }
+            
+            // Atualizar UI
+            this.updateBadge();
+            this.renderNotificationsModal();
+            
+            // Atualizar dashboard
+            if (this.modules.dashboard) {
+                this.modules.dashboard.renderNotifications();
+            }
+            
+            if (typeof showToast === 'function') {
+                showToast('🗑️ Notificação removida!', 'success');
+            }
+            
+            console.log('[SPA] ✅ Notificação deletada:', id);
+            
+        } catch (error) {
+            console.error('[SPA] ❌ Erro ao deletar notificação:', error);
+            if (typeof showToast === 'function') {
+                showToast('❌ Erro ao remover notificação', 'error');
+            }
+        }
+    }
+    
+    // ============================================
+    // ⭐ MARCAR TODAS COMO LIDAS (COM SUPABASE)
+    // ============================================
+    async marcarTodasComoLidas() {
+        try {
+            const naoLidas = this.data.notifications.filter(n => !n.read);
+            if (naoLidas.length === 0) {
+                if (typeof showToast === 'function') {
+                    showToast('✅ Todas as notificações já estão lidas!', 'info');
+                }
+                return;
+            }
+
+            const client = this.getSupabase();
+            if (client && this.user) {
+                // Atualizar no Supabase
+                const ids = naoLidas.map(n => n.id);
+                const { error } = await client
+                    .from('notifications')
+                    .update({ read: true })
+                    .in('id', ids)
+                    .eq('user_id', this.user.id);
+
+                if (error) {
+                    console.error('[SPA] ❌ Erro ao marcar como lidas no Supabase:', error);
+                }
+            }
+
+            // Atualizar localmente
+            this.data.notifications.forEach(n => {
+                if (!n.read) n.read = true;
+            });
+
+            // Salvar no localStorage
+            if (this.user) {
+                const key = `${this.user.id}_notifications`;
+                localStorage.setItem(key, JSON.stringify(this.data.notifications));
+            }
+
+            // Salvar no CacheManager
+            if (window.CacheManager) {
+                window.CacheManager.set('notifications', this.data.notifications, true);
+            }
+
+            // Atualizar UI
+            this.updateBadge();
+            this.renderNotificationsModal();
+
+            if (this.modules.dashboard) {
+                this.modules.dashboard.renderNotifications();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast('✅ Todas as notificações marcadas como lidas!', 'success');
+            }
+
+        } catch (error) {
+            console.error('[SPA] ❌ Erro ao marcar como lidas:', error);
+            if (typeof showToast === 'function') {
+                showToast('❌ Erro ao marcar como lidas', 'error');
+            }
+        }
+    }
+    
+    // ============================================
+    // ⭐ LIMPAR TODAS AS NOTIFICAÇÕES (DO SUPABASE)
+    // ============================================
+    async limparTodasNotificacoes() {
+        if (!confirm('Limpar todas as notificações?')) return;
+
+        try {
+            const client = this.getSupabase();
+            if (client && this.user) {
+                // Deletar todas do Supabase
+                const { error } = await client
+                    .from('notifications')
+                    .delete()
+                    .eq('user_id', this.user.id);
+
+                if (error) {
+                    console.error('[SPA] ❌ Erro ao limpar notificações do Supabase:', error);
+                }
+            }
+
+            // Limpar localmente
+            this.data.notifications = [];
+
+            // Salvar no localStorage
+            if (this.user) {
+                const key = `${this.user.id}_notifications`;
+                localStorage.setItem(key, JSON.stringify(this.data.notifications));
+            }
+
+            // Salvar no CacheManager
+            if (window.CacheManager) {
+                window.CacheManager.set('notifications', this.data.notifications, true);
+            }
+
+            // Atualizar UI
+            this.updateBadge();
+            this.renderNotificationsModal();
+
+            if (this.modules.dashboard) {
+                this.modules.dashboard.renderNotifications();
+            }
+
+            if (typeof showToast === 'function') {
+                showToast('🗑️ Todas as notificações removidas!', 'success');
+            }
+
+        } catch (error) {
+            console.error('[SPA] ❌ Erro ao limpar notificações:', error);
+            if (typeof showToast === 'function') {
+                showToast('❌ Erro ao limpar notificações', 'error');
+            }
+        }
     }
     
     // ============================================
@@ -1069,26 +1375,14 @@ class App {
             document.getElementById('notifications-modal').classList.remove('active');
         });
         
+        // ⭐ MARCAR TODAS COMO LIDAS (CORRIGIDO)
         document.getElementById('btn-mark-read')?.addEventListener('click', () => {
-            this.data.notifications.forEach(n => n.read = true);
-            this.saveAllData();
-            this.updateBadge();
-            this.renderNotificationsModal();
-            if (this.modules.dashboard) {
-                this.modules.dashboard.render(this.data);
-            }
+            this.marcarTodasComoLidas();
         });
         
+        // ⭐ LIMPAR TODAS (CORRIGIDO)
         document.getElementById('btn-clear-all')?.addEventListener('click', () => {
-            if (confirm('Limpar todas as notificações?')) {
-                this.data.notifications = [];
-                this.saveAllData();
-                this.updateBadge();
-                this.renderNotificationsModal();
-                if (this.modules.dashboard) {
-                    this.modules.dashboard.render(this.data);
-                }
-            }
+            this.limparTodasNotificacoes();
         });
         
         document.querySelectorAll('.notification-tab').forEach(tab => {
@@ -1149,7 +1443,6 @@ class App {
             }
         });
         
-        // ⭐ EVENTO PARA FORÇAR SINCronização DO HORÁRIO
         window.addEventListener('scheduleUpdated', (e) => {
             console.log('[SPA] 📡 Horário atualizado via evento');
             if (e.detail) {
@@ -1162,11 +1455,10 @@ class App {
             }
         });
 
-        // ⭐⭐⭐ NOVOS LISTENERS PARA NOTIFICAÇÕES EM TEMPO REAL ⭐⭐⭐
+        // ⭐ NOVAS NOTIFICAÇÕES EM TEMPO REAL
         window.addEventListener('newNotification', (e) => {
             console.log('[App] 📬 Nova notificação recebida via Realtime!');
             
-            // Buscar a notificação do Supabase
             if (this.user && this.getSupabase()) {
                 this.getSupabase()
                     .from('notifications')
@@ -1185,21 +1477,17 @@ class App {
                                 time: n.created_at
                             }));
                             
-                            // Atualizar dados
                             this.data.notifications = notificacoes;
                             
-                            // Salvar no cache
                             if (window.CacheManager) {
                                 window.CacheManager.set('notifications', notificacoes, true);
                             }
                             
-                            // Atualizar UI
                             if (this.modules.dashboard) {
                                 this.modules.dashboard.renderNotifications();
                             }
                             this.updateBadge();
                             
-                            // Mostrar toast
                             if (data.length > 0 && typeof showToast === 'function') {
                                 showToast(`📬 ${data[0].title || 'Nova notificação'}`, 'info');
                             }
@@ -1212,7 +1500,6 @@ class App {
         window.addEventListener('notificationsUpdated', () => {
             console.log('[App] 📬 Notificações atualizadas!');
             
-            // Recarregar do Supabase
             if (this.user && this.getSupabase()) {
                 this.getSupabase()
                     .from('notifications')
@@ -1247,43 +1534,12 @@ class App {
 
         // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE AO INICIAR
         setTimeout(() => {
-            if (this.user && this.getSupabase()) {
-                this.getSupabase()
-                    .from('notifications')
-                    .select('*')
-                    .eq('user_id', this.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(20)
-                    .then(({ data, error }) => {
-                        if (!error && data && data.length > 0) {
-                            const notificacoes = data.map(n => ({
-                                id: n.id,
-                                title: n.title || 'Notificação',
-                                message: n.message || '',
-                                type: n.type || 'info',
-                                read: n.read || false,
-                                time: n.created_at
-                            }));
-                            
-                            this.data.notifications = notificacoes;
-                            if (window.CacheManager) {
-                                window.CacheManager.set('notifications', notificacoes, true);
-                            }
-                            if (this.modules.dashboard) {
-                                this.modules.dashboard.renderNotifications();
-                            }
-                            this.updateBadge();
-                            console.log('[App] ✅ Notificações carregadas do Supabase:', notificacoes.length);
-                        }
-                    })
-                    .catch(err => console.warn('[App] ⚠️ Erro ao carregar notificações:', err));
-            }
+            this.loadNotificationsFromSupabase();
         }, 2000);
 
-        // ⭐⭐⭐ CONTROLE DO BOTÃO FLUTUANTE DA IA - OBSERVER ⭐⭐⭐
+        // ⭐ BOTÃO FLUTUANTE DA IA - OBSERVER
         const fabIa = document.getElementById('btn-open-ia');
         
-        // Observer para mudanças na view
         const observer = new MutationObserver(() => {
             const viewIa = document.getElementById('view-ia');
             if (fabIa) {
@@ -1295,12 +1551,10 @@ class App {
             }
         });
 
-        // Observar mudanças na classe das views
         document.querySelectorAll('.view').forEach(view => {
             observer.observe(view, { attributes: true, attributeFilter: ['class'] });
         });
 
-        // Verificação inicial
         setTimeout(() => {
             const viewIa = document.getElementById('view-ia');
             if (fabIa) {
@@ -1323,4 +1577,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-console.log('[SPA] ✅ app.js carregado!');
+console.log('[SPA] ✅ app.js carregado (corrigido - notificações e notas)!');
