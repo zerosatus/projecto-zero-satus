@@ -1066,61 +1066,6 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>
-// Proxy inline - faz a chamada diretamente com CORS bypass
-window.proxyCall = async function(provider, prompt, context = '') {
-    const configs = {
-        grok: {
-            url: 'https://api.x.ai/v1/chat/completions',
-            key: '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',
-            model: 'grok-beta'
-        },
-        sambanova: {
-            url: 'https://api.sambanova.ai/v1/chat/completions',
-            key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
-            model: 'Llama-3.1-70B-Instruct'
-        }
-    };
-
-    const config = configs[provider];
-    if (!config) {
-        return { success: false, error: 'Provedor não suportado' };
-    }
-
-    try {
-        // Tenta com CORS proxy primeiro
-        const corsUrl = 'https://cors-anywhere.herokuapp.com/';
-        const response = await fetch(corsUrl + config.url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${config.key}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: config.model,
-                messages: [
-                    { role: 'system', content: context || 'Você é um assistente educacional útil.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 1024
-            })
-        });
-
-        const data = await response.json();
-        const text = data.choices?.[0]?.message?.content;
-
-        if (!text) {
-            return { success: false, error: 'Resposta vazia' };
-        }
-
-        return { success: true, text: text.trim() };
-
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-};
-</script>
 
 <script>
 // multi-ai-service.js - VERSÃO CORRIGIDA COM DEBUG COMPLETO
