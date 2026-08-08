@@ -1,5 +1,9 @@
-// api/proxy.js - Proxy para APIs de IA (resolve CORS)
+// api/proxy.js - Proxy para APIs de IA
 export default async function handler(req, res) {
+    // ⭐ LOG PARA DEBUG
+    console.log('[Proxy] 📥 Requisição recebida:', req.method, req.url);
+    console.log('[Proxy] 📦 Body:', req.body);
+
     // Permitir CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -15,101 +19,116 @@ export default async function handler(req, res) {
 
     const { provider, prompt, context, model } = req.body;
 
-    // ⭐ CHAVES DAS APIS (armazenadas no backend - SEGURAS)
+    if (!provider) {
+        return res.status(400).json({ error: 'Provider é obrigatório' });
+    }
+
+    if (!prompt) {
+        return res.status(400).json({ error: 'Prompt é obrigatório' });
+    }
+
+    // ⭐ CHAVES DAS APIS
     const PROVIDER_CONFIG = {
         grok: {
             url: 'https://api.x.ai/v1/chat/completions',
             key: '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',
-            model: 'grok-beta',
-            headers: (key) => ({
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json'
-            })
+            model: 'grok-beta'
         },
         sambanova: {
             url: 'https://api.sambanova.ai/v1/chat/completions',
             key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
-            model: 'Llama-3.1-70B-Instruct',
-            headers: (key) => ({
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json'
-            })
+            model: 'Llama-3.1-70B-Instruct'
         },
         deepseek: {
             url: 'https://api.deepseek.com/v1/chat/completions',
             key: 'sk-e528baf9102b44f59696badf598dbc4b',
-            model: 'deepseek-chat',
-            headers: (key) => ({
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json'
-            })
+            model: 'deepseek-chat'
         },
         openrouter: {
             url: 'https://openrouter.ai/api/v1/chat/completions',
             key: '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',
-            model: 'openrouter/free',
-            headers: (key) => ({
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://zerosatus.vercel.app',
-                'X-Title': 'Zero Satus App'
-            })
+            model: 'openrouter/free'
         }
     };
 
     const config = PROVIDER_CONFIG[provider];
     if (!config) {
-        return res.status(400).json({ error: 'Provedor não suportado' });
+        return res.status(400).json({ error: 'Provedor não suportado: ' + provider });
     }
 
     try {
         console.log(`[Proxy] 📤 Enviando para ${provider}...`);
 
+        const headers = {
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json'
+        };
+
+        if (provider === 'openrouter') {
+            headers['HTTP-Referer'] = 'https://zerosatus.vercel.app';
+            headers['X-Title'] = 'Zero Satus App';
+        }
+
         const response = await fetch(config.url, {
             method: 'POST',
-            headers: config.headers(config.key),
+            headers: headers,
             body: JSON.stringify({
                 model: model || config.model,
                 messages: [
-                    { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                    { role: 'system', content: context || 'Você é um assistente educacional útil. Responda de forma clara e didática.' },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.7,
-                max_tokens: 1024
+                max_tokens: 1024,
+                top_p: 0.9
             })
         });
 
-        const data = await response.json();
+        // ⭐ LER RESPOSTA COMO TEXTO PRIMEIRO
+        const textResponse = await response.text();
+        console.log(`[Proxy] 📥 ${provider} Status:`, response.status);
+        console.log(`[Proxy] 📥 ${provider} Resposta (primeiros 200 chars):`, textResponse.substring(0, 200));
+
+        let data;
+        try {
+            data = JSON.parse(textResponse);
+        } catch (e) {
+            console.error(`[Proxy] ❌ ${provider} resposta não-JSON:`, textResponse);
+            return res.status(500).json({ error: 'Resposta inválida da API', raw: textResponse.substring(0, 500) });
+        }
 
         if (!response.ok) {
             console.error(`[Proxy] ❌ ${provider} Erro:`, data);
             
-            // ⭐ DETECTAR LIMITE EXCEDIDO
             if (response.status === 429 || 
                 data.error?.message?.toLowerCase().includes('rate limit') ||
                 data.error?.message?.toLowerCase().includes('quota') ||
-                data.error?.message?.toLowerCase().includes('exceeded')) {
+                data.error?.message?.toLowerCase().includes('exceeded') ||
+                data.error?.message?.toLowerCase().includes('too many')) {
                 return res.status(429).json({ error: 'Limite excedido', limitExceeded: true });
             }
 
-            if (response.status === 402) {
+            if (response.status === 402 || 
+                data.error?.message?.toLowerCase().includes('insufficient balance') ||
+                data.error?.message?.toLowerCase().includes('saldo insuficiente')) {
                 return res.status(402).json({ error: 'Saldo insuficiente', limitExceeded: true });
             }
 
             return res.status(response.status).json({
-                error: data.error?.message || 'Erro na API'
+                error: data.error?.message || data.message || 'Erro na API',
+                provider: provider
             });
         }
 
-        // Extrair texto da resposta
         let text = data.choices?.[0]?.message?.content || null;
 
         if (!text) {
+            console.error(`[Proxy] ❌ ${provider} resposta sem conteúdo:`, data);
             return res.status(500).json({ error: 'Resposta inesperada' });
         }
 
-        console.log(`[Proxy] ✅ ${provider} respondeu com sucesso!`);
-        return res.status(200).json({ success: true, text, provider });
+        console.log(`[Proxy] ✅ ${provider} respondeu com sucesso! (${text.length} caracteres)`);
+        return res.status(200).json({ success: true, text: text.trim(), provider });
 
     } catch (error) {
         console.error(`[Proxy] ❌ Erro ${provider}:`, error.message);
