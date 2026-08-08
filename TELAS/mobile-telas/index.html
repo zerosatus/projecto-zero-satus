@@ -1066,11 +1066,12 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>// multi-ai-service.js - SEM PROXY (chamada direta)
-// ⚠️ ATENÇÃO: As chaves das APIs ficam expostas no frontend!
+<script>// ============================================
+// multi-ai-service.js - APENAS GROK + SAMBANOVA
+// SEM PROXY - CHAMADA DIRETA
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO SEM PROXY...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO (Grok + SambaNova - SEM PROXY)...');
 
 class MultiAIService {
     constructor() {
@@ -1107,32 +1108,6 @@ class MultiAIService {
             model: 'Llama-3.1-70B-Instruct',
             usoHoje: 0,
             limiteDiario: 40
-        });
-        
-        // 🔥 DEEPSEEK (prioridade 3)
-        this.providers.push({
-            name: 'DeepSeek',
-            key: 'sk-e528baf9102b44f59696badf598dbc4b',
-            url: 'https://api.deepseek.com/v1/chat/completions',
-            model: 'deepseek-chat',
-            usoHoje: 0,
-            limiteDiario: 50
-        });
-        
-        // 🔥 OPENROUTER (prioridade 4)
-        this.providers.push({
-            name: 'OpenRouter',
-            key: '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',
-            url: 'https://openrouter.ai/api/v1/chat/completions',
-            model: 'openrouter/free',
-            usoHoje: 0,
-            limiteDiario: 20,
-            headers: (key) => ({
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://zerosatus.vercel.app',
-                'X-Title': 'Zero Satus App'
-            })
         });
     }
     
@@ -1221,19 +1196,19 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // Embaralhar para variar os provedores
-        const shuffled = this._shuffleProviders();
+        // ⭐ PRIORIDADE: Grok primeiro, depois SambaNova
+        const providers = this.providers;
         let lastError = null;
         
-        for (let i = 0; i < shuffled.length; i++) {
-            const provider = shuffled[i];
+        for (let i = 0; i < providers.length; i++) {
+            const provider = providers[i];
             
             if (provider.usoHoje >= provider.limiteDiario) {
                 console.log(`[MultiAI] ⏭️ ${provider.name} atingiu limite (${provider.usoHoje}/${provider.limiteDiario})`);
                 continue;
             }
             
-            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${shuffled.length})...`);
+            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${providers.length})...`);
             
             try {
                 const result = await this._tryProvider(provider, prompt, context);
@@ -1252,6 +1227,12 @@ class MultiAIService {
                     };
                 }
                 
+                // ⭐ DETECTAR ERRO DE CORS - NÃO TENTAR NOVAMENTE
+                if (result.corsError) {
+                    console.log(`[MultiAI] 🚫 ${provider.name} bloqueado por CORS - pulando`);
+                    continue;
+                }
+                
                 if (result.limitExceeded) {
                     provider.usoHoje = provider.limiteDiario;
                     console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite real`);
@@ -1267,6 +1248,7 @@ class MultiAIService {
             }
         }
         
+        // Se chegou aqui, todos falharam ou estão em limite
         console.log('[MultiAI] 📦 Usando fallback offline');
         const fallback = this._getFallbackResponse(prompt, context);
         return { 
@@ -1277,36 +1259,18 @@ class MultiAIService {
         };
     }
     
-    _shuffleProviders() {
-        const shuffled = [...this.providers];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        return shuffled;
-    }
-    
     async _tryProvider(provider, prompt, context) {
         const timeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
         );
         
         try {
-            // Headers base
-            const headers = {
-                'Authorization': `Bearer ${provider.key}`,
-                'Content-Type': 'application/json'
-            };
-            
-            // Headers especiais para OpenRouter
-            if (provider.name === 'OpenRouter') {
-                headers['HTTP-Referer'] = 'https://zerosatus.vercel.app';
-                headers['X-Title'] = 'Zero Satus App';
-            }
-            
             const fetchPromise = fetch(provider.url, {
                 method: 'POST',
-                headers: headers,
+                headers: {
+                    'Authorization': `Bearer ${provider.key}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     model: provider.model,
                     messages: [
@@ -1327,12 +1291,19 @@ class MultiAIService {
             try {
                 data = await response.json();
             } catch (e) {
+                // ⭐ SE NÃO FOR JSON, PODE SER CORS OU ERRO DE REDE
                 const text = await response.text();
                 console.error(`[MultiAI] ❌ ${provider.name} resposta não-JSON:`, text.substring(0, 200));
+                
+                // ⭐ DETECTAR CORS
+                if (text.includes('CORS') || text.includes('blocked') || text.includes('preflight')) {
+                    return { success: false, error: 'CORS bloqueado', corsError: true };
+                }
                 return { success: false, error: 'Resposta inválida do servidor' };
             }
             
             if (!response.ok) {
+                // ⭐ DETECTAR LIMITE EXCEDIDO
                 const isLimit = response.status === 429 || 
                     response.status === 402 ||
                     data.error?.message?.toLowerCase().includes('rate limit') ||
@@ -1365,8 +1336,11 @@ class MultiAIService {
             return { success: true, text: text.trim() };
             
         } catch (error) {
+            // ⭐ DETECTAR CORS EM ERROS DE REDE
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                return { success: false, error: 'Erro de rede - verifique sua conexão' };
+                const corsMsg = 'Erro de rede - verifique CORS ou conexão';
+                console.warn(`[MultiAI] 🚫 ${provider.name} - possível CORS:`, error.message);
+                return { success: false, error: corsMsg, corsError: true };
             }
             if (error.message.includes('Timeout')) {
                 return { success: false, error: 'Tempo esgotado - tente novamente' };
@@ -1458,8 +1432,8 @@ window.getLimiteIA = () => {
     };
 };
 
-console.log('[MultiAI] ✅ Serviço SEM PROXY carregado!');
-console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis (chamada direta):`);
+console.log('[MultiAI] ✅ Serviço (Grok + SambaNova - SEM PROXY) carregado!');
+console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis:`);
 multiAI.providers.forEach(p => {
     console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia (DIRETO)`);
 });</script>
