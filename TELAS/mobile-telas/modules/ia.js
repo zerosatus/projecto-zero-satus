@@ -1,5 +1,5 @@
 // ============================================
-// modules/ia.js - MÓDULO DA IA COM CONTROLE DE GÍRIA E LIMITE
+// modules/ia.js - MÓDULO DA IA COM MULTI-API
 // ============================================
 
 class IAModule {
@@ -11,7 +11,7 @@ class IAModule {
         this._isProcessing = false;
         this._modoGiria = false;
         this._ultimaMensagem = '';
-        console.log('[IA] 🤖 Inicializado com controle de gíria');
+        console.log('[IA] 🤖 Inicializado com Multi-API (Grok + SambaNova + DeepSeek + OpenRouter)');
     }
 
     // ============================================
@@ -44,7 +44,7 @@ class IAModule {
                         <strong>"fala normal"</strong> para desativar
                     </p>
                     <p style="font-size:0.6rem;color:var(--text-secondary);margin-top:4px;" id="ia-limite-status">
-                        💬 ${window.getLimiteIA ? window.getLimiteIA().restante : '?'}/20 perguntas hoje
+                        💬 ${window.getLimiteIA ? window.getLimiteIA().restante : '?'} perguntas hoje
                     </p>
                 </div>
             `;
@@ -201,7 +201,19 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         
         if (window.getLimiteIA) {
             const info = window.getLimiteIA();
-            limiteEl.textContent = `💬 ${info.restante}/${info.maximo} perguntas hoje`;
+            let statusText = `💬 ${info.restante}/${info.maximo} perguntas hoje`;
+            
+            // ⭐ MOSTRAR STATUS DETALHADO DOS PROVEDORES
+            if (info.providers) {
+                const detalhes = info.providers.map(p => 
+                    `${p.name}: ${p.disponivel ? '✅' : '⛔'} ${p.usoHoje}/${p.limiteDiario}`
+                ).join(' | ');
+                limiteEl.textContent = `${statusText} (${detalhes})`;
+                limiteEl.title = detalhes;
+            } else {
+                limiteEl.textContent = statusText;
+            }
+            
             limiteEl.style.color = info.restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
         }
     }
@@ -273,15 +285,19 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             
             let response;
 
-            const service = window.GeminiService || window.OpenRouterService;
+            // ⭐ USAR MULTI-AI SERVICE (com fallback automático)
+            const service = window.MultiAIService || window.GeminiService || window.OpenRouterService;
 
             if (service) {
-                console.log('[IA] 📤 Enviando para serviço... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+                console.log('[IA] 📤 Enviando para Multi-API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
                 const result = await service.sendMessage(text, context);
                 if (result.success) {
                     response = result.text;
                     if (result.fromCache) {
                         response += '\n\n*(Resposta do cache)*';
+                    }
+                    if (result.provider) {
+                        response += `\n\n*(via ${result.provider})*`;
                     }
                 } else {
                     response = `❌ ${result.error}`;
@@ -314,7 +330,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ FALLBACK
+    // ⭐ FALLBACK (usado apenas se o serviço não existir)
     // ============================================
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
@@ -478,4 +494,4 @@ function fallbackCopy(text, element) {
 }
 
 console.log('[IA] ✅ Função copyMessage registrada globalmente');
-console.log('[IA] ✅ Módulo carregado com controle de gíria e limite de 20 perguntas!');
+console.log('[IA] ✅ Módulo carregado com Multi-API (Grok + SambaNova + DeepSeek + OpenRouter)!');
