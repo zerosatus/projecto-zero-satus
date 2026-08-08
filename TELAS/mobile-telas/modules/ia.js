@@ -420,13 +420,15 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         console.log('[IA] ✅ Eventos configurados! Modo:', this._modoGiria ? 'Gíria' : 'Normal');
     }
 
-    // ============================================
-    // ⭐ NOSSO: HEADER COM ☰ + AVATAR ONLINE
+       // ============================================
+    // ⭐ NOSSO: HEADER COM ☰ (SEM avatar, voltar à direita)
     // ============================================
     upgradeHeader() {
         const header = document.querySelector('#view-ia .ia-header');
         if (!header || header.classList.contains('upgraded')) return;
         header.classList.add('upgraded');
+
+        const backBtn = document.getElementById('btn-back-ia');
 
         const menuBtn = document.createElement('button');
         menuBtn.className = 'ia-menu-btn';
@@ -434,13 +436,17 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         menuBtn.title = 'Abrir conversas';
         menuBtn.addEventListener('click', () => this.abrirPainel());
 
-        const avatar = document.createElement('div');
-        avatar.className = 'ia-avatar';
-        avatar.innerHTML = IA_SPARKLES_SVG + '<span class="ia-online"></span>';
-
-        // ⭐ Só ADICIONA no começo — não remove nada do parceiro
-        header.insertBefore(avatar, header.firstChild);
+        // ⭐ Só ADICIONA o menu no começo — não remove nada do parceiro
         header.insertBefore(menuBtn, header.firstChild);
+
+        // ⭐ BOTÃO DE VOLTAR NO OUTRO LADO (direita)
+        if (backBtn) {
+            backBtn.style.marginLeft = 'auto';
+            header.appendChild(backBtn);
+        }
+
+        // ⭐ REMOVE avatar/bolinha de versões anteriores (se existir)
+        header.querySelectorAll('.ia-avatar').forEach(a => a.remove());
     }
 
     // ============================================
