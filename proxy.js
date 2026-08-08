@@ -1,4 +1,6 @@
-// api/proxy.js - Proxy para APIs de IA
+// api/proxy.js - Proxy para APIs de IA (CORRIGIDO)
+// ============================================
+
 export default async function handler(req, res) {
     // ⭐ LOG PARA DEBUG
     console.log('[Proxy] 📥 Requisição recebida:', req.method, req.url);
@@ -38,16 +40,6 @@ export default async function handler(req, res) {
             url: 'https://api.sambanova.ai/v1/chat/completions',
             key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
             model: 'Llama-3.1-70B-Instruct'
-        },
-        deepseek: {
-            url: 'https://api.deepseek.com/v1/chat/completions',
-            key: 'sk-e528baf9102b44f59696badf598dbc4b',
-            model: 'deepseek-chat'
-        },
-        openrouter: {
-            url: 'https://openrouter.ai/api/v1/chat/completions',
-            key: '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',
-            model: 'openrouter/free'
         }
     };
 
@@ -63,11 +55,6 @@ export default async function handler(req, res) {
             'Authorization': `Bearer ${config.key}`,
             'Content-Type': 'application/json'
         };
-
-        if (provider === 'openrouter') {
-            headers['HTTP-Referer'] = 'https://zerosatus.vercel.app';
-            headers['X-Title'] = 'Zero Satus App';
-        }
 
         const response = await fetch(config.url, {
             method: 'POST',
