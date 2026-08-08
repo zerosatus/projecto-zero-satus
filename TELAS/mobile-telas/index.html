@@ -328,8 +328,11 @@
 
     <!-- Aviso no rodapé com dica dos comandos -->
     <div class="ia-footer-warning">
-        <span>💬 Digite <strong>"fala com gíria"</strong> para ativar ou <strong>"fala normal"</strong> para desativar • Use com responsabilidade! 🧠</span>
-    </div>
+    <span>💬 Digite <strong>"fala com gíria"</strong> para ativar ou <strong>"fala normal"</strong> para desativar</span>
+    <span id="ia-limite-status" style="display:block;font-size:0.6rem;color:var(--text-secondary);margin-top:4px;">
+        💬 Carregando limite...
+    </span>
+</div>
 </section>
 
     </main>
@@ -1065,7 +1068,8 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// openrouter-service.js - VERSÃO CORRIGIDA (COM SUPORTE A MODO NORMAL/GÍRIA)
+// openrouter-service.js - VERSÃO CORRIGIDA
+// COM LIMITE DE 20 PERGUNTAS POR DIA
 // ============================================
 
 console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
@@ -1074,6 +1078,11 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
     'use strict';
     
     try {
+        // ⭐ LIMITE DE 20 PERGUNTAS POR DIA
+        const LIMITE_DIARIO = 20;
+        const CHAVE_LIMITE = 'openrouter_uso_diario';
+        const CHAVE_DATA = 'openrouter_data_uso';
+
         class OpenRouterService {
             constructor() {
                 this.apiKey = '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';
@@ -1081,16 +1090,9 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                 
                 // ⭐ MODELOS GRATUITOS CONFIRMADOS (Agosto 2026)
                 this.models = [
-                    // ⭐ ROTEADORES OFICIAIS (RECOMENDADOS)
                     'openrouter/free',
                     'openrouter/free-coder',
                     'openrouter/free-large',
-                    
-                    // ⭐ MODELOS ESPECÍFICOS (FALLBACK)
-                    'nvidia/nemotron-3-ultra:free',
-                    'nvidia/nemotron-3-super:free',
-                    'poolside/laguna-s-2.1:free',
-                    'cohere/north-mini-code:free',
                     'google/gemini-2.0-flash-exp:free',
                     'google/gemma-4-26b-a4b:free',
                     'meta-llama/llama-3.3-70b-instruct:free',
@@ -1098,26 +1100,116 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                     'deepseek/deepseek-r1:free',
                     'qwen/qwen-3-coder:free',
                     'qwen/qwen-3-next-80b-a3b:free',
-                    'openrouter/quasar-alpha:free',
-                    'openrouter/cypher-alpha:free',
-                    'openrouter/optimus-alpha:free',
-                    'moonshotai/kimi-k2:free',
-                    'inclusionai/ling-2.6-flash:free'
+                    'microsoft/phi-3.5-mini-128k:free',
+                    'mistralai/mistral-7b-instruct:free',
+                    'nvidia/nemotron-3-ultra:free',
+                    'cohere/north-mini-code:free'
                 ];
+                
+                // ⭐ CACHE DE RESPOSTAS
+                this._cache = new Map();
+                this._cacheMaxSize = 50;
+                
+                // ⭐ INICIALIZAR LIMITE
+                this._resetarLimiteDiario();
                 
                 console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
                 console.log(`[OpenRouter] 📦 ${this.models.length} modelos disponíveis`);
+                console.log(`[OpenRouter] 📊 Limite diário: ${LIMITE_DIARIO} perguntas`);
+                console.log(`[OpenRouter] 📊 Uso hoje: ${this.getUsoHoje()}/${LIMITE_DIARIO}`);
             }
             
             // ============================================
-            // ⭐ SEND MESSAGE (CORRIGIDO - USA O CONTEXTO PASSADO)
+            // ⭐ GERENCIAR LIMITE DIÁRIO
             // ============================================
+            
+            _resetarLimiteDiario() {
+                const hoje = new Date().toDateString();
+                const dataSalva = localStorage.getItem(CHAVE_DATA);
+                
+                if (dataSalva !== hoje) {
+                    localStorage.setItem(CHAVE_DATA, hoje);
+                    localStorage.setItem(CHAVE_LIMITE, '0');
+                    console.log('[OpenRouter] 📅 Novo dia! Limite resetado.');
+                }
+            }
+            
+            getUsoHoje() {
+                this._resetarLimiteDiario();
+                return parseInt(localStorage.getItem(CHAVE_LIMITE) || '0', 10);
+            }
+            
+            _incrementarUso() {
+                const uso = this.getUsoHoje();
+                localStorage.setItem(CHAVE_LIMITE, String(uso + 1));
+                console.log(`[OpenRouter] 📊 Uso: ${uso + 1}/${LIMITE_DIARIO}`);
+            }
+            
+            temLimiteDisponivel() {
+                return this.getUsoHoje() < LIMITE_DIARIO;
+            }
+            
+            getLimiteRestante() {
+                return Math.max(0, LIMITE_DIARIO - this.getUsoHoje());
+            }
+            
+            // ============================================
+            // ⭐ CACHE DE RESPOSTAS
+            // ============================================
+            
+            _getCacheKey(prompt, context) {
+                return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
+            }
+            
+            _getFromCache(prompt, context) {
+                const key = this._getCacheKey(prompt, context);
+                if (this._cache.has(key)) {
+                    const item = this._cache.get(key);
+                    if (Date.now() - item.timestamp < 3600000) {
+                        console.log('[OpenRouter] 📦 Resposta do cache!');
+                        return item.value;
+                    }
+                    this._cache.delete(key);
+                }
+                return null;
+            }
+            
+            _saveToCache(prompt, context, response) {
+                const key = this._getCacheKey(prompt, context);
+                this._cache.set(key, {
+                    value: response,
+                    timestamp: Date.now()
+                });
+                
+                if (this._cache.size > this._cacheMaxSize) {
+                    const keys = Array.from(this._cache.keys());
+                    const oldest = keys.sort((a, b) => 
+                        this._cache.get(a).timestamp - this._cache.get(b).timestamp
+                    )[0];
+                    this._cache.delete(oldest);
+                }
+            }
+            
+            // ============================================
+            // ⭐ SEND MESSAGE
+            // ============================================
+            
             async sendMessage(prompt, context = '') {
                 console.log('[OpenRouter] 📤 Enviando mensagem...');
                 console.log('[OpenRouter] 📝 Prompt:', prompt.substring(0, 60) + '...');
-                console.log('[OpenRouter] 📋 Contexto recebido (primeiras 100 caracteres):', context.substring(0, 100));
                 
-                // ⭐ TENTA CADA MODELO ATÉ UM FUNCIONAR
+                if (!this.temLimiteDisponivel()) {
+                    return { 
+                        success: false, 
+                        error: `⛔ Limite diário de ${LIMITE_DIARIO} perguntas atingido! Volte amanhã.` 
+                    };
+                }
+                
+                const cached = this._getFromCache(prompt, context);
+                if (cached) {
+                    return { success: true, text: cached, fromCache: true };
+                }
+                
                 for (let i = 0; i < this.models.length; i++) {
                     const model = this.models[i];
                     console.log(`[OpenRouter] 🔄 Tentando modelo ${i+1}/${this.models.length}: ${model}`);
@@ -1125,6 +1217,8 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
                     try {
                         const result = await this.tryModel(model, prompt, context);
                         if (result.success) {
+                            this._incrementarUso();
+                            this._saveToCache(prompt, context, result.text);
                             return result;
                         }
                         console.log(`[OpenRouter] ⚠️ Modelo ${model} falhou:`, result.error);
@@ -1140,11 +1234,10 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO CORRIGIDA...');
             }
             
             // ============================================
-            // ⭐ TRY MODEL (CORRIGIDO - USA O CONTEXTO COMPLETO)
+            // ⭐ TRY MODEL
             // ============================================
+            
             async tryModel(model, prompt, context) {
-                // ⭐ O CONTEXTO JÁ VEM DO IA.JS COM AS INSTRUÇÕES DE ESTILO
-                // NÃO PRECISA ADICIONAR MAIS INSTRUÇÕES AQUI
                 const fullPrompt = `
 ${context}
 
@@ -1210,7 +1303,7 @@ Resposta:
                 
                 if (data.choices && data.choices.length > 0) {
                     const text = data.choices[0].message.content;
-                    return { success: true, text: text };
+                    return { success: true, text: text, model: model };
                 }
 
                 return { success: false, error: 'Resposta inesperada da IA' };
@@ -1220,22 +1313,32 @@ Resposta:
         console.log('[OpenRouter] 📦 Criando instância...');
         const service = new OpenRouterService();
 
-        // ⭐ EXPORTAR PARA O WINDOW
         window.OpenRouterService = service;
         window.GeminiService = service;
 
+        window.getLimiteIA = () => {
+            return {
+                usado: service.getUsoHoje(),
+                maximo: LIMITE_DIARIO,
+                restante: service.getLimiteRestante(),
+                reset: () => {
+                    localStorage.setItem(CHAVE_DATA, new Date().toDateString());
+                    localStorage.setItem(CHAVE_LIMITE, '0');
+                    console.log('[OpenRouter] 📅 Limite resetado manualmente');
+                }
+            };
+        };
+
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
         console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
-        console.log('[OpenRouter] 📌 Modo: Respeita as instruções de estilo do contexto');
+        console.log(`[OpenRouter] 📊 Limite: ${LIMITE_DIARIO} perguntas/dia`);
         
-        // ⭐ DISPARAR EVENTO
         window.dispatchEvent(new CustomEvent('openrouterLoaded', { 
             detail: { service } 
         }));
         
     } catch (error) {
         console.error('[OpenRouter] ❌ ERRO FATAL:', error);
-        // ⭐ FALLBACK
         window.OpenRouterService = {
             sendMessage: async () => ({ 
                 success: false, 
