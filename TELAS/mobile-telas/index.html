@@ -1066,10 +1066,11 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>// multi-ai-service.js - APENAS GROK + SAMBANOVA
+<script>// multi-ai-service.js - SEM PROXY (chamada direta às APIs)
+// ⚠️ ATENÇÃO: Chaves ficam expostas no frontend!
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API (Grok + SambaNova)...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO SEM PROXY...');
 
 class MultiAIService {
     constructor() {
@@ -1082,7 +1083,7 @@ class MultiAIService {
         
         this._registerProviders();
         
-        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados (Grok + SambaNova)`);
+        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados (SEM PROXY)`);
         this._resetarLimite();
         console.log('[MultiAI] 📊 Status inicial:', this.getStatus());
     }
@@ -1092,14 +1093,8 @@ class MultiAIService {
         this.providers.push({
             name: 'Grok',
             key: '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',
-            url: '/api/proxy',
+            url: 'https://api.x.ai/v1/chat/completions',
             model: 'grok-beta',
-            body: (prompt, context) => ({
-                provider: 'grok',
-                prompt: prompt,
-                context: context || '',
-                model: 'grok-beta'
-            }),
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 30
@@ -1109,14 +1104,8 @@ class MultiAIService {
         this.providers.push({
             name: 'SambaNova',
             key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
-            url: '/api/proxy',
+            url: 'https://api.sambanova.ai/v1/chat/completions',
             model: 'Llama-3.1-70B-Instruct',
-            body: (prompt, context) => ({
-                provider: 'sambanova',
-                prompt: prompt,
-                context: context || '',
-                model: 'Llama-3.1-70B-Instruct'
-            }),
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 40
@@ -1208,15 +1197,12 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ PRIORIDADE: Grok primeiro, depois SambaNova
         const providers = this.providers;
         let lastError = null;
-        let allFailed = true;
         
         for (let i = 0; i < providers.length; i++) {
             const provider = providers[i];
             
-            // Verificar se o provedor já usou todas as perguntas
             if (provider.usoHoje >= provider.limiteDiario) {
                 console.log(`[MultiAI] ⏭️ ${provider.name} atingiu limite (${provider.usoHoje}/${provider.limiteDiario})`);
                 continue;
@@ -1233,7 +1219,6 @@ class MultiAIService {
                     this._saveToCache(prompt, context, result.text);
                     
                     console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
-                    allFailed = false;
                     return {
                         success: true,
                         text: result.text,
@@ -1242,7 +1227,6 @@ class MultiAIService {
                     };
                 }
                 
-                // Se o erro for de limite, marcar como usado
                 if (result.limitExceeded) {
                     provider.usoHoje = provider.limiteDiario;
                     console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite real`);
@@ -1258,8 +1242,7 @@ class MultiAIService {
             }
         }
         
-        // Se chegou aqui, todos falharam ou estão em limite
-        console.log('[MultiAI] 📦 Usando fallback offline (todos os provedores falharam)');
+        console.log('[MultiAI] 📦 Usando fallback offline');
         const fallback = this._getFallbackResponse(prompt, context);
         return { 
             success: true, 
@@ -1278,9 +1261,18 @@ class MultiAIService {
             const fetchPromise = fetch(provider.url, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${provider.key}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(provider.body(prompt, context))
+                body: JSON.stringify({
+                    model: provider.model,
+                    messages: [
+                        { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1024
+                })
             });
             
             const response = await Promise.race([fetchPromise, timeout]);
@@ -1293,20 +1285,15 @@ class MultiAIService {
             } catch (e) {
                 const text = await response.text();
                 console.error(`[MultiAI] ❌ ${provider.name} resposta não-JSON:`, text.substring(0, 200));
-                return { success: false, error: 'Resposta inválida do servidor' };
+                return { success: false, error: 'Resposta inválida' };
             }
             
             if (!response.ok) {
-                // ⭐ DETECTAR LIMITE EXCEDIDO
                 const isLimit = response.status === 429 || 
                     response.status === 402 ||
-                    data.limitExceeded ||
-                    data.error?.toLowerCase().includes('rate limit') ||
-                    data.error?.toLowerCase().includes('quota') ||
-                    data.error?.toLowerCase().includes('exceeded') ||
-                    data.error?.toLowerCase().includes('insufficient balance') ||
-                    data.error?.toLowerCase().includes('saldo insuficiente') ||
-                    data.error?.toLowerCase().includes('too many requests');
+                    data.error?.message?.toLowerCase().includes('rate limit') ||
+                    data.error?.message?.toLowerCase().includes('quota') ||
+                    data.error?.message?.toLowerCase().includes('exceeded');
                 
                 if (isLimit) {
                     return { success: false, error: 'Limite excedido', limitExceeded: true };
@@ -1316,38 +1303,21 @@ class MultiAIService {
                     return { success: false, error: '🔑 Chave inválida!' };
                 }
                 
-                if (response.status === 404) {
-                    return { success: false, error: 'Modelo não encontrado', modelError: true };
-                }
-                
                 return {
                     success: false,
-                    error: data.error || `Erro ${response.status}`
+                    error: data.error?.message || `Erro ${response.status}`
                 };
             }
             
-            if (data.success && data.text) {
-                return { success: true, text: data.text.trim() };
+            const text = data.choices?.[0]?.message?.content || null;
+            
+            if (!text) {
+                return { success: false, error: 'Resposta vazia' };
             }
             
-            if (data.error) {
-                const isLimit = data.error.toLowerCase().includes('limit') || 
-                    data.error.toLowerCase().includes('quota') ||
-                    data.error.toLowerCase().includes('exceeded') ||
-                    data.error.toLowerCase().includes('saldo');
-                
-                if (isLimit) {
-                    return { success: false, error: 'Limite excedido', limitExceeded: true };
-                }
-                return { success: false, error: data.error };
-            }
-            
-            return { success: false, error: 'Resposta inesperada' };
+            return { success: true, text: text.trim() };
             
         } catch (error) {
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                return { success: false, error: 'Erro de rede' };
-            }
             return { success: false, error: error.message };
         }
     }
@@ -1356,42 +1326,29 @@ class MultiAIService {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
-        const respostas = {
-            saudacao: isGiria 
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
-                : 'Olá! Como posso ajudar você hoje?',
-            
-            texto: isGiria
-                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
-                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
-            
-            matematica: isGiria
-                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
-                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
-            
-            estudo: isGiria
-                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.',
-            
-            padrao: isGiria
-                ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
-                : 'Desculpe, não entendi sua pergunta. Poderia reformular?'
-        };
-        
-        if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
-            return respostas.saudacao;
+        if (isGiria) {
+            if (texto.includes('oi') || texto.includes('olá')) {
+                return '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?';
+            }
+            if (texto.includes('estudar') || texto.includes('estudos')) {
+                return '🇲🇿 Bora estudar! A chave é consistência, maning. Faz um plano e segue firme! Tamos juntos! 💪';
+            }
+            if (texto.includes('tarefa') || texto.includes('dever')) {
+                return '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎';
+            }
+            return '🇲🇿 Boa pergunta, magaia! Tamos juntos!';
+        } else {
+            if (texto.includes('oi') || texto.includes('olá')) {
+                return 'Olá! Como posso ajudar você hoje?';
+            }
+            if (texto.includes('estudar') || texto.includes('estudos')) {
+                return 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.';
+            }
+            if (texto.includes('tarefa') || texto.includes('dever')) {
+                return 'Para gerenciar tarefas: priorize as mais urgentes e divida em pequenas etapas.';
+            }
+            return 'Desculpe, não entendi. Poderia reformular?';
         }
-        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
-            return respostas.texto;
-        }
-        if (texto.includes('matem') || texto.includes('conta') || texto.includes('soma')) {
-            return respostas.matematica;
-        }
-        if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
-            return respostas.estudo;
-        }
-        
-        return respostas.padrao;
     }
     
     getStatus() {
@@ -1423,8 +1380,6 @@ class MultiAIService {
 // ⭐ INSTÂNCIA GLOBAL
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
-window.GeminiService = multiAI;
-window.OpenRouterService = multiAI;
 
 // ⭐ FUNÇÃO PARA OBTER STATUS DO LIMITE
 window.getLimiteIA = () => {
@@ -1438,10 +1393,10 @@ window.getLimiteIA = () => {
     };
 };
 
-console.log('[MultiAI] ✅ Serviço Multi-API (Grok + SambaNova) carregado!');
-console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis:`);
+console.log('[MultiAI] ✅ Serviço SEM PROXY carregado!');
+console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis (chamada direta)`);
 multiAI.providers.forEach(p => {
-    console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia (via proxy)`);
+    console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia (DIRETO)`);
 });</script>
 
 <!-- App Principal -->
