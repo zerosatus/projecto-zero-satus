@@ -1068,11 +1068,11 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// openrouter-service.js - VERSÃO DEFINITIVA
-// COM MODELOS VERIFICADOS E FALLBACK OFFLINE
+// openrouter-service.js - VERSÃO SIMPLES
+// FOCADA EM TEXTO E MATEMÁTICA BÁSICA
 // ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
+console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO SIMPLES...');
 
 (function() {
     'use strict';
@@ -1088,24 +1088,16 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
                 this.apiKey = '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';
                 this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
                 
-                // ⭐ MODELOS QUE REALMENTE FUNCIONAM (SEM :free)
-                // Fonte: https://openrouter.ai/models
+                // ⭐ MODELOS SIMPLES - TEXTO E MATEMÁTICA BÁSICA
                 this.models = [
-                    // ROTEADORES OFICIAIS (RECOMENDADOS)
-                    'openrouter/free',
-                    'openrouter/free-coder',
-                    'openrouter/free-large',
-                    
-                    // MODELOS ESPECÍFICOS QUE FUNCIONAM
-                    'google/gemini-2.0-flash-exp',
-                    'google/gemma-4-26b-a4b',
-                    'meta-llama/llama-3.3-70b-instruct',
-                    'deepseek/deepseek-chat-v3-0324',
-                    'deepseek/deepseek-r1',
-                    'qwen/qwen-3-coder',
-                    'qwen/qwen-3-next-80b-a3b',
-                    'microsoft/phi-3.5-mini-128k',
-                    'mistralai/mistral-7b-instruct'
+                    'openrouter/free',        // Roteador principal
+                    'openrouter/free-coder',  // Também funciona para texto
+                    'openrouter/free-large',  // Para respostas mais longas
+                    'google/gemini-2.0-flash-exp',  // Bom para texto
+                    'google/gemma-4-26b-a4b',       // Modelo leve
+                    'meta-llama/llama-3.3-70b-instruct',  // Bom para texto
+                    'deepseek/deepseek-chat-v3-0324',     // Bom para matemática
+                    'deepseek/deepseek-r1'              // Raciocínio matemático
                 ];
                 
                 // ⭐ CACHE DE RESPOSTAS
@@ -1281,12 +1273,12 @@ Resposta:
                         messages: [
                             { 
                                 role: 'system', 
-                                content: 'Você é um assistente educacional. Siga as instruções de estilo fornecidas no contexto. Adapte seu tom e linguagem conforme indicado.' 
+                                content: 'Você é um assistente educacional simples. Ajude com texto e matemática básica. Seja claro, direto e didático. Evite programação e termos muito técnicos.' 
                             },
                             { role: 'user', content: fullPrompt }
                         ],
-                        temperature: 0.8,
-                        max_tokens: 1024,
+                        temperature: 0.7,
+                        max_tokens: 512,
                         top_p: 0.9
                     })
                 });
@@ -1337,27 +1329,23 @@ Resposta:
                 const texto = prompt.toLowerCase();
                 const isGiria = context.includes('MODO GÍRIA ATIVO');
                 
-                // ⭐ RESPOSTAS PRÉ-DEFINIDAS PARA NUNCA PARAR
+                // ⭐ RESPOSTAS PRÉ-DEFINIDAS (TEXTO E MATEMÁTICA)
                 const respostas = {
                     saudacao: isGiria 
                         ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
                         : 'Olá! Como posso ajudar você hoje?',
                     
+                    texto: isGiria
+                        ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
+                        : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
+                    
+                    matematica: isGiria
+                        ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
+                        : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
+                    
                     estudo: isGiria
                         ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                        : 'Para estudar de forma eficiente, recomendo: 1) Criar um cronograma, 2) Usar técnicas como Pomodoro, 3) Revisar o conteúdo regularmente.',
-                    
-                    tarefa: isGiria
-                        ? '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎'
-                        : 'Para gerenciar suas tarefas, sugiro priorizar as mais urgentes, dividir em pequenas etapas e definir prazos realistas.',
-                    
-                    foco: isGiria
-                        ? '🇲🇿 Foco é igual a músculo, maning! Treina ele todo dia. Desliga as distrações e bora!'
-                        : 'Para manter o foco, tente: 1) Técnica Pomodoro (25min foco, 5min pausa), 2) Eliminar distrações, 3) Definir metas claras.',
-                    
-                    motivacao: isGiria
-                        ? '🇲🇿 Tu é maior que qualquer desafio, magaia! Confia no teu potencial e vai!'
-                        : 'Acredite no seu potencial. Cada passo, por menor que seja, te aproxima dos seus objetivos.',
+                        : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro (25min foco, 5min pausa), 3) Revise o conteúdo regularmente.',
                     
                     padrao: isGiria
                         ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
@@ -1368,17 +1356,14 @@ Resposta:
                 if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia') || texto.includes('boa tarde')) {
                     return respostas.saudacao;
                 }
-                if (texto.includes('estud') || texto.includes('aula') || texto.includes('matéria') || texto.includes('prova')) {
+                if (texto.includes('escrever') || texto.includes('redação') || texto.includes('texto') || texto.includes('português') || texto.includes('gramática')) {
+                    return respostas.texto;
+                }
+                if (texto.includes('matem') || texto.includes('conta') || texto.includes('númer') || texto.includes('soma') || texto.includes('multiplic') || texto.includes('divis')) {
+                    return respostas.matematica;
+                }
+                if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
                     return respostas.estudo;
-                }
-                if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
-                    return respostas.tarefa;
-                }
-                if (texto.includes('foco') || texto.includes('concentrar') || texto.includes('distra')) {
-                    return respostas.foco;
-                }
-                if (texto.includes('motiv') || texto.includes('ânimo') || texto.includes('força')) {
-                    return respostas.motivacao;
                 }
                 
                 return respostas.padrao;
@@ -1415,7 +1400,8 @@ Resposta:
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
         console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
         console.log(`[OpenRouter] 📊 Limite: ${LIMITE_DIARIO} perguntas/dia`);
-        console.log(`[OpenRouter] 🛡️ Fallback offline ativado - IA nunca vai parar!`);
+        console.log(`[OpenRouter] 🛡️ Fallback offline ativado`);
+        console.log(`[OpenRouter] 📚 Foco: Texto e Matemática Básica`);
         
         window.dispatchEvent(new CustomEvent('openrouterLoaded', { 
             detail: { service } 
