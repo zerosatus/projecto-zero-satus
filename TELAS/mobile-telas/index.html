@@ -1066,12 +1066,10 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>// ============================================
-// multi-ai-service.js - CORRIGIDO
-// NÃO MARCA PROVEDORES COMO LIMITE EM ERROS INVÁLIDOS
+<script>// multi-ai-service.js - APENAS GROK + SAMBANOVA
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API VIA PROXY...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API (Grok + SambaNova)...');
 
 class MultiAIService {
     constructor() {
@@ -1084,13 +1082,13 @@ class MultiAIService {
         
         this._registerProviders();
         
-        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados`);
+        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados (Grok + SambaNova)`);
         this._resetarLimite();
         console.log('[MultiAI] 📊 Status inicial:', this.getStatus());
     }
     
     _registerProviders() {
-        // 🔥 GROK
+        // 🔥 GROK (prioridade 1)
         this.providers.push({
             name: 'Grok',
             key: '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',
@@ -1107,7 +1105,7 @@ class MultiAIService {
             limiteDiario: 30
         });
         
-        // 🔥 SAMBANOVA
+        // 🔥 SAMBANOVA (prioridade 2)
         this.providers.push({
             name: 'SambaNova',
             key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
@@ -1122,40 +1120,6 @@ class MultiAIService {
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 40
-        });
-        
-        // 🔥 DEEPSEEK
-        this.providers.push({
-            name: 'DeepSeek',
-            key: 'sk-e528baf9102b44f59696badf598dbc4b',
-            url: '/api/proxy',
-            model: 'deepseek-chat',
-            body: (prompt, context) => ({
-                provider: 'deepseek',
-                prompt: prompt,
-                context: context || '',
-                model: 'deepseek-chat'
-            }),
-            isAvailable: true,
-            usoHoje: 0,
-            limiteDiario: 50
-        });
-        
-        // 🔥 OPENROUTER
-        this.providers.push({
-            name: 'OpenRouter',
-            key: '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',
-            url: '/api/proxy',
-            model: 'openrouter/free',
-            body: (prompt, context) => ({
-                provider: 'openrouter',
-                prompt: prompt,
-                context: context || '',
-                model: 'openrouter/free'
-            }),
-            isAvailable: true,
-            usoHoje: 0,
-            limiteDiario: 20
         });
     }
     
@@ -1244,19 +1208,21 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        const shuffledProviders = this._shuffleProviders();
+        // ⭐ PRIORIDADE: Grok primeiro, depois SambaNova
+        const providers = this.providers;
         let lastError = null;
+        let allFailed = true;
         
-        for (let i = 0; i < shuffledProviders.length; i++) {
-            const provider = shuffledProviders[i];
+        for (let i = 0; i < providers.length; i++) {
+            const provider = providers[i];
             
-            // ⭐ SÓ PULAR SE REALMENTE USOU TODAS AS PERGUNTAS
+            // Verificar se o provedor já usou todas as perguntas
             if (provider.usoHoje >= provider.limiteDiario) {
-                console.log(`[MultiAI] ⏭️ ${provider.name} realmente atingiu limite (${provider.usoHoje}/${provider.limiteDiario})`);
+                console.log(`[MultiAI] ⏭️ ${provider.name} atingiu limite (${provider.usoHoje}/${provider.limiteDiario})`);
                 continue;
             }
             
-            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${shuffledProviders.length})...`);
+            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${providers.length})...`);
             
             try {
                 const result = await this._tryProvider(provider, prompt, context);
@@ -1267,6 +1233,7 @@ class MultiAIService {
                     this._saveToCache(prompt, context, result.text);
                     
                     console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
+                    allFailed = false;
                     return {
                         success: true,
                         text: result.text,
@@ -1275,12 +1242,12 @@ class MultiAIService {
                     };
                 }
                 
-                // ⭐ SÓ MARCA COMO LIMITE SE FOR REALMENTE LIMITE EXCEDIDO
+                // Se o erro for de limite, marcar como usado
                 if (result.limitExceeded) {
                     provider.usoHoje = provider.limiteDiario;
                     console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite real`);
                 } else {
-                    console.log(`[MultiAI] ⚠️ ${provider.name} falhou (não é limite):`, result.error);
+                    console.log(`[MultiAI] ⚠️ ${provider.name} falhou:`, result.error);
                 }
                 
                 lastError = result.error;
@@ -1291,30 +1258,15 @@ class MultiAIService {
             }
         }
         
-        console.log('[MultiAI] 📦 Usando fallback offline...');
+        // Se chegou aqui, todos falharam ou estão em limite
+        console.log('[MultiAI] 📦 Usando fallback offline (todos os provedores falharam)');
         const fallback = this._getFallbackResponse(prompt, context);
         return { 
             success: true, 
             text: fallback, 
             fromFallback: true,
-            error: lastError 
+            error: lastError || 'Todos os provedores falharam'
         };
-    }
-    
-    _shuffleProviders() {
-        const shuffled = [...this.providers];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        // PRIORIZAR GROK E SAMBANOVA
-        const priorityOrder = ['Grok', 'SambaNova', 'DeepSeek', 'OpenRouter'];
-        shuffled.sort((a, b) => {
-            const idxA = priorityOrder.indexOf(a.name);
-            const idxB = priorityOrder.indexOf(b.name);
-            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-        });
-        return shuffled;
     }
     
     async _tryProvider(provider, prompt, context) {
@@ -1345,7 +1297,7 @@ class MultiAIService {
             }
             
             if (!response.ok) {
-                // ⭐ DETECTAR LIMITE EXCEDIDO (APENAS 429, 402 E MENSAGENS ESPECÍFICAS)
+                // ⭐ DETECTAR LIMITE EXCEDIDO
                 const isLimit = response.status === 429 || 
                     response.status === 402 ||
                     data.limitExceeded ||
@@ -1468,11 +1420,13 @@ class MultiAIService {
     }
 }
 
+// ⭐ INSTÂNCIA GLOBAL
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 window.GeminiService = multiAI;
 window.OpenRouterService = multiAI;
 
+// ⭐ FUNÇÃO PARA OBTER STATUS DO LIMITE
 window.getLimiteIA = () => {
     const status = multiAI.getStatus();
     return {
@@ -1484,8 +1438,8 @@ window.getLimiteIA = () => {
     };
 };
 
-console.log('[MultiAI] ✅ Serviço Multi-API via Proxy carregado!');
-console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis`);
+console.log('[MultiAI] ✅ Serviço Multi-API (Grok + SambaNova) carregado!');
+console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis:`);
 multiAI.providers.forEach(p => {
     console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia (via proxy)`);
 });</script>
