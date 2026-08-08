@@ -1304,7 +1304,7 @@ class MultiAIService {
     async _callHuggingFace(prompt, context) {
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         const systemPrompt = isGiria
-            ? 'Você é um assistente educacional que fala com gírias moçambicanas (broo, maning, fixe, magaia, tamos juntos). Seja divertido e use emojis 🇲🇿.'
+            ? 'Você é um assistente educacional que fala com gírias moçambicanas (broo, maning, nice, primo, tamos juntos). Seja divertido.'
             : 'Você é um assistente educacional útil. Responda de forma clara e didática em português.';
         const fullPrompt = `${systemPrompt}\n\nUsuário: ${prompt}\n\nAssistente:`;
         
@@ -1379,25 +1379,25 @@ class MultiAIService {
                         expr += ` ${ops[i]} ${num}`;
                     }
                     return isGiria
-                        ? `🇲🇿 ${expr} = **${result}**! Matemática é fixe, broo! 🧮`
+                        ? `🇲🇿 ${expr} = **${result}**! Matemática é nice, broo! `
                         : `${expr} = **${result}**`;
                 }
             } catch(e) {}
             return isGiria
-                ? '🇲🇿 Manda aí a conta que eu ajudo, broo! 🧮'
-                : 'Mande a conta que eu resolvo. 🧮';
+                ? 'Bro nvia essa cena de matemática, vou txunar! '
+                : 'Mande a conta que eu resolvo. ';
         }
         
         if (texto.includes('oi') || texto.includes('olá')) {
-            return isGiria ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar?' : 'Olá! Como posso ajudar?';
+            return isGiria ? 'kmk bro! Na boa? Como posso te helpar?' : 'Olá! Como posso ajudar?';
         }
         if (texto.includes('estud') || texto.includes('aula')) {
             return isGiria
-                ? '🇲🇿 Bora estudar, magaia! Consistência é a chave! 💪'
+                ? 'Vamos marrar, bro! Consistência é a chave! '
                 : 'Para estudar: 1) Cronograma, 2) Pomodoro, 3) Revisão espaçada.';
         }
         return isGiria
-            ? '🇲🇿 Boa pergunta! Tenta reformular ou ativa o modo gíria. Tamos juntos!'
+            ? 'Boa pergunta maza! Tenta reformular ou ativa o modo gíria!'
             : 'Não entendi. Poderia reformular?';
     }
     
