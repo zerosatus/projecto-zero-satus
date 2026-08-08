@@ -1,69 +1,72 @@
-// api/proxy.js
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido' });
-  }
+// api-proxy.js - Proxy direto no cliente (usa CORS Anywhere)
+// ============================================
 
-  const { provider, prompt, context, model } = req.body;
+console.log('🔥 [API Proxy] Carregando proxy direto...');
 
-  // Configurações de cada provedor
-  const providers = {
-    grok: {
-      url: 'https://api.x.ai/v1/chat/completions',
-      key: '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',
-      model: model || 'grok-beta',
-    },
-    sambanova: {
-      url: 'https://api.sambanova.ai/v1/chat/completions',
-      key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
-      model: 'Meta-Llama-3.1-70B-Instruct',  // ← NOME CORRETO
-    },
-  };
-
-  const config = providers[provider];
-  if (!config) {
-    return res.status(400).json({ error: 'Provedor não suportado' });
-  }
-
-  try {
-    const response = await fetch(config.url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: context || 'Você é um assistente educacional útil.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 1024,
-      }),
-    });
-
-    const data = await response.json();
-
-    // ⭐ LOG PARA DEBUG
-    console.log('[Proxy] Resposta:', JSON.stringify(data, null, 2));
-
-    if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: data.error?.message || data.error || 'Erro na API',
-        details: data
-      });
+class ApiProxy {
+    constructor() {
+        // Usa um serviço de CORS proxy público
+        this.corsProxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        this.providers = {
+            grok: {
+                url: 'https://api.x.ai/v1/chat/completions',
+                key: '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',
+                model: 'grok-beta'
+            },
+            sambanova: {
+                url: 'https://api.sambanova.ai/v1/chat/completions',
+                key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
+                model: 'Llama-3.1-70B-Instruct'
+            }
+        };
     }
 
-    const text = data.choices?.[0]?.message?.content;
-    if (!text) {
-      return res.status(500).json({ error: 'Resposta vazia da API' });
+    async call(provider, prompt, context = '') {
+        const config = this.providers[provider];
+        if (!config) {
+            return { success: false, error: 'Provedor não suportado' };
+        }
+
+        try {
+            console.log(`[API Proxy] 📤 Chamando ${provider} via CORS proxy...`);
+
+            const response = await fetch(this.corsProxyUrl + config.url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${config.key}`,
+                    'Content-Type': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({
+                    model: config.model,
+                    messages: [
+                        { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1024
+                })
+            });
+
+            if (!response.ok) {
+                return { success: false, error: `Erro ${response.status}` };
+            }
+
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content;
+
+            if (!text) {
+                return { success: false, error: 'Resposta vazia' };
+            }
+
+            return { success: true, text: text.trim() };
+
+        } catch (error) {
+            console.error(`[API Proxy] ❌ Erro:`, error.message);
+            return { success: false, error: error.message };
+        }
     }
-
-    return res.status(200).json({ success: true, text: text.trim() });
-
-  } catch (error) {
-    console.error('[Proxy] Erro:', error);
-    return res.status(500).json({ error: error.message });
-  }
 }
+
+window.ApiProxy = new ApiProxy();
+console.log('[API Proxy] ✅ Proxy direto carregado!');
