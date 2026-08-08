@@ -1068,17 +1068,27 @@ const checkInterval = setInterval(() => {
 <script src="api/proxy.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - HUGGING FACE API DIRETA
-// SEM PROXY - CHAMADA DIRETA VIA FETCH
+// multi-ai-service.js - HUGGING FACE API
+// COM FALLBACK PARA MÚLTIPLOS MODELOS
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO HUGGING FACE...');
+console.log('🔥 [MultiAI] CARREGANDO HUGGING FACE API...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ COLOQUE SUA CHAVE AQUI
+        // ⭐ SUA CHAVE AQUI
         this.HF_TOKEN = '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';
-        this.HF_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3';
+        
+        // ⭐ LISTA DE MODELOS (FALLBACK AUTOMÁTICO)
+        this.modelos = [
+            'meta-llama/Llama-3.2-1B-Instruct',
+            'HuggingFaceH4/zephyr-7b-beta',
+            'google/flan-t5-large',
+            'microsoft/DialoGPT-medium'
+        ];
+        
+        this.modeloAtual = 0;
+        this.HF_URL = `https://api-inference.huggingface.co/models/${this.modelos[0]}`;
         
         this._cache = new Map();
         this._cacheMaxSize = 50;
@@ -1086,8 +1096,8 @@ class MultiAIService {
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        console.log('[MultiAI] ✅ Usando Hugging Face Inference API');
-        console.log('[MultiAI] 📊 Modelo: mistralai/Mistral-7B-Instruct-v0.3');
+        console.log(`[MultiAI] ✅ Modelo inicial: ${this.modelos[0]}`);
+        console.log('[MultiAI] 📊 Modelos de fallback:', this.modelos.length);
         this._resetarLimite();
     }
     
@@ -1099,7 +1109,7 @@ class MultiAIService {
             localStorage.setItem('multi_ai_uso', '0');
             this._usosHoje = 0;
             this._dataReset = hoje;
-            console.log('[MultiAI] 📅 Limite resetado para novo dia');
+            console.log('[MultiAI] 📅 Limite resetado');
         }
     }
     
@@ -1134,7 +1144,7 @@ class MultiAIService {
         if (this._cache.has(key)) {
             const item = this._cache.get(key);
             if (Date.now() - item.timestamp < 3600000) {
-                console.log('[MultiAI] 📦 Resposta do cache!');
+                console.log('[MultiAI] 📦 Cache!');
                 return item.value;
             }
             this._cache.delete(key);
@@ -1144,10 +1154,7 @@ class MultiAIService {
     
     _saveToCache(prompt, context, response) {
         const key = this._getCacheKey(prompt, context);
-        this._cache.set(key, {
-            value: response,
-            timestamp: Date.now()
-        });
+        this._cache.set(key, { value: response, timestamp: Date.now() });
         
         if (this._cache.size > this._cacheMaxSize) {
             const keys = Array.from(this._cache.keys());
@@ -1159,8 +1166,7 @@ class MultiAIService {
     }
     
     async sendMessage(prompt, context = '') {
-        console.log('[MultiAI] 📤 Enviando mensagem para Hugging Face...');
-        console.log(`[MultiAI] 📝 Prompt: ${prompt.substring(0, 60)}...`);
+        console.log('[MultiAI] 📤 Enviando para Hugging Face...');
         
         if (!this.temLimiteDisponivel()) {
             return {
@@ -1174,8 +1180,13 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        try {
-            const result = await this._callHuggingFace(prompt, context);
+        // Tentar cada modelo em sequência
+        for (let i = 0; i < this.modelos.length; i++) {
+            const modelo = this.modelos[i];
+            console.log(`[MultiAI] 🔄 Tentando modelo ${i+1}/${this.modelos.length}: ${modelo}`);
+            
+            const url = `https://api-inference.huggingface.co/models/${modelo}`;
+            const result = await this._callHuggingFace(prompt, context, url, modelo);
             
             if (result.success) {
                 this._incrementarUso();
@@ -1183,18 +1194,31 @@ class MultiAIService {
                 return result;
             }
             
-            return result;
+            // Se for erro 503 (indisponível), tenta o próximo
+            if (result.error && result.error.includes('503')) {
+                console.log(`[MultiAI] ⏭️ ${modelo} indisponível, tentando próximo...`);
+                continue;
+            }
             
-        } catch (error) {
-            console.error('[MultiAI] ❌ Erro:', error);
-            return { 
-                success: false, 
-                error: error.message || 'Erro ao chamar Hugging Face'
-            };
+            // Se for erro de autenticação, para tudo
+            if (result.error && result.error.includes('401')) {
+                return { success: false, error: '🔑 Chave inválida! Verifique seu token.' };
+            }
+            
+            // Se for erro de limite, para tudo
+            if (result.error && result.error.includes('429')) {
+                return { success: false, error: '⏳ Limite de requisições excedido! Aguarde.' };
+            }
         }
+        
+        // Todos os modelos falharam
+        return { 
+            success: false, 
+            error: '❌ Todos os modelos estão indisponíveis. Tente novamente mais tarde.'
+        };
     }
     
-    async _callHuggingFace(prompt, context) {
+    async _callHuggingFace(prompt, context, url, modelName) {
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
         const systemPrompt = isGiria 
@@ -1204,9 +1228,7 @@ class MultiAIService {
         const fullPrompt = `${systemPrompt}\n\nUsuário: ${prompt}\n\nAssistente:`;
         
         try {
-            console.log('[MultiAI] 📡 Chamando Hugging Face API...');
-            
-            const response = await fetch(this.HF_URL, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.HF_TOKEN}`,
@@ -1215,7 +1237,7 @@ class MultiAIService {
                 body: JSON.stringify({
                     inputs: fullPrompt,
                     parameters: {
-                        max_new_tokens: 1024,
+                        max_new_tokens: 512,
                         temperature: 0.7,
                         top_p: 0.9,
                         do_sample: true,
@@ -1224,126 +1246,67 @@ class MultiAIService {
                 })
             });
             
-            console.log('[MultiAI] 📥 Status:', response.status);
-            
-            // ⭐ VERIFICAR SE É UMA RESPOSTA DE ERRO (TEXTO HTML)
-            const contentType = response.headers.get('content-type') || '';
-            
-            if (contentType.includes('text/html') || contentType.includes('text/plain')) {
-                const text = await response.text();
-                console.error('[MultiAI] ❌ Resposta HTML/Texto:', text.substring(0, 200));
-                
-                // Verificar se é erro de autenticação
-                if (text.includes('401') || text.includes('Unauthorized') || text.includes('Invalid token')) {
-                    return { 
-                        success: false, 
-                        error: '🔑 Chave da Hugging Face inválida! Verifique seu token.'
-                    };
-                }
-                
-                if (text.includes('429') || text.includes('rate limit') || text.includes('too many requests')) {
-                    return { 
-                        success: false, 
-                        error: '⏳ Limite de requisições excedido! Aguarde alguns minutos.'
-                    };
-                }
-                
-                return { 
-                    success: false, 
-                    error: 'Erro na API. Verifique sua chave e tente novamente.'
-                };
-            }
-            
-            let data;
-            try {
-                data = await response.json();
-            } catch (e) {
-                const text = await response.text();
-                console.error('[MultiAI] ❌ Resposta não-JSON:', text.substring(0, 200));
-                return { 
-                    success: false, 
-                    error: 'Resposta inválida do servidor. Verifique sua chave.'
-                };
-            }
+            console.log(`[MultiAI] 📥 ${modelName} Status:`, response.status);
             
             if (!response.ok) {
-                console.error('[MultiAI] ❌ Erro HTTP:', response.status, data);
+                const text = await response.text();
+                
+                if (response.status === 503) {
+                    return { success: false, error: `503 - ${modelName} indisponível` };
+                }
                 
                 if (response.status === 401 || response.status === 403) {
-                    return { 
-                        success: false, 
-                        error: '🔑 Chave da Hugging Face inválida! Verifique seu token.'
-                    };
+                    return { success: false, error: '401 - Chave inválida' };
                 }
                 
                 if (response.status === 429) {
-                    return { 
-                        success: false, 
-                        error: '⏳ Limite de requisições excedido! Aguarde alguns minutos.'
-                    };
+                    return { success: false, error: '429 - Limite excedido' };
                 }
                 
-                if (response.status === 503) {
-                    return { 
-                        success: false, 
-                        error: '🔧 Modelo está carregando. Aguarde alguns segundos e tente novamente.'
-                    };
-                }
-                
-                return { 
-                    success: false, 
-                    error: data?.error || `Erro ${response.status} - ${data?.message || 'Erro desconhecido'}`
-                };
+                return { success: false, error: `${response.status} - ${text.substring(0, 100)}` };
             }
             
-            // ⭐ EXTRAIR RESPOSTA
+            let data = await response.json();
+            
             let text = '';
             
-            // Formato padrão da Inference API
+            // Formato padrão
             if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
                 text = data[0].generated_text;
             } 
-            // Formato alternativo
             else if (data.generated_text) {
                 text = data.generated_text;
             }
-            // Fallback
             else if (typeof data === 'string') {
                 text = data;
             }
             else {
-                console.error('[MultiAI] ❌ Formato inesperado:', data);
-                return { 
-                    success: false, 
-                    error: 'Formato de resposta inesperado.'
-                };
+                // Para modelos como Flan-T5
+                if (Array.isArray(data) && data.length > 0) {
+                    text = data[0] || '';
+                }
             }
             
-            // Limpar a resposta (remover o prompt)
+            // Limpar resposta
             text = text.replace(fullPrompt, '').trim();
             text = text.replace(/^Assistente:\s*/, '').trim();
+            text = text.replace(/^Assistant:\s*/, '').trim();
             
             if (!text) {
-                return { 
-                    success: false, 
-                    error: 'Resposta vazia da API.'
-                };
+                return { success: false, error: 'Resposta vazia' };
             }
             
-            console.log('[MultiAI] ✅ Resposta recebida:', text.substring(0, 100) + '...');
+            console.log(`[MultiAI] ✅ ${modelName} respondeu!`);
             
             return { 
                 success: true, 
                 text: text,
-                provider: 'Hugging Face'
+                provider: `Hugging Face (${modelName})`
             };
             
         } catch (error) {
-            console.error('[MultiAI] ❌ Erro na chamada:', error);
-            return { 
-                success: false, 
-                error: error.message || 'Erro de rede ao chamar a API'
-            };
+            console.error('[MultiAI] ❌ Erro:', error);
+            return { success: false, error: error.message };
         }
     }
     
@@ -1355,22 +1318,18 @@ class MultiAIService {
             saudacao: isGiria 
                 ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
                 : 'Olá! Como posso ajudar você hoje?',
-            
             texto: isGiria
-                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
-                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
-            
+                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Tamos juntos! 📝'
+                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Peça feedback.',
             matematica: isGiria
-                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
-                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
-            
+                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro! 🧮'
+                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente.',
             estudo: isGiria
-                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.',
-            
+                ? '🇲🇿 Bora estudar, magaia! Consistência é a chave! 💪'
+                : 'Para estudar: 1) Crie um cronograma, 2) Use Pomodoro, 3) Revisão espaçada.',
             padrao: isGiria
-                ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
-                : 'Desculpe, não entendi sua pergunta. Poderia reformular?'
+                ? '🇲🇿 Boa pergunta, broo! Tenta reformular. Tamos juntos!'
+                : 'Desculpe, não entendi. Poderia reformular?'
         };
         
         if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
@@ -1385,7 +1344,6 @@ class MultiAIService {
         if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return respostas.estudo;
         }
-        
         return respostas.padrao;
     }
     
@@ -1396,7 +1354,8 @@ class MultiAIService {
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
             provider: 'Hugging Face',
-            model: 'mistralai/Mistral-7B-Instruct-v0.3'
+            modeloAtual: this.modelos[this.modeloAtual] || 'N/A',
+            modelosDisponiveis: this.modelos.length
         };
     }
     
@@ -1404,7 +1363,7 @@ class MultiAIService {
         localStorage.setItem('multi_ai_data', new Date().toDateString());
         localStorage.setItem('multi_ai_uso', '0');
         this._usosHoje = 0;
-        console.log('[MultiAI] 📅 Limite resetado manualmente');
+        console.log('[MultiAI] 📅 Limite resetado');
         return this.getStatus();
     }
 }
@@ -1414,7 +1373,6 @@ const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 window.GeminiService = multiAI;
 
-// ⭐ FUNÇÃO PARA OBTER STATUS DO LIMITE
 window.getLimiteIA = () => {
     const status = multiAI.getStatus();
     return {
@@ -1422,15 +1380,13 @@ window.getLimiteIA = () => {
         maximo: status.limiteTotal,
         restante: status.restante,
         provider: status.provider,
-        model: status.model,
+        modelo: status.modeloAtual,
         reset: () => multiAI.resetLimite()
     };
 };
 
 console.log('[MultiAI] ✅ Serviço Hugging Face carregado!');
-console.log(`[MultiAI] 📊 Modelo: mistralai/Mistral-7B-Instruct-v0.3`);
-console.log(`[MultiAI] 📊 Limite: ${multiAI._limiteDiario} perguntas/dia`);
-console.log('[MultiAI] 💡 Não usa proxy - chamada direta para Hugging Face');</script>
+console.log(`[MultiAI] 📊 Modelos: ${multiAI.modelos.join(', ')}`);</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
