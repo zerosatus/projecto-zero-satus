@@ -1065,7 +1065,7 @@ const checkInterval = setInterval(() => {
 <script src="modules/notas.js"></script>
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
-
+<script src="api/proxy.js"></script>
 
 <script>
 // multi-ai-service.js - VERSÃO CORRIGIDA COM DEBUG COMPLETO
@@ -1080,7 +1080,7 @@ class MultiAIService {
         this._limiteDiario = 80;
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
-        this._proxyUrl = '/api/proxy';
+        this._proxyUrl = 'api/proxy';
         
         // Fallback para caso o proxy não funcione
         this._fallbackProviders = [
