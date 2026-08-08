@@ -1,0 +1,230 @@
+/* ============================================
+   base.css - RESET, VARIÁVEIS E LAYOUT BASE
+   ============================================ */
+
+:root {
+    --sidebar-bg: #0a0a1a;
+    --primary-color: #8b5cf6;
+    --primary-hover: #7c3aed;
+    --bg-color: #0f0f1a;
+    --card-bg: #1e1e3a;
+    --card-bg-hover: #252545;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --border-color: #2a2a4a;
+    --success: #10b981;
+    --warning: #eab308;
+    --danger: #ef4444;
+    --pending: #3b82f6;
+    --purple-glow: rgba(139, 92, 246, 0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    overflow-x: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ============================================
+   VIEWS
+   ============================================ */
+.view {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.view.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+.main-content {
+    flex: 1;
+    margin-left: 260px;
+    padding: 30px;
+    min-height: 100vh;
+    width: calc(100% - 260px);
+}
+
+/* ============================================
+   PAGE HEADER
+   ============================================ */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.page-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.text-muted {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ============================================
+   HEADER ACTIONS
+   ============================================ */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--text-secondary);
+    transition: all 0.3s;
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+.icon-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background-color: var(--danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 16px 6px 6px;
+    background-color: var(--card-bg);
+    border-radius: 20px;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s;
+}
+
+.user-profile:hover {
+    border-color: var(--primary-color);
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 0 15px var(--purple-glow);
+}
+
+.user-profile span {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* ============================================
+   BOTÕES
+   ============================================ */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--purple-glow);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5);
+}
+
+.btn-secondary {
+    padding: 10px 20px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+    background: var(--card-bg-hover);
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}

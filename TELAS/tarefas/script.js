@@ -852,3 +852,56 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+// ============================================
+// ⭐ BOTÃO DA IA COM ÍCONE SPARKLES (sem criar arquivo)
+// ============================================
+(function () {
+    // Não mostra dentro da própria IA nem no login
+    if (location.pathname.includes('/ia/') || location.pathname.includes('/login/')) return;
+
+    function criar() {
+        // Estilos do ícone/pulso (injeta uma vez só)
+        if (!document.getElementById('fabIAStyle')) {
+            const st = document.createElement('style');
+            st.id = 'fabIAStyle';
+            st.textContent = `
+                .fab-ia{position:fixed;bottom:30px;right:30px;width:60px;height:60px;border-radius:50%;
+                background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;color:#fff;cursor:pointer;
+                z-index:9999;display:flex;align-items:center;justify-content:center;
+                box-shadow:0 6px 30px rgba(139,92,246,.5);transition:transform .3s}
+                .fab-ia:hover{transform:scale(1.1) translateY(-4px)}
+                .fab-ia svg{width:28px;height:28px;position:relative;z-index:1}
+                .fab-ia .pulse{position:absolute;inset:0;border-radius:50%;background:rgba(139,92,246,.35);
+                animation:fabPulse 1.8s ease-in-out infinite;pointer-events:none}
+                @keyframes fabPulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.6);opacity:0}}
+                @media(max-width:768px){.fab-ia{width:54px;height:54px;bottom:20px;right:20px}.fab-ia svg{width:24px;height:24px}}
+            `;
+            document.head.appendChild(st);
+        }
+
+        // Pega o botão que já existe ou cria um novo
+        let fab = document.getElementById('btnOpenIA') || document.querySelector('.fab-ia');
+        if (!fab) {
+            fab = document.createElement('button');
+            fab.id = 'btnOpenIA';
+            fab.className = 'fab-ia';
+            document.body.appendChild(fab);
+        }
+
+        // Coloca o ícone sparkles ✨ (SVG — não depende de biblioteca)
+        fab.innerHTML = `
+            <span class="pulse"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+                <path d="M12 9.5q.9 4.6 5.5 5.5-4.6.9-5.5 5.5-.9-4.6-5.5-5.5 4.6-.9 5.5-5.5z"/>
+                <path d="M6.5 3.5q.6 3 3.5 3.5-2.9.6-3.5 3.5-.6-2.9-3.5-3.5 2.9-.5 3.5-3.5z"/>
+                <path d="M17.5 4.5q.5 2.5 3 3-2.5.5-3 3-.5-2.5-3-3 2.5-.5 3-3z"/>
+            </svg>`;
+        fab.title = 'Assistente IA';
+
+        // Garante o clique para abrir a IA
+        fab.onclick = () => window.location.href = '../ia/index.html';
+    }
+
+    if (document.body) criar();
+    else document.addEventListener('DOMContentLoaded', criar);
+})();

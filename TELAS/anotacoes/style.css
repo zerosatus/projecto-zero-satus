@@ -272,3 +272,98 @@ body {
 .editor-container, .right-sidebar {
     transition: all 0.3s ease;
 }
+/* ============================================
+   BOTÃO FLUTUANTE DA IA - FIXO E CONSISTENTE
+   ============================================ */
+
+.fab-ia {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 30px rgba(139, 92, 246, 0.5);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    text-decoration: none;
+    /* ✅ GARANTE QUE NÃO MUDE DE TAMANHO/POSIÇÃO */
+    flex-shrink: 0;
+    flex-grow: 0;
+    will-change: transform;
+    /* ✅ PREVINE TREMOR */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+.fab-ia:hover {
+    transform: scale(1.1) translateY(-4px) translateZ(0);
+    box-shadow: 0 8px 40px rgba(139, 92, 246, 0.6);
+}
+
+.fab-ia:active {
+    transform: scale(0.92) translateZ(0);
+}
+
+/* ✅ ÍCONE DENTRO DO BOTÃO */
+.fab-ia i {
+    font-size: 1.6rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ✅ PULSO DE NOTIFICAÇÃO (OPCIONAL) */
+.fab-ia .pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.3);
+    animation: pulse-ring 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ============================================
+   RESPONSIVO DO BOTÃO
+   ============================================ */
+@media (max-width: 768px) {
+    .fab-ia {
+        width: 54px;
+        height: 54px;
+        font-size: 1.3rem;
+        bottom: 20px;
+        right: 20px;
+    }
+    .fab-ia i {
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .fab-ia {
+        width: 48px;
+        height: 48px;
+        font-size: 1.1rem;
+        bottom: 16px;
+        right: 16px;
+    }
+    .fab-ia i {
+        font-size: 1.1rem;
+    }
+}

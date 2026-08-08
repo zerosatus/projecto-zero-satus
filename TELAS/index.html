@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero Satus - Painel do Aluno</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- CSS Base (sempre carregado) -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/modals.css">
+    
+    <!-- CSS dos Módulos (carregamento dinâmico via JS) -->
+    <!-- <link rel="stylesheet" href="css/dashboard.css"> -->
+    <!-- <link rel="stylesheet" href="css/calendario.css"> -->
+    <!-- <link rel="stylesheet" href="css/tarefas.css"> -->
+    <!-- <link rel="stylesheet" href="css/anotacoes.css"> -->
+    <!-- <link rel="stylesheet" href="css/perfil.css"> -->
+    
+</head>
+<body>
+
+<div id="app">
+    
+    <!-- ========================================== -->
+    <!-- SIDEBAR FIXA                              -->
+    <!-- ========================================== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            <i class="fas fa-graduation-cap"></i>
+            <span>Zero Satus</span>
+        </div>
+        
+        <nav class="menu">
+            <a class="menu-item active" data-view="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Início</span>
+            </a>
+            <a class="menu-item" data-view="dashboard-page">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a class="menu-item" data-view="calendario">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Calendário</span>
+            </a>
+            <a class="menu-item" data-view="tarefas">
+                <i class="fas fa-tasks"></i>
+                <span>Tarefas</span>
+            </a>
+            <a class="menu-item" data-view="anotacoes">
+                <i class="fas fa-sticky-note"></i>
+                <span>Anotações</span>
+            </a>
+        </nav>
+        
+        <div class="menu-bottom">
+            <a class="menu-item" data-view="perfil">
+                <i class="fas fa-user"></i>
+                <span>Perfil</span>
+            </a>
+            <div class="logout-section">
+                <button class="logout-btn" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- CONTEÚDO PRINCIPAL                        -->
+    <!-- ========================================== -->
+    <main class="main-content" id="main-content">
+        
+        <!-- ========================================== -->
+        <!-- VIEW: INÍCIO (Dashboard Resumido)          -->
+        <!-- ========================================== -->
+        <section id="view-dashboard" class="view active">
+            
+            <!-- Header -->
+            <header class="page-header">
+                <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
+                <div class="header-actions">
+                    <button class="icon-btn" id="bellBtn">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge">0</span>
+                    </button>
+                    <div class="user-profile" onclick="app.showView('perfil')">
+                        <div class="user-avatar" id="userAvatar">U</div>
+                        <span id="userName">Carregando...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Profile Quick View -->
+            <div class="profile-quick-view">
+                <div class="profile-card-mini">
+                    <div class="profile-header-mini">
+                        <div class="profile-avatar-mini">
+                            <img id="miniAvatar" src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=70" alt="Avatar">
+                            <div class="status-indicator online"></div>
+                        </div>
+                        <div class="profile-info-mini">
+                            <h3 id="miniName">Carregando...</h3>
+                            <p class="profile-email-mini" id="miniEmail">carregando@email.com</p>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-stats-mini">
+                        <div class="stat-mini">
+                            <i class="fas fa-tasks"></i>
+                            <div>
+                                <span class="stat-value-mini" id="statTarefas">0</span>
+                                <span class="stat-label-mini">Tarefas</span>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <span class="stat-value-mini" id="statConclusao">0%</span>
+                                <span class="stat-label-mini">Conclusão</span>
+                            </div>
+                        </div>
+                        <div class="stat-mini">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <span class="stat-value-mini" id="statHoras">0h</span>
+                                <span class="stat-label-mini">Estudo</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-progress-mini">
+                        <div class="progress-header">
+                            <span>Progresso Semanal</span>
+                            <span class="progress-value" id="progressValue">0%</span>
+                        </div>
+                        <div class="progress-bar-mini">
+                            <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <button class="btn-view-profile" onclick="app.showView('perfil')">
+                        <i class="fas fa-user"></i> Ver Perfil Completo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Notificações Recentes -->
+                <div class="notifications-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-bell"></i> Notificações Recentes</h3>
+                        <button class="btn-ver-todas" onclick="app.openNotifications()">
+                            Ver todas →
+                        </button>
+                    </div>
+                    <div class="notification-list" id="notificacoesRecentes">
+                        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horário Semanal -->
+                <div class="schedule-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Horário Semanal</h3>
+                        <button class="btn-edit-schedule" id="btnEditSchedule">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                    </div>
+                    <table class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Segunda</th>
+                                <th>Terça</th>
+                                <th>Quarta</th>
+                                <th>Quinta</th>
+                                <th>Sexta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody">
+                            <tr><td colspan="6" style="text-align: center; padding: 40px;">Carregando horário...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Disciplinas -->
+                <div class="subjects-panel">
+                    <div class="subjects-panel-header">
+                        <h3><i class="fas fa-book"></i> Minhas Disciplinas</h3>
+                        <button class="btn-gerenciar-disc" id="btnGerenciarDisciplinas">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="subjects-grid" id="subjectsGrid">
+                        <p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina cadastrada</p>
+                    </div>
+                </div>
+
+                <!-- Frase do Dia -->
+                <div class="focus-panel">
+                    <h3>Frase do Dia</h3>
+                    <div class="focus-content">
+                        <div class="focus-icon"><i class="fas fa-lightbulb"></i></div>
+                        <p id="fraseDoDiaText">Carregando frase...</p>
+                        <button class="btn-start" id="startStudy">
+                            <i class="fas fa-play"></i> Começar Sessão de Estudo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW: DASHBOARD COMPLETO                   -->
+        <!-- ========================================== -->
+        <section id="view-dashboard-page" class="view hidden">
+            <!-- Dashboard content aqui -->
+            <div class="page-header">
+                <h1>Dashboard</h1>
+                <p class="text-muted">Visão geral do seu desempenho</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card stat-purple">
+                    <div class="stat-info">
+                        <h3 id="disciplinasCount">0</h3>
+                        <p>Disciplinas</p>
+                    </div>
+                    <div class="stat-icon"><i class="fas fa-book"></i></div>
+                </div>
+                <div class="stat-card stat-blue">
+                    <div class="stat-info">
+                        <h3 id="pendentesCount">0</h3>
+                        <p>Tarefas Pendentes</p>
+                    </div>
+                    <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+                </div>
+                <div class="stat-card stat-orange">
+                    <div class="stat-info">
+                        <h3 id="horasCount">0</h3>
+                        <p>Horas Estudadas</p>
+                    </div>
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                </div>
+                <div class="stat-card stat-green">
+                    <div class="stat-info">
+                        <h3 id="mediaCount">0.0</h3>
+                        <p>Média Geral</p>
+                    </div>
+                    <div class="stat-icon"><i class="fas fa-star"></i></div>
+                </div>
+            </div>
+            <div class="content-grid-full">
+                <div class="card performance-card">
+                    <h3>Desempenho por Disciplina</h3>
+                    <div class="bar-chart" id="barChart">
+                        <p style="color: var(--text-secondary); text-align: center; padding: 40px;">Adicione tarefas com notas para ver o gráfico</p>
+                    </div>
+                </div>
+                <div class="card activity-card">
+                    <h3>Atividade Recente</h3>
+                    <div class="activity-list" id="activityList">
+                        <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhuma atividade recente</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW: CALENDÁRIO                           -->
+        <!-- ========================================== -->
+        <section id="view-calendario" class="view hidden">
+            <div class="page-header">
+                <h1>Calendário Acadêmico</h1>
+                <button class="btn-primary" id="newEventBtn">
+                    <i class="fas fa-plus"></i> Novo Evento
+                </button>
+            </div>
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <div class="month-nav">
+                        <h2 id="currentMonth">Carregando...</h2>
+                        <div class="nav-buttons">
+                            <button class="nav-btn" id="prevBtn"><i class="fas fa-chevron-left"></i></button>
+                            <button class="nav-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="view-actions">
+                        <div class="view-toggle">
+                            <button class="toggle-btn active" data-view="month">Mês</button>
+                            <button class="toggle-btn" data-view="week">Semana</button>
+                            <button class="toggle-btn" data-view="day">Dia</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="calendar-grid">
+                    <div class="weekdays" id="weekdaysHeader">
+                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                    </div>
+                    <div class="days" id="calendarDays"></div>
+                </div>
+            </div>
+            <div class="events-section">
+                <h3>Eventos do Dia <span id="selectedDay">--</span></h3>
+                <div class="events-list" id="eventsList">
+                    <p style="color: var(--text-secondary); padding: 1rem; text-align: center;">Selecione um dia para ver os eventos</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW: TAREFAS                              -->
+        <!-- ========================================== -->
+        <section id="view-tarefas" class="view hidden">
+            <div class="page-header">
+                <h1>Tarefas</h1>
+                <button class="btn-primary" id="btnNewTask">
+                    <i class="fas fa-plus"></i> Nova Tarefa
+                </button>
+            </div>
+            <div class="stats-container">
+                <div class="stat-card pending">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="pendingCount">0</span>
+                        <span class="stat-label">Pendentes</span>
+                    </div>
+                </div>
+                <div class="stat-card completed">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="completedTodayCount">0</span>
+                        <span class="stat-label">Concluídas hoje</span>
+                    </div>
+                </div>
+                <div class="stat-card overdue">
+                    <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="overdueCount">0</span>
+                        <span class="stat-label">Atrasadas</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tasks-container">
+                <div class="tasks-left">
+                    <div class="filter-section">
+                        <div class="filter-item active-filter" data-filter="todas">
+                            <i class="fas fa-list"></i> Todas <span class="badge" id="totalBadge">0</span>
+                        </div>
+                        <div class="filter-item" data-filter="pendentes">
+                            <i class="fas fa-clock"></i> Pendentes <span class="badge" id="pendingBadge">0</span>
+                        </div>
+                        <div class="filter-item" data-filter="concluidas">
+                            <i class="fas fa-check"></i> Concluídas <span class="badge" id="completedBadge">0</span>
+                        </div>
+                        <div class="filter-item" data-filter="favoritas">
+                            <i class="fas fa-star"></i> Favoritas <span class="badge" id="favoriteBadge">0</span>
+                        </div>
+                    </div>
+                    <div class="subjects-section">
+                        <h3>DISCIPLINAS</h3>
+                        <div id="subjectsList"><p style="text-align:center;padding:20px;color:#9ca3af;">Carregando...</p></div>
+                    </div>
+                </div>
+                <div class="tasks-right">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar tarefas...">
+                    </div>
+                    <div class="task-list" id="taskList">
+                        <div class="empty-state" style="text-align:center;padding:40px;">
+                            <i class="fas fa-tasks" style="font-size:48px;color:var(--text-secondary);margin-bottom:16px;display:block;"></i>
+                            <h3 style="color:var(--text-primary);">Nenhuma tarefa ainda</h3>
+                            <p style="color:var(--text-secondary);">Clique em "Nova Tarefa" para começar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW: ANOTAÇÕES                            -->
+        <!-- ========================================== -->
+        <section id="view-anotacoes" class="view hidden">
+            <div class="page-header">
+                <h1>Anotações</h1>
+                <button class="btn-primary" id="btnNewNote">
+                    <i class="fas fa-plus"></i> Nova Anotação
+                </button>
+            </div>
+            <div class="notes-container">
+                <div class="editor-container">
+                    <div class="toolbar">
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('bold')"><b>B</b></button>
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('italic')"><i>I</i></button>
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('underline')"><u>U</u></button>
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('strikeThrough')"><s>S</s></button>
+                        </div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('justifyLeft')"><i class="fas fa-align-left"></i></button>
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('justifyCenter')"><i class="fas fa-align-center"></i></button>
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('justifyRight')"><i class="fas fa-align-right"></i></button>
+                        </div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('insertOrderedList')"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                        <div class="toolbar-spacer"></div>
+                        <button class="btn-save" id="btnSaveNote"><i class="fas fa-save"></i> Salvar</button>
+                    </div>
+                    <div class="editor-wrapper">
+                        <div class="editor-header">
+                            <input type="text" class="note-title" placeholder="Título da anotação...">
+                            <div class="note-meta"><span class="last-saved"></span></div>
+                        </div>
+                        <div class="editor-content" contenteditable="true" id="editor">
+                            <p style="color:var(--text-secondary);text-align:center;padding:40px;">✨ Nenhuma anotação selecionada</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="notes-sidebar">
+                    <h3>Minhas Anotações</h3>
+                    <button class="btn-new" id="btnNewNoteSidebar"><i class="fas fa-plus"></i></button>
+                    <div class="notes-list" id="notesList">
+                        <div style="text-align:center;padding:40px;color:var(--text-secondary)">
+                            <i class="fas fa-sticky-note" style="font-size:48px;margin-bottom:16px;display:block;"></i>
+                            Nenhuma anotação<br>Clique em + para criar
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW: PERFIL                               -->
+        <!-- ========================================== -->
+        <section id="view-perfil" class="view hidden">
+            <div class="page-header">
+                <h1>Minha Conta</h1>
+                <button class="btn-save" onclick="app.modules.perfil.salvarAlteracoes()">
+                    <i class="fas fa-save"></i> Salvar Alterações
+                </button>
+            </div>
+            <div class="profile-container">
+                <div class="profile-left">
+                    <div class="profile-card">
+                        <div class="profile-cover"></div>
+                        <div class="profile-avatar-section">
+                            <div class="profile-avatar" id="profileAvatar">
+                                <img src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=150" alt="Foto" id="avatarImage">
+                                <label for="avatarUpload" class="avatar-upload-btn"><i class="fas fa-camera"></i></label>
+                                <input type="file" id="avatarUpload" accept="image/*" hidden>
+                            </div>
+                            <h2 class="profile-name" id="profileName">Carregando...</h2>
+                            <p class="profile-email" id="profileEmail">carregando@email.com</p>
+                        </div>
+                        <div class="profile-stats">
+                            <div class="profile-stat">
+                                <span class="stat-value" id="statTarefasPerfil">0</span>
+                                <span class="stat-label">Tarefas</span>
+                            </div>
+                            <div class="profile-stat">
+                                <span class="stat-value" id="statConclusaoPerfil">0%</span>
+                                <span class="stat-label">Conclusão</span>
+                            </div>
+                            <div class="profile-stat">
+                                <span class="stat-value" id="statHorasPerfil">0h</span>
+                                <span class="stat-label">Estudo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="activity-card">
+                        <h3><i class="fas fa-history"></i> Atividade Recente</h3>
+                        <div class="activity-list" id="activityListPerfil">
+                            <p style="color:#888;text-align:center;padding:20px;">Nenhuma atividade recente</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="profile-right">
+                    <div class="settings-card">
+                        <h3><i class="fas fa-user"></i> Informações Pessoais</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nome Completo</label>
+                                <input type="text" id="nome" placeholder="Seu nome">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>E-mail</label>
+                                <input type="email" id="email" placeholder="seu@email.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Telefone</label>
+                                <input type="tel" id="telefone" placeholder="+258 870000000">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Data de Nascimento</label>
+                                <input type="date" id="nascimento">
+                            </div>
+                            <div class="form-group">
+                                <label>Gênero</label>
+                                <select id="genero">
+                                    <option value="masculino">Masculino</option>
+                                    <option value="feminino">Feminino</option>
+                                    <option value="outro">Outro</option>
+                                    <option value="nao-informar">Prefiro não informar</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <h3><i class="fas fa-shield-alt"></i> Segurança</h3>
+                        <div class="form-group">
+                            <label>Senha Atual</label>
+                            <div class="input-with-icon">
+                                <input type="password" id="senhaAtual" placeholder="••••••••">
+                                <i class="fas fa-eye toggle-password" onclick="app.modules.perfil.togglePassword('senhaAtual')"></i>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nova Senha</label>
+                                <div class="input-with-icon">
+                                    <input type="password" id="novaSenha" placeholder="••••••••">
+                                    <i class="fas fa-eye toggle-password" onclick="app.modules.perfil.togglePassword('novaSenha')"></i>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirmar Senha</label>
+                                <div class="input-with-icon">
+                                    <input type="password" id="confirmarSenha" placeholder="••••••••">
+                                    <i class="fas fa-eye toggle-password" onclick="app.modules.perfil.togglePassword('confirmarSenha')"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-secondary" onclick="app.modules.perfil.alterarSenha()">
+                            <i class="fas fa-key"></i> Alterar Senha
+                        </button>
+                    </div>
+                    <div class="settings-card danger-zone">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Zona de Perigo</h3>
+                        <p class="danger-text">Ações irreversíveis que podem afetar sua conta permanentemente.</p>
+                        <div class="danger-actions">
+                            <button class="btn-danger-outline" onclick="app.modules.perfil.exportarDados()">
+                                <i class="fas fa-download"></i> Exportar Dados
+                            </button>
+                            <button class="btn-danger" onclick="app.modules.perfil.deletarConta()">
+                                <i class="fas fa-trash"></i> Deletar Conta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAIS GLOBAIS                             -->
+<!-- ========================================== -->
+
+<!-- Modal de Notificações -->
+<div class="notif-modal" id="notifModal">
+    <div class="notif-modal-content">
+        <div class="notif-modal-header">
+            <h2><i class="fas fa-bell"></i> Notificações</h2>
+            <div class="notif-actions">
+                <button class="notif-btn-action" id="btnMarkAllRead">
+                    <i class="fas fa-check-double"></i> Marcar todas
+                </button>
+                <button class="notif-btn-action notif-btn-clear" id="btnClearAll">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="notif-btn-close" onclick="app.closeNotifications()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="notif-tabs">
+            <button class="notif-tab active" data-filter="todas">Todas</button>
+            <button class="notif-tab" data-filter="nao-lidas">Não lidas</button>
+            <button class="notif-tab" data-filter="aulas">Aulas</button>
+            <button class="notif-tab" data-filter="tarefas">Tarefas</button>
+        </div>
+        <div class="notif-list" id="notifList">
+            <!-- Notificações via JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="confirm-modal" id="confirmModal">
+    <div class="confirm-modal-content">
+        <div class="confirm-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <h3 id="confirmTitle">Confirmar ação</h3>
+        <p id="confirmMessage">Tem certeza que deseja continuar?</p>
+        <div class="confirm-buttons">
+            <button class="btn-cancel" id="confirmCancel">Cancelar</button>
+            <button class="btn-ok" id="confirmOk">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage">Operação realizada!</span>
+</div>
+
+<!-- ========================================== -->
+<!-- SCRIPTS                                   -->
+<!-- ========================================== -->
+
+<!-- Serviços Compartilhados -->
+<script src="../mobile-telas/supabase-client.js"></script>
+<script src="../mobile-telas/database-service.js"></script>
+<script src="../mobile-telas/notifications-sync.js"></script>
+<script src="../mobile-telas/realtime-sync.js"></script>
+<script src="../mobile-telas/cache-manager.js"></script>
+<script src="../mobile-telas/shared-data.js"></script>
+<script src="../mobile-telas/sync-helper.js"></script>
+<script src="../mobile-telas/daily-phrases.js"></script>
+<script src="../mobile-telas/notes-sync.js"></script>
+
+<!-- Módulos JavaScript -->
+<script src="modules/dashboard.js"></script>
+<script src="modules/calendario.js"></script>
+<script src="modules/tarefas.js"></script>
+<script src="modules/anotacoes.js"></script>
+<script src="modules/perfil.js"></script>
+
+<!-- App Principal -->
+<script src="app.js"></script>
+
+</body>
+</html>

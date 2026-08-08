@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assistente IA • Zero Satus</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+<div class="ia-app">
+
+    <!-- ═══════════ SIDEBAR (HISTÓRICO DE CONVERSAS) ═══════════ -->
+    <aside class="ia-sidebar" id="iaSidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <div class="brand-icon"><ion-icon name="sparkles"></ion-icon></div>
+                <div class="brand-text">
+                    <strong>Satus IA</strong>
+                    <small>Zero Satus</small>
+                </div>
+            </div>
+            <button class="icon-btn sidebar-close" id="sidebarClose" title="Fechar menu">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+
+        <div class="sidebar-body">
+            <button class="new-chat-btn" id="newChatBtn">
+                <ion-icon name="add"></ion-icon>
+                <span>Nova conversa</span>
+            </button>
+
+            <div class="sidebar-search">
+                <ion-icon name="search-outline"></ion-icon>
+                <input type="text" id="searchInput" placeholder="Buscar conversas..." autocomplete="off" />
+            </div>
+
+            <nav class="history-list" id="historyList"></nav>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Carregando...</span>
+                    <span class="user-plan">Aluno • Zero Satus</span>
+                </div>
+                <button class="icon-btn" onclick="logout()" title="Sair">
+                    <ion-icon name="log-out-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ═══════════ ÁREA PRINCIPAL ═══════════ -->
+    <main class="ia-main">
+
+        <header class="ia-topbar">
+            <button class="icon-btn menu-toggle" id="menuToggle" title="Menu">
+                <ion-icon name="menu-outline"></ion-icon>
+            </button>
+
+            <!-- 🔙 VOLTAR ÀS OUTRAS TELAS -->
+            <button class="icon-btn" id="navBackBtn" title="Outras telas">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </button>
+
+            <div class="topbar-title">
+                <span class="model-badge"><ion-icon name="sparkles"></ion-icon> Satus IA</span>
+                <span class="chat-title" id="chatTitle">Nova conversa</span>
+            </div>
+
+            <div class="topbar-actions">
+                <button class="icon-btn" id="themeToggle" title="Alternar tema">
+                    <ion-icon name="moon-outline" id="themeIcon"></ion-icon>
+                </button>
+                <button class="icon-btn notif-btn" id="bellBtn" title="Notificações">
+                    <ion-icon name="notifications-outline"></ion-icon>
+                    <span class="notif-badge" id="notificationBadge">0</span>
+                </button>
+            </div>
+
+            <!-- 🧭 MENU DE NAVEGAÇÃO -->
+            <nav class="nav-dropdown" id="navDropdown">
+                <a href="../inicio/index.html"><ion-icon name="home-outline"></ion-icon> Início</a>
+                <a href="../dashboard/index.html"><ion-icon name="grid-outline"></ion-icon> Dashboard</a>
+                <a href="../calendario/index.html"><ion-icon name="calendar-outline"></ion-icon> Calendário</a>
+                <a href="../tarefas/index.html"><ion-icon name="checkbox-outline"></ion-icon> Tarefas</a>
+                <a href="../anotacoes/index.html"><ion-icon name="document-text-outline"></ion-icon> Anotações</a>
+                <a href="./index.html" class="atual"><ion-icon name="sparkles-outline"></ion-icon> Assistente IA</a>
+                <hr>
+                <a href="../perfil/index.html"><ion-icon name="person-outline"></ion-icon> Perfil</a>
+                <a href="#" class="danger" onclick="logout(); return false;"><ion-icon name="log-out-outline"></ion-icon> Sair</a>
+            </nav>
+        </header>
+
+        <div class="chat-scroll" id="chatScroll">
+            <div class="chat-container">
+                <div id="ia-messages-container"></div>
+
+                <div class="quick-chips" id="ia-quick-actions">
+                    <button class="chip" data-prompt="Como posso organizar meus estudos?">
+                        <ion-icon name="library-outline"></ion-icon> Organizar estudos
+                    </button>
+                    <button class="chip" data-prompt="Me dê dicas para melhorar meu foco">
+                        <ion-icon name="eye-outline"></ion-icon> Dicas de foco
+                    </button>
+                    <button class="chip" data-prompt="Quais técnicas de memorização você recomenda?">
+                        <ion-icon name="bulb-outline"></ion-icon> Memorização
+                    </button>
+                    <button class="chip" data-prompt="Me ajude a criar um cronograma de estudos">
+                        <ion-icon name="calendar-outline"></ion-icon> Cronograma
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="composer-area">
+            <div class="composer">
+                <textarea id="ia-input" rows="1" placeholder="Envie uma mensagem para a IA..."></textarea>
+                <button class="send-btn" id="ia-send-btn" title="Enviar">
+                    <ion-icon name="arrow-up"></ion-icon>
+                </button>
+            </div>
+            <p class="composer-footer">A IA pode cometer erros. Verifique informações importantes. 🧠</p>
+        </div>
+    </main>
+</div>
+
+<!-- ═══════════ MODAL DE NOTIFICAÇÕES ═══════════ -->
+<div class="notif-modal" id="notifModal">
+    <div class="notif-modal-card">
+        <div class="notif-modal-header">
+            <h3><ion-icon name="notifications-outline"></ion-icon> Notificações</h3>
+            <button class="icon-btn" onclick="fecharNotifModal()" title="Fechar">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+
+        <div class="notif-modal-tabs">
+            <button class="notif-tab active" data-filter="todas">Todas</button>
+            <button class="notif-tab" data-filter="nao-lidas">Não lidas</button>
+            <button class="notif-tab" data-filter="aula">Aulas</button>
+            <button class="notif-tab" data-filter="tarefa">Tarefas</button>
+        </div>
+
+        <div class="notif-list" id="notifList"></div>
+
+        <div class="notif-modal-footer">
+            <button class="ghost-btn" id="btnMarkAllRead">
+                <ion-icon name="checkmark-done-outline"></ion-icon> Marcar todas
+            </button>
+            <button class="ghost-btn danger" id="btnClearAll">
+                <ion-icon name="trash-outline"></ion-icon> Limpar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toastMessage"></span></div>
+
+<script src="script.js"></script>
+</body>
+</html>
