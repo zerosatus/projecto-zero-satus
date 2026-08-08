@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/proxy",
-      "destination": "/api/proxy.js"
+      "source": "proxy",
+      "destination": "proxy.js"
     }
   ],
   "headers": [
