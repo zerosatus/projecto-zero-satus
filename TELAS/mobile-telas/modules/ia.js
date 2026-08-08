@@ -1,5 +1,5 @@
 // ============================================
-// modules/ia.js - MÓDULO DA IA COM CONTROLE DE GÍRIA
+// modules/ia.js - MÓDULO DA IA COM CONTROLE DE GÍRIA E LIMITE
 // ============================================
 
 class IAModule {
@@ -9,7 +9,7 @@ class IAModule {
         this.messages = [];
         this._previousView = 'dashboard';
         this._isProcessing = false;
-        this._modoGiria = false; // ⭐ CONTROLE: false = normal, true = gíria
+        this._modoGiria = false;
         this._ultimaMensagem = '';
         console.log('[IA] 🤖 Inicializado com controle de gíria');
     }
@@ -23,6 +23,7 @@ class IAModule {
         this.updateBadge();
         this.setupEvents();
         this._atualizarStatusGiria();
+        this._atualizarStatusLimite();
     }
 
     // ============================================
@@ -41,6 +42,9 @@ class IAModule {
                     <p style="font-size:0.7rem;color:var(--text-secondary);margin-top:8px;">
                         💬 Digite <strong>"fala com gíria"</strong> para ativar ou 
                         <strong>"fala normal"</strong> para desativar
+                    </p>
+                    <p style="font-size:0.6rem;color:var(--text-secondary);margin-top:4px;" id="ia-limite-status">
+                        💬 ${window.getLimiteIA ? window.getLimiteIA().restante : '?'}/20 perguntas hoje
                     </p>
                 </div>
             `;
@@ -76,7 +80,7 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ DETECTAR SE O USUÁRIO PEDIU GÍRIA
+    // ⭐ DETECTAR COMANDOS
     // ============================================
     _usuarioPediuGiria(texto) {
         const palavrasChave = [
@@ -91,9 +95,6 @@ class IAModule {
         );
     }
 
-    // ============================================
-    // ⭐ DETECTAR SE O USUÁRIO QUER VOLTAR AO NORMAL
-    // ============================================
     _usuarioQuerNormal(texto) {
         const palavrasChave = [
             'sem gíria', 'normal', 'formal', 'sem gírias',
@@ -107,7 +108,7 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ BUILD USER CONTEXT (CORRIGIDO)
+    // ⭐ BUILD USER CONTEXT
     // ============================================
     buildUserContext(textoUsuario) {
         const user = this.app.user || {};
@@ -117,11 +118,9 @@ class IAModule {
         const materias = (data.disciplinas || []).length;
         const notas = (data.notes || []).length;
 
-        // ⭐ DETECTAR SE O USUÁRIO PEDIU GÍRIA OU NORMAL
         const pediuGiria = this._usuarioPediuGiria(textoUsuario);
         const querNormal = this._usuarioQuerNormal(textoUsuario);
 
-        // ⭐ ALTERNAR O MODO BASEADO NO QUE O USUÁRIO PEDIU
         if (pediuGiria) {
             this._modoGiria = true;
             this._mostrarToast('🇲🇿 Modo Gíria ativado! Fala como magaia!');
@@ -130,7 +129,6 @@ class IAModule {
             this._mostrarToast('📚 Modo Normal ativado! Fala formal.');
         }
 
-        // ⭐ SE O USUÁRIO PERGUNTOU ALGO SOBRE O MODO, NÃO PRECISA REPETIR
         const isPerguntaSobreModo = this._usuarioPediuGiria(textoUsuario) || 
                                      this._usuarioQuerNormal(textoUsuario);
 
@@ -169,7 +167,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ MOSTRAR TOAST (compatível com a função global)
+    // ⭐ MOSTRAR TOAST
     // ============================================
     _mostrarToast(mensagem) {
         if (typeof showToast === 'function') {
@@ -178,10 +176,11 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             console.log('[IA] 📢', mensagem);
         }
         this._atualizarStatusGiria();
+        this._atualizarStatusLimite();
     }
 
     // ============================================
-    // ⭐ ATUALIZAR STATUS DO BOTÃO
+    // ⭐ ATUALIZAR STATUS
     // ============================================
     _atualizarStatusGiria() {
         const statusEl = document.getElementById('giria-status');
@@ -196,8 +195,19 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         }
     }
 
+    _atualizarStatusLimite() {
+        const limiteEl = document.getElementById('ia-limite-status');
+        if (!limiteEl) return;
+        
+        if (window.getLimiteIA) {
+            const info = window.getLimiteIA();
+            limiteEl.textContent = `💬 ${info.restante}/${info.maximo} perguntas hoje`;
+            limiteEl.style.color = info.restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
+        }
+    }
+
     // ============================================
-    // ⭐ ALTERNAR MODO MANUAL
+    // ⭐ ALTERNAR MODO
     // ============================================
     toggleModoGiria() {
         this._modoGiria = !this._modoGiria;
@@ -207,7 +217,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         this._mostrarToast(mensagem);
         this._atualizarStatusGiria();
         
-        // Adicionar mensagem do sistema no chat
         this.messages.push({
             role: 'assistant',
             content: this._modoGiria 
@@ -220,7 +229,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ ENVIAR MENSAGEM (CORRIGIDO)
+    // ⭐ ENVIAR MENSAGEM
     // ============================================
     async sendMessage(text) {
         if (!text) {
@@ -233,7 +242,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
 
         if (this._isProcessing) return;
 
-        // Guardar a mensagem para detectar comandos
         this._ultimaMensagem = text;
 
         this.messages.push({ 
@@ -265,7 +273,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             
             let response;
 
-            // Tentar usar o serviço disponível
             const service = window.GeminiService || window.OpenRouterService;
 
             if (service) {
@@ -273,11 +280,13 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
                 const result = await service.sendMessage(text, context);
                 if (result.success) {
                     response = result.text;
+                    if (result.fromCache) {
+                        response += '\n\n*(Resposta do cache)*';
+                    }
                 } else {
                     response = `❌ ${result.error}`;
                 }
             } else {
-                // ⭐ FALLBACK: respostas pré-definidas
                 response = this._getFallbackResponse(text);
             }
 
@@ -288,6 +297,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
                 time: new Date().toLocaleTimeString()
             });
             this.renderChat();
+            this._atualizarStatusLimite();
 
         } catch (error) {
             console.error('[IA] ❌ Erro:', error);
@@ -304,7 +314,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ FALLBACK (caso o serviço não esteja disponível)
+    // ⭐ FALLBACK
     // ============================================
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
@@ -346,7 +356,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ SETUP EVENTS (COMPLETO)
+    // ⭐ SETUP EVENTS
     // ============================================
     setupEvents() {
         const input = document.getElementById('ia-input');
@@ -355,12 +365,10 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         const backBtn = document.getElementById('btn-back-ia');
         const toggleBtn = document.getElementById('btn-toggle-giria');
 
-        // Botão enviar
         if (sendBtn) {
             sendBtn.onclick = () => this.sendMessage();
         }
 
-        // Input - Enter para enviar
         if (input) {
             input.onkeydown = (e) => {
                 if (e.key === 'Enter') {
@@ -370,34 +378,30 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             };
         }
 
-        // Botão flutuante da IA
         if (fabBtn) {
             fabBtn.onclick = () => {
                 this._previousView = this.app.currentView;
                 this.app.showView('ia');
+                setTimeout(() => this._atualizarStatusLimite(), 500);
             };
         }
 
-        // Botão voltar
         if (backBtn) {
             backBtn.onclick = () => {
                 this.app.showView(this._previousView || 'dashboard');
             };
         }
 
-        // ⭐ BOTÃO ALTERNAR GÍRIA
         if (toggleBtn) {
             toggleBtn.onclick = () => {
                 this.toggleModoGiria();
             };
         }
 
-        // ⭐ CARDS DE AÇÃO RÁPIDA (com detecção de gíria)
         document.querySelectorAll('.ia-action-card').forEach(card => {
             card.onclick = () => {
                 const prompt = card.dataset.prompt;
                 if (prompt) {
-                    // Adicionar "com gíria" se o modo estiver ativo
                     const textoFinal = this._modoGiria 
                         ? `${prompt} (fala com gíria moçambicana)`
                         : prompt;
@@ -406,31 +410,29 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             };
         });
 
-        // ⭐ COMANDOS POR TEXTO ESPECIAL (via mensagem do sistema)
-        // O próprio buildUserContext já detecta os comandos
+        // ⭐ ATUALIZAR LIMITE PERIODICAMENTE
+        setInterval(() => {
+            this._atualizarStatusLimite();
+        }, 30000);
 
         console.log('[IA] ✅ Eventos configurados! Modo:', this._modoGiria ? 'Gíria' : 'Normal');
     }
 }
 
 // ============================================
-// ⭐ FUNÇÃO GLOBAL PARA COPIAR MENSAGENS DA IA
+// ⭐ FUNÇÃO GLOBAL PARA COPIAR MENSAGENS
 // ============================================
 
 window.copyMessage = function(element) {
     try {
-        // Encontrar o conteúdo da mensagem
         const messageContent = element.closest('.ia-message-content');
         if (!messageContent) return;
         
-        // Pegar o texto (ignorando o hint de cópia)
         const text = messageContent.textContent.replace('📋 Copiar', '').trim();
         
-        // Copiar usando a API moderna
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text)
                 .then(() => {
-                    // Feedback visual
                     const originalText = element.textContent;
                     element.textContent = '✅ Copiado!';
                     setTimeout(() => {
@@ -438,11 +440,9 @@ window.copyMessage = function(element) {
                     }, 2000);
                 })
                 .catch(() => {
-                    // Fallback: método antigo
                     fallbackCopy(text, element);
                 });
         } else {
-            // Fallback: método antigo
             fallbackCopy(text, element);
         }
     } catch (error) {
@@ -478,4 +478,4 @@ function fallbackCopy(text, element) {
 }
 
 console.log('[IA] ✅ Função copyMessage registrada globalmente');
-console.log('[IA] ✅ Módulo carregado com controle de gíria e suporte a cópia!');
+console.log('[IA] ✅ Módulo carregado com controle de gíria e limite de 20 perguntas!');
