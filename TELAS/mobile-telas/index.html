@@ -1067,40 +1067,28 @@ const checkInterval = setInterval(() => {
 <script src="modules/ia.js"></script>
 <script src="api/proxy.js"></script>
 
-<script>
-// multi-ai-service.js - VERSÃO CORRIGIDA COM DEBUG COMPLETO
+<script>// ============================================
+// multi-ai-service.js - HUGGING FACE API DIRETA
+// SEM PROXY - CHAMADA DIRETA VIA FETCH
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO VIA PROXY...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO HUGGING FACE...');
 
 class MultiAIService {
     constructor() {
+        // ⭐ COLOQUE SUA CHAVE AQUI
+        this.HF_TOKEN = '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';
+        this.HF_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3';
+        
         this._cache = new Map();
         this._cacheMaxSize = 50;
         this._limiteDiario = 80;
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
-        this._proxyUrl = 'api/proxy';
         
-        // Fallback para caso o proxy não funcione
-        this._fallbackProviders = [
-            { 
-                name: 'Grok', 
-                url: 'https://api.x.ai/v1/chat/completions', 
-                key: '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', 
-                model: 'grok-beta' 
-            },
-            { 
-                name: 'SambaNova', 
-                url: 'https://api.sambanova.ai/v1/chat/completions', 
-                key: 'f3319e62-2d30-4f16-b9a2-0ec452183696', 
-                model: 'Llama-3.1-70B-Instruct' 
-            }
-        ];
-        
-        console.log('[MultiAI] ✅ Usando proxy em:', this._proxyUrl);
+        console.log('[MultiAI] ✅ Usando Hugging Face Inference API');
+        console.log('[MultiAI] 📊 Modelo: mistralai/Mistral-7B-Instruct-v0.3');
         this._resetarLimite();
-        console.log('[MultiAI] 📊 Status inicial:', this.getStatus());
     }
     
     _resetarLimite() {
@@ -1171,7 +1159,7 @@ class MultiAIService {
     }
     
     async sendMessage(prompt, context = '') {
-        console.log('[MultiAI] 📤 Enviando mensagem...');
+        console.log('[MultiAI] 📤 Enviando mensagem para Hugging Face...');
         console.log(`[MultiAI] 📝 Prompt: ${prompt.substring(0, 60)}...`);
         
         if (!this.temLimiteDisponivel()) {
@@ -1186,171 +1174,177 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // Tenta primeiro via proxy
-        console.log('[MultiAI] 🔄 Tentando via proxy...');
-        let result = await this._tryProxy(prompt, context);
-        if (result.success) {
-            this._incrementarUso();
-            this._saveToCache(prompt, context, result.text);
-            return result;
-        }
-        
-        // Se o proxy falhar, tenta chamada direta (com CORS pode falhar, mas é tentativa)
-        console.log('[MultiAI] 🔄 Proxy falhou, tentando chamada direta...');
-        result = await this._tryDirect(prompt, context);
-        if (result.success) {
-            this._incrementarUso();
-            this._saveToCache(prompt, context, result.text);
-            return result;
-        }
-        
-        // Fallback offline
-        console.log('[MultiAI] 📦 Usando fallback offline...');
-        const fallback = this._getFallbackResponse(prompt, context);
-        return { 
-            success: true, 
-            text: fallback, 
-            fromFallback: true,
-            error: result.error || 'Todos os provedores falharam'
-        };
-    }
-    
-    async _tryProxy(prompt, context) {
-        const providers = [
-            { name: 'Grok', provider: 'grok', model: 'grok-beta' },
-            { name: 'SambaNova', provider: 'sambanova', model: 'Llama-3.1-70B-Instruct' }
-        ];
-        
-        let lastError = null;
-        
-        for (const p of providers) {
-            try {
-                console.log(`[MultiAI] 🔄 Tentando ${p.name} via proxy...`);
-                
-                const requestBody = {
-                    provider: p.provider,
-                    prompt: prompt,
-                    context: context || '',
-                    model: p.model
-                };
-                
-                console.log(`[MultiAI] 📤 Enviando para proxy:`, JSON.stringify(requestBody, null, 2));
-                
-                const response = await fetch(this._proxyUrl, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                console.log(`[MultiAI] 📥 ${p.name} Status:`, response.status);
-                
-                let data;
-                const responseText = await response.text();
-                console.log(`[MultiAI] 📥 ${p.name} Resposta bruta:`, responseText.substring(0, 300));
-                
-                try {
-                    data = JSON.parse(responseText);
-                } catch (e) {
-                    console.error(`[MultiAI] ❌ ${p.name} resposta não-JSON:`, responseText);
-                    continue;
-                }
-                
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        console.warn(`[MultiAI] ⚠️ Proxy não encontrado (404) - verifica se api/proxy.js existe`);
-                        lastError = 'Proxy não encontrado (404)';
-                        continue;
-                    }
-                    if (response.status === 429 || data.limitExceeded) {
-                        return { success: false, error: 'Limite excedido', limitExceeded: true };
-                    }
-                    console.warn(`[MultiAI] ⚠️ ${p.name} falhou:`, data.error || 'Erro desconhecido');
-                    lastError = data.error || `Erro ${response.status}`;
-                    continue;
-                }
-                
-                if (data.success && data.text) {
-                    console.log(`[MultiAI] ✅ ${p.name} respondeu com sucesso via proxy!`);
-                    return { success: true, text: data.text.trim(), provider: p.name };
-                }
-                
-                if (data.error) {
-                    lastError = data.error;
-                    console.warn(`[MultiAI] ⚠️ ${p.name} erro:`, data.error);
-                    continue;
-                }
-                
-                return { success: false, error: 'Resposta inválida do proxy' };
-                
-            } catch (error) {
-                console.error(`[MultiAI] ❌ ${p.name} erro:`, error.message);
-                lastError = error.message;
+        try {
+            const result = await this._callHuggingFace(prompt, context);
+            
+            if (result.success) {
+                this._incrementarUso();
+                this._saveToCache(prompt, context, result.text);
+                return result;
             }
+            
+            return result;
+            
+        } catch (error) {
+            console.error('[MultiAI] ❌ Erro:', error);
+            return { 
+                success: false, 
+                error: error.message || 'Erro ao chamar Hugging Face'
+            };
         }
-        
-        return { success: false, error: lastError || 'Todos os provedores via proxy falharam' };
     }
     
-    async _tryDirect(prompt, context) {
-        // Tenta chamada direta (pode falhar por CORS)
-        for (const p of this._fallbackProviders) {
-            try {
-                console.log(`[MultiAI] 🔄 Tentando ${p.name} diretamente...`);
-                
-                const response = await fetch(p.url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${p.key}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: p.model,
-                        messages: [
-                            { role: 'system', content: context || 'Você é um assistente educacional útil. Responda de forma clara e didática.' },
-                            { role: 'user', content: prompt }
-                        ],
+    async _callHuggingFace(prompt, context) {
+        const isGiria = context && context.includes('MODO GÍRIA ATIVO');
+        
+        const systemPrompt = isGiria 
+            ? 'Você é um assistente educacional que fala com gírias moçambicanas. Use: broo, nice, maning, fixe, bué, bora, magaia, tamos juntos. Seja divertido e use emojis 🇲🇿.'
+            : 'Você é um assistente educacional útil. Responda de forma clara, didática e profissional em português.';
+        
+        const fullPrompt = `${systemPrompt}\n\nUsuário: ${prompt}\n\nAssistente:`;
+        
+        try {
+            console.log('[MultiAI] 📡 Chamando Hugging Face API...');
+            
+            const response = await fetch(this.HF_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.HF_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: fullPrompt,
+                    parameters: {
+                        max_new_tokens: 1024,
                         temperature: 0.7,
-                        max_tokens: 1024,
-                        top_p: 0.9
-                    })
-                });
-                
-                console.log(`[MultiAI] 📥 ${p.name} direto Status:`, response.status);
-                
-                let data;
-                try {
-                    data = await response.json();
-                } catch (e) {
-                    const text = await response.text();
-                    console.error(`[MultiAI] ❌ ${p.name} direto não-JSON:`, text.substring(0, 200));
-                    continue;
-                }
-                
-                if (!response.ok) {
-                    if (response.status === 429 || 
-                        response.status === 402 ||
-                        data.error?.message?.toLowerCase().includes('rate limit') ||
-                        data.error?.message?.toLowerCase().includes('quota') ||
-                        data.error?.message?.toLowerCase().includes('exceeded') ||
-                        data.error?.message?.toLowerCase().includes('saldo insuficiente')) {
-                        return { success: false, error: 'Limite excedido', limitExceeded: true };
+                        top_p: 0.9,
+                        do_sample: true,
+                        return_full_text: false
                     }
-                    console.warn(`[MultiAI] ⚠️ ${p.name} direto falhou:`, data.error?.message || 'Erro');
-                    continue;
+                })
+            });
+            
+            console.log('[MultiAI] 📥 Status:', response.status);
+            
+            // ⭐ VERIFICAR SE É UMA RESPOSTA DE ERRO (TEXTO HTML)
+            const contentType = response.headers.get('content-type') || '';
+            
+            if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+                const text = await response.text();
+                console.error('[MultiAI] ❌ Resposta HTML/Texto:', text.substring(0, 200));
+                
+                // Verificar se é erro de autenticação
+                if (text.includes('401') || text.includes('Unauthorized') || text.includes('Invalid token')) {
+                    return { 
+                        success: false, 
+                        error: '🔑 Chave da Hugging Face inválida! Verifique seu token.'
+                    };
                 }
                 
-                const text = data.choices?.[0]?.message?.content;
-                if (text) {
-                    console.log(`[MultiAI] ✅ ${p.name} respondeu com sucesso diretamente!`);
-                    return { success: true, text: text.trim(), provider: p.name + ' (direto)' };
+                if (text.includes('429') || text.includes('rate limit') || text.includes('too many requests')) {
+                    return { 
+                        success: false, 
+                        error: '⏳ Limite de requisições excedido! Aguarde alguns minutos.'
+                    };
                 }
-            } catch (error) {
-                console.warn(`[MultiAI] ⚠️ ${p.name} direto erro:`, error.message);
+                
+                return { 
+                    success: false, 
+                    error: 'Erro na API. Verifique sua chave e tente novamente.'
+                };
             }
+            
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                const text = await response.text();
+                console.error('[MultiAI] ❌ Resposta não-JSON:', text.substring(0, 200));
+                return { 
+                    success: false, 
+                    error: 'Resposta inválida do servidor. Verifique sua chave.'
+                };
+            }
+            
+            if (!response.ok) {
+                console.error('[MultiAI] ❌ Erro HTTP:', response.status, data);
+                
+                if (response.status === 401 || response.status === 403) {
+                    return { 
+                        success: false, 
+                        error: '🔑 Chave da Hugging Face inválida! Verifique seu token.'
+                    };
+                }
+                
+                if (response.status === 429) {
+                    return { 
+                        success: false, 
+                        error: '⏳ Limite de requisições excedido! Aguarde alguns minutos.'
+                    };
+                }
+                
+                if (response.status === 503) {
+                    return { 
+                        success: false, 
+                        error: '🔧 Modelo está carregando. Aguarde alguns segundos e tente novamente.'
+                    };
+                }
+                
+                return { 
+                    success: false, 
+                    error: data?.error || `Erro ${response.status} - ${data?.message || 'Erro desconhecido'}`
+                };
+            }
+            
+            // ⭐ EXTRAIR RESPOSTA
+            let text = '';
+            
+            // Formato padrão da Inference API
+            if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
+                text = data[0].generated_text;
+            } 
+            // Formato alternativo
+            else if (data.generated_text) {
+                text = data.generated_text;
+            }
+            // Fallback
+            else if (typeof data === 'string') {
+                text = data;
+            }
+            else {
+                console.error('[MultiAI] ❌ Formato inesperado:', data);
+                return { 
+                    success: false, 
+                    error: 'Formato de resposta inesperado.'
+                };
+            }
+            
+            // Limpar a resposta (remover o prompt)
+            text = text.replace(fullPrompt, '').trim();
+            text = text.replace(/^Assistente:\s*/, '').trim();
+            
+            if (!text) {
+                return { 
+                    success: false, 
+                    error: 'Resposta vazia da API.'
+                };
+            }
+            
+            console.log('[MultiAI] ✅ Resposta recebida:', text.substring(0, 100) + '...');
+            
+            return { 
+                success: true, 
+                text: text,
+                provider: 'Hugging Face'
+            };
+            
+        } catch (error) {
+            console.error('[MultiAI] ❌ Erro na chamada:', error);
+            return { 
+                success: false, 
+                error: error.message || 'Erro de rede ao chamar a API'
+            };
         }
-        return { success: false, error: 'Chamada direta falhou' };
     }
     
     _getFallbackResponse(prompt, context) {
@@ -1372,15 +1366,11 @@ class MultiAIService {
             
             estudo: isGiria
                 ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada, 4) Faça pausas regulares.',
-            
-            tarefa: isGiria
-                ? '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎'
-                : 'Para gerenciar tarefas: 1) Priorize as mais urgentes, 2) Divida em pequenas etapas, 3) Defina prazos realistas, 4) Celebre cada conclusão.',
+                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.',
             
             padrao: isGiria
                 ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
-                : 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar com seus estudos!'
+                : 'Desculpe, não entendi sua pergunta. Poderia reformular?'
         };
         
         if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
@@ -1395,9 +1385,6 @@ class MultiAIService {
         if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return respostas.estudo;
         }
-        if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
-            return respostas.tarefa;
-        }
         
         return respostas.padrao;
     }
@@ -1407,7 +1394,9 @@ class MultiAIService {
         return {
             usoTotal: this._usosHoje,
             limiteTotal: this._limiteDiario,
-            restante: this.getLimiteRestante()
+            restante: this.getLimiteRestante(),
+            provider: 'Hugging Face',
+            model: 'mistralai/Mistral-7B-Instruct-v0.3'
         };
     }
     
@@ -1432,14 +1421,16 @@ window.getLimiteIA = () => {
         usado: status.usoTotal,
         maximo: status.limiteTotal,
         restante: status.restante,
+        provider: status.provider,
+        model: status.model,
         reset: () => multiAI.resetLimite()
     };
 };
 
-console.log('[MultiAI] ✅ Serviço Multi-API carregado (proxy + fallback direto)');
-console.log(`[MultiAI] 📊 Provedores: Grok + SambaNova (via proxy)`);
+console.log('[MultiAI] ✅ Serviço Hugging Face carregado!');
+console.log(`[MultiAI] 📊 Modelo: mistralai/Mistral-7B-Instruct-v0.3`);
 console.log(`[MultiAI] 📊 Limite: ${multiAI._limiteDiario} perguntas/dia`);
-console.log('[MultiAI] 💡 Se o proxy falhar, tenta chamada direta (pode ter CORS)');</script>
+console.log('[MultiAI] 💡 Não usa proxy - chamada direta para Hugging Face');</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
