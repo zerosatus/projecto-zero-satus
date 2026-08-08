@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/api/sambanova",
-      "destination": "https://api.sambanova.ai/v1/chat/completions"
-    }
-  ]
-}
