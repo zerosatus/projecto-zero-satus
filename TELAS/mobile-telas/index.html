@@ -1066,8 +1066,8 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>// multi-ai-service.js - SEM PROXY (chamada direta às APIs)
-// ⚠️ ATENÇÃO: Chaves ficam expostas no frontend!
+<script>// multi-ai-service.js - SEM PROXY (chamada direta)
+// ⚠️ ATENÇÃO: As chaves das APIs ficam expostas no frontend!
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO SEM PROXY...');
@@ -1095,7 +1095,6 @@ class MultiAIService {
             key: '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',
             url: 'https://api.x.ai/v1/chat/completions',
             model: 'grok-beta',
-            isAvailable: true,
             usoHoje: 0,
             limiteDiario: 30
         });
@@ -1106,9 +1105,34 @@ class MultiAIService {
             key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
             url: 'https://api.sambanova.ai/v1/chat/completions',
             model: 'Llama-3.1-70B-Instruct',
-            isAvailable: true,
             usoHoje: 0,
             limiteDiario: 40
+        });
+        
+        // 🔥 DEEPSEEK (prioridade 3)
+        this.providers.push({
+            name: 'DeepSeek',
+            key: 'sk-e528baf9102b44f59696badf598dbc4b',
+            url: 'https://api.deepseek.com/v1/chat/completions',
+            model: 'deepseek-chat',
+            usoHoje: 0,
+            limiteDiario: 50
+        });
+        
+        // 🔥 OPENROUTER (prioridade 4)
+        this.providers.push({
+            name: 'OpenRouter',
+            key: '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',
+            url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: 'openrouter/free',
+            usoHoje: 0,
+            limiteDiario: 20,
+            headers: (key) => ({
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://zerosatus.vercel.app',
+                'X-Title': 'Zero Satus App'
+            })
         });
     }
     
@@ -1197,18 +1221,19 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        const providers = this.providers;
+        // Embaralhar para variar os provedores
+        const shuffled = this._shuffleProviders();
         let lastError = null;
         
-        for (let i = 0; i < providers.length; i++) {
-            const provider = providers[i];
+        for (let i = 0; i < shuffled.length; i++) {
+            const provider = shuffled[i];
             
             if (provider.usoHoje >= provider.limiteDiario) {
                 console.log(`[MultiAI] ⏭️ ${provider.name} atingiu limite (${provider.usoHoje}/${provider.limiteDiario})`);
                 continue;
             }
             
-            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${providers.length})...`);
+            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${shuffled.length})...`);
             
             try {
                 const result = await this._tryProvider(provider, prompt, context);
@@ -1252,26 +1277,45 @@ class MultiAIService {
         };
     }
     
+    _shuffleProviders() {
+        const shuffled = [...this.providers];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+    
     async _tryProvider(provider, prompt, context) {
         const timeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
         );
         
         try {
+            // Headers base
+            const headers = {
+                'Authorization': `Bearer ${provider.key}`,
+                'Content-Type': 'application/json'
+            };
+            
+            // Headers especiais para OpenRouter
+            if (provider.name === 'OpenRouter') {
+                headers['HTTP-Referer'] = 'https://zerosatus.vercel.app';
+                headers['X-Title'] = 'Zero Satus App';
+            }
+            
             const fetchPromise = fetch(provider.url, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${provider.key}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: headers,
                 body: JSON.stringify({
                     model: provider.model,
                     messages: [
-                        { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                        { role: 'system', content: context || 'Você é um assistente educacional útil. Responda de forma clara e didática.' },
                         { role: 'user', content: prompt }
                     ],
                     temperature: 0.7,
-                    max_tokens: 1024
+                    max_tokens: 1024,
+                    top_p: 0.9
                 })
             });
             
@@ -1285,7 +1329,7 @@ class MultiAIService {
             } catch (e) {
                 const text = await response.text();
                 console.error(`[MultiAI] ❌ ${provider.name} resposta não-JSON:`, text.substring(0, 200));
-                return { success: false, error: 'Resposta inválida' };
+                return { success: false, error: 'Resposta inválida do servidor' };
             }
             
             if (!response.ok) {
@@ -1293,7 +1337,10 @@ class MultiAIService {
                     response.status === 402 ||
                     data.error?.message?.toLowerCase().includes('rate limit') ||
                     data.error?.message?.toLowerCase().includes('quota') ||
-                    data.error?.message?.toLowerCase().includes('exceeded');
+                    data.error?.message?.toLowerCase().includes('exceeded') ||
+                    data.error?.message?.toLowerCase().includes('too many') ||
+                    data.error?.toLowerCase().includes('insufficient balance') ||
+                    data.error?.toLowerCase().includes('saldo insuficiente');
                 
                 if (isLimit) {
                     return { success: false, error: 'Limite excedido', limitExceeded: true };
@@ -1305,19 +1352,25 @@ class MultiAIService {
                 
                 return {
                     success: false,
-                    error: data.error?.message || `Erro ${response.status}`
+                    error: data.error?.message || data.message || `Erro ${response.status}`
                 };
             }
             
             const text = data.choices?.[0]?.message?.content || null;
             
             if (!text) {
-                return { success: false, error: 'Resposta vazia' };
+                return { success: false, error: 'Resposta vazia da API' };
             }
             
             return { success: true, text: text.trim() };
             
         } catch (error) {
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                return { success: false, error: 'Erro de rede - verifique sua conexão' };
+            }
+            if (error.message.includes('Timeout')) {
+                return { success: false, error: 'Tempo esgotado - tente novamente' };
+            }
             return { success: false, error: error.message };
         }
     }
@@ -1327,27 +1380,39 @@ class MultiAIService {
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
         if (isGiria) {
-            if (texto.includes('oi') || texto.includes('olá')) {
+            if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
                 return '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?';
             }
-            if (texto.includes('estudar') || texto.includes('estudos')) {
-                return '🇲🇿 Bora estudar! A chave é consistência, maning. Faz um plano e segue firme! Tamos juntos! 💪';
+            if (texto.includes('estudar') || texto.includes('estudos') || texto.includes('prova')) {
+                return '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪';
             }
-            if (texto.includes('tarefa') || texto.includes('dever')) {
+            if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
                 return '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎';
             }
-            return '🇲🇿 Boa pergunta, magaia! Tamos juntos!';
+            if (texto.includes('matem') || texto.includes('conta') || texto.includes('soma')) {
+                return '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮';
+            }
+            if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
+                return '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝';
+            }
+            return '🇲🇿 Boa pergunta, magaia! Tenta reformular ou pergunta de outro jeito. Tamos juntos!';
         } else {
-            if (texto.includes('oi') || texto.includes('olá')) {
+            if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
                 return 'Olá! Como posso ajudar você hoje?';
             }
-            if (texto.includes('estudar') || texto.includes('estudos')) {
-                return 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.';
+            if (texto.includes('estudar') || texto.includes('estudos') || texto.includes('prova')) {
+                return 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada, 4) Faça pausas regulares.';
             }
-            if (texto.includes('tarefa') || texto.includes('dever')) {
-                return 'Para gerenciar tarefas: priorize as mais urgentes e divida em pequenas etapas.';
+            if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
+                return 'Para gerenciar tarefas: 1) Priorize as mais urgentes, 2) Divida em pequenas etapas, 3) Defina prazos realistas, 4) Celebre cada conclusão.';
             }
-            return 'Desculpe, não entendi. Poderia reformular?';
+            if (texto.includes('matem') || texto.includes('conta') || texto.includes('soma')) {
+                return 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas, 4) Resolva problemas variados.';
+            }
+            if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
+                return 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback, 5) Estude gramática.';
+            }
+            return 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar com seus estudos!';
         }
     }
     
@@ -1394,7 +1459,7 @@ window.getLimiteIA = () => {
 };
 
 console.log('[MultiAI] ✅ Serviço SEM PROXY carregado!');
-console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis (chamada direta)`);
+console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis (chamada direta):`);
 multiAI.providers.forEach(p => {
     console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia (DIRETO)`);
 });</script>
