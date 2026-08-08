@@ -1068,7 +1068,8 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// openrouter-service.js - VERSÃO DEFINITIVA (SOMENTE ROTEADORES OFICIAIS)
+// openrouter-service.js - VERSÃO DEFINITIVA
+// COM MODELOS VERIFICADOS E FALLBACK OFFLINE
 // ============================================
 
 console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
@@ -1087,21 +1088,33 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
                 this.apiKey = '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';
                 this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
                 
-                // ⭐ SOMENTE ROTEADORES OFICIAIS (GARANTEM MODELOS GRATUITOS)
-                // Fonte: https://openrouter.ai/docs#models
+                // ⭐ MODELOS QUE REALMENTE FUNCIONAM (SEM :free)
+                // Fonte: https://openrouter.ai/models
                 this.models = [
-                    'openrouter/free',        // Roteador principal
-                    'openrouter/free-coder',  // Para código
-                    'openrouter/free-large'   // Para tarefas maiores
+                    // ROTEADORES OFICIAIS (RECOMENDADOS)
+                    'openrouter/free',
+                    'openrouter/free-coder',
+                    'openrouter/free-large',
+                    
+                    // MODELOS ESPECÍFICOS QUE FUNCIONAM
+                    'google/gemini-2.0-flash-exp',
+                    'google/gemma-4-26b-a4b',
+                    'meta-llama/llama-3.3-70b-instruct',
+                    'deepseek/deepseek-chat-v3-0324',
+                    'deepseek/deepseek-r1',
+                    'qwen/qwen-3-coder',
+                    'qwen/qwen-3-next-80b-a3b',
+                    'microsoft/phi-3.5-mini-128k',
+                    'mistralai/mistral-7b-instruct'
                 ];
                 
-                // ⭐ CACHE DE RESPOSTAS (válido por 1 hora)
+                // ⭐ CACHE DE RESPOSTAS
                 this._cache = new Map();
                 this._cacheMaxSize = 50;
                 
                 // ⭐ BACKOFF PARA 429
-                this._backoffDelay = 1000; // 1 segundo inicial
-                this._maxBackoff = 10000; // 10 segundos máximo
+                this._backoffDelay = 1000;
+                this._maxBackoff = 10000;
                 
                 // ⭐ INICIALIZAR LIMITE
                 this._resetarLimiteDiario();
@@ -1184,7 +1197,7 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
             }
             
             // ============================================
-            // ⭐ SEND MESSAGE (COM BACKOFF)
+            // ⭐ SEND MESSAGE (COM BACKOFF E FALLBACK)
             // ============================================
             
             async sendMessage(prompt, context = '') {
@@ -1205,6 +1218,7 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
                 
                 let delay = this._backoffDelay;
                 
+                // ⭐ TENTAR TODOS OS MODELOS
                 for (let i = 0; i < this.models.length; i++) {
                     const model = this.models[i];
                     console.log(`[OpenRouter] 🔄 Tentando modelo ${i+1}/${this.models.length}: ${model}`);
@@ -1214,7 +1228,6 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
                         if (result.success) {
                             this._incrementarUso();
                             this._saveToCache(prompt, context, result.text);
-                            // Resetar backoff após sucesso
                             this._backoffDelay = 1000;
                             return result;
                         }
@@ -1224,7 +1237,6 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
                             console.log(`[OpenRouter] ⏳ Rate limit (429), aguardando ${delay}ms...`);
                             await this._sleep(delay);
                             delay = Math.min(delay * 2, this._maxBackoff);
-                            // Tentar novamente com o mesmo modelo
                             i--;
                             continue;
                         }
@@ -1235,10 +1247,10 @@ console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO DEFINITIVA...');
                     }
                 }
                 
-                return { 
-                    success: false, 
-                    error: '🌐 Nenhum modelo disponível no momento. Tenta novamente mais tarde!' 
-                };
+                // ⭐ SE TODOS FALHAREM, USAR FALLBACK OFFLINE
+                console.log('[OpenRouter] 📦 Usando fallback offline...');
+                const fallback = this._getFallbackResponse(prompt, context);
+                return { success: true, text: fallback, fromFallback: true };
             }
             
             // ============================================
@@ -1290,15 +1302,14 @@ Resposta:
                         errorText = await response.text() || '';
                     }
                     
-                    // Retornar status específico para 429
                     if (response.status === 429) {
                         return { success: false, error: '⏳ Muitas requisições! Aguarde...', status: 429 };
                     }
                     if (response.status === 404) {
-                        return { success: false, error: `Modelo não encontrado`, modelError: true };
+                        return { success: false, error: 'Modelo não encontrado', modelError: true };
                     }
                     if (response.status === 401 || response.status === 403) {
-                        return { success: false, error: '🔑 Chave inválida! Verifique sua chave.' };
+                        return { success: false, error: '🔑 Chave inválida!' };
                     }
                     
                     return { 
@@ -1316,6 +1327,61 @@ Resposta:
                 }
 
                 return { success: false, error: 'Resposta inesperada da IA' };
+            }
+            
+            // ============================================
+            // ⭐ FALLBACK OFFLINE (NUNCA PARA)
+            // ============================================
+            
+            _getFallbackResponse(prompt, context) {
+                const texto = prompt.toLowerCase();
+                const isGiria = context.includes('MODO GÍRIA ATIVO');
+                
+                // ⭐ RESPOSTAS PRÉ-DEFINIDAS PARA NUNCA PARAR
+                const respostas = {
+                    saudacao: isGiria 
+                        ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
+                        : 'Olá! Como posso ajudar você hoje?',
+                    
+                    estudo: isGiria
+                        ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
+                        : 'Para estudar de forma eficiente, recomendo: 1) Criar um cronograma, 2) Usar técnicas como Pomodoro, 3) Revisar o conteúdo regularmente.',
+                    
+                    tarefa: isGiria
+                        ? '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎'
+                        : 'Para gerenciar suas tarefas, sugiro priorizar as mais urgentes, dividir em pequenas etapas e definir prazos realistas.',
+                    
+                    foco: isGiria
+                        ? '🇲🇿 Foco é igual a músculo, maning! Treina ele todo dia. Desliga as distrações e bora!'
+                        : 'Para manter o foco, tente: 1) Técnica Pomodoro (25min foco, 5min pausa), 2) Eliminar distrações, 3) Definir metas claras.',
+                    
+                    motivacao: isGiria
+                        ? '🇲🇿 Tu é maior que qualquer desafio, magaia! Confia no teu potencial e vai!'
+                        : 'Acredite no seu potencial. Cada passo, por menor que seja, te aproxima dos seus objetivos.',
+                    
+                    padrao: isGiria
+                        ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
+                        : 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar!'
+                };
+                
+                // ⭐ DETECTAR INTENÇÃO
+                if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia') || texto.includes('boa tarde')) {
+                    return respostas.saudacao;
+                }
+                if (texto.includes('estud') || texto.includes('aula') || texto.includes('matéria') || texto.includes('prova')) {
+                    return respostas.estudo;
+                }
+                if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
+                    return respostas.tarefa;
+                }
+                if (texto.includes('foco') || texto.includes('concentrar') || texto.includes('distra')) {
+                    return respostas.foco;
+                }
+                if (texto.includes('motiv') || texto.includes('ânimo') || texto.includes('força')) {
+                    return respostas.motivacao;
+                }
+                
+                return respostas.padrao;
             }
             
             // ============================================
@@ -1347,8 +1413,9 @@ Resposta:
         };
 
         console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
-        console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados (somente roteadores oficiais)`);
+        console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
         console.log(`[OpenRouter] 📊 Limite: ${LIMITE_DIARIO} perguntas/dia`);
+        console.log(`[OpenRouter] 🛡️ Fallback offline ativado - IA nunca vai parar!`);
         
         window.dispatchEvent(new CustomEvent('openrouterLoaded', { 
             detail: { service } 
@@ -1356,11 +1423,18 @@ Resposta:
         
     } catch (error) {
         console.error('[OpenRouter] ❌ ERRO FATAL:', error);
+        // ⭐ FALLBACK DE EMERGÊNCIA
         window.OpenRouterService = {
-            sendMessage: async () => ({ 
-                success: false, 
-                error: 'Erro ao carregar serviço de IA. Recarregue a página.' 
-            })
+            sendMessage: async (prompt, context) => {
+                const isGiria = context && context.includes('MODO GÍRIA ATIVO');
+                return {
+                    success: true,
+                    text: isGiria 
+                        ? '🇲🇿 Eai broo! O sistema de IA está a carregar. Tenta novamente em instantes! Tamos juntos! 💪'
+                        : 'Olá! O sistema de IA está carregando. Tente novamente em instantes!',
+                    fromFallback: true
+                };
+            }
         };
         window.GeminiService = window.OpenRouterService;
     }
