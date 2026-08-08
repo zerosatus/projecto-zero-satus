@@ -1,3 +1,4 @@
+// api/proxy.js
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
@@ -5,6 +6,7 @@ export default async function handler(req, res) {
 
   const { provider, prompt, context, model } = req.body;
 
+  // Configurações de cada provedor
   const providers = {
     grok: {
       url: 'https://api.x.ai/v1/chat/completions',
@@ -14,7 +16,7 @@ export default async function handler(req, res) {
     sambanova: {
       url: 'https://api.sambanova.ai/v1/chat/completions',
       key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
-      model: model || 'Llama-3.1-70B-Instruct',
+      model: 'Meta-Llama-3.1-70B-Instruct',  // ← NOME CORRETO
     },
   };
 
@@ -43,20 +45,25 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
+    // ⭐ LOG PARA DEBUG
+    console.log('[Proxy] Resposta:', JSON.stringify(data, null, 2));
+
     if (!response.ok) {
       return res.status(response.status).json({ 
-        error: data.error?.message || 'Erro na API' 
+        error: data.error?.message || data.error || 'Erro na API',
+        details: data
       });
     }
 
     const text = data.choices?.[0]?.message?.content;
     if (!text) {
-      return res.status(500).json({ error: 'Resposta vazia' });
+      return res.status(500).json({ error: 'Resposta vazia da API' });
     }
 
     return res.status(200).json({ success: true, text: text.trim() });
 
   } catch (error) {
+    console.error('[Proxy] Erro:', error);
     return res.status(500).json({ error: error.message });
   }
 }
