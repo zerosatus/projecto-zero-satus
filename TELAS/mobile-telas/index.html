@@ -1066,368 +1066,446 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>
+<script>// ============================================
+// multi-ai-service.js - MÚLTIPLAS APIs COM FALLBACK
+// SUPORTA: Grok, SambaNova, DeepSeek, OpenRouter
 // ============================================
-// openrouter-service.js - VERSÃO SIMPLES
-// FOCADA EM TEXTO E MATEMÁTICA BÁSICA
-// ============================================
 
-console.log('🔥🔥🔥 [OpenRouter] CARREGANDO VERSÃO SIMPLES...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API...');
 
-(function() {
-    'use strict';
-    
-    try {
-        // ⭐ LIMITE DE 20 PERGUNTAS POR DIA
-        const LIMITE_DIARIO = 20;
-        const CHAVE_LIMITE = 'openrouter_uso_diario';
-        const CHAVE_DATA = 'openrouter_data_uso';
-
-        class OpenRouterService {
-            constructor() {
-                this.apiKey = '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';
-                this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-                
-                // ⭐ MODELOS SIMPLES - TEXTO E MATEMÁTICA BÁSICA
-                this.models = [
-                    'openrouter/free',        // Roteador principal
-                    'openrouter/free-coder',  // Também funciona para texto
-                    'openrouter/free-large',  // Para respostas mais longas
-                    'google/gemini-2.0-flash-exp',  // Bom para texto
-                    'google/gemma-4-26b-a4b',       // Modelo leve
-                    'meta-llama/llama-3.3-70b-instruct',  // Bom para texto
-                    'deepseek/deepseek-chat-v3-0324',     // Bom para matemática
-                    'deepseek/deepseek-r1'              // Raciocínio matemático
-                ];
-                
-                // ⭐ CACHE DE RESPOSTAS
-                this._cache = new Map();
-                this._cacheMaxSize = 50;
-                
-                // ⭐ BACKOFF PARA 429
-                this._backoffDelay = 1000;
-                this._maxBackoff = 10000;
-                
-                // ⭐ INICIALIZAR LIMITE
-                this._resetarLimiteDiario();
-                
-                console.log('[OpenRouter] ✅ CONSTRUTOR EXECUTADO!');
-                console.log(`[OpenRouter] 📦 ${this.models.length} modelos disponíveis`);
-                console.log(`[OpenRouter] 📊 Limite diário: ${LIMITE_DIARIO} perguntas`);
-                console.log(`[OpenRouter] 📊 Uso hoje: ${this.getUsoHoje()}/${LIMITE_DIARIO}`);
-            }
-            
-            // ============================================
-            // ⭐ GERENCIAR LIMITE DIÁRIO
-            // ============================================
-            
-            _resetarLimiteDiario() {
-                const hoje = new Date().toDateString();
-                const dataSalva = localStorage.getItem(CHAVE_DATA);
-                
-                if (dataSalva !== hoje) {
-                    localStorage.setItem(CHAVE_DATA, hoje);
-                    localStorage.setItem(CHAVE_LIMITE, '0');
-                    console.log('[OpenRouter] 📅 Novo dia! Limite resetado.');
-                }
-            }
-            
-            getUsoHoje() {
-                this._resetarLimiteDiario();
-                return parseInt(localStorage.getItem(CHAVE_LIMITE) || '0', 10);
-            }
-            
-            _incrementarUso() {
-                const uso = this.getUsoHoje();
-                localStorage.setItem(CHAVE_LIMITE, String(uso + 1));
-                console.log(`[OpenRouter] 📊 Uso: ${uso + 1}/${LIMITE_DIARIO}`);
-            }
-            
-            temLimiteDisponivel() {
-                return this.getUsoHoje() < LIMITE_DIARIO;
-            }
-            
-            getLimiteRestante() {
-                return Math.max(0, LIMITE_DIARIO - this.getUsoHoje());
-            }
-            
-            // ============================================
-            // ⭐ CACHE DE RESPOSTAS
-            // ============================================
-            
-            _getCacheKey(prompt, context) {
-                return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
-            }
-            
-            _getFromCache(prompt, context) {
-                const key = this._getCacheKey(prompt, context);
-                if (this._cache.has(key)) {
-                    const item = this._cache.get(key);
-                    if (Date.now() - item.timestamp < 3600000) {
-                        console.log('[OpenRouter] 📦 Resposta do cache!');
-                        return item.value;
-                    }
-                    this._cache.delete(key);
-                }
-                return null;
-            }
-            
-            _saveToCache(prompt, context, response) {
-                const key = this._getCacheKey(prompt, context);
-                this._cache.set(key, {
-                    value: response,
-                    timestamp: Date.now()
-                });
-                
-                if (this._cache.size > this._cacheMaxSize) {
-                    const keys = Array.from(this._cache.keys());
-                    const oldest = keys.sort((a, b) => 
-                        this._cache.get(a).timestamp - this._cache.get(b).timestamp
-                    )[0];
-                    this._cache.delete(oldest);
-                }
-            }
-            
-            // ============================================
-            // ⭐ SEND MESSAGE (COM BACKOFF E FALLBACK)
-            // ============================================
-            
-            async sendMessage(prompt, context = '') {
-                console.log('[OpenRouter] 📤 Enviando mensagem...');
-                console.log('[OpenRouter] 📝 Prompt:', prompt.substring(0, 60) + '...');
-                
-                if (!this.temLimiteDisponivel()) {
-                    return { 
-                        success: false, 
-                        error: `⛔ Limite diário de ${LIMITE_DIARIO} perguntas atingido! Volte amanhã.` 
-                    };
-                }
-                
-                const cached = this._getFromCache(prompt, context);
-                if (cached) {
-                    return { success: true, text: cached, fromCache: true };
-                }
-                
-                let delay = this._backoffDelay;
-                
-                // ⭐ TENTAR TODOS OS MODELOS
-                for (let i = 0; i < this.models.length; i++) {
-                    const model = this.models[i];
-                    console.log(`[OpenRouter] 🔄 Tentando modelo ${i+1}/${this.models.length}: ${model}`);
-                    
-                    try {
-                        const result = await this.tryModel(model, prompt, context);
-                        if (result.success) {
-                            this._incrementarUso();
-                            this._saveToCache(prompt, context, result.text);
-                            this._backoffDelay = 1000;
-                            return result;
-                        }
-                        
-                        // Se for 429, aumentar backoff e esperar
-                        if (result.status === 429) {
-                            console.log(`[OpenRouter] ⏳ Rate limit (429), aguardando ${delay}ms...`);
-                            await this._sleep(delay);
-                            delay = Math.min(delay * 2, this._maxBackoff);
-                            i--;
-                            continue;
-                        }
-                        
-                        console.log(`[OpenRouter] ⚠️ Modelo ${model} falhou:`, result.error);
-                    } catch (e) {
-                        console.log(`[OpenRouter] ⚠️ Modelo ${model} deu erro:`, e.message);
-                    }
-                }
-                
-                // ⭐ SE TODOS FALHAREM, USAR FALLBACK OFFLINE
-                console.log('[OpenRouter] 📦 Usando fallback offline...');
-                const fallback = this._getFallbackResponse(prompt, context);
-                return { success: true, text: fallback, fromFallback: true };
-            }
-            
-            // ============================================
-            // ⭐ TRY MODEL
-            // ============================================
-            
-            async tryModel(model, prompt, context) {
-                const fullPrompt = `
-${context}
-
-Usuário: ${prompt}
-
-Resposta:
-`;
-
-                console.log(`[OpenRouter] 📤 Enviando para ${model}...`);
-
-                const response = await fetch(this.apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
-                        'X-Title': 'Zero Satus App'
-                    },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: [
-                            { 
-                                role: 'system', 
-                                content: 'Você é um assistente educacional simples. Ajude com texto e matemática básica. Seja claro, direto e didático. Evite programação e termos muito técnicos.' 
-                            },
-                            { role: 'user', content: fullPrompt }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 512,
-                        top_p: 0.9
-                    })
-                });
-
-                console.log(`[OpenRouter] 📥 Status ${model}:`, response.status);
-
-                if (!response.ok) {
-                    let errorText = '';
-                    try {
-                        const errorJson = await response.json();
-                        errorText = errorJson.error?.message || '';
-                    } catch (e) {
-                        errorText = await response.text() || '';
-                    }
-                    
-                    if (response.status === 429) {
-                        return { success: false, error: '⏳ Muitas requisições! Aguarde...', status: 429 };
-                    }
-                    if (response.status === 404) {
-                        return { success: false, error: 'Modelo não encontrado', modelError: true };
-                    }
-                    if (response.status === 401 || response.status === 403) {
-                        return { success: false, error: '🔑 Chave inválida!' };
-                    }
-                    
-                    return { 
-                        success: false, 
-                        error: `Erro ${response.status}: ${errorText || 'Falha na comunicação'}` 
-                    };
-                }
-
-                const data = await response.json();
-                console.log(`[OpenRouter] ✅ Resposta recebida de ${model}!`);
-                
-                if (data.choices && data.choices.length > 0) {
-                    const text = data.choices[0].message.content;
-                    return { success: true, text: text, model: model };
-                }
-
-                return { success: false, error: 'Resposta inesperada da IA' };
-            }
-            
-            // ============================================
-            // ⭐ FALLBACK OFFLINE (NUNCA PARA)
-            // ============================================
-            
-            _getFallbackResponse(prompt, context) {
-                const texto = prompt.toLowerCase();
-                const isGiria = context.includes('MODO GÍRIA ATIVO');
-                
-                // ⭐ RESPOSTAS PRÉ-DEFINIDAS (TEXTO E MATEMÁTICA)
-                const respostas = {
-                    saudacao: isGiria 
-                        ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
-                        : 'Olá! Como posso ajudar você hoje?',
-                    
-                    texto: isGiria
-                        ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
-                        : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
-                    
-                    matematica: isGiria
-                        ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
-                        : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
-                    
-                    estudo: isGiria
-                        ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                        : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro (25min foco, 5min pausa), 3) Revise o conteúdo regularmente.',
-                    
-                    padrao: isGiria
-                        ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
-                        : 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar!'
-                };
-                
-                // ⭐ DETECTAR INTENÇÃO
-                if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia') || texto.includes('boa tarde')) {
-                    return respostas.saudacao;
-                }
-                if (texto.includes('escrever') || texto.includes('redação') || texto.includes('texto') || texto.includes('português') || texto.includes('gramática')) {
-                    return respostas.texto;
-                }
-                if (texto.includes('matem') || texto.includes('conta') || texto.includes('númer') || texto.includes('soma') || texto.includes('multiplic') || texto.includes('divis')) {
-                    return respostas.matematica;
-                }
-                if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
-                    return respostas.estudo;
-                }
-                
-                return respostas.padrao;
-            }
-            
-            // ============================================
-            // ⭐ UTILITÁRIO SLEEP
-            // ============================================
-            
-            _sleep(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
-        }
-
-        console.log('[OpenRouter] 📦 Criando instância...');
-        const service = new OpenRouterService();
-
-        window.OpenRouterService = service;
-        window.GeminiService = service;
-
-        window.getLimiteIA = () => {
-            return {
-                usado: service.getUsoHoje(),
-                maximo: LIMITE_DIARIO,
-                restante: service.getLimiteRestante(),
-                reset: () => {
-                    localStorage.setItem(CHAVE_DATA, new Date().toDateString());
-                    localStorage.setItem(CHAVE_LIMITE, '0');
-                    console.log('[OpenRouter] 📅 Limite resetado manualmente');
-                }
-            };
-        };
-
-        console.log('[OpenRouter] ✅ ✅ ✅ CARREGADO COM SUCESSO!');
-        console.log(`[OpenRouter] 🤖 ${service.models.length} modelos carregados`);
-        console.log(`[OpenRouter] 📊 Limite: ${LIMITE_DIARIO} perguntas/dia`);
-        console.log(`[OpenRouter] 🛡️ Fallback offline ativado`);
-        console.log(`[OpenRouter] 📚 Foco: Texto e Matemática Básica`);
+class MultiAIService {
+    constructor() {
+        // ⭐ CONFIGURAÇÃO DAS APIS
+        this.providers = [];
+        this.currentProviderIndex = 0;
+        this._cache = new Map();
+        this._cacheMaxSize = 50;
+        this._limiteDiario = 50; // Limite total combinado
+        this._usosHoje = 0;
+        this._dataReset = new Date().toDateString();
         
-        window.dispatchEvent(new CustomEvent('openrouterLoaded', { 
-            detail: { service } 
-        }));
+        // ⭐ REGISTRAR PROVEDORES
+        this._registerProviders();
         
-    } catch (error) {
-        console.error('[OpenRouter] ❌ ERRO FATAL:', error);
-        // ⭐ FALLBACK DE EMERGÊNCIA
-        window.OpenRouterService = {
-            sendMessage: async (prompt, context) => {
-                const isGiria = context && context.includes('MODO GÍRIA ATIVO');
-                return {
-                    success: true,
-                    text: isGiria 
-                        ? '🇲🇿 Eai broo! O sistema de IA está a carregar. Tenta novamente em instantes! Tamos juntos! 💪'
-                        : 'Olá! O sistema de IA está carregando. Tente novamente em instantes!',
-                    fromFallback: true
-                };
-            }
-        };
-        window.GeminiService = window.OpenRouterService;
+        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados`);
+        this._resetarLimite();
     }
     
-    console.log('🔥🔥🔥 [OpenRouter] FIM DO CARREGAMENTO');
-})();
-</script>
+    // ============================================
+    // ⭐ REGISTRAR PROVEDORES
+    // ============================================
+    _registerProviders() {
+        // 🔥 GROK (xAI)
+        this.providers.push({
+            name: 'Grok',
+            key: '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',
+            url: 'https://api.x.ai/v1/chat/completions',
+            model: 'grok-beta',
+            headers: (key) => ({
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json'
+            }),
+            body: (prompt, context) => ({
+                model: 'grok-beta',
+                messages: [
+                    { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024
+            }),
+            parseResponse: (data) => data.choices?.[0]?.message?.content || null,
+            isAvailable: true,
+            usoHoje: 0,
+            limiteDiario: 30 // Grok tem limite generoso
+        });
+        
+        // 🔥 SAMBANOVA
+        this.providers.push({
+            name: 'SambaNova',
+            key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
+            url: 'https://api.sambanova.ai/v1/chat/completions',
+            model: 'Llama-3.1-70B-Instruct',
+            headers: (key) => ({
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json'
+            }),
+            body: (prompt, context) => ({
+                model: 'Llama-3.1-70B-Instruct',
+                messages: [
+                    { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024,
+                top_p: 0.9
+            }),
+            parseResponse: (data) => data.choices?.[0]?.message?.content || null,
+            isAvailable: true,
+            usoHoje: 0,
+            limiteDiario: 40 // SambaNova tem limite generoso
+        });
+        
+        // 🔥 DEEPSEEK
+        this.providers.push({
+            name: 'DeepSeek',
+            key: 'sk-e528baf9102b44f59696badf598dbc4b',
+            url: 'https://api.deepseek.com/v1/chat/completions',
+            model: 'deepseek-chat',
+            headers: (key) => ({
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json'
+            }),
+            body: (prompt, context) => ({
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024,
+                stream: false
+            }),
+            parseResponse: (data) => data.choices?.[0]?.message?.content || null,
+            isAvailable: true,
+            usoHoje: 0,
+            limiteDiario: 50 // DeepSeek tem limite generoso
+        });
+        
+        // 🔥 OPENROUTER (Fallback final)
+        this.providers.push({
+            name: 'OpenRouter',
+            key: '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',
+            url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: 'openrouter/free',
+            headers: (key) => ({
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': window.location.origin || 'https://zerosatus.vercel.app',
+                'X-Title': 'Zero Satus App'
+            }),
+            body: (prompt, context) => ({
+                model: 'openrouter/free',
+                messages: [
+                    { role: 'system', content: context || 'Você é um assistente educacional útil.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024,
+                top_p: 0.9
+            }),
+            parseResponse: (data) => data.choices?.[0]?.message?.content || null,
+            isAvailable: true,
+            usoHoje: 0,
+            limiteDiario: 20 // OpenRouter free tem limite de 20/dia
+        });
+    }
+    
+    // ============================================
+    // ⭐ GERENCIAR LIMITE DIÁRIO
+    // ============================================
+    _resetarLimite() {
+        const hoje = new Date().toDateString();
+        if (this._dataReset !== hoje) {
+            this._dataReset = hoje;
+            this._usosHoje = 0;
+            this.providers.forEach(p => p.usoHoje = 0);
+            localStorage.setItem('multi_ai_data', hoje);
+            localStorage.setItem('multi_ai_uso', '0');
+            console.log('[MultiAI] 📅 Limite resetado para novo dia');
+        }
+    }
+    
+    getUsoHoje() {
+        this._resetarLimite();
+        const saved = localStorage.getItem('multi_ai_uso');
+        this._usosHoje = parseInt(saved) || 0;
+        return this._usosHoje;
+    }
+    
+    _incrementarUso() {
+        this._resetarLimite();
+        this._usosHoje++;
+        localStorage.setItem('multi_ai_uso', String(this._usosHoje));
+        console.log(`[MultiAI] 📊 Uso hoje: ${this._usosHoje}/${this._limiteDiario}`);
+    }
+    
+    temLimiteDisponivel() {
+        return this.getUsoHoje() < this._limiteDiario;
+    }
+    
+    getLimiteRestante() {
+        return Math.max(0, this._limiteDiario - this.getUsoHoje());
+    }
+    
+    // ============================================
+    // ⭐ CACHE
+    // ============================================
+    _getCacheKey(prompt, context) {
+        return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
+    }
+    
+    _getFromCache(prompt, context) {
+        const key = this._getCacheKey(prompt, context);
+        if (this._cache.has(key)) {
+            const item = this._cache.get(key);
+            if (Date.now() - item.timestamp < 3600000) {
+                console.log('[MultiAI] 📦 Resposta do cache!');
+                return item.value;
+            }
+            this._cache.delete(key);
+        }
+        return null;
+    }
+    
+    _saveToCache(prompt, context, response) {
+        const key = this._getCacheKey(prompt, context);
+        this._cache.set(key, {
+            value: response,
+            timestamp: Date.now()
+        });
+        
+        if (this._cache.size > this._cacheMaxSize) {
+            const keys = Array.from(this._cache.keys());
+            const oldest = keys.sort((a, b) => 
+                this._cache.get(a).timestamp - this._cache.get(b).timestamp
+            )[0];
+            this._cache.delete(oldest);
+        }
+    }
+    
+    // ============================================
+    // ⭐ ENVIAR MENSAGEM (COM FALLBACK AUTOMÁTICO)
+    // ============================================
+    async sendMessage(prompt, context = '') {
+        console.log('[MultiAI] 📤 Enviando mensagem...');
+        console.log(`[MultiAI] 📝 Prompt: ${prompt.substring(0, 60)}...`);
+        
+        if (!this.temLimiteDisponivel()) {
+            return {
+                success: false,
+                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido! Volte amanhã.`
+            };
+        }
+        
+        // Verificar cache
+        const cached = this._getFromCache(prompt, context);
+        if (cached) {
+            return { success: true, text: cached, fromCache: true };
+        }
+        
+        // ⭐ TENTAR CADA PROVEDOR EM ORDEM
+        const shuffledProviders = this._shuffleProviders();
+        
+        for (let i = 0; i < shuffledProviders.length; i++) {
+            const provider = shuffledProviders[i];
+            
+            // Verificar se o provedor tem limite disponível
+            if (provider.usoHoje >= provider.limiteDiario) {
+                console.log(`[MultiAI] ⏭️ ${provider.name} atingiu limite diário (${provider.usoHoje}/${provider.limiteDiario})`);
+                continue;
+            }
+            
+            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${shuffledProviders.length})...`);
+            
+            try {
+                const result = await this._tryProvider(provider, prompt, context);
+                
+                if (result.success) {
+                    // Incrementar uso do provedor
+                    provider.usoHoje++;
+                    this._incrementarUso();
+                    
+                    // Salvar no cache
+                    this._saveToCache(prompt, context, result.text);
+                    
+                    console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
+                    return {
+                        success: true,
+                        text: result.text,
+                        provider: provider.name,
+                        fromCache: false
+                    };
+                }
+                
+                // Se falhou por limite, marcar como indisponível temporariamente
+                if (result.limitExceeded) {
+                    provider.usoHoje = provider.limiteDiario;
+                    console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite, marcado como indisponível`);
+                }
+                
+                console.log(`[MultiAI] ⚠️ ${provider.name} falhou:`, result.error);
+                
+            } catch (error) {
+                console.error(`[MultiAI] ❌ ${provider.name} deu erro:`, error.message);
+            }
+        }
+        
+        // ⭐ SE TODOS FALHAREM, USAR FALLBACK OFFLINE
+        console.log('[MultiAI] 📦 Usando fallback offline...');
+        const fallback = this._getFallbackResponse(prompt, context);
+        return { success: true, text: fallback, fromFallback: true };
+    }
+    
+    // ============================================
+    // ⭐ EMBARALHAR PROVEDORES (evita sobrecarga)
+    // ============================================
+    _shuffleProviders() {
+        const shuffled = [...this.providers];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+    
+    // ============================================
+    // ⭐ TENTAR PROVEDOR ESPECÍFICO
+    // ============================================
+    async _tryProvider(provider, prompt, context) {
+        try {
+            const response = await fetch(provider.url, {
+                method: 'POST',
+                headers: provider.headers(provider.key),
+                body: JSON.stringify(provider.body(prompt, context))
+            });
+            
+            console.log(`[MultiAI] 📥 ${provider.name} Status:`, response.status);
+            
+            if (!response.ok) {
+                let errorText = '';
+                try {
+                    const errorJson = await response.json();
+                    errorText = errorJson.error?.message || errorJson.message || '';
+                } catch (e) {
+                    errorText = await response.text() || '';
+                }
+                
+                // ⭐ DETECTAR LIMITE EXCEDIDO
+                if (response.status === 429 || 
+                    errorText.toLowerCase().includes('rate limit') ||
+                    errorText.toLowerCase().includes('quota') ||
+                    errorText.toLowerCase().includes('exceeded')) {
+                    return { success: false, error: 'Limite excedido', limitExceeded: true };
+                }
+                
+                if (response.status === 401 || response.status === 403) {
+                    return { success: false, error: '🔑 Chave inválida!' };
+                }
+                
+                return {
+                    success: false,
+                    error: `Erro ${response.status}: ${errorText || 'Falha na comunicação'}`
+                };
+            }
+            
+            const data = await response.json();
+            const text = provider.parseResponse(data);
+            
+            if (text) {
+                return { success: true, text: text };
+            }
+            
+            return { success: false, error: 'Resposta inesperada' };
+            
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+    
+    // ============================================
+    // ⭐ FALLBACK OFFLINE (com gíria)
+    // ============================================
+    _getFallbackResponse(prompt, context) {
+        const texto = prompt.toLowerCase();
+        const isGiria = context && context.includes('MODO GÍRIA ATIVO');
+        
+        const respostas = {
+            saudacao: isGiria 
+                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
+                : 'Olá! Como posso ajudar você hoje?',
+            
+            texto: isGiria
+                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
+                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
+            
+            matematica: isGiria
+                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
+                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
+            
+            estudo: isGiria
+                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
+                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro (25min foco, 5min pausa), 3) Revise o conteúdo regularmente.',
+            
+            padrao: isGiria
+                ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
+                : 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar!'
+        };
+        
+        if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
+            return respostas.saudacao;
+        }
+        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
+            return respostas.texto;
+        }
+        if (texto.includes('matem') || texto.includes('conta') || texto.includes('soma')) {
+            return respostas.matematica;
+        }
+        if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
+            return respostas.estudo;
+        }
+        
+        return respostas.padrao;
+    }
+    
+    // ============================================
+    // ⭐ STATUS DOS PROVEDORES
+    // ============================================
+    getStatus() {
+        this._resetarLimite();
+        return {
+            usoTotal: this._usosHoje,
+            limiteTotal: this._limiteDiario,
+            restante: this.getLimiteRestante(),
+            providers: this.providers.map(p => ({
+                name: p.name,
+                usoHoje: p.usoHoje,
+                limiteDiario: p.limiteDiario,
+                disponivel: p.usoHoje < p.limiteDiario,
+                disponivelPercentual: Math.round((p.usoHoje / p.limiteDiario) * 100)
+            }))
+        };
+    }
+}
+
+// ============================================
+// ⭐ INSTÂNCIA GLOBAL
+// ============================================
+const multiAI = new MultiAIService();
+window.MultiAIService = multiAI;
+window.GeminiService = multiAI; // Compatibilidade com código existente
+window.OpenRouterService = multiAI; // Compatibilidade
+
+// Funções globais
+window.getLimiteIA = () => {
+    const status = multiAI.getStatus();
+    return {
+        usado: status.usoTotal,
+        maximo: status.limiteTotal,
+        restante: status.restante,
+        providers: status.providers,
+        reset: () => {
+            localStorage.setItem('multi_ai_data', new Date().toDateString());
+            localStorage.setItem('multi_ai_uso', '0');
+            multiAI.providers.forEach(p => p.usoHoje = 0);
+            console.log('[MultiAI] 📅 Limite resetado manualmente');
+        }
+    };
+};
+
+console.log('[MultiAI] ✅ Serviço Multi-API carregado com sucesso!');
+console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis`);
+console.log('[MultiAI] 📊 Status:', multiAI.getStatus());</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
