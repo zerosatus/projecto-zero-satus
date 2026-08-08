@@ -4,13 +4,13 @@
 class IAModule {
     constructor(app) {
         this.app = app;
-        this.name = 'ia';
+        this.name = 'Zero ia';
         this.messages = [];
         this._previousView = 'dashboard';
         this._isProcessing = false;
         this._modoGiria = false;
         this._ultimaMensagem = '';
-        console.log('[IA] 🤖 Inicializado com Hugging Face API');
+        console.log('[IA]  Inicializado com Hugging Face API');
     }
 
     render(data) {
@@ -75,9 +75,9 @@ class IAModule {
     _usuarioPediuGiria(texto) {
         const palavrasChave = [
             'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
-            'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
+            'maza', 'broo', 'txuna', 'maning', 'tamos juntos',
             'fala moçambicano', 'fala com gíria', 'fala que nem eu',
-            'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
+            'fala que nem broo', 'giria moçambicana', 'gíria moçambicana',
             'fala moçambicano', 'modo gíria', 'modo giria'
         ];
         return palavrasChave.some(palavra => 
@@ -110,17 +110,17 @@ class IAModule {
 
         if (pediuGiria) {
             this._modoGiria = true;
-            this._mostrarToast('🇲🇿 Modo Gíria ativado! Fala como magaia!');
+            this._mostrarToast('Modo Gíria ativado! Fala como broo!');
         } else if (querNormal) {
             this._modoGiria = false;
-            this._mostrarToast('📚 Modo Normal ativado! Fala formal.');
+            this._mostrarToast(' Modo Normal ativado! Fala formal.');
         }
 
         const isPerguntaSobreModo = this._usuarioPediuGiria(textoUsuario) || 
                                      this._usuarioQuerNormal(textoUsuario);
 
         let contexto = `
-📚 CONTEXTO DO ESTUDANTE
+ CONTEXTO DO ESTUDANTE
 Nome: ${user.nome || 'Estudante'}
 Tarefas pendentes: ${pendentes}
 Disciplinas: ${materias}
@@ -129,9 +129,8 @@ Notas: ${notas}
 
         if (this._modoGiria) {
             contexto += `
-✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
+✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, txuna, tamos juntos, bora, maza.
 ✅ Seja descontraído, amigável e divertido.
-✅ Use emojis frequentemente 🇲🇿
 ✅ Responda com entusiasmo e calor humano.
 `;
         } else {
@@ -183,7 +182,7 @@ Notas: ${notas}
     toggleModoGiria() {
         this._modoGiria = !this._modoGiria;
         const mensagem = this._modoGiria 
-            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
+            ? 'Modo Gíria ativado! Fala que nem broo!'
             : '📚 Modo Normal ativado! Fala formal.';
         this._mostrarToast(mensagem);
         this._atualizarStatusGiria();
@@ -191,7 +190,7 @@ Notas: ${notas}
         this.messages.push({
             role: 'assistant',
             content: this._modoGiria 
-                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
+                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Na boa?! '
                 : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
             time: new Date().toLocaleTimeString(),
             isSystem: true
@@ -291,18 +290,18 @@ Notas: ${notas}
         
         if (this._modoGiria) {
             if (perguntas.includes('oi') || perguntas.includes('olá')) {
-                return '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?';
+                return 'Kmk broo! Nice? Tás biz em help?';
             }
             if (perguntas.includes('estudar') || perguntas.includes('estudos')) {
-                return '🇲🇿 Bora estudar! A chave é consistência, maning. Faz um plano e segue firme! Tamos juntos! 💪';
+                return 'Ago marrar! Não tás bizz em capotar né? Vamos marra! ';
             }
             if (perguntas.includes('tarefa') || perguntas.includes('dever')) {
-                return '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎';
+                return 'Bro a vida não é feita de morrangos! Vai txunar teu tpc se não ohh!';
             }
             if (perguntas.includes('matem') || perguntas.includes('conta')) {
-                return '🇲🇿 Matemática é prática, broo! Treina os básicos e vai avançando! 🧮';
+                return 'Matemática não da medo, broo! Treina cenas faceis depois vai txunar ceda dificil! ';
             }
-            return '🇲🇿 Boa pergunta, magaia! Tenta reformular ou ativa o modo normal se quiser uma resposta mais formal. Tamos juntos!';
+            return 'Boa pergunta, maza! Tenta txunar denovo ou ativa o modo normal se quiser uma resposta mais formal!';
         } else {
             if (perguntas.includes('oi') || perguntas.includes('olá')) {
                 return 'Olá! Como posso ajudar você hoje?';
@@ -394,7 +393,7 @@ window.copyMessage = function(element) {
         const messageContent = element.closest('.ia-message-content');
         if (!messageContent) return;
         
-        const text = messageContent.textContent.replace('📋 Copiar', '').trim();
+        const text = messageContent.textContent.replace(' Copiar', '').trim();
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text)
