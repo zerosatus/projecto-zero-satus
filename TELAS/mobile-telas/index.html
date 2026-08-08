@@ -1069,28 +1069,27 @@ const checkInterval = setInterval(() => {
 
 <script>// ============================================
 // multi-ai-service.js - API DIRETA
-// GROQ + SAMBANOVA + DEEPSEEK
-// SEM PROXY - CHAMADA DIRETA VIA FETCH
+// GROQ (MODELOS ATUAIS) + HUGGING FACE (FALLBACK)
+// SEM PROXY
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ SUAS CHAVES AQUI
+        // ⭐ CHAVES
         this.GROK_KEY = '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';
-        this.SAMBANOVA_KEY = 'f3319e62-2d30-4f16-b9a2-0ec452183696';
-        this.DEEPSEEK_KEY = 'sk-e528baf9102b44f59696badf598dbc4b';
+        this.HF_TOKEN = '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'; // fallback
         
-        // ⭐ CONFIGURAÇÕES DOS PROVEDORES
+        // ⭐ PROVEDORES (apenas Groq com modelos atuais)
         this.providers = [
             {
-                name: 'Groq',
+                name: 'Groq (Llama 3.1 70B)',
                 url: 'https://api.groq.com/openai/v1/chat/completions',
                 key: this.GROK_KEY,
-                model: 'mixtral-8x7b-32768',
+                model: 'llama-3.1-70b-versatile',
                 body: (prompt, context) => ({
-                    model: 'mixtral-8x7b-32768',
+                    model: 'llama-3.1-70b-versatile',
                     messages: [
                         { role: 'system', content: context || 'Você é um assistente educacional útil.' },
                         { role: 'user', content: prompt }
@@ -1102,12 +1101,12 @@ class MultiAIService {
                 limiteDiario: 30
             },
             {
-                name: 'Groq (Llama)',
+                name: 'Groq (Llama 3.1 8B)',
                 url: 'https://api.groq.com/openai/v1/chat/completions',
                 key: this.GROK_KEY,
-                model: 'llama3-70b-8192',
+                model: 'llama-3.1-8b-instant',
                 body: (prompt, context) => ({
-                    model: 'llama3-70b-8192',
+                    model: 'llama-3.1-8b-instant',
                     messages: [
                         { role: 'system', content: context || 'Você é um assistente educacional útil.' },
                         { role: 'user', content: prompt }
@@ -1117,41 +1116,14 @@ class MultiAIService {
                 }),
                 extract: (data) => data.choices?.[0]?.message?.content,
                 limiteDiario: 30
-            },
-            {
-                name: 'SambaNova',
-                url: 'https://api.sambanova.ai/v1/chat/completions',
-                key: this.SAMBANOVA_KEY,
-                model: 'Meta-Llama-3.1-70B-Instruct',
-                body: (prompt, context) => ({
-                    model: 'Meta-Llama-3.1-70B-Instruct',
-                    messages: [
-                        { role: 'system', content: context || 'Você é um assistente educacional útil.' },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 1024
-                }),
-                extract: (data) => data.choices?.[0]?.message?.content,
-                limiteDiario: 40
-            },
-            {
-                name: 'DeepSeek',
-                url: 'https://api.deepseek.com/v1/chat/completions',
-                key: this.DEEPSEEK_KEY,
-                model: 'deepseek-chat',
-                body: (prompt, context) => ({
-                    model: 'deepseek-chat',
-                    messages: [
-                        { role: 'system', content: context || 'Você é um assistente educacional útil.' },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 1024
-                }),
-                extract: (data) => data.choices?.[0]?.message?.content,
-                limiteDiario: 50
             }
+        ];
+        
+        // ⭐ FALLBACK: HUGGING FACE (usado se todos os Groq falharem)
+        this.hfModels = [
+            'meta-llama/Meta-Llama-3.1-8B-Instruct',
+            'google/flan-t5-xl',
+            'google/flan-t5-large'
         ];
         
         this._cache = new Map();
@@ -1161,13 +1133,12 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         this._usoPorProvedor = new Map();
         
-        // Inicializar uso por provedor
         this.providers.forEach(p => {
             this._usoPorProvedor.set(p.name, 0);
         });
         
-        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados`);
-        console.log('[MultiAI] 📊 Provedores: Groq, SambaNova, DeepSeek');
+        console.log(`[MultiAI] ✅ ${this.providers.length} provedores Groq carregados`);
+        console.log('[MultiAI] 📊 Fallback: Hugging Face + offline');
         this._resetarLimite();
     }
     
@@ -1182,7 +1153,7 @@ class MultiAIService {
             this._usoPorProvedor.forEach((_, key) => {
                 this._usoPorProvedor.set(key, 0);
             });
-            console.log('[MultiAI] 📅 Limite resetado para novo dia');
+            console.log('[MultiAI] 📅 Limite resetado');
         }
     }
     
@@ -1197,12 +1168,10 @@ class MultiAIService {
         this._resetarLimite();
         this._usosHoje++;
         localStorage.setItem('multi_ai_uso', String(this._usosHoje));
-        
         if (this._usoPorProvedor.has(providerName)) {
             this._usoPorProvedor.set(providerName, (this._usoPorProvedor.get(providerName) || 0) + 1);
         }
-        
-        console.log(`[MultiAI] 📊 Uso hoje: ${this._usosHoje}/${this._limiteDiario} (${providerName})`);
+        console.log(`[MultiAI] 📊 Uso: ${this._usosHoje}/${this._limiteDiario} (${providerName})`);
     }
     
     temLimiteDisponivel() {
@@ -1233,24 +1202,21 @@ class MultiAIService {
     _saveToCache(prompt, context, response) {
         const key = this._getCacheKey(prompt, context);
         this._cache.set(key, { value: response, timestamp: Date.now() });
-        
         if (this._cache.size > this._cacheMaxSize) {
             const keys = Array.from(this._cache.keys());
-            const oldest = keys.sort((a, b) => 
-                this._cache.get(a).timestamp - this._cache.get(b).timestamp
-            )[0];
+            const oldest = keys.sort((a, b) => this._cache.get(a).timestamp - this._cache.get(b).timestamp)[0];
             this._cache.delete(oldest);
         }
     }
     
     async sendMessage(prompt, context = '') {
-        console.log('[MultiAI] 📤 Enviando mensagem...');
+        console.log('[MultiAI] 📤 Enviando...');
         console.log(`[MultiAI] 📝 Prompt: ${prompt.substring(0, 60)}...`);
         
         if (!this.temLimiteDisponivel()) {
             return {
                 success: false,
-                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido! Volte amanhã.`
+                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido!`
             };
         }
         
@@ -1259,231 +1225,194 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ ORDEM DE PRIORIDADE: Groq -> SambaNova -> DeepSeek
-        const priorityOrder = ['Groq', 'Groq (Llama)', 'SambaNova', 'DeepSeek'];
-        const shuffledProviders = [...this.providers];
-        
-        // Ordenar por prioridade
-        shuffledProviders.sort((a, b) => {
-            const idxA = priorityOrder.indexOf(a.name);
-            const idxB = priorityOrder.indexOf(b.name);
-            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-        });
-        
-        let lastError = null;
-        
-        for (let i = 0; i < shuffledProviders.length; i++) {
-            const provider = shuffledProviders[i];
-            
-            // Verificar limite do provedor
-            const usoProvider = this._usoPorProvedor.get(provider.name) || 0;
-            if (usoProvider >= provider.limiteDiario) {
-                console.log(`[MultiAI] ⏭️ ${provider.name} atingiu limite (${usoProvider}/${provider.limiteDiario})`);
+        // 1. TENTAR GROQ
+        for (const provider of this.providers) {
+            const uso = this._usoPorProvedor.get(provider.name) || 0;
+            if (uso >= provider.limiteDiario) {
+                console.log(`[MultiAI] ⏭️ ${provider.name} sem limite`);
                 continue;
             }
-            
-            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${shuffledProviders.length})...`);
-            
+            console.log(`[MultiAI] 🔄 Tentando ${provider.name}...`);
             try {
                 const result = await this._callProvider(provider, prompt, context);
-                
                 if (result.success) {
                     this._incrementarUso(provider.name);
                     this._saveToCache(prompt, context, result.text);
-                    
-                    console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
-                    return {
-                        success: true,
-                        text: result.text,
-                        provider: provider.name,
-                        fromCache: false
-                    };
+                    return { success: true, text: result.text, provider: provider.name };
                 }
-                
                 console.warn(`[MultiAI] ⚠️ ${provider.name} falhou:`, result.error);
-                lastError = result.error;
-                
-            } catch (error) {
-                console.error(`[MultiAI] ❌ ${provider.name} erro:`, error.message);
-                lastError = error.message;
+            } catch (e) {
+                console.error(`[MultiAI] ❌ ${provider.name} erro:`, e.message);
             }
         }
         
-        console.log('[MultiAI] 📦 Todos os provedores falharam. Usando fallback offline...');
+        // 2. FALLBACK: HUGGING FACE
+        console.log('[MultiAI] 🔄 Tentando Hugging Face (fallback)...');
+        const hfResult = await this._callHuggingFace(prompt, context);
+        if (hfResult.success) {
+            this._incrementarUso('Hugging Face');
+            this._saveToCache(prompt, context, hfResult.text);
+            return { success: true, text: hfResult.text, provider: 'Hugging Face' };
+        }
+        
+        // 3. OFFLINE FINAL
+        console.log('[MultiAI] 📦 Usando fallback offline...');
         const fallback = this._getFallbackResponse(prompt, context);
-        return {
-            success: true,
-            text: fallback,
-            fromFallback: true,
-            error: lastError || 'Todos os provedores falharam'
-        };
+        return { success: true, text: fallback, fromFallback: true };
     }
     
     async _callProvider(provider, prompt, context) {
         try {
-            const timeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
-            );
-            
-            const body = provider.body(prompt, context);
-            
+            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
             const fetchPromise = fetch(provider.url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${provider.key}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify(provider.body(prompt, context))
             });
-            
             const response = await Promise.race([fetchPromise, timeout]);
-            
             console.log(`[MultiAI] 📥 ${provider.name} Status:`, response.status);
             
             let data;
             try {
                 data = await response.json();
             } catch (e) {
-                const text = await response.text();
-                console.error(`[MultiAI] ❌ ${provider.name} resposta não-JSON:`, text.substring(0, 200));
-                return { success: false, error: 'Resposta inválida do servidor' };
+                return { success: false, error: 'Resposta inválida' };
             }
             
             if (!response.ok) {
-                // Detectar erros específicos
                 if (response.status === 401 || response.status === 403) {
-                    return { success: false, error: `🔑 Chave inválida para ${provider.name}!` };
+                    return { success: false, error: '🔑 Chave inválida' };
                 }
-                
                 if (response.status === 429) {
-                    return { success: false, error: `⏳ ${provider.name} - Limite de requisições excedido!` };
+                    return { success: false, error: '⏳ Limite de requisições' };
                 }
-                
-                if (response.status === 402 || response.status === 429) {
-                    return { success: false, error: `⛔ ${provider.name} - Limite de créditos excedido!` };
-                }
-                
                 const errorMsg = data.error?.message || data.error || `Erro ${response.status}`;
                 return { success: false, error: errorMsg };
             }
             
             const text = provider.extract(data);
-            
-            if (!text) {
-                return { success: false, error: 'Resposta vazia' };
-            }
-            
+            if (!text) return { success: false, error: 'Resposta vazia' };
             return { success: true, text: text.trim() };
-            
         } catch (error) {
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                return { success: false, error: 'Erro de rede' };
-            }
             return { success: false, error: error.message };
         }
+    }
+    
+    async _callHuggingFace(prompt, context) {
+        const isGiria = context && context.includes('MODO GÍRIA ATIVO');
+        const systemPrompt = isGiria
+            ? 'Você é um assistente educacional que fala com gírias moçambicanas (broo, maning, fixe, magaia, tamos juntos). Seja divertido e use emojis 🇲🇿.'
+            : 'Você é um assistente educacional útil. Responda de forma clara e didática em português.';
+        const fullPrompt = `${systemPrompt}\n\nUsuário: ${prompt}\n\nAssistente:`;
+        
+        for (const model of this.hfModels) {
+            const url = `https://api-inference.huggingface.co/models/${model}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.HF_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: fullPrompt,
+                        parameters: {
+                            max_new_tokens: 512,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            do_sample: true,
+                            return_full_text: false,
+                            wait_for_model: true
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.warn(`[HF] ${model} falhou:`, response.status, text.substring(0, 100));
+                    continue;
+                }
+                
+                const data = await response.json();
+                let text = '';
+                if (Array.isArray(data) && data[0]?.generated_text) {
+                    text = data[0].generated_text;
+                } else if (data.generated_text) {
+                    text = data.generated_text;
+                } else if (typeof data === 'string') {
+                    text = data;
+                }
+                text = text.replace(fullPrompt, '').replace(/^Assistente:\s*/, '').trim();
+                if (text) {
+                    return { success: true, text };
+                }
+            } catch (e) {
+                console.warn(`[HF] ${model} erro:`, e.message);
+            }
+        }
+        return { success: false };
     }
     
     _getFallbackResponse(prompt, context) {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
+        const isMath = /\d/.test(prompt) && /[\+\-\*\/x÷]/.test(prompt);
         
-        // Verificar se é pergunta de matemática
-        const isMath = /\d/.test(prompt) && (
-            texto.includes('+') || texto.includes('-') || 
-            texto.includes('*') || texto.includes('x') ||
-            texto.includes('/') || texto.includes('divisão') ||
-            texto.includes('soma') || texto.includes('subtração') ||
-            texto.includes('multiplicação') || texto.includes('matem')
-        );
-        
-        const respostas = {
-            saudacao: isGiria 
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
-                : 'Olá! Como posso ajudar você hoje?',
-            
-            texto: isGiria
-                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Tamos juntos! 📝'
-                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Peça feedback.',
-            
-            matematica: isGiria
-                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro! Vamos calcular? 🧮'
-                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar.',
-            
-            estudo: isGiria
-                ? '🇲🇿 Bora estudar, magaia! Consistência é a chave! 💪'
-                : 'Para estudar: 1) Crie um cronograma, 2) Use Pomodoro, 3) Revisão espaçada, 4) Faça pausas regulares.',
-            
-            padrao: isGiria
-                ? '🇲🇿 Boa pergunta, broo! Tenta reformular. Tamos juntos!'
-                : 'Desculpe, não entendi. Poderia reformular?'
-        };
-        
-        // Tentar resolver matemática simples
         if (isMath) {
             try {
-                // Extrair números e operadores
                 const numbers = prompt.match(/\d+/g);
-                const operators = prompt.match(/[+\-*/x÷]/g);
-                
-                if (numbers && numbers.length >= 2 && operators) {
+                const ops = prompt.match(/[+\-*/x÷]/g);
+                if (numbers && numbers.length >= 2 && ops) {
                     let result = parseFloat(numbers[0]);
-                    let expression = `${numbers[0]}`;
-                    
-                    for (let i = 0; i < operators.length && i < numbers.length - 1; i++) {
+                    let expr = `${numbers[0]}`;
+                    for (let i = 0; i < ops.length && i < numbers.length - 1; i++) {
                         const num = parseFloat(numbers[i + 1]);
-                        const op = operators[i];
-                        
-                        switch(op) {
+                        switch(ops[i]) {
                             case '+': result += num; break;
                             case '-': result -= num; break;
                             case '*': case 'x': result *= num; break;
                             case '/': case '÷': result /= num; break;
                         }
-                        expression += ` ${op} ${num}`;
+                        expr += ` ${ops[i]} ${num}`;
                     }
-                    
                     return isGiria
-                        ? `🇲🇿 ${expression} = **${result}**! Tá vendo, matemática é fixe! 🧮`
-                        : `${expression} = **${result}**`;
+                        ? `🇲🇿 ${expr} = **${result}**! Matemática é fixe, broo! 🧮`
+                        : `${expr} = **${result}**`;
                 }
-            } catch(e) {
-                // Fallback para resposta padrão
-            }
-            
+            } catch(e) {}
             return isGiria
-                ? '🇲🇿 Matemática é prática, broo! Manda aí a conta que eu ajudo a resolver! 🧮'
-                : 'Matemática é prática! Mande a conta que eu ajudo a resolver. 🧮';
+                ? '🇲🇿 Manda aí a conta que eu ajudo, broo! 🧮'
+                : 'Mande a conta que eu resolvo. 🧮';
         }
         
-        if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
-            return respostas.saudacao;
+        if (texto.includes('oi') || texto.includes('olá')) {
+            return isGiria ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar?' : 'Olá! Como posso ajudar?';
         }
-        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
-            return respostas.texto;
+        if (texto.includes('estud') || texto.includes('aula')) {
+            return isGiria
+                ? '🇲🇿 Bora estudar, magaia! Consistência é a chave! 💪'
+                : 'Para estudar: 1) Cronograma, 2) Pomodoro, 3) Revisão espaçada.';
         }
-        if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
-            return respostas.estudo;
-        }
-        
-        return respostas.padrao;
+        return isGiria
+            ? '🇲🇿 Boa pergunta! Tenta reformular ou ativa o modo gíria. Tamos juntos!'
+            : 'Não entendi. Poderia reformular?';
     }
     
     getStatus() {
         this._resetarLimite();
-        const providersStatus = this.providers.map(p => ({
-            name: p.name,
-            model: p.model,
-            usoHoje: this._usoPorProvedor.get(p.name) || 0,
-            limiteDiario: p.limiteDiario,
-            disponivel: (this._usoPorProvedor.get(p.name) || 0) < p.limiteDiario,
-            percentual: Math.round(((this._usoPorProvedor.get(p.name) || 0) / p.limiteDiario) * 100)
-        }));
-        
         return {
             usoTotal: this._usosHoje,
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
-            providers: providersStatus
+            providers: this.providers.map(p => ({
+                name: p.name,
+                usoHoje: this._usoPorProvedor.get(p.name) || 0,
+                limiteDiario: p.limiteDiario,
+                disponivel: (this._usoPorProvedor.get(p.name) || 0) < p.limiteDiario
+            }))
         };
     }
     
@@ -1491,15 +1420,11 @@ class MultiAIService {
         localStorage.setItem('multi_ai_data', new Date().toDateString());
         localStorage.setItem('multi_ai_uso', '0');
         this._usosHoje = 0;
-        this._usoPorProvedor.forEach((_, key) => {
-            this._usoPorProvedor.set(key, 0);
-        });
-        console.log('[MultiAI] 📅 Limite resetado manualmente');
+        this._usoPorProvedor.forEach((_, key) => this._usoPorProvedor.set(key, 0));
         return this.getStatus();
     }
 }
 
-// ⭐ INSTÂNCIA GLOBAL
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 window.GeminiService = multiAI;
@@ -1515,12 +1440,8 @@ window.getLimiteIA = () => {
     };
 };
 
-console.log('[MultiAI] ✅ Serviço Multi-API carregado!');
-console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis:`);
-multiAI.providers.forEach(p => {
-    console.log(`   - ${p.name}: ${p.model} (${p.limiteDiario} perguntas/dia)`);
-});
-console.log('[MultiAI] 💡 Ordem: Groq → SambaNova → DeepSeek');</script>
+console.log('[MultiAI] ✅ Serviço carregado!');
+console.log(`[MultiAI] 📊 Groq (${multiAI.providers.length} modelos) + Hugging Face fallback`);;</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
