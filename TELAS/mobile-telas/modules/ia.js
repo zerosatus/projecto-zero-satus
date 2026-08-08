@@ -1,4 +1,4 @@
-// modules/ia.js - MÓDULO DA IA (APENAS GROK + SAMBANOVA)
+// modules/ia.js - MÓDULO DA IA (HUGGING FACE)
 // ============================================
 
 class IAModule {
@@ -10,12 +10,9 @@ class IAModule {
         this._isProcessing = false;
         this._modoGiria = false;
         this._ultimaMensagem = '';
-        console.log('[IA] 🤖 Inicializado com Multi-API (Grok + SambaNova)');
+        console.log('[IA] 🤖 Inicializado com Hugging Face API');
     }
 
-    // ============================================
-    // RENDER PRINCIPAL
-    // ============================================
     render(data) {
         this.notifications = data.notifications || [];
         this.renderChat();
@@ -25,9 +22,6 @@ class IAModule {
         this._atualizarStatusLimite();
     }
 
-    // ============================================
-    // RENDER CHAT
-    // ============================================
     renderChat() {
         const container = document.getElementById('ia-messages-container');
         if (!container) return;
@@ -78,9 +72,6 @@ class IAModule {
         container.scrollTop = container.scrollHeight;
     }
 
-    // ============================================
-    // ⭐ DETECTAR COMANDOS
-    // ============================================
     _usuarioPediuGiria(texto) {
         const palavrasChave = [
             'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
@@ -106,9 +97,6 @@ class IAModule {
         );
     }
 
-    // ============================================
-    // ⭐ BUILD USER CONTEXT
-    // ============================================
     buildUserContext(textoUsuario) {
         const user = this.app.user || {};
         const data = this.app.data || {};
@@ -137,8 +125,6 @@ Nome: ${user.nome || 'Estudante'}
 Tarefas pendentes: ${pendentes}
 Disciplinas: ${materias}
 Notas: ${notas}
-
-INSTRUÇÕES DE ESTILO:
 `;
 
         if (this._modoGiria) {
@@ -147,8 +133,6 @@ INSTRUÇÕES DE ESTILO:
 ✅ Seja descontraído, amigável e divertido.
 ✅ Use emojis frequentemente 🇲🇿
 ✅ Responda com entusiasmo e calor humano.
-
-${isPerguntaSobreModo ? '⚠️ O usuário acabou de ativar o modo gíria. Responda comemorando com uma gíria!' : ''}
 `;
         } else {
             contexto += `
@@ -156,18 +140,12 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de ativar o modo gíria. Respo
 ✅ Seja profissional, direto e objetivo.
 ✅ Use linguagem neutra, sem gírias.
 ✅ Dê respostas completas e bem estruturadas.
-✅ Seja educado e respeitoso.
-
-${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Responda confirmando de forma educada.' : ''}
 `;
         }
 
         return contexto;
     }
 
-    // ============================================
-    // ⭐ MOSTRAR TOAST
-    // ============================================
     _mostrarToast(mensagem) {
         if (typeof showToast === 'function') {
             showToast(mensagem, 'info');
@@ -178,9 +156,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         this._atualizarStatusLimite();
     }
 
-    // ============================================
-    // ⭐ ATUALIZAR STATUS
-    // ============================================
     _atualizarStatusGiria() {
         const statusEl = document.getElementById('giria-status');
         if (statusEl) {
@@ -200,26 +175,11 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         
         if (window.getLimiteIA) {
             const info = window.getLimiteIA();
-            let statusText = `💬 ${info.restante}/${info.maximo} perguntas hoje`;
-            
-            // ⭐ MOSTRAR STATUS DETALHADO DOS PROVEDORES
-            if (info.providers) {
-                const detalhes = info.providers.map(p => 
-                    `${p.name}: ${p.disponivel ? '✅' : '⛔'} ${p.usoHoje}/${p.limiteDiario}`
-                ).join(' | ');
-                limiteEl.textContent = `${statusText} (${detalhes})`;
-                limiteEl.title = detalhes;
-            } else {
-                limiteEl.textContent = statusText;
-            }
-            
+            limiteEl.textContent = `💬 ${info.restante}/${info.maximo} perguntas hoje (${info.provider})`;
             limiteEl.style.color = info.restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
         }
     }
 
-    // ============================================
-    // ⭐ ALTERNAR MODO
-    // ============================================
     toggleModoGiria() {
         this._modoGiria = !this._modoGiria;
         const mensagem = this._modoGiria 
@@ -239,9 +199,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         this.renderChat();
     }
 
-    // ============================================
-    // ⭐ ENVIAR MENSAGEM
-    // ============================================
     async sendMessage(text) {
         if (!text) {
             const input = document.getElementById('ia-input');
@@ -282,37 +239,38 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         try {
             const context = this.buildUserContext(text);
             
-            let response;
-
-            // ⭐ USAR MULTI-AI SERVICE (Grok + SambaNova)
             const service = window.MultiAIService || window.GeminiService;
 
             if (service) {
-                console.log('[IA] 📤 Enviando para Multi-API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+                console.log('[IA] 📤 Enviando para Hugging Face...');
                 const result = await service.sendMessage(text, context);
                 if (result.success) {
-                    response = result.text;
-                    if (result.fromCache) {
-                        response += '\n\n*(Resposta do cache)*';
-                    }
-                    if (result.provider) {
-                        response += `\n\n*(via ${result.provider})*`;
-                    }
+                    loadingDiv.remove();
+                    this.messages.push({
+                        role: 'assistant',
+                        content: result.text,
+                        time: new Date().toLocaleTimeString()
+                    });
+                    this.renderChat();
+                    this._atualizarStatusLimite();
                 } else {
-                    response = `❌ ${result.error}`;
+                    loadingDiv.remove();
+                    this.messages.push({
+                        role: 'assistant',
+                        content: `❌ ${result.error || 'Erro desconhecido'}`,
+                        time: new Date().toLocaleTimeString()
+                    });
+                    this.renderChat();
                 }
             } else {
-                response = this._getFallbackResponse(text);
+                loadingDiv.remove();
+                this.messages.push({
+                    role: 'assistant',
+                    content: this._getFallbackResponse(text),
+                    time: new Date().toLocaleTimeString()
+                });
+                this.renderChat();
             }
-
-            loadingDiv.remove();
-            this.messages.push({
-                role: 'assistant',
-                content: response,
-                time: new Date().toLocaleTimeString()
-            });
-            this.renderChat();
-            this._atualizarStatusLimite();
 
         } catch (error) {
             console.error('[IA] ❌ Erro:', error);
@@ -328,9 +286,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         }
     }
 
-    // ============================================
-    // ⭐ FALLBACK (usado apenas se o serviço não existir)
-    // ============================================
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
         
@@ -344,24 +299,27 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             if (perguntas.includes('tarefa') || perguntas.includes('dever')) {
                 return '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Não te estresses, broo! 😎';
             }
+            if (perguntas.includes('matem') || perguntas.includes('conta')) {
+                return '🇲🇿 Matemática é prática, broo! Treina os básicos e vai avançando! 🧮';
+            }
             return '🇲🇿 Boa pergunta, magaia! Tenta reformular ou ativa o modo normal se quiser uma resposta mais formal. Tamos juntos!';
         } else {
             if (perguntas.includes('oi') || perguntas.includes('olá')) {
                 return 'Olá! Como posso ajudar você hoje?';
             }
             if (perguntas.includes('estudar') || perguntas.includes('estudos')) {
-                return 'Para estudar de forma eficiente, recomendo: 1) Criar um cronograma, 2) Usar técnicas como Pomodoro, 3) Revisar o conteúdo regularmente.';
+                return 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.';
             }
             if (perguntas.includes('tarefa') || perguntas.includes('dever')) {
-                return 'Para gerenciar suas tarefas, sugiro priorizar as mais urgentes, dividir em pequenas etapas e definir prazos realistas.';
+                return 'Para gerenciar suas tarefas: 1) Priorize as mais urgentes, 2) Divida em etapas, 3) Defina prazos realistas.';
+            }
+            if (perguntas.includes('matem') || perguntas.includes('conta')) {
+                return 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos.';
             }
             return 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar!';
         }
     }
 
-    // ============================================
-    // UPDATE BADGE
-    // ============================================
     updateBadge() {
         const badge = document.getElementById('notification-badge');
         if (!badge) return;
@@ -370,9 +328,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
 
-    // ============================================
-    // ⭐ SETUP EVENTS
-    // ============================================
     setupEvents() {
         const input = document.getElementById('ia-input');
         const sendBtn = document.getElementById('ia-send-btn');
@@ -425,19 +380,15 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             };
         });
 
-        // ⭐ ATUALIZAR LIMITE PERIODICAMENTE
         setInterval(() => {
             this._atualizarStatusLimite();
         }, 30000);
 
-        console.log('[IA] ✅ Eventos configurados! Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+        console.log('[IA] ✅ Eventos configurados!');
     }
 }
 
-// ============================================
 // ⭐ FUNÇÃO GLOBAL PARA COPIAR MENSAGENS
-// ============================================
-
 window.copyMessage = function(element) {
     try {
         const messageContent = element.closest('.ia-message-content');
@@ -492,5 +443,4 @@ function fallbackCopy(text, element) {
     }
 }
 
-console.log('[IA] ✅ Função copyMessage registrada globalmente');
-console.log('[IA] ✅ Módulo carregado com Multi-API (Grok + SambaNova)!');
+console.log('[IA] ✅ Módulo carregado com Hugging Face API!');
