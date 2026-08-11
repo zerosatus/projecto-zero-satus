@@ -1,5 +1,5 @@
 // ============================================
-// modules/perfil.js - PERFIL
+// modules/perfil.js - PERFIL COMPLETO
 // ============================================
 
 class PerfilModule {
@@ -18,14 +18,61 @@ class PerfilModule {
         this.tasks = data.tasks || [];
         this.notes = data.notes || [];
         this.events = data.calendarEvents || [];
-        this.notifications = data.notifications || {};
+        this.notifications = data.notifications || [];
         
         this.renderProfile();
         this.renderStats();
         this.renderActivities();
+        this.carregarPreferencias();
         this.setupEvents();
         this.carregarAvatar();
         this.updateBadge();
+    }
+    
+    // ============================================
+    // PREFERÊNCIAS
+    // ============================================
+    carregarPreferencias() {
+        if (window.CacheManager) {
+            const settings = window.CacheManager.get('appearanceSettings', {});
+            if (settings.theme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeToggle').checked = true;
+            }
+            if (settings.notifEmail !== undefined) {
+                document.getElementById('notifEmail').checked = settings.notifEmail;
+            }
+            if (settings.notifPush !== undefined) {
+                document.getElementById('notifPush').checked = settings.notifPush;
+            }
+            if (settings.language) {
+                document.getElementById('languageSelect').value = settings.language;
+            }
+        }
+    }
+    
+    salvarPreferencias() {
+        const settings = {
+            theme: document.getElementById('darkModeToggle')?.checked ? 'dark' : 'light',
+            notifEmail: document.getElementById('notifEmail')?.checked || false,
+            notifPush: document.getElementById('notifPush')?.checked || false,
+            language: document.getElementById('languageSelect')?.value || 'pt-BR'
+        };
+        
+        if (window.CacheManager) {
+            window.CacheManager.set('appearanceSettings', settings, true);
+        }
+        
+        if (settings.theme === 'dark') {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+    
+    toggleDarkMode() {
+        this.salvarPreferencias();
+        this.showToast('Preferência atualizada!', 'success');
     }
     
     // ============================================
@@ -43,9 +90,6 @@ class PerfilModule {
         document.getElementById('genero').value = profile.genero || 'nao-informar';
     }
     
-    // ============================================
-    // RENDER STATS
-    // ============================================
     renderStats() {
         const totalTarefas = this.tasks.length;
         const tarefasConcluidas = this.tasks.filter(t => t.completed).length;
@@ -57,9 +101,6 @@ class PerfilModule {
         document.getElementById('statHorasPerfil').textContent = Math.floor(horasEstudo) + 'h';
     }
     
-    // ============================================
-    // RENDER ACTIVITIES
-    // ============================================
     renderActivities() {
         const container = document.getElementById('activityListPerfil');
         if (!container) return;
@@ -132,7 +173,6 @@ class PerfilModule {
             return;
         }
         
-        // Preview imediato
         const reader = new FileReader();
         reader.onload = (e) => {
             const avatarImg = document.getElementById('avatarImage');
@@ -185,7 +225,6 @@ class PerfilModule {
         this.app.data.profile = profile;
         this.app.user = profile;
         
-        // Salvar no Supabase
         try {
             const userId = this.app.user.id;
             if (userId && window.DatabaseService) {
@@ -323,16 +362,12 @@ class PerfilModule {
                                    tipo === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
                                    tipo === 'info' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
                                    'linear-gradient(135deg, #10b981, #059669)';
-            
             setTimeout(() => toast.classList.remove('show'), 3000);
         } else {
             alert(mensagem);
         }
     }
     
-    // ============================================
-    // NOTIFICAÇÕES
-    // ============================================
     updateBadge() {
         const badge = document.getElementById('notificationBadge');
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
@@ -342,30 +377,16 @@ class PerfilModule {
         }
     }
     
-    // ============================================
-    // EVENTOS DA UI
-    // ============================================
     setupEvents() {
-        // Upload de avatar
         document.getElementById('avatarUpload')?.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) this.uploadAvatar(file);
             e.target.value = '';
         });
         
-        // Salvar alterações
         document.querySelectorAll('.btn-save, .btn-save-form').forEach(btn => {
             btn.addEventListener('click', () => this.salvarAlteracoes());
         });
-        
-        // Alterar senha
-        document.querySelector('[onclick*="alterarSenha"]')?.addEventListener('click', () => this.alterarSenha());
-        
-        // Exportar dados
-        document.querySelector('[onclick*="exportarDados"]')?.addEventListener('click', () => this.exportarDados());
-        
-        // Deletar conta
-        document.querySelector('[onclick*="deletarConta"]')?.addEventListener('click', () => this.deletarConta());
     }
 }
 

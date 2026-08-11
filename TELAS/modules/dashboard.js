@@ -1,12 +1,11 @@
 // ============================================
-// modules/dashboard.js - DASHBOARD
+// modules/dashboard.js - DASHBOARD COMPLETO
 // ============================================
 
 class DashboardModule {
     constructor(app) {
         this.app = app;
         this.name = 'dashboard';
-        this.days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         console.log('[Dashboard] 📊 Módulo inicializado');
     }
     
@@ -22,196 +21,290 @@ class DashboardModule {
         this.disciplinas = data.disciplinas || [];
         this.profile = data.profile || {};
         
-        // Garantir dias da semana
-        this.days.forEach(day => {
-            if (!this.weeklySchedule[day]) this.weeklySchedule[day] = [];
-        });
+        // Atualizar nome do usuário no header
+        this.atualizarNomeUsuario();
         
-        if (this.timeSlots.length === 0) {
-            this.timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
-        }
-        
-        this.renderDashboard();
-        this.renderSchedule();
-        this.renderSubjects();
-        this.renderNotifications();
-        this.updateFraseDoDia();
+        this.renderStats();
+        this.renderChart();
+        this.renderActivities();
         this.updateBadge();
         this.setupEvents();
     }
     
-    renderDashboard() {
-        // Cards
+    // ============================================
+    // ATUALIZAR NOME DO USUÁRIO
+    // ============================================
+    atualizarNomeUsuario() {
+        const profile = this.profile || this.app.user || {};
+        const nome = profile.nome || profile.displayName || 'Usuário';
+        
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        if (userNameDisplay) {
+            userNameDisplay.textContent = nome;
+        }
+    }
+    
+    // ============================================
+    // STATS CARDS
+    // ============================================
+    renderStats() {
         const disciplinas = new Set();
+        
+        // Disciplinas das tarefas
+        this.tasks.forEach(t => {
+            if (t.subject || t.disciplina) {
+                disciplinas.add((t.subject || t.disciplina).toLowerCase());
+            }
+        });
+        
+        // Disciplinas do horário
         if (this.weeklySchedule) {
             Object.values(this.weeklySchedule).forEach(day => {
                 if (Array.isArray(day)) {
                     day.forEach(c => {
-                        if (c && c.materia) disciplinas.add(c.materia.toLowerCase());
+                        if (c && c.materia) {
+                            disciplinas.add(c.materia.toLowerCase());
+                        }
                     });
                 }
             });
         }
-        this.tasks.forEach(t => {
-            if (t.subject || t.disciplina) disciplinas.add((t.subject || t.disciplina).toLowerCase());
-        });
         
         const pendentes = this.tasks.filter(t => !t.completed).length;
-        const horasEstudo = this.tasks.filter(t => t.completed).length * 1.5;
+        const horasEstudo = this.calcularHorasEstudo();
+        const media = this.calcularMedia();
         
-        document.getElementById('statTarefas').textContent = this.tasks.length;
-        document.getElementById('statConclusao').textContent = 
-            this.tasks.length > 0 ? Math.round((this.tasks.filter(t => t.completed).length / this.tasks.length) * 100) + '%' : '0%';
-        document.getElementById('statHoras').textContent = Math.floor(horasEstudo) + 'h';
+        const disciplinasEl = document.getElementById('disciplinasCount');
+        const pendentesEl = document.getElementById('pendentesCount');
+        const horasEl = document.getElementById('horasCount');
+        const mediaEl = document.getElementById('mediaCount');
         
-        const progresso = this.tasks.length > 0 ? Math.round((this.tasks.filter(t => t.completed).length / this.tasks.length) * 100) : 0;
-        document.getElementById('progressValue').textContent = progresso + '%';
-        document.getElementById('progressFill').style.width = progresso + '%';
-        
-        // Dashboard page stats
-        document.getElementById('disciplinasCount').textContent = disciplinas.size || 0;
-        document.getElementById('pendentesCount').textContent = pendentes;
-        document.getElementById('horasCount').textContent = Math.floor(horasEstudo);
-        
-        const media = this.tasks.filter(t => t.nota).reduce((acc, t) => acc + t.nota, 0) / (this.tasks.filter(t => t.nota).length || 1);
-        document.getElementById('mediaCount').textContent = media.toFixed(1);
-        
-        // Atividades
-        this.renderActivities();
+        if (disciplinasEl) this.animarNumero(disciplinasEl, disciplinas.size || 0);
+        if (pendentesEl) this.animarNumero(pendentesEl, pendentes);
+        if (horasEl) this.animarNumero(horasEl, Math.floor(horasEstudo));
+        if (mediaEl) this.animarNumero(mediaEl, media.toFixed(1));
     }
     
+    animarNumero(elemento, valorFinal) {
+        if (!elemento) return;
+        const valorInicial = 0;
+        const duracao = 500;
+        const inicio = performance.now();
+        
+        const animar = (tempo) => {
+            const progresso = Math.min((tempo - inicio) / duracao, 1);
+            const valorAtual = valorInicial + (valorFinal - valorInicial) * progresso;
+            
+            if (typeof valorFinal === 'string' && valorFinal.includes('.')) {
+                elemento.textContent = valorAtual.toFixed(1);
+            } else {
+                elemento.textContent = Math.floor(valorAtual);
+            }
+            
+            if (progresso < 1) {
+                requestAnimationFrame(animar);
+            } else {
+                elemento.textContent = valorFinal;
+            }
+        };
+        
+        requestAnimationFrame(animar);
+    }
+    
+    calcularHorasEstudo() {
+        let horas = 0;
+        horas += this.calendarEvents.filter(e => e.type === 'aula').length * 2;
+        horas += this.tasks.filter(t => t.completed).length * 1.5;
+        return horas || 0;
+    }
+    
+    calcularMedia() {
+        const notas = this.tasks.filter(t => t.nota && typeof t.nota === 'number');
+        if (notas.length === 0) return 0;
+        return notas.reduce((acc, t) => acc + t.nota, 0) / notas.length;
+    }
+    
+    // ============================================
+    // PERFORMANCE CHART
+    // ============================================
+    renderChart() {
+        const container = document.getElementById('barChart');
+        if (!container) return;
+        
+        const disciplinasMap = new Map();
+        
+        this.tasks.forEach(t => {
+            const disc = t.subject || t.disciplina;
+            if (disc && t.nota && typeof t.nota === 'number') {
+                const key = disc.toLowerCase();
+                if (!disciplinasMap.has(key)) {
+                    disciplinasMap.set(key, { 
+                        nome: disc, 
+                        soma: 0, 
+                        count: 0,
+                        cor: this.getCorDisciplina(disc),
+                        icone: this.getIconeDisciplina(disc)
+                    });
+                }
+                const data = disciplinasMap.get(key);
+                data.soma += t.nota;
+                data.count++;
+            }
+        });
+        
+        if (disciplinasMap.size === 0) {
+            container.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;color:var(--text-secondary);text-align:center;gap:8px;">
+                    <i class="fas fa-chart-simple" style="font-size:32px;opacity:0.3;"></i>
+                    <p>Adicione tarefas com notas para ver o gráfico</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const disciplinas = Array.from(disciplinasMap.entries()).map(([_, data]) => ({
+            nome: data.nome,
+            icone: data.icone,
+            cor: data.cor,
+            media: data.count > 0 ? (data.soma / data.count) : 0
+        }));
+        
+        disciplinas.sort((a, b) => b.media - a.media);
+        const topDisciplinas = disciplinas.slice(0, 4);
+        
+        container.innerHTML = '';
+        
+        topDisciplinas.forEach(disc => {
+            const barItem = document.createElement('div');
+            barItem.className = 'bar-item';
+            const percentual = Math.min(100, (disc.media / 10) * 100);
+            
+            barItem.innerHTML = `
+                <div class="bar-icon" style="background: ${disc.cor}20; color: ${disc.cor};">
+                    <i class="fas ${disc.icone}"></i>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: ${percentual}%; background: ${disc.cor};"></div>
+                </div>
+                <span class="bar-value">${disc.media.toFixed(1)}</span>
+            `;
+            container.appendChild(barItem);
+        });
+    }
+    
+    // ============================================
+    // ACTIVITIES
+    // ============================================
     renderActivities() {
         const container = document.getElementById('activityList');
         if (!container) return;
         
         const atividades = [];
-        this.tasks.slice(0, 3).forEach(t => {
+        
+        // Tarefas recentes
+        this.tasks.slice(0, 2).forEach(t => {
             atividades.push({
                 titulo: t.title || t.nome || 'Tarefa',
                 descricao: t.completed ? 'Concluída' : 'Pendente',
-                icone: 'fa-tasks',
-                cor: t.completed ? 'green' : 'orange'
+                icone: t.completed ? 'fa-check-circle' : 'fa-clipboard-list',
+                cor: t.completed ? '#10b981' : '#f59e0b',
+                data: new Date(t.dataCriacao || t.created_at || Date.now())
             });
         });
         
-        if (atividades.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma atividade recente</p>';
-            return;
-        }
-        
-        container.innerHTML = atividades.map(a => `
-            <div class="activity-item">
-                <div class="activity-icon ${a.cor}"><i class="fas ${a.icone}"></i></div>
-                <div class="activity-text">
-                    <h4>${this.app.escapeHtml(a.titulo)}</h4>
-                    <p>${a.descricao}</p>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    renderSchedule() {
-        const tbody = document.getElementById('scheduleTableBody');
-        if (!tbody) return;
-        
-        const slots = this.timeSlots;
-        if (slots.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">Nenhum horário cadastrado</td></tr>';
-            return;
-        }
-        
-        let html = '';
-        slots.forEach(time => {
-            html += '<tr><td class="time-slot">' + time + '</td>';
-            this.days.forEach(day => {
-                const aula = (this.weeklySchedule[day] || []).find(a => a.horaInicio === time);
-                if (aula && aula.materia) {
-                    const cor = aula.color || '#8b5cf6';
-                    html += `<td><span class="subject" style="background:${cor}20;color:${cor};border-left:3px solid ${cor};padding:4px 10px;border-radius:4px;">${this.app.escapeHtml(aula.materia)}</span></td>`;
-                } else {
-                    html += '<td class="empty-cell">-</td>';
-                }
+        // Anotações recentes
+        this.notes.slice(0, 2).forEach(n => {
+            atividades.push({
+                titulo: n.title || n.titulo || 'Anotação',
+                descricao: 'Anotação atualizada',
+                icone: 'fa-file-lines',
+                cor: '#9333ea',
+                data: new Date(n.dataModificacao || n.updated_at || n.date || Date.now())
             });
-            html += '</tr>';
         });
         
-        tbody.innerHTML = html;
-    }
-    
-    renderSubjects() {
-        const grid = document.getElementById('subjectsGrid');
-        if (!grid) return;
-        
-        const disciplinasMap = new Map();
-        this.tasks.forEach(t => {
-            const disc = t.subject || t.disciplina;
-            if (disc) {
-                const key = disc.toLowerCase();
-                if (!disciplinasMap.has(key)) {
-                    disciplinasMap.set(key, { nome: disc, count: 0 });
-                }
-                if (!t.completed) {
-                    disciplinasMap.get(key).count++;
-                }
-            }
+        // Eventos recentes
+        this.calendarEvents.slice(0, 2).forEach(e => {
+            atividades.push({
+                titulo: e.title || 'Evento',
+                descricao: `Evento ${e.type || 'geral'}`,
+                icone: 'fa-calendar',
+                cor: '#3b82f6',
+                data: new Date(e.date || e.dataCriacao || Date.now())
+            });
         });
         
-        if (disciplinasMap.size === 0) {
-            grid.innerHTML = '<p style="grid-column:span 2;text-align:center;padding:20px;color:#888;">Nenhuma disciplina em uso</p>';
-            return;
-        }
-        
-        const cores = ['#8b5cf6', '#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#eab308'];
-        let i = 0;
-        let html = '';
-        for (const [key, disc] of disciplinasMap) {
-            const cor = cores[i % cores.length];
-            html += `
-                <div class="subject-card" style="background:${cor}20;border-left:3px solid ${cor};padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
-                    <span style="color:${cor};font-weight:600;">${this.app.escapeHtml(disc.nome)}</span>
-                    <span style="background:var(--bg-color);padding:2px 8px;border-radius:10px;font-size:12px;">${disc.count}</span>
-                </div>
-            `;
-            i++;
-        }
-        grid.innerHTML = html;
-    }
-    
-    renderNotifications() {
-        const container = document.getElementById('notificacoesRecentes');
-        if (!container) return;
-        
-        const recentes = (this.notifications || []).slice(0, 3);
+        atividades.sort((a, b) => b.data - a.data);
+        const recentes = atividades.slice(0, 4);
         
         if (recentes.length === 0) {
             container.innerHTML = `
-                <div style="text-align:center;padding:20px;color:var(--text-secondary);">
-                    <i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:8px;"></i>
-                    Nenhuma notificação recente
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;color:var(--text-secondary);text-align:center;gap:8px;">
+                    <i class="fas fa-clock" style="font-size:28px;opacity:0.3;"></i>
+                    <p>Nenhuma atividade recente</p>
                 </div>
             `;
             return;
         }
         
-        const cores = { info: 'purple', aula: 'blue', tarefa: 'green' };
-        const icones = { info: 'fa-bell', aula: 'fa-book', tarefa: 'fa-tasks' };
-        
-        container.innerHTML = recentes.map(n => `
-            <div class="notification-item ${cores[n.type] || 'purple'}" onclick="app.openNotifications()">
-                <i class="fas ${icones[n.type] || 'fa-bell'}"></i>
-                <span>${this.app.escapeHtml(n.title || 'Notificação')}</span>
-                <span style="margin-left:auto;font-size:11px;color:var(--text-secondary);">${this.app.formatTimeAgo(n.time)}</span>
+        container.innerHTML = recentes.map(a => `
+            <div class="activity-item">
+                <div class="activity-icon" style="background: ${a.cor}20; color: ${a.cor};">
+                    <i class="fas ${a.icone}"></i>
+                </div>
+                <div class="activity-text">
+                    <h4>${this.app.escapeHtml(a.titulo)}</h4>
+                    <p>${a.descricao} • ${this.formatarDataRelativa(a.data)}</p>
+                </div>
             </div>
         `).join('');
     }
     
-    updateFraseDoDia() {
-        const el = document.getElementById('fraseDoDiaText');
-        if (el && window.FrasesDoDia) {
-            el.textContent = window.FrasesDoDia.getFraseDoDia();
-        } else if (el) {
-            el.textContent = 'A persistência leva à perfeição. Continue firme nos estudos!';
-        }
+    // ============================================
+    // HELPERS
+    // ============================================
+    getCorDisciplina(disciplina) {
+        const mapa = {
+            'matemática': '#9333ea', 'matematica': '#9333ea',
+            'física': '#f59e0b', 'fisica': '#f59e0b',
+            'português': '#3b82f6', 'portugues': '#3b82f6',
+            'história': '#ef4444', 'historia': '#ef4444',
+            'química': '#10b981', 'quimica': '#10b981',
+            'biologia': '#eab308', 'inglês': '#64748b', 'ingles': '#64748b',
+            'geografia': '#14b8a6'
+        };
+        const lower = disciplina?.toLowerCase()?.trim() || '';
+        return mapa[lower] || '#95a5a6';
+    }
+    
+    getIconeDisciplina(disciplina) {
+        const mapa = {
+            'matemática': 'fa-calculator', 'matematica': 'fa-calculator',
+            'física': 'fa-flask', 'fisica': 'fa-flask',
+            'português': 'fa-pen-nib', 'portugues': 'fa-pen-nib',
+            'história': 'fa-landmark', 'historia': 'fa-landmark',
+            'química': 'fa-flask', 'quimica': 'fa-flask',
+            'biologia': 'fa-leaf', 'inglês': 'fa-language', 'ingles': 'fa-language',
+            'geografia': 'fa-globe'
+        };
+        const lower = disciplina?.toLowerCase()?.trim() || '';
+        return mapa[lower] || 'fa-book';
+    }
+    
+    formatarDataRelativa(data) {
+        if (!data || isNaN(data.getTime())) return 'agora';
+        const agora = new Date();
+        const diffMs = agora - data;
+        const diffMin = Math.floor(diffMs / 60000);
+        const diffHoras = Math.floor(diffMs / 3600000);
+        const diffDias = Math.floor(diffMs / 86400000);
+        
+        if (diffMin < 1) return 'agora mesmo';
+        if (diffMin < 60) return `${diffMin} min atrás`;
+        if (diffHoras < 24) return `${diffHoras} h atrás`;
+        if (diffDias === 1) return 'ontem';
+        if (diffDias < 7) return `${diffDias} dias atrás`;
+        return data.toLocaleDateString('pt-BR');
     }
     
     updateBadge() {
@@ -224,19 +317,21 @@ class DashboardModule {
     }
     
     setupEvents() {
-        // Editar horário
-        document.getElementById('btnEditSchedule')?.addEventListener('click', () => {
-            alert('Editar horário (em breve)');
-        });
-        
-        // Gerenciar disciplinas
-        document.getElementById('btnGerenciarDisciplinas')?.addEventListener('click', () => {
-            alert('Gerenciar disciplinas (em breve)');
-        });
-        
-        // Iniciar estudo
-        document.getElementById('startStudy')?.addEventListener('click', () => {
-            alert('Sessão de estudo iniciada!');
+        window.addEventListener('cloudDataLoaded', () => {
+            this.tasks = this.app.data.tasks || [];
+            this.notes = this.app.data.notes || [];
+            this.calendarEvents = this.app.data.calendarEvents || [];
+            this.weeklySchedule = this.app.data.weeklySchedule || {};
+            this.timeSlots = this.app.data.timeSlots || [];
+            this.notifications = this.app.data.notifications || [];
+            this.disciplinas = this.app.data.disciplinas || [];
+            this.profile = this.app.data.profile || {};
+            
+            this.atualizarNomeUsuario();
+            this.renderStats();
+            this.renderChart();
+            this.renderActivities();
+            this.updateBadge();
         });
     }
 }

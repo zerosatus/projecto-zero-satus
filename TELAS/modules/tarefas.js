@@ -1,5 +1,5 @@
 // ============================================
-// modules/tarefas.js - TAREFAS
+// modules/tarefas.js - TAREFAS SPA (CORRIGIDO)
 // ============================================
 
 class TarefasModule {
@@ -11,6 +11,8 @@ class TarefasModule {
         this.editingTaskId = null;
         this.subtasks = [];
         this.searchTerm = '';
+        this.disciplinaAtual = null;
+        this.weeklySchedule = {};
         
         console.log('[Tarefas] 📋 Módulo inicializado');
     }
@@ -19,9 +21,20 @@ class TarefasModule {
         console.log('[Tarefas] 📋 Renderizando...');
         
         this.tasks = data.tasks || [];
+        this.notes = data.notes || [];
         this.notifications = data.notifications || [];
         this.disciplinas = data.disciplinas || [];
         this.weeklySchedule = data.weeklySchedule || {};
+        this.profile = data.profile || {};
+        
+        // Garantir estrutura do horário
+        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        dias.forEach(day => {
+            if (!this.weeklySchedule[day]) this.weeklySchedule[day] = [];
+        });
+        
+        // Atualizar nome do usuário
+        this.atualizarNomeUsuario();
         
         this.renderStats();
         this.renderTasks();
@@ -31,16 +44,44 @@ class TarefasModule {
     }
     
     // ============================================
-    // RENDER STATS
+    // ATUALIZAR NOME DO USUÁRIO
+    // ============================================
+    atualizarNomeUsuario() {
+        const profile = this.profile || this.app.user || {};
+        const nome = profile.nome || profile.displayName || 'Usuário';
+        
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        if (userNameDisplay) {
+            userNameDisplay.textContent = nome;
+        }
+        
+        const userName = document.getElementById('userName');
+        if (userName) {
+            userName.textContent = nome;
+        }
+        
+        const userAvatar = document.getElementById('userAvatar');
+        if (userAvatar) {
+            const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            userAvatar.textContent = iniciais || 'U';
+        }
+    }
+    
+    // ============================================
+    // STATS
     // ============================================
     renderStats() {
         const pendentes = this.tasks.filter(t => !t.completed).length;
-        const concluidasHoje = this.tasks.filter(t => t.completed && t.dataConclusao && 
-            new Date(t.dataConclusao).toDateString() === new Date().toDateString()).length;
-        const atrasadas = this.tasks.filter(t => !t.completed && t.prazo && new Date(t.prazo) < new Date()).length;
-        const concluidas = this.tasks.filter(t => t.completed).length;
+        const concluidasHoje = this.tasks.filter(t => 
+            t.completed && t.dataConclusao && 
+            new Date(t.dataConclusao).toDateString() === new Date().toDateString()
+        ).length;
+        const atrasadas = this.tasks.filter(t => 
+            !t.completed && t.prazo && new Date(t.prazo) < new Date()
+        ).length;
         const favoritas = this.tasks.filter(t => t.favorita).length;
         const total = this.tasks.length;
+        const concluidas = this.tasks.filter(t => t.completed).length;
         
         document.getElementById('pendingCount').textContent = pendentes;
         document.getElementById('completedTodayCount').textContent = concluidasHoje;
@@ -74,37 +115,8 @@ class TarefasModule {
         
         taskList.innerHTML = filtered.map(task => this.createTaskHTML(task)).join('');
         
-        // Eventos
-        taskList.querySelectorAll('.task-checkbox').forEach(cb => {
-            cb.addEventListener('change', (e) => {
-                const id = cb.closest('.task-item').dataset.id;
-                this.toggleTask(id, cb.checked);
-            });
-        });
-        
-        taskList.querySelectorAll('.task-btn.favorite').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const id = btn.closest('.task-item').dataset.id;
-                this.toggleFavorite(id);
-            });
-        });
-        
-        taskList.querySelectorAll('.task-btn.edit').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const id = btn.closest('.task-item').dataset.id;
-                this.openTaskModal(id);
-            });
-        });
-        
-        taskList.querySelectorAll('.task-btn.delete').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const id = btn.closest('.task-item').dataset.id;
-                this.deleteTask(id);
-            });
-        });
+        // Eventos das tarefas
+        this.setupTaskEvents();
     }
     
     filterTasks() {
@@ -113,14 +125,20 @@ class TarefasModule {
         
         if (searchTerm) {
             filtered = filtered.filter(t => 
-                (t.title || t.nome || '').toLowerCase().includes(searchTerm)
+                (t.nome || t.title || '').toLowerCase().includes(searchTerm) ||
+                (t.descricao || '').toLowerCase().includes(searchTerm)
             );
+        }
+        
+        if (this.disciplinaAtual) {
+            filtered = filtered.filter(t => (t.disciplina || t.subject) === this.disciplinaAtual);
         }
         
         switch(this.currentFilter) {
             case 'pendentes': filtered = filtered.filter(t => !t.completed); break;
             case 'concluidas': filtered = filtered.filter(t => t.completed); break;
             case 'favoritas': filtered = filtered.filter(t => t.favorita); break;
+            default: break;
         }
         
         return filtered;
@@ -139,11 +157,11 @@ class TarefasModule {
                 });
             case 'disciplina':
                 return tasks.sort((a, b) => 
-                    (a.subject || a.disciplina || '').localeCompare(b.subject || b.disciplina || '')
+                    (a.disciplina || a.subject || '').localeCompare(b.disciplina || b.subject || '')
                 );
             case 'prioridade':
                 return tasks.sort((a, b) => 
-                    (prioridadeOrder[a.priority] || 4) - (prioridadeOrder[b.priority] || 4)
+                    (prioridadeOrder[a.prioridade] || 4) - (prioridadeOrder[b.prioridade] || 4)
                 );
             default:
                 return tasks;
@@ -153,33 +171,49 @@ class TarefasModule {
     createTaskHTML(task) {
         const isCompleted = task.completed || false;
         const isFavorita = task.favorita || false;
-        const disciplina = task.subject || task.disciplina || 'Geral';
-        const prioridade = task.priority || 'media';
-        const prazo = task.prazo ? new Date(task.prazo).toLocaleDateString('pt-BR') : 'Sem data';
+        const disciplina = task.disciplina || task.subject || 'Geral';
+        const prioridade = task.prioridade || 'media';
+        const prazo = task.prazo ? this.formatarData(task.prazo) : 'Sem data';
         
         const corDisciplina = this.getCorDisciplina(disciplina);
+        const textoDisciplina = this.getTextoDisciplina(disciplina);
         const classePrioridade = this.getClassePrioridade(prioridade);
         const textoPrioridade = this.getTextoPrioridade(prioridade);
-        const disciplinaTexto = this.getTextoDisciplina(disciplina);
+        
+        let subtasksHTML = '';
+        if (task.subtasks && task.subtasks.length > 0) {
+            subtasksHTML = `
+                <div class="task-subtasks">
+                    <strong>Subtarefas:</strong>
+                    <ul>
+                        ${task.subtasks.map(st => `<li>${this.app.escapeHtml(st.texto)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
         
         return `
             <div class="task-item" data-id="${task.id}">
                 <input type="checkbox" class="task-checkbox" ${isCompleted ? 'checked' : ''}>
                 <div class="task-content">
-                    <h4 style="${isCompleted ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${this.app.escapeHtml(task.title || task.nome)}</h4>
-                    <p>${this.app.escapeHtml(task.description || task.descricao || 'Sem descrição')}</p>
+                    <h4 style="${isCompleted ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+                        ${this.app.escapeHtml(task.nome || task.title)}
+                    </h4>
+                    <p>${this.app.escapeHtml(task.descricao || 'Sem descrição')}</p>
                     <div class="task-meta">
                         <span class="task-subject" style="color: ${corDisciplina}">
-                            <i class="fas fa-circle"></i> ${disciplinaTexto}
+                            <i class="fas fa-circle"></i> ${textoDisciplina}
                         </span>
                         <span class="task-date"><i class="fas fa-calendar"></i> ${prazo}</span>
                         <span class="task-priority ${classePrioridade}">
                             <i class="fas fa-flag"></i> ${textoPrioridade}
                         </span>
                     </div>
+                    ${subtasksHTML}
                 </div>
                 <div class="task-actions">
-                    <button class="task-btn favorite ${isFavorita ? 'active' : ''}" style="color: ${isFavorita ? '#eab308' : ''}">
+                    <button class="task-btn favorite ${isFavorita ? 'active' : ''}" 
+                            style="color: ${isFavorita ? '#eab308' : ''}">
                         <i class="fas fa-star"></i>
                     </button>
                     <button class="task-btn edit"><i class="fas fa-edit"></i></button>
@@ -189,8 +223,45 @@ class TarefasModule {
         `;
     }
     
+    setupTaskEvents() {
+        // Checkbox
+        document.querySelectorAll('.task-checkbox').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const id = cb.closest('.task-item').dataset.id;
+                this.toggleTask(id, cb.checked);
+            });
+        });
+        
+        // Favorito
+        document.querySelectorAll('.task-btn.favorite').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.closest('.task-item').dataset.id;
+                this.toggleFavorite(id);
+            });
+        });
+        
+        // Editar
+        document.querySelectorAll('.task-btn.edit').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.closest('.task-item').dataset.id;
+                this.openTaskModal(id);
+            });
+        });
+        
+        // Deletar
+        document.querySelectorAll('.task-btn.delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.closest('.task-item').dataset.id;
+                this.deleteTask(id);
+            });
+        });
+    }
+    
     // ============================================
-    // CRUD
+    // CRUD TAREFAS
     // ============================================
     toggleTask(id, completed) {
         const task = this.tasks.find(t => t.id == id);
@@ -201,9 +272,7 @@ class TarefasModule {
             this.renderTasks();
             this.renderStats();
             this.renderSubjects();
-            if (typeof showToast === 'function') {
-                showToast(completed ? 'Tarefa concluída!' : 'Tarefa reaberta!', 'success');
-            }
+            this.showToast(completed ? 'Tarefa concluída!' : 'Tarefa reaberta!', 'success');
         }
     }
     
@@ -214,9 +283,7 @@ class TarefasModule {
             this.saveTasks();
             this.renderTasks();
             this.renderStats();
-            if (typeof showToast === 'function') {
-                showToast(task.favorita ? 'Adicionada aos favoritos!' : 'Removida dos favoritos!', 'success');
-            }
+            this.showToast(task.favorita ? 'Adicionada aos favoritos!' : 'Removida dos favoritos!', 'success');
         }
     }
     
@@ -227,15 +294,20 @@ class TarefasModule {
             this.renderTasks();
             this.renderStats();
             this.renderSubjects();
-            if (typeof showToast === 'function') {
-                showToast('Tarefa excluída!', 'success');
-            }
+            this.showToast('Tarefa excluída!', 'success');
         }
     }
     
+    // ============================================
+    // MÉTODO SAVE TASKS (CORRIGIDO)
+    // ============================================
     saveTasks() {
         this.app.data.tasks = this.tasks;
         this.app.saveAllData();
+    }
+    
+    gerarId() {
+        return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
     
     // ============================================
@@ -244,21 +316,17 @@ class TarefasModule {
     openTaskModal(id = null) {
         const task = id ? this.tasks.find(t => t.id == id) : null;
         this.editingTaskId = task ? task.id : null;
-        this.selectedPriority = task ? task.priority : 'media';
-        this.subtasks = task ? task.subtasks || [] : [];
+        this.selectedPriority = task ? task.prioridade : 'media';
+        this.subtasks = task ? (task.subtasks || []) : [];
         
         const modal = document.getElementById('taskModal');
-        if (!modal) {
-            // Criar modal se não existir
-            this.createTaskModal();
-            return;
-        }
+        if (!modal) return;
         
         document.getElementById('modalTitle').textContent = task ? 'Editar Tarefa' : 'Nova Tarefa';
-        document.getElementById('nomeTarefa').value = task ? task.title || task.nome : '';
-        document.getElementById('descricaoTarefa').value = task ? task.description || task.descricao : '';
-        document.getElementById('prazoTarefa').value = task ? task.prazo : '';
-        document.getElementById('disciplinaTarefa').value = task ? task.subject || task.disciplina || 'matematica' : 'matematica';
+        document.getElementById('nomeTarefa').value = task ? (task.nome || task.title || '') : '';
+        document.getElementById('descricaoTarefa').value = task ? (task.descricao || '') : '';
+        document.getElementById('prazoTarefa').value = task ? (task.prazo || '') : '';
+        document.getElementById('disciplinaTarefa').value = task ? (task.disciplina || 'matematica') : 'matematica';
         
         this.renderSubtasks();
         this.selectPriority(this.selectedPriority);
@@ -276,89 +344,6 @@ class TarefasModule {
         this.editingTaskId = null;
     }
     
-    createTaskModal() {
-        const modalHTML = `
-            <div class="modal" id="taskModal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2 id="modalTitle">Nova Tarefa</h2>
-                        <button class="modal-close" onclick="app.modules.tarefas.closeTaskModal()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <form id="formNovaTarefa">
-                        <div class="form-group">
-                            <label>Nome da Tarefa</label>
-                            <input type="text" id="nomeTarefa" placeholder="Digite o nome da tarefa" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Descrição</label>
-                            <textarea id="descricaoTarefa" placeholder="Digite a descrição (opcional)"></textarea>
-                        </div>
-                        <div class="form-row-two">
-                            <div class="form-group">
-                                <label>Prioridade</label>
-                                <div class="priority-options">
-                                    <button type="button" class="priority-btn" data-priority="alta">Alta</button>
-                                    <button type="button" class="priority-btn active" data-priority="media">Média</button>
-                                    <button type="button" class="priority-btn" data-priority="baixa">Baixa</button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Prazo</label>
-                                <input type="date" id="prazoTarefa">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Disciplina</label>
-                            <select id="disciplinaTarefa">
-                                <option value="matematica">Matemática</option>
-                                <option value="portugues">Português</option>
-                                <option value="historia">História</option>
-                                <option value="fisica">Física</option>
-                                <option value="quimica">Química</option>
-                                <option value="biologia">Biologia</option>
-                                <option value="geografia">Geografia</option>
-                                <option value="ingles">Inglês</option>
-                                <option value="outros">Outros</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Subtarefas</label>
-                            <div class="subtasks-container" id="subtasksContainer"></div>
-                            <button type="button" class="btn-add-subtask" onclick="app.modules.tarefas.addSubtask()">
-                                <i class="fas fa-plus"></i> Adicionar subtarefa
-                            </button>
-                        </div>
-                        <div class="modal-actions">
-                            <button type="button" class="btn-cancel" onclick="app.modules.tarefas.closeTaskModal()">Cancelar</button>
-                            <button type="submit" class="btn-create">Salvar Tarefa</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        this.setupFormEvents();
-        this.openTaskModal();
-    }
-    
-    setupFormEvents() {
-        document.getElementById('formNovaTarefa')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.saveTaskFromForm();
-        });
-        
-        document.querySelectorAll('.priority-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.selectedPriority = btn.dataset.priority;
-            });
-        });
-    }
-    
     renderSubtasks() {
         const container = document.getElementById('subtasksContainer');
         if (!container) return;
@@ -369,11 +354,20 @@ class TarefasModule {
             div.className = 'subtask-item';
             div.innerHTML = `
                 <input type="text" value="${this.app.escapeHtml(st.texto)}" placeholder="Nome da subtarefa...">
-                <button type="button" class="remove-subtask" onclick="app.modules.tarefas.removeSubtask(${index})">
+                <button type="button" class="remove-subtask" data-index="${index}">
                     <i class="fas fa-times"></i>
                 </button>
             `;
             container.appendChild(div);
+        });
+        
+        // Eventos de remoção
+        container.querySelectorAll('.remove-subtask').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                this.subtasks.splice(index, 1);
+                this.renderSubtasks();
+            });
         });
     }
     
@@ -382,15 +376,16 @@ class TarefasModule {
         this.renderSubtasks();
     }
     
-    removeSubtask(index) {
-        this.subtasks.splice(index, 1);
-        this.renderSubtasks();
+    selectPriority(priority) {
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.priority === priority);
+        });
     }
     
     saveTaskFromForm() {
         const nome = document.getElementById('nomeTarefa').value.trim();
         if (!nome) {
-            alert('Preencha o nome da tarefa!');
+            this.showToast('Preencha o nome da tarefa!', 'error');
             return;
         }
         
@@ -402,11 +397,12 @@ class TarefasModule {
         });
         
         const taskData = {
+            nome: nome,
             title: nome,
-            description: document.getElementById('descricaoTarefa').value.trim(),
-            priority: this.selectedPriority,
+            descricao: document.getElementById('descricaoTarefa').value.trim(),
+            prioridade: this.selectedPriority,
             prazo: document.getElementById('prazoTarefa').value,
-            subject: document.getElementById('disciplinaTarefa').value,
+            disciplina: document.getElementById('disciplinaTarefa').value,
             subtasks: subtasksList,
             completed: false,
             favorita: false,
@@ -419,7 +415,7 @@ class TarefasModule {
                 this.tasks[index] = { ...this.tasks[index], ...taskData };
             }
         } else {
-            taskData.id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            taskData.id = this.gerarId();
             this.tasks.unshift(taskData);
         }
         
@@ -428,9 +424,7 @@ class TarefasModule {
         this.renderTasks();
         this.renderStats();
         this.renderSubjects();
-        if (typeof showToast === 'function') {
-            showToast(this.editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
-        }
+        this.showToast(this.editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
     }
     
     // ============================================
@@ -441,8 +435,9 @@ class TarefasModule {
         if (!list) return;
         
         const disciplinasMap = new Map();
+        
         this.tasks.forEach(t => {
-            const disc = t.subject || t.disciplina;
+            const disc = t.disciplina || t.subject;
             if (disc) {
                 const key = disc.toLowerCase();
                 if (!disciplinasMap.has(key)) {
@@ -454,6 +449,20 @@ class TarefasModule {
             }
         });
         
+        // Adicionar disciplinas do horário
+        Object.values(this.weeklySchedule).forEach(day => {
+            if (Array.isArray(day)) {
+                day.forEach(c => {
+                    if (c && c.materia) {
+                        const key = c.materia.toLowerCase();
+                        if (!disciplinasMap.has(key)) {
+                            disciplinasMap.set(key, { nome: c.materia, count: 0 });
+                        }
+                    }
+                });
+            }
+        });
+        
         if (disciplinasMap.size === 0) {
             list.innerHTML = '<p style="text-align:center;padding:20px;color:#9ca3af;">Nenhuma disciplina</p>';
             return;
@@ -462,10 +471,12 @@ class TarefasModule {
         const cores = ['#8b5cf6', '#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#eab308'];
         let i = 0;
         let html = '';
+        
         for (const [key, disc] of disciplinasMap) {
             const cor = cores[i % cores.length];
+            const isActive = this.disciplinaAtual === key;
             html += `
-                <div class="subject-item" data-subject="${key}" onclick="app.modules.tarefas.filterBySubject('${key}')">
+                <div class="subject-item ${isActive ? 'active' : ''}" data-subject="${key}">
                     <div class="subject-color" style="background-color: ${cor};"></div>
                     <span>${this.app.escapeHtml(disc.nome)}</span>
                     <span class="subject-count">${disc.count}</span>
@@ -473,22 +484,24 @@ class TarefasModule {
             `;
             i++;
         }
+        
         list.innerHTML = html;
-    }
-    
-    filterBySubject(subject) {
-        document.querySelectorAll('.subject-item').forEach(el => el.classList.remove('active'));
-        const el = document.querySelector(`.subject-item[data-subject="${subject}"]`);
-        if (el) el.classList.add('active');
         
-        // Filtrar tarefas por disciplina
-        this.currentFilter = 'todas';
-        document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active-filter'));
-        document.querySelector('.filter-item[data-filter="todas"]')?.classList.add('active-filter');
-        
-        // Buscar pela disciplina
-        document.getElementById('searchInput').value = subject;
-        this.renderTasks();
+        // Eventos das disciplinas
+        list.querySelectorAll('.subject-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const disciplina = item.dataset.subject;
+                if (this.disciplinaAtual === disciplina) {
+                    this.disciplinaAtual = null;
+                    document.querySelectorAll('.subject-item').forEach(s => s.classList.remove('active'));
+                } else {
+                    document.querySelectorAll('.subject-item').forEach(s => s.classList.remove('active'));
+                    item.classList.add('active');
+                    this.disciplinaAtual = disciplina;
+                }
+                this.renderTasks();
+            });
+        });
     }
     
     // ============================================
@@ -522,10 +535,10 @@ class TarefasModule {
         return textos[prioridade] || 'Normal';
     }
     
-    selectPriority(priority) {
-        document.querySelectorAll('.priority-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.priority === priority);
-        });
+    formatarData(data) {
+        if (!data) return 'Sem data';
+        const d = new Date(data);
+        return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
     }
     
     // ============================================
@@ -537,6 +550,19 @@ class TarefasModule {
         if (badge) {
             badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
             badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+        }
+    }
+    
+    showToast(mensagem, tipo = 'success') {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        if (toast && toastMessage) {
+            toastMessage.textContent = mensagem;
+            toast.className = 'toast show';
+            toast.style.background = tipo === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                                   tipo === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                   'linear-gradient(135deg, #10b981, #059669)';
+            setTimeout(() => toast.classList.remove('show'), 3000);
         }
     }
     
@@ -569,14 +595,59 @@ class TarefasModule {
             this.openTaskModal();
         });
         
-        // Fechar modal clicando fora
+        // Fechar modal
         document.getElementById('taskModal')?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) this.closeTaskModal();
         });
         
-        // ESC key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') this.closeTaskModal();
+        });
+        
+        // Form submit
+        document.getElementById('formNovaTarefa')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveTaskFromForm();
+        });
+        
+        // Adicionar subtarefa
+        document.querySelector('.btn-add-subtask')?.addEventListener('click', () => {
+            this.addSubtask();
+        });
+        
+        // Prioridade buttons
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedPriority = btn.dataset.priority;
+            });
+        });
+        
+        // Atualizar dados
+        window.addEventListener('cloudDataLoaded', () => {
+            this.tasks = this.app.data.tasks || [];
+            this.notes = this.app.data.notes || [];
+            this.notifications = this.app.data.notifications || [];
+            this.disciplinas = this.app.data.disciplinas || [];
+            this.weeklySchedule = this.app.data.weeklySchedule || {};
+            this.profile = this.app.data.profile || {};
+            
+            this.atualizarNomeUsuario();
+            this.renderStats();
+            this.renderTasks();
+            this.renderSubjects();
+            this.updateBadge();
+        });
+        
+        // Sincronização entre abas
+        window.addEventListener('storage', (e) => {
+            if (e.key && (e.key.includes('_tasks') || e.key.includes('tarefas_'))) {
+                this.tasks = this.app.data.tasks || [];
+                this.renderStats();
+                this.renderTasks();
+                this.renderSubjects();
+            }
         });
     }
 }

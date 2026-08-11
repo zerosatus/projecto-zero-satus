@@ -1,5 +1,5 @@
 // ============================================
-// modules/anotacoes.js - ANOTAÇÕES
+// modules/anotacoes.js - ANOTAÇÕES SPA (CORRIGIDO)
 // ============================================
 
 class AnotacoesModule {
@@ -10,7 +10,7 @@ class AnotacoesModule {
         this.notes = [];
         this.isSaving = false;
         this.autoSaveTimer = null;
-        this.searchTerm = '';
+        this._criandoAnotacao = false;
         
         console.log('[Anotacoes] 📝 Módulo inicializado');
     }
@@ -20,11 +20,37 @@ class AnotacoesModule {
         
         this.notes = data.notes || [];
         this.notifications = data.notifications || [];
+        this.profile = data.profile || {};
         
+        this.atualizarNomeUsuario();
         this.renderNotesList();
-        this.setupEvents();
         this.loadFirstNote();
+        this.configurarEventos();
         this.updateBadge();
+        this.restaurarEstadoSidebar();
+        
+        // EXPOR FUNÇÕES GLOBAIS
+        window.formatText = (command, value) => this.formatText(command, value);
+        window.saveNoteAnotacoes = () => this.saveCurrentNote();
+        window.createNewNote = () => this.createNote();
+        window.toggleSidebarAnotacoes = () => this.toggleSidebar();
+    }
+    
+    // ============================================
+    // ATUALIZAR NOME DO USUÁRIO
+    // ============================================
+    atualizarNomeUsuario() {
+        const profile = this.profile || this.app.user || {};
+        const nome = profile.nome || profile.displayName || 'Usuário';
+        
+        const userName5 = document.getElementById('userName5');
+        const userAvatar5 = document.getElementById('userAvatar5');
+        
+        if (userName5) userName5.textContent = nome;
+        if (userAvatar5) {
+            const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            userAvatar5.textContent = iniciais || 'U';
+        }
     }
     
     // ============================================
@@ -34,16 +60,7 @@ class AnotacoesModule {
         const list = document.getElementById('notesList');
         if (!list) return;
         
-        let filtered = [...this.notes];
-        if (this.searchTerm) {
-            const term = this.searchTerm.toLowerCase();
-            filtered = filtered.filter(n => 
-                (n.title || n.titulo || '').toLowerCase().includes(term) ||
-                (n.content || n.conteudo || '').toLowerCase().includes(term)
-            );
-        }
-        
-        filtered.sort((a, b) => {
+        const filtered = [...this.notes].sort((a, b) => {
             const dateA = new Date(a.dataModificacao || a.updated_at || a.date || 0);
             const dateB = new Date(b.dataModificacao || b.updated_at || b.date || 0);
             return dateB - dateA;
@@ -60,10 +77,10 @@ class AnotacoesModule {
         }
         
         list.innerHTML = filtered.map(note => {
-            const titulo = note.title || note.titulo || 'Sem título';
-            const preview = (note.content || note.conteudo || '').replace(/<[^>]*>/g, '').substring(0, 60) + '...';
+            const titulo = note.titulo || note.title || 'Sem título';
+            const preview = (note.conteudo || note.content || '').replace(/<[^>]*>/g, '').substring(0, 60) + '...';
             const data = new Date(note.dataModificacao || note.updated_at || note.date || Date.now());
-            const dataFormatada = this.formatDate(data);
+            const dataFormatada = this.formatarData(data);
             const isActive = note.id === this.currentNoteId;
             
             return `
@@ -75,7 +92,6 @@ class AnotacoesModule {
             `;
         }).join('');
         
-        // Eventos de clique
         list.querySelectorAll('.note-item').forEach(item => {
             item.addEventListener('click', () => {
                 this.loadNote(item.dataset.id);
@@ -89,6 +105,9 @@ class AnotacoesModule {
     loadFirstNote() {
         if (this.notes.length > 0 && !this.currentNoteId) {
             this.loadNote(this.notes[0].id);
+        } else if (this.notes.length === 0) {
+            // Se não há anotações, mostrar editor vazio
+            this.limparEditor();
         }
     }
     
@@ -102,18 +121,31 @@ class AnotacoesModule {
         
         this.currentNoteId = id;
         
-        const titleInput = document.querySelector('.note-title');
+        const titleInput = document.getElementById('noteTitle');
         const editor = document.getElementById('editor');
-        const dateDisplay = document.querySelector('.last-saved');
+        const lastSaved = document.getElementById('lastSaved');
         
-        if (titleInput) titleInput.value = note.title || note.titulo || '';
-        if (editor) editor.innerHTML = note.content || note.conteudo || '';
-        if (dateDisplay) {
+        if (titleInput) titleInput.value = note.titulo || note.title || '';
+        if (editor) editor.innerHTML = note.conteudo || note.content || '';
+        if (lastSaved) {
             const data = new Date(note.dataModificacao || note.updated_at || note.date || Date.now());
-            dateDisplay.textContent = `Última edição: ${data.toLocaleString('pt-BR')}`;
+            lastSaved.textContent = `Última edição: ${data.toLocaleString('pt-BR')}`;
         }
         
         this.renderNotesList();
+    }
+    
+    // ============================================
+    // LIMPAR EDITOR (SEM TEXTO FIXO)
+    // ============================================
+    limparEditor() {
+        const titleInput = document.getElementById('noteTitle');
+        const editor = document.getElementById('editor');
+        const lastSaved = document.getElementById('lastSaved');
+        
+        if (titleInput) titleInput.value = '';
+        if (editor) editor.innerHTML = '';
+        if (lastSaved) lastSaved.textContent = '';
     }
     
     // ============================================
@@ -122,33 +154,32 @@ class AnotacoesModule {
     saveCurrentNote() {
         if (!this.currentNoteId || this.isSaving) return;
         
-        const titleInput = document.querySelector('.note-title');
+        const titleInput = document.getElementById('noteTitle');
         const editor = document.getElementById('editor');
         
         if (!titleInput || !editor) return;
         
         const title = titleInput.value.trim();
         const content = editor.innerHTML;
-        const isEmpty = !title && (!content || content === '<br>' || content === '<div><br></div>');
+        const isEmpty = !title && (!content || content === '<br>' || content === '<div><br></div>' || content === '<p><br></p>');
         
         const noteIndex = this.notes.findIndex(n => n.id == this.currentNoteId);
         if (noteIndex === -1) return;
         
         const oldNote = this.notes[noteIndex];
-        if (oldNote.title === title && oldNote.content === content) return;
+        if (oldNote.titulo === title && oldNote.conteudo === content) return;
         
         this.isSaving = true;
         
         if (isEmpty) {
-            // Não salvar anotações vazias
             this.isSaving = false;
             return;
         }
         
         this.notes[noteIndex] = {
             ...oldNote,
-            title: title || 'Sem título',
-            content: content || '',
+            titulo: title || 'Sem título',
+            conteudo: content || '',
             dataModificacao: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
@@ -157,9 +188,9 @@ class AnotacoesModule {
         this.app.saveAllData();
         this.renderNotesList();
         
-        const dateDisplay = document.querySelector('.last-saved');
-        if (dateDisplay) {
-            dateDisplay.textContent = `Salvo em ${new Date().toLocaleTimeString('pt-BR')}`;
+        const lastSaved = document.getElementById('lastSaved');
+        if (lastSaved) {
+            lastSaved.textContent = `Salvo em ${new Date().toLocaleTimeString('pt-BR')}`;
         }
         
         this.isSaving = false;
@@ -169,41 +200,69 @@ class AnotacoesModule {
     // CREATE NOTE
     // ============================================
     createNote() {
-        // Salvar nota atual
+        if (this._criandoAnotacao) {
+            console.log('[Anotacoes] ⏳ Aguarde...');
+            return;
+        }
+        
         if (this.currentNoteId) {
             this.saveCurrentNote();
         }
         
-        // Verificar se já existe uma nota vazia
-        const emptyNote = this.notes.find(n => 
-            (!n.title || n.title === '') && 
-            (!n.content || n.content === '' || n.content === '<br>' || n.content === '<div><br></div>')
-        );
+        this._criandoAnotacao = true;
         
-        if (emptyNote) {
-            this.loadNote(emptyNote.id);
-            return;
-        }
-        
-        const newNote = {
-            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-            title: '',
-            content: '',
-            date: new Date().toISOString(),
-            dataModificacao: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-        
-        this.notes.unshift(newNote);
-        this.app.data.notes = this.notes;
-        this.app.saveAllData();
-        
-        this.loadNote(newNote.id);
-        document.querySelector('.note-title')?.focus();
-        
-        if (typeof showToast === 'function') {
-            showToast('Nova anotação criada!', 'success');
+        try {
+            // Verificar se já existe uma anotação vazia
+            const emptyNote = this.notes.find(n => 
+                (!n.titulo || n.titulo === '') && 
+                (!n.conteudo || n.conteudo === '' || n.conteudo === '<br>' || 
+                 n.conteudo === '<div><br></div>' || n.conteudo === '<p><br></p>')
+            );
+            
+            if (emptyNote) {
+                this.loadNote(emptyNote.id);
+                this._criandoAnotacao = false;
+                return;
+            }
+            
+            const newNote = {
+                id: this.gerarId(),
+                titulo: '',
+                conteudo: '',
+                date: new Date().toISOString(),
+                dataModificacao: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            
+            this.notes.unshift(newNote);
+            this.app.data.notes = this.notes;
+            this.app.saveAllData();
+            
+            this.currentNoteId = newNote.id;
+            
+            // Limpar editor e focar
+            const titleInput = document.getElementById('noteTitle');
+            const editor = document.getElementById('editor');
+            const lastSaved = document.getElementById('lastSaved');
+            
+            if (titleInput) {
+                titleInput.value = '';
+                titleInput.focus();
+            }
+            if (editor) editor.innerHTML = '';
+            if (lastSaved) lastSaved.textContent = 'Nova anotação';
+            
+            this.renderNotesList();
+            this.showToast('Nova anotação criada!', 'success');
+            
+        } catch (error) {
+            console.error('[Anotacoes] Erro ao criar:', error);
+            this.showToast('Erro ao criar anotação', 'error');
+        } finally {
+            setTimeout(() => {
+                this._criandoAnotacao = false;
+            }, 500);
         }
     }
     
@@ -215,8 +274,7 @@ class AnotacoesModule {
         
         if (this.currentNoteId == id) {
             this.currentNoteId = null;
-            document.querySelector('.note-title').value = '';
-            document.getElementById('editor').innerHTML = '';
+            this.limparEditor();
         }
         
         this.notes = this.notes.filter(n => n.id != id);
@@ -224,14 +282,13 @@ class AnotacoesModule {
         this.app.saveAllData();
         this.renderNotesList();
         
-        // Carregar primeira nota se houver
         if (this.notes.length > 0 && !this.currentNoteId) {
             this.loadNote(this.notes[0].id);
+        } else {
+            this.limparEditor();
         }
         
-        if (typeof showToast === 'function') {
-            showToast('Anotação excluída!', 'success');
-        }
+        this.showToast('Anotação excluída!', 'success');
     }
     
     // ============================================
@@ -249,9 +306,48 @@ class AnotacoesModule {
     }
     
     // ============================================
+    // TOGGLE SIDEBAR (CORRIGIDO)
+    // ============================================
+    toggleSidebar() {
+        const sidebar = document.getElementById('rightSidebar');
+        const btnToggle = document.getElementById('btnToggleSidebar');
+        
+        console.log('[Anotacoes] Toggle sidebar - antes:', sidebar?.classList.contains('hidden'));
+        
+        if (sidebar) {
+            sidebar.classList.toggle('hidden');
+            const isHidden = sidebar.classList.contains('hidden');
+            localStorage.setItem('anotacoes_sidebar_collapsed', isHidden);
+            
+            if (btnToggle) {
+                btnToggle.classList.toggle('active', isHidden);
+            }
+            
+            console.log('[Anotacoes] Toggle sidebar - depois:', isHidden);
+            this.showToast(isHidden ? 'Anotações ocultas' : 'Anotações visíveis', 'info');
+        } else {
+            console.warn('[Anotacoes] Sidebar não encontrada!');
+        }
+    }
+    
+    restaurarEstadoSidebar() {
+        const isCollapsed = localStorage.getItem('anotacoes_sidebar_collapsed') === 'true';
+        const sidebar = document.getElementById('rightSidebar');
+        const btnToggle = document.getElementById('btnToggleSidebar');
+        
+        if (isCollapsed && sidebar) {
+            sidebar.classList.add('hidden');
+            if (btnToggle) btnToggle.classList.add('active');
+        } else if (sidebar) {
+            sidebar.classList.remove('hidden');
+            if (btnToggle) btnToggle.classList.remove('active');
+        }
+    }
+    
+    // ============================================
     // HELPERS
     // ============================================
-    formatDate(data) {
+    formatarData(data) {
         const hoje = new Date();
         const ontem = new Date(hoje);
         ontem.setDate(ontem.getDate() - 1);
@@ -265,11 +361,15 @@ class AnotacoesModule {
         }
     }
     
+    gerarId() {
+        return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+    
     // ============================================
     // NOTIFICAÇÕES
     // ============================================
     updateBadge() {
-        const badge = document.getElementById('notificationBadge');
+        const badge = document.getElementById('notificationBadge5');
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
         if (badge) {
             badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
@@ -277,53 +377,129 @@ class AnotacoesModule {
         }
     }
     
+    showToast(mensagem, tipo = 'success') {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        if (toast && toastMessage) {
+            toastMessage.textContent = mensagem;
+            toast.className = 'toast show';
+            toast.style.background = tipo === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                                   tipo === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                   tipo === 'info' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
+                                   'linear-gradient(135deg, #10b981, #059669)';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    }
+    
     // ============================================
     // EVENTOS DA UI
     // ============================================
-    setupEvents() {
-        // Editor auto-save
+    configurarEventos() {
         const editor = document.getElementById('editor');
-        const titleInput = document.querySelector('.note-title');
+        const titleInput = document.getElementById('noteTitle');
+        const btnNew = document.getElementById('btnNewNote');
+        const btnSave = document.getElementById('btnSaveNote');
+        const btnToggle = document.getElementById('btnToggleSidebar');
+        const bellBtn = document.getElementById('bellBtn5');
         
+        // 🔥 BOTÃO NOVA ANOTAÇÃO
+        if (btnNew) {
+            // Remover eventos antigos
+            const newBtn = btnNew.cloneNode(true);
+            btnNew.parentNode.replaceChild(newBtn, btnNew);
+            newBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.createNote();
+            });
+        }
+        
+        // 🔥 BOTÃO SALVAR
+        if (btnSave) {
+            const saveBtn = btnSave.cloneNode(true);
+            btnSave.parentNode.replaceChild(saveBtn, btnSave);
+            saveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.saveCurrentNote();
+                this.showToast('Anotação salva!', 'success');
+            });
+        }
+        
+        // 🔥 BOTÃO TOGGLE SIDEBAR
+        if (btnToggle) {
+            const toggleBtn = btnToggle.cloneNode(true);
+            btnToggle.parentNode.replaceChild(toggleBtn, btnToggle);
+            toggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar();
+            });
+        }
+        
+        // 🔥 EDITOR
         if (editor) {
             editor.addEventListener('input', () => this.autoSave());
             editor.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                     e.preventDefault();
                     this.saveCurrentNote();
+                    this.showToast('Anotação salva!', 'success');
+                }
+            });
+            // Focar no editor quando clicar
+            editor.addEventListener('click', () => {
+                if (!this.currentNoteId && this.notes.length > 0) {
+                    this.loadNote(this.notes[0].id);
                 }
             });
         }
         
+        // 🔥 TÍTULO
         if (titleInput) {
             titleInput.addEventListener('input', () => this.autoSave());
+            titleInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('editor')?.focus();
+                }
+            });
         }
         
-        // Nova nota
-        document.getElementById('btnNewNote')?.addEventListener('click', () => this.createNote());
-        document.getElementById('btnNewNoteSidebar')?.addEventListener('click', () => this.createNote());
+        // 🔥 SINO DE NOTIFICAÇÕES
+        if (bellBtn) {
+            bellBtn.addEventListener('click', () => {
+                this.app.openNotifications();
+            });
+        }
         
-        // Salvar manual
-        document.getElementById('btnSaveNote')?.addEventListener('click', () => {
-            this.saveCurrentNote();
-            if (typeof showToast === 'function') {
-                showToast('Anotação salva!', 'success');
-            }
-        });
-        
-        // Busca
-        // (implementar busca se houver input de busca)
-        
-        // Listener de dados
+        // 🔥 ATUALIZAR DADOS DA NUVEM
         window.addEventListener('cloudDataLoaded', () => {
             this.notes = this.app.data.notes || [];
+            this.notifications = this.app.data.notifications || [];
+            this.profile = this.app.data.profile || {};
+            
+            this.atualizarNomeUsuario();
             this.renderNotesList();
+            this.updateBadge();
+            
             if (this.currentNoteId) {
                 const note = this.notes.find(n => n.id == this.currentNoteId);
                 if (note) {
-                    document.querySelector('.note-title').value = note.title || '';
-                    document.getElementById('editor').innerHTML = note.content || '';
+                    const titleInput = document.getElementById('noteTitle');
+                    const editor = document.getElementById('editor');
+                    if (titleInput) titleInput.value = note.titulo || note.title || '';
+                    if (editor) editor.innerHTML = note.conteudo || note.content || '';
+                } else {
+                    this.currentNoteId = null;
+                    this.limparEditor();
                 }
+            }
+        });
+        
+        // 🔥 TECLA ESC - FECHAR MODAIS
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Fechar modais se houver
             }
         });
     }

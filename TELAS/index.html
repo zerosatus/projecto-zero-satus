@@ -6,7 +6,7 @@
     <title>Zero Satus - Painel do Aluno</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="../../imagem/favicon.png" type="image/png">
+    <link rel="icon" href="../imagem/favicon.png" type="image/png">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,17 +14,17 @@
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- CSS Base (sempre carregado) -->
+    <!-- CSS Base -->
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/modals.css">
-    
-    <!-- CSS dos Módulos (carregamento dinâmico via JS) -->
-    <!-- <link rel="stylesheet" href="css/dashboard.css"> -->
-    <!-- <link rel="stylesheet" href="css/calendario.css"> -->
-    <!-- <link rel="stylesheet" href="css/tarefas.css"> -->
-    <!-- <link rel="stylesheet" href="css/anotacoes.css"> -->
-    <!-- <link rel="stylesheet" href="css/perfil.css"> -->
+    <link rel="stylesheet" href="css/inicio.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/calendario.css">
+    <link rel="stylesheet" href="css/tarefas.css">
+    <link rel="stylesheet" href="css/anotacoes.css">
+    <link rel="stylesheet" href="css/perfil.css">
+    <link rel="stylesheet" href="css/ia.css">
     
 </head>
 <body>
@@ -41,11 +41,11 @@
         </div>
         
         <nav class="menu">
-            <a class="menu-item active" data-view="dashboard">
+            <a class="menu-item active" data-view="inicio">
                 <i class="fas fa-home"></i>
                 <span>Início</span>
             </a>
-            <a class="menu-item" data-view="dashboard-page">
+            <a class="menu-item" data-view="dashboard">
                 <i class="fas fa-chart-line"></i>
                 <span>Dashboard</span>
             </a>
@@ -61,13 +61,10 @@
                 <i class="fas fa-sticky-note"></i>
                 <span>Anotações</span>
             </a>
+            <!-- IA removida da sidebar -->
         </nav>
         
         <div class="menu-bottom">
-            <a class="menu-item" data-view="perfil">
-                <i class="fas fa-user"></i>
-                <span>Perfil</span>
-            </a>
             <div class="logout-section">
                 <button class="logout-btn" id="logoutBtn">
                     <i class="fas fa-sign-out-alt"></i>
@@ -81,17 +78,18 @@
     <!-- CONTEÚDO PRINCIPAL                        -->
     <!-- ========================================== -->
     <main class="main-content" id="main-content">
-        
+
         <!-- ========================================== -->
-        <!-- VIEW: INÍCIO (Dashboard Resumido)          -->
+        <!-- VIEW: INÍCIO                              -->
         <!-- ========================================== -->
-        <section id="view-dashboard" class="view active">
-            
-            <!-- Header -->
-            <header class="page-header">
-                <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
+        <section id="view-inicio" class="view active">
+            <div class="page-header">
+                <div>
+                    <h1>Bem-vindo, <span id="userNameDisplay">Carregando...</span>!</h1>
+                    <p class="text-muted">Visão geral do seu dia</p>
+                </div>
                 <div class="header-actions">
-                    <button class="icon-btn" id="bellBtn">
+                    <button class="icon-btn" id="bellBtn" title="Notificações">
                         <i class="fas fa-bell"></i>
                         <span class="badge" id="notificationBadge">0</span>
                     </button>
@@ -100,200 +98,390 @@
                         <span id="userName">Carregando...</span>
                     </div>
                 </div>
-            </header>
-
-            <!-- Profile Quick View -->
-            <div class="profile-quick-view">
-                <div class="profile-card-mini">
-                    <div class="profile-header-mini">
-                        <div class="profile-avatar-mini">
+            </div>
+            
+            <!-- ====== LINHA 1: PERFIL + CALENDÁRIO ====== -->
+            <div class="row-profile-calendar">
+                
+                <div class="card-profile">
+                    <div class="profile-header">
+                        <div class="profile-avatar">
                             <img id="miniAvatar" src="https://ui-avatars.com/api/?name=U&background=9333ea&color=fff&size=70" alt="Avatar">
-                            <div class="status-indicator online"></div>
+                            <div class="status-dot"></div>
                         </div>
-                        <div class="profile-info-mini">
+                        <div class="profile-info">
                             <h3 id="miniName">Carregando...</h3>
-                            <p class="profile-email-mini" id="miniEmail">carregando@email.com</p>
+                            <p class="profile-email" id="miniEmail">carregando@email.com</p>
                         </div>
                     </div>
                     
-                    <div class="profile-stats-mini">
-                        <div class="stat-mini">
+                    <div class="profile-stats">
+                        <div class="stat-item">
                             <i class="fas fa-tasks"></i>
-                            <div>
-                                <span class="stat-value-mini" id="statTarefas">0</span>
-                                <span class="stat-label-mini">Tarefas</span>
-                            </div>
+                            <span class="stat-value" id="statTarefas">0</span>
+                            <span class="stat-label">Tarefas</span>
                         </div>
-                        <div class="stat-mini">
+                        <div class="stat-item">
                             <i class="fas fa-check-circle"></i>
-                            <div>
-                                <span class="stat-value-mini" id="statConclusao">0%</span>
-                                <span class="stat-label-mini">Conclusão</span>
-                            </div>
+                            <span class="stat-value" id="statConclusao">0%</span>
+                            <span class="stat-label">Conclusão</span>
                         </div>
-                        <div class="stat-mini">
+                        <div class="stat-item">
                             <i class="fas fa-clock"></i>
-                            <div>
-                                <span class="stat-value-mini" id="statHoras">0h</span>
-                                <span class="stat-label-mini">Estudo</span>
-                            </div>
+                            <span class="stat-value" id="statHoras">0h</span>
+                            <span class="stat-label">Estudo</span>
                         </div>
                     </div>
 
-                    <div class="profile-progress-mini">
+                    <div class="profile-progress">
                         <div class="progress-header">
                             <span>Progresso Semanal</span>
                             <span class="progress-value" id="progressValue">0%</span>
                         </div>
-                        <div class="progress-bar-mini">
-                            <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
                         </div>
                     </div>
 
-                    <button class="btn-view-profile" onclick="app.showView('perfil')">
+                    <button class="btn-profile" onclick="app.showView('perfil')">
                         <i class="fas fa-user"></i> Ver Perfil Completo
                     </button>
                 </div>
+
+                <div class="card-calendar">
+                    <div class="calendar-header">
+                        <button class="cal-nav" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                        <span id="currentMonth">Agosto 2026</span>
+                        <button class="cal-nav" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="calendar-weekdays">
+                        <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span>
+                        <span>Qui</span><span>Sex</span><span>Sáb</span>
+                    </div>
+                    <div class="calendar-dates" id="calendarDates"></div>
+                </div>
             </div>
 
-            <!-- Content Grid -->
-            <div class="content-grid">
-                <!-- Notificações Recentes -->
-                <div class="notifications-panel">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3><i class="fas fa-bell"></i> Notificações Recentes</h3>
-                        <button class="btn-ver-todas" onclick="app.openNotifications()">
-                            Ver todas →
-                        </button>
+            <!-- ====== LINHA 2: PRÓXIMA AULA/TAREFA + NOTIFICAÇÕES ====== -->
+            <div class="row-next-notifications">
+                <div class="col-next-tasks">
+                    <div class="card-next purple">
+                        <div class="next-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                        <div class="next-info">
+                            <h4>Próxima Aula</h4>
+                            <p id="nextClassInfo">Nenhuma aula cadastrada</p>
+                        </div>
                     </div>
-                    <div class="notification-list" id="notificacoesRecentes">
-                        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                            <i class="fas fa-spinner fa-spin"></i> Carregando...
+                    <div class="card-next blue">
+                        <div class="next-icon"><i class="fas fa-tasks"></i></div>
+                        <div class="next-info">
+                            <h4>Próxima Tarefa</h4>
+                            <p id="nextTaskInfo">Nenhuma tarefa pendente</p>
                         </div>
                     </div>
                 </div>
+                <div class="card-notifications">
+                    <div class="notif-header">
+                        <h4><i class="fas fa-bell"></i> Notificações Recentes</h4>
+                        <button class="btn-ver-todas" onclick="app.openNotifications()">Ver todas →</button>
+                    </div>
+                    <div class="notif-empty" id="notificacoesRecentes">
+                        <i class="fas fa-bell-slash"></i>
+                        <p>Nenhuma notificação recente</p>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Horário Semanal -->
-                <div class="schedule-panel">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3>Horário Semanal</h3>
+            <!-- ====== LINHA 3: HORÁRIO SEMANAL ====== -->
+            <div class="row-schedule">
+                <div class="card-schedule">
+                    <div class="schedule-header">
+                        <h4>Horário Semanal</h4>
                         <button class="btn-edit-schedule" id="btnEditSchedule">
                             <i class="fas fa-edit"></i> Editar
                         </button>
                     </div>
                     <table class="schedule-table">
                         <thead>
-                            <tr>
-                                <th>Hora</th>
-                                <th>Segunda</th>
-                                <th>Terça</th>
-                                <th>Quarta</th>
-                                <th>Quinta</th>
-                                <th>Sexta</th>
-                            </tr>
+                            <tr><th>Hora</th><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th></tr>
                         </thead>
                         <tbody id="scheduleTableBody">
-                            <tr><td colspan="6" style="text-align: center; padding: 40px;">Carregando horário...</td></tr>
+                            <tr><td colspan="6" class="schedule-empty">Nenhum horário cadastrado</td></tr>
                         </tbody>
                     </table>
                 </div>
+            </div>
 
-                <!-- Disciplinas -->
-                <div class="subjects-panel">
-                    <div class="subjects-panel-header">
-                        <h3><i class="fas fa-book"></i> Minhas Disciplinas</h3>
-                        <button class="btn-gerenciar-disc" id="btnGerenciarDisciplinas">
-                            <i class="fas fa-cog"></i>
-                        </button>
-                    </div>
-                    <div class="subjects-grid" id="subjectsGrid">
-                        <p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina cadastrada</p>
+            <!-- ====== LINHA 4: HORAS ESTUDO + DISCIPLINAS ====== -->
+            <div class="row-study-subjects">
+                <div class="card-study-hours">
+                    <h4>Total de Horas de Estudo</h4>
+                    <div class="study-content">
+                        <div class="study-ring">
+                            <svg viewBox="0 0 120 120">
+                                <circle class="ring-bg" cx="60" cy="60" r="50"/>
+                                <circle class="ring-fill" cx="60" cy="60" r="50" id="studyRing"/>
+                            </svg>
+                            <div class="ring-text">
+                                <span class="ring-percent" id="studyPercent">0%</span>
+                                <span class="ring-label">Meta</span>
+                            </div>
+                        </div>
+                        <div class="study-stats">
+                            <div class="study-total">
+                                <span class="total-hours" id="totalHours">0h</span>
+                                <span class="total-label">Total este mês</span>
+                            </div>
+                            <div class="study-chart" id="studyChart"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Frase do Dia -->
-                <div class="focus-panel">
-                    <h3>Frase do Dia</h3>
-                    <div class="focus-content">
-                        <div class="focus-icon"><i class="fas fa-lightbulb"></i></div>
-                        <p id="fraseDoDiaText">Carregando frase...</p>
-                        <button class="btn-start" id="startStudy">
+                <div class="card-subjects">
+                    <div class="subjects-header">
+                        <h4><i class="fas fa-book"></i> Minhas Disciplinas</h4>
+                        <button class="btn-gear" id="btnGerenciarDisciplinas">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="subjects-empty" id="subjectsGrid">
+                        <p>Nenhuma disciplina em uso</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== LINHA 5: FRASE DO DIA ====== -->
+            <div class="row-phrase">
+                <div class="card-phrase">
+                    <h4>Frase do Dia</h4>
+                    <div class="phrase-content">
+                        <div class="phrase-icon"><i class="fas fa-lightbulb"></i></div>
+                        <p id="fraseDoDiaText">A disciplina é a ponte entre metas e realizações.</p>
+                        <button class="btn-start-study" id="startStudy">
                             <i class="fas fa-play"></i> Começar Sessão de Estudo
                         </button>
                     </div>
                 </div>
+                <div class="col-empty"></div>
+            </div>
+
+            <!-- MODAIS -->
+            <div class="modal" id="editScheduleModal">
+                <div class="modal-content schedule-modal-content">
+                    <div class="modal-header">
+                        <h2>Editar Horário Semanal</h2>
+                        <button class="modal-close" onclick="fecharModalHorario()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="edit-schedule-wrapper">
+                            <div class="edit-schedule-grid" id="editScheduleGrid"></div>
+                        </div>
+                        <div class="add-time-section">
+                            <h3><i class="fas fa-plus-circle"></i> Adicionar Novo Horário à Grade</h3>
+                            <div class="add-time-controls">
+                                <input type="time" id="newTimeInput" value="11:00">
+                                <button class="btn-add-time" onclick="adicionarHorario()"><i class="fas fa-plus"></i> Adicionar</button>
+                                <button class="btn-cancel-time" onclick="document.getElementById('newTimeInput').value='11:00'"><i class="fas fa-undo"></i> Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-cancel" onclick="fecharModalHorario()"><i class="fas fa-times"></i> Fechar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal" id="subjectModal">
+                <div class="modal-content subject-modal-content">
+                    <div class="modal-header">
+                        <h2 id="subjectModalTitle">Adicionar Matéria</h2>
+                        <button class="modal-close" onclick="fecharModalMateria()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <form id="subjectForm" onsubmit="salvarMateria(event)">
+                        <div class="form-group">
+                            <label>Nome da Matéria</label>
+                            <input type="text" id="subjectNameInput" placeholder="Ex: Matemática" required list="disciplinasList">
+                            <datalist id="disciplinasList"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>Professor (Opcional)</label>
+                            <input type="text" id="subjectTeacherInput" placeholder="Nome do professor">
+                        </div>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label>Início</label>
+                                <input type="time" id="subjectStartInput" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Fim</label>
+                                <input type="time" id="subjectEndInput" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Dia da Semana</label>
+                            <select id="subjectDayInput" required>
+                                <option value="Seg">Segunda-feira</option>
+                                <option value="Ter">Terça-feira</option>
+                                <option value="Qua">Quarta-feira</option>
+                                <option value="Qui">Quinta-feira</option>
+                                <option value="Sex">Sexta-feira</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cor</label>
+                            <div class="color-options">
+                                <div class="color-option active" data-color="#9333ea" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #9333ea;"></div></div>
+                                <div class="color-option" data-color="#3b82f6" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #3b82f6;"></div></div>
+                                <div class="color-option" data-color="#ef4444" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #ef4444;"></div></div>
+                                <div class="color-option" data-color="#10b981" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #10b981;"></div></div>
+                                <div class="color-option" data-color="#f59e0b" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #f59e0b;"></div></div>
+                                <div class="color-option" data-color="#8b5cf6" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #8b5cf6;"></div></div>
+                                <div class="color-option" data-color="#ec4899" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #ec4899;"></div></div>
+                                <div class="color-option" data-color="#14b8a6" onclick="selecionarCor(this)"><div class="color-circle" style="background-color: #14b8a6;"></div></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-cancel" onclick="fecharModalMateria()"><i class="fas fa-times"></i> Cancelar</button>
+                            <button type="submit" class="btn-save"><i class="fas fa-save"></i> Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="modal" id="modalDisciplinas">
+                <div class="modal-content modal-disciplinas">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-book" style="margin-right: 8px; color: var(--purple-primary);"></i>Gerenciar Minhas Disciplinas</h2>
+                        <button class="modal-close" onclick="fecharModalDisciplinas()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-disc-body">
+                        <div class="disc-form-section">
+                            <h3 id="modalDiscTitle">Nova Disciplina</h3>
+                            <form id="formDisciplina">
+                                <div class="form-group">
+                                    <label>Nome da Disciplina</label>
+                                    <input type="text" id="discNome" placeholder="Ex: Programação" required>
+                                </div>
+                                <div class="form-row-two">
+                                    <div class="form-group">
+                                        <label>Cor</label>
+                                        <div class="color-picker-wrapper">
+                                            <input type="color" id="discCor" value="#9333ea">
+                                            <span class="color-hex" id="colorHexDisplay">#9333ea</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Ícone</label>
+                                        <select id="discIcone">
+                                            <option value="fa-book">📖 Livro</option>
+                                            <option value="fa-square-root-variable">📐 Matemática</option>
+                                            <option value="fa-atom">⚛️ Átomo</option>
+                                            <option value="fa-flask">🧪 Laboratório</option>
+                                            <option value="fa-dna">🧬 DNA</option>
+                                            <option value="fa-globe-americas">🌍 Globo</option>
+                                            <option value="fa-language">🌐 Idioma</option>
+                                            <option value="fa-landmark">🏛️ História</option>
+                                            <option value="fa-palette">🎨 Arte</option>
+                                            <option value="fa-music">🎵 Música</option>
+                                            <option value="fa-laptop-code">💻 Código</option>
+                                            <option value="fa-calculator">🧮 Calculadora</option>
+                                            <option value="fa-pen">✏️ Escrita</option>
+                                            <option value="fa-star">⭐ Estrela</option>
+                                            <option value="fa-heart">❤️ Coração</option>
+                                            <option value="fa-bolt">⚡ Energia</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-create" id="btnSalvarDisc">Criar Disciplina</button>
+                                <button type="button" class="btn-cancel" onclick="limparFormDisciplina()" style="margin-top: 8px; width: 100%;">Limpar</button>
+                            </form>
+                        </div>
+                        <div class="disc-list-section">
+                            <h3>Disciplinas Cadastradas</h3>
+                            <div class="disc-list" id="listaDisciplinas"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
         <!-- ========================================== -->
-        <!-- VIEW: DASHBOARD COMPLETO                   -->
+        <!-- VIEW: DASHBOARD                           -->
         <!-- ========================================== -->
-        <section id="view-dashboard-page" class="view hidden">
-            <!-- Dashboard content aqui -->
+        <section id="view-dashboard" class="view hidden">
             <div class="page-header">
-                <h1>Dashboard</h1>
-                <p class="text-muted">Visão geral do seu desempenho</p>
+                <div>
+                    <h1>Dashboard</h1>
+                    <p class="text-muted">Visão geral do seu desempenho</p>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="app.openNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge2">0</span>
+                    </button>
+                    <div class="user-profile" onclick="app.showView('perfil')">
+                        <div class="user-avatar" id="userAvatar2">U</div>
+                        <span id="userName2">Carregando...</span>
+                    </div>
+                </div>
             </div>
+            
             <div class="stats-grid">
                 <div class="stat-card stat-purple">
-                    <div class="stat-info">
-                        <h3 id="disciplinasCount">0</h3>
-                        <p>Disciplinas</p>
-                    </div>
+                    <div class="stat-info"><h3 id="disciplinasCount">0</h3><p>Disciplinas</p></div>
                     <div class="stat-icon"><i class="fas fa-book"></i></div>
                 </div>
                 <div class="stat-card stat-blue">
-                    <div class="stat-info">
-                        <h3 id="pendentesCount">0</h3>
-                        <p>Tarefas Pendentes</p>
-                    </div>
+                    <div class="stat-info"><h3 id="pendentesCount">0</h3><p>Tarefas Pendentes</p></div>
                     <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
                 </div>
                 <div class="stat-card stat-orange">
-                    <div class="stat-info">
-                        <h3 id="horasCount">0</h3>
-                        <p>Horas Estudadas</p>
-                    </div>
+                    <div class="stat-info"><h3 id="horasCount">0</h3><p>Horas Estudadas</p></div>
                     <div class="stat-icon"><i class="fas fa-clock"></i></div>
                 </div>
                 <div class="stat-card stat-green">
-                    <div class="stat-info">
-                        <h3 id="mediaCount">0.0</h3>
-                        <p>Média Geral</p>
-                    </div>
+                    <div class="stat-info"><h3 id="mediaCount">0.0</h3><p>Média Geral</p></div>
                     <div class="stat-icon"><i class="fas fa-star"></i></div>
                 </div>
             </div>
+            
             <div class="content-grid-full">
                 <div class="card performance-card">
-                    <h3>Desempenho por Disciplina</h3>
-                    <div class="bar-chart" id="barChart">
-                        <p style="color: var(--text-secondary); text-align: center; padding: 40px;">Adicione tarefas com notas para ver o gráfico</p>
-                    </div>
+                    <h3><i class="fas fa-chart-bar" style="margin-right:10px;color:var(--primary-color);"></i>Desempenho por Disciplina</h3>
+                    <div class="bar-chart" id="barChart"></div>
                 </div>
                 <div class="card activity-card">
-                    <h3>Atividade Recente</h3>
-                    <div class="activity-list" id="activityList">
-                        <p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhuma atividade recente</p>
-                    </div>
+                    <h3><i class="fas fa-clock" style="margin-right:10px;color:var(--primary-color);"></i>Atividade Recente</h3>
+                    <div class="activity-list" id="activityList"></div>
                 </div>
             </div>
         </section>
 
         <!-- ========================================== -->
-        <!-- VIEW: CALENDÁRIO                           -->
+        <!-- VIEW: CALENDÁRIO                          -->
         <!-- ========================================== -->
         <section id="view-calendario" class="view hidden">
             <div class="page-header">
-                <h1>Calendário Acadêmico</h1>
-                <button class="btn-primary" id="newEventBtn">
-                    <i class="fas fa-plus"></i> Novo Evento
-                </button>
+                <div>
+                    <h1>Calendário</h1>
+                    <p class="text-muted">Gerencie seus eventos acadêmicos</p>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="app.openNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge3">0</span>
+                    </button>
+                    <div class="user-profile" onclick="app.showView('perfil')">
+                        <div class="user-avatar" id="userAvatar3">U</div>
+                        <span id="userName3">Carregando...</span>
+                    </div>
+                </div>
             </div>
+
             <div class="calendar-container">
                 <div class="calendar-header">
                     <div class="month-nav">
-                        <h2 id="currentMonth">Carregando...</h2>
+                        <h2 id="currentMonthCal">Carregando...</h2>
                         <div class="nav-buttons">
                             <button class="nav-btn" id="prevBtn"><i class="fas fa-chevron-left"></i></button>
                             <button class="nav-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
@@ -305,33 +493,114 @@
                             <button class="toggle-btn" data-view="week">Semana</button>
                             <button class="toggle-btn" data-view="day">Dia</button>
                         </div>
+                        <button class="btn-primary" id="newEventBtn"><i class="fas fa-plus"></i> Novo Evento</button>
                     </div>
                 </div>
+
                 <div class="calendar-grid">
                     <div class="weekdays" id="weekdaysHeader">
-                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div>
+                        <div>Qui</div><div>Sex</div><div>Sáb</div>
                     </div>
                     <div class="days" id="calendarDays"></div>
                 </div>
             </div>
+
             <div class="events-section">
                 <h3>Eventos do Dia <span id="selectedDay">--</span></h3>
                 <div class="events-list" id="eventsList">
                     <p style="color: var(--text-secondary); padding: 1rem; text-align: center;">Selecione um dia para ver os eventos</p>
                 </div>
             </div>
+
+            <div class="modal" id="eventModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modalEventTitle">Criar Novo Evento</h2>
+                        <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+                    </div>
+                    <form id="eventForm">
+                        <div class="form-group">
+                            <label>Título do Evento *</label>
+                            <input type="text" id="eventTitle" placeholder="Ex: Prova de Matemática" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Descrição</label>
+                            <textarea id="eventDescription" placeholder="Detalhes do evento (opcional)"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Data</label>
+                                <input type="date" id="eventDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Início</label>
+                                <input type="time" id="eventStart" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Término</label>
+                                <input type="time" id="eventEnd">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Evento</label>
+                            <div class="event-type-grid">
+                                <button type="button" class="type-btn active" data-type="aula"><i class="fas fa-book"></i> Aula</button>
+                                <button type="button" class="type-btn" data-type="prova"><i class="fas fa-file-alt"></i> Prova</button>
+                                <button type="button" class="type-btn" data-type="trabalho"><i class="fas fa-briefcase"></i> Trabalho</button>
+                                <button type="button" class="type-btn" data-type="apresentacao"><i class="fas fa-chalkboard-teacher"></i> Apresentação</button>
+                                <button type="button" class="type-btn" data-type="reuniao"><i class="fas fa-users"></i> Reunião</button>
+                                <button type="button" class="type-btn" data-type="outro"><i class="fas fa-circle"></i> Outro</button>
+                            </div>
+                            <input type="hidden" id="eventType" value="aula">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Repetir</label>
+                                <select id="eventRepeat">
+                                    <option value="nao">Não repetir</option>
+                                    <option value="diario">Diariamente</option>
+                                    <option value="semanal">Semanalmente</option>
+                                    <option value="mensal">Mensalmente</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display: flex; align-items: center; justify-content: flex-start; padding-top: 24px;">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="eventReminder">
+                                    <label for="eventReminder">Ativar lembrete</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-cancel" id="btnCancel">Cancelar</button>
+                            <button type="submit" class="btn-create" id="btnSaveEvent">Criar Evento</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </section>
 
         <!-- ========================================== -->
-        <!-- VIEW: TAREFAS                              -->
+        <!-- VIEW: TAREFAS                             -->
         <!-- ========================================== -->
         <section id="view-tarefas" class="view hidden">
             <div class="page-header">
-                <h1>Tarefas</h1>
-                <button class="btn-primary" id="btnNewTask">
-                    <i class="fas fa-plus"></i> Nova Tarefa
-                </button>
+                <div>
+                    <h1>Tarefas</h1>
+                    <p class="text-muted">Gerencie suas tarefas acadêmicas</p>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="app.openNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge4">0</span>
+                    </button>
+                    <div class="user-profile" onclick="app.showView('perfil')">
+                        <div class="user-avatar" id="userAvatar4">U</div>
+                        <span id="userName4">Carregando...</span>
+                    </div>
+                </div>
             </div>
+
             <div class="stats-container">
                 <div class="stat-card pending">
                     <div class="stat-icon"><i class="fas fa-clock"></i></div>
@@ -355,8 +624,10 @@
                     </div>
                 </div>
             </div>
+
             <div class="tasks-container">
                 <div class="tasks-left">
+                    <button class="btn-primary" id="btnNewTask"><i class="fas fa-plus"></i> Nova Tarefa</button>
                     <div class="filter-section">
                         <div class="filter-item active-filter" data-filter="todas">
                             <i class="fas fa-list"></i> Todas <span class="badge" id="totalBadge">0</span>
@@ -376,66 +647,156 @@
                         <div id="subjectsList"><p style="text-align:center;padding:20px;color:#9ca3af;">Carregando...</p></div>
                     </div>
                 </div>
+
                 <div class="tasks-right">
+                    <div class="tasks-header">
+                        <h2>Tarefas</h2>
+                        <select class="filter-select" id="orderSelect">
+                            <option value="prazo">Por prazo</option>
+                            <option value="disciplina">Por disciplina</option>
+                            <option value="prioridade">Por prioridade</option>
+                        </select>
+                    </div>
                     <div class="search-box">
                         <i class="fas fa-search"></i>
                         <input type="text" id="searchInput" placeholder="Buscar tarefas...">
                     </div>
-                    <div class="task-list" id="taskList">
-                        <div class="empty-state" style="text-align:center;padding:40px;">
-                            <i class="fas fa-tasks" style="font-size:48px;color:var(--text-secondary);margin-bottom:16px;display:block;"></i>
-                            <h3 style="color:var(--text-primary);">Nenhuma tarefa ainda</h3>
-                            <p style="color:var(--text-secondary);">Clique em "Nova Tarefa" para começar</p>
-                        </div>
+                    <div class="task-list" id="taskList"></div>
+                </div>
+            </div>
+
+            <div class="modal" id="taskModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modalTitle">Nova Tarefa</h2>
+                        <button class="modal-close" id="modalCloseTask"><i class="fas fa-times"></i></button>
                     </div>
+                    <form id="formNovaTarefa">
+                        <div class="form-group">
+                            <label>Nome da Tarefa</label>
+                            <input type="text" id="nomeTarefa" placeholder="Digite o nome da tarefa" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Descrição</label>
+                            <textarea id="descricaoTarefa" placeholder="Digite a descrição (opcional)"></textarea>
+                        </div>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label>Prioridade</label>
+                                <div class="priority-options">
+                                    <button type="button" class="priority-btn" data-priority="alta"><i class="fas fa-flag"></i> Alta</button>
+                                    <button type="button" class="priority-btn active" data-priority="media"><i class="fas fa-flag"></i> Média</button>
+                                    <button type="button" class="priority-btn" data-priority="baixa"><i class="fas fa-flag"></i> Baixa</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Prazo</label>
+                                <div class="input-with-icon">
+                                    <input type="date" id="prazoTarefa">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Disciplina</label>
+                            <select id="disciplinaTarefa">
+                                <option value="matematica">Matemática</option>
+                                <option value="portugues">Português</option>
+                                <option value="historia">História</option>
+                                <option value="fisica">Física</option>
+                                <option value="quimica">Química</option>
+                                <option value="biologia">Biologia</option>
+                                <option value="geografia">Geografia</option>
+                                <option value="ingles">Inglês</option>
+                                <option value="outros">Outros</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Subtarefas</label>
+                            <div class="subtasks-container" id="subtasksContainer"></div>
+                            <button type="button" class="btn-add-subtask"><i class="fas fa-plus"></i> Adicionar subtarefa</button>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" id="btnCancelTask">Cancelar</button>
+                            <button type="submit" class="btn-create">Salvar Tarefa</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: ANOTAÇÕES                            -->
+                <!-- ========================================== -->
+        <!-- VIEW: ANOTAÇÕES                           -->
         <!-- ========================================== -->
         <section id="view-anotacoes" class="view hidden">
             <div class="page-header">
-                <h1>Anotações</h1>
-                <button class="btn-primary" id="btnNewNote">
-                    <i class="fas fa-plus"></i> Nova Anotação
-                </button>
+                <div>
+                    <h1>Anotações</h1>
+                    <p class="text-muted">Organize suas anotações</p>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="bellBtn5" onclick="app.openNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge5">0</span>
+                    </button>
+                    <div class="user-profile" onclick="app.showView('perfil')">
+                        <div class="user-avatar" id="userAvatar5">U</div>
+                        <span id="userName5">Carregando...</span>
+                    </div>
+                </div>
             </div>
-            <div class="notes-container">
+
+            <div class="anotacoes-layout">
                 <div class="editor-container">
                     <div class="toolbar">
                         <div class="toolbar-group">
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('bold')"><b>B</b></button>
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('italic')"><i>I</i></button>
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('underline')"><u>U</u></button>
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('strikeThrough')"><s>S</s></button>
+                            <button class="toolbar-btn" onclick="window.formatText('bold')" title="Negrito"><i class="fas fa-bold"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('italic')" title="Itálico"><i class="fas fa-italic"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('underline')" title="Sublinhado"><i class="fas fa-underline"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('strikeThrough')" title="Riscado"><i class="fas fa-strikethrough"></i></button>
                         </div>
                         <div class="toolbar-group">
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('justifyLeft')"><i class="fas fa-align-left"></i></button>
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('justifyCenter')"><i class="fas fa-align-center"></i></button>
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('justifyRight')"><i class="fas fa-align-right"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('justifyLeft')" title="Esquerda"><i class="fas fa-align-left"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('justifyCenter')" title="Centro"><i class="fas fa-align-center"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('justifyRight')" title="Direita"><i class="fas fa-align-right"></i></button>
                         </div>
                         <div class="toolbar-group">
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
-                            <button class="toolbar-btn" onclick="app.modules.anotacoes.formatText('insertOrderedList')"><i class="fas fa-list-ol"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('insertUnorderedList')" title="Lista"><i class="fas fa-list-ul"></i></button>
+                            <button class="toolbar-btn" onclick="window.formatText('insertOrderedList')" title="Numérica"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                        <div class="toolbar-group">
+                            <select class="toolbar-select" onchange="window.formatText('formatBlock', this.value)">
+                                <option value="p">Parágrafo</option>
+                                <option value="h1">Título 1</option>
+                                <option value="h2">Título 2</option>
+                                <option value="h3">Título 3</option>
+                            </select>
                         </div>
                         <div class="toolbar-spacer"></div>
-                        <button class="btn-save" id="btnSaveNote"><i class="fas fa-save"></i> Salvar</button>
+                        <!-- 🔥 BOTÃO TOGGLE SIDEBAR -->
+                        <button class="toolbar-btn" id="btnToggleSidebar" title="Ocultar/Mostrar Anotações">
+                            <i class="fas fa-columns"></i>
+                        </button>
+                        <button class="btn-save" id="btnSaveNote">
+                            <i class="fas fa-save"></i> <span>Salvar</span>
+                        </button>
                     </div>
+
                     <div class="editor-wrapper">
                         <div class="editor-header">
-                            <input type="text" class="note-title" placeholder="Título da anotação...">
-                            <div class="note-meta"><span class="last-saved"></span></div>
+                            <input type="text" class="note-title" id="noteTitle" placeholder="Título da anotação...">
+                            <div class="note-meta"><span class="last-saved" id="lastSaved"></span></div>
                         </div>
-                        <div class="editor-content" contenteditable="true" id="editor">
-                            <p style="color:var(--text-secondary);text-align:center;padding:40px;">✨ Nenhuma anotação selecionada</p>
-                        </div>
+                        <!-- 🔥 EDITOR SEM TEXTO FIXO -->
+                        <div class="editor-content" contenteditable="true" id="editor"></div>
                     </div>
                 </div>
-                <div class="notes-sidebar">
-                    <h3>Minhas Anotações</h3>
-                    <button class="btn-new" id="btnNewNoteSidebar"><i class="fas fa-plus"></i></button>
+
+                <div class="right-sidebar" id="rightSidebar">
+                    <div class="sidebar-header">
+                        <h3>Minhas Anotações</h3>
+                        <button class="btn-new" id="btnNewNote"><i class="fas fa-plus"></i></button>
+                    </div>
                     <div class="notes-list" id="notesList">
                         <div style="text-align:center;padding:40px;color:var(--text-secondary)">
                             <i class="fas fa-sticky-note" style="font-size:48px;margin-bottom:16px;display:block;"></i>
@@ -447,7 +808,120 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- VIEW: PERFIL                               -->
+        <!-- VIEW: ASSISTENTE IA (TOTALMENTE ISOLADA)   -->
+        <!-- ========================================== -->
+        <section id="view-ia" class="view hidden">
+            <div class="ia-app ia-fullscreen">
+                
+                <!-- SIDEBAR DE HISTÓRICO DA IA -->
+                <aside class="ia-sidebar" id="iaSidebar">
+                    <div class="sidebar-header">
+                        <div class="brand">
+                            <div class="brand-icon"><ion-icon name="sparkles"></ion-icon></div>
+                            <div class="brand-text">
+                                <strong>Satus IA</strong>
+                                <small>Zero Satus</small>
+                            </div>
+                        </div>
+                        <button class="icon-btn sidebar-close" id="sidebarClose" title="Fechar menu">
+                            <ion-icon name="close-outline"></ion-icon>
+                        </button>
+                    </div>
+
+                    <div class="sidebar-body">
+                        <button class="new-chat-btn" id="newChatBtn">
+                            <ion-icon name="add"></ion-icon>
+                            <span>Nova conversa</span>
+                        </button>
+
+                        <div class="sidebar-search">
+                            <ion-icon name="search-outline"></ion-icon>
+                            <input type="text" id="searchInputIA" placeholder="Buscar conversas..." autocomplete="off" />
+                        </div>
+
+                        <nav class="history-list" id="historyList"></nav>
+                    </div>
+
+                    <div class="sidebar-footer">
+                        <div class="user-card">
+                            <div class="user-avatar" id="userAvatarIA">U</div>
+                            <div class="user-info">
+                                <span class="user-name" id="userNameIA">Carregando...</span>
+                                <span class="user-plan">Aluno • Zero Satus</span>
+                            </div>
+                            <button class="icon-btn" onclick="logout()" title="Sair">
+                                <ion-icon name="log-out-outline"></ion-icon>
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+                
+                <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+                <!-- ÁREA PRINCIPAL DA IA -->
+                <main class="ia-main">
+
+                    <header class="ia-topbar">
+                        <button class="icon-btn menu-toggle" id="menuToggle" title="Menu">
+                            <ion-icon name="menu-outline"></ion-icon>
+                        </button>
+                        
+                        <button class="icon-btn" id="navBackBtn" title="Voltar ao Início">
+                            <ion-icon name="arrow-back-outline"></ion-icon>
+                        </button>
+
+                        <div class="topbar-title">
+                            <span class="model-badge"><ion-icon name="sparkles"></ion-icon> Satus IA</span>
+                            <span class="chat-title" id="chatTitle">Nova conversa</span>
+                        </div>
+
+                        <div class="topbar-actions">
+                            <button class="icon-btn" id="themeToggle" title="Alternar tema">
+                                <ion-icon name="moon-outline" id="themeIcon"></ion-icon>
+                            </button>
+                            <button class="icon-btn notif-btn" id="bellBtnIA" title="Notificações" onclick="app.openNotifications()">
+                                <ion-icon name="notifications-outline"></ion-icon>
+                                <span class="notif-badge" id="notificationBadgeIA">0</span>
+                            </button>
+                        </div>
+                    </header>
+
+                    <div class="chat-scroll" id="chatScroll">
+                        <div class="chat-container">
+                            <div id="ia-messages-container"></div>
+
+                            <div class="quick-chips" id="ia-quick-actions">
+                                <button class="chip" data-prompt="Como posso organizar meus estudos?">
+                                    <ion-icon name="library-outline"></ion-icon> Organizar estudos
+                                </button>
+                                <button class="chip" data-prompt="Me dê dicas para melhorar meu foco">
+                                    <ion-icon name="eye-outline"></ion-icon> Dicas de foco
+                                </button>
+                                <button class="chip" data-prompt="Quais técnicas de memorização você recomenda?">
+                                    <ion-icon name="bulb-outline"></ion-icon> Memorização
+                                </button>
+                                <button class="chip" data-prompt="Me ajude a criar um cronograma de estudos">
+                                    <ion-icon name="calendar-outline"></ion-icon> Cronograma
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="composer-area">
+                        <div class="composer">
+                            <textarea id="ia-input" rows="1" placeholder="Envie uma mensagem para a IA..."></textarea>
+                            <button class="send-btn" id="ia-send-btn" title="Enviar">
+                                <ion-icon name="arrow-up"></ion-icon>
+                            </button>
+                        </div>
+                        <p class="composer-footer">A IA pode cometer erros. Verifique informações importantes. 🧠</p>
+                    </div>
+                </main>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW: PERFIL                              -->
         <!-- ========================================== -->
         <section id="view-perfil" class="view hidden">
             <div class="page-header">
@@ -470,60 +944,27 @@
                             <p class="profile-email" id="profileEmail">carregando@email.com</p>
                         </div>
                         <div class="profile-stats">
-                            <div class="profile-stat">
-                                <span class="stat-value" id="statTarefasPerfil">0</span>
-                                <span class="stat-label">Tarefas</span>
-                            </div>
-                            <div class="profile-stat">
-                                <span class="stat-value" id="statConclusaoPerfil">0%</span>
-                                <span class="stat-label">Conclusão</span>
-                            </div>
-                            <div class="profile-stat">
-                                <span class="stat-value" id="statHorasPerfil">0h</span>
-                                <span class="stat-label">Estudo</span>
-                            </div>
+                            <div class="profile-stat"><span class="stat-value" id="statTarefasPerfil">0</span><span class="stat-label">Tarefas</span></div>
+                            <div class="profile-stat"><span class="stat-value" id="statConclusaoPerfil">0%</span><span class="stat-label">Conclusão</span></div>
+                            <div class="profile-stat"><span class="stat-value" id="statHorasPerfil">0h</span><span class="stat-label">Estudo</span></div>
                         </div>
                     </div>
                     <div class="activity-card">
                         <h3><i class="fas fa-history"></i> Atividade Recente</h3>
-                        <div class="activity-list" id="activityListPerfil">
-                            <p style="color:#888;text-align:center;padding:20px;">Nenhuma atividade recente</p>
-                        </div>
+                        <div class="activity-list" id="activityListPerfil"></div>
                     </div>
                 </div>
                 <div class="profile-right">
                     <div class="settings-card">
                         <h3><i class="fas fa-user"></i> Informações Pessoais</h3>
+                        <div class="form-row"><div class="form-group"><label>Nome Completo</label><input type="text" id="nome" placeholder="Seu nome"></div></div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>Nome Completo</label>
-                                <input type="text" id="nome" placeholder="Seu nome">
-                            </div>
+                            <div class="form-group"><label>E-mail</label><input type="email" id="email" placeholder="seu@email.com"></div>
+                            <div class="form-group"><label>Telefone</label><input type="tel" id="telefone" placeholder="+258 870000000"></div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group">
-                                <label>E-mail</label>
-                                <input type="email" id="email" placeholder="seu@email.com">
-                            </div>
-                            <div class="form-group">
-                                <label>Telefone</label>
-                                <input type="tel" id="telefone" placeholder="+258 870000000">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Data de Nascimento</label>
-                                <input type="date" id="nascimento">
-                            </div>
-                            <div class="form-group">
-                                <label>Gênero</label>
-                                <select id="genero">
-                                    <option value="masculino">Masculino</option>
-                                    <option value="feminino">Feminino</option>
-                                    <option value="outro">Outro</option>
-                                    <option value="nao-informar">Prefiro não informar</option>
-                                </select>
-                            </div>
+                            <div class="form-group"><label>Data de Nascimento</label><input type="date" id="nascimento"></div>
+                            <div class="form-group"><label>Gênero</label><select id="genero"><option value="masculino">Masculino</option><option value="feminino">Feminino</option><option value="outro">Outro</option><option value="nao-informar">Prefiro não informar</option></select></div>
                         </div>
                     </div>
                     <div class="settings-card">
@@ -532,7 +973,7 @@
                             <label>Senha Atual</label>
                             <div class="input-with-icon">
                                 <input type="password" id="senhaAtual" placeholder="••••••••">
-                                <i class="fas fa-eye toggle-password" onclick="app.modules.perfil.togglePassword('senhaAtual')"></i>
+                                <i class="fas fa-eye toggle-password" onclick="togglePassword('senhaAtual')"></i>
                             </div>
                         </div>
                         <div class="form-row">
@@ -540,31 +981,48 @@
                                 <label>Nova Senha</label>
                                 <div class="input-with-icon">
                                     <input type="password" id="novaSenha" placeholder="••••••••">
-                                    <i class="fas fa-eye toggle-password" onclick="app.modules.perfil.togglePassword('novaSenha')"></i>
+                                    <i class="fas fa-eye toggle-password" onclick="togglePassword('novaSenha')"></i>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label>Confirmar Senha</label>
                                 <div class="input-with-icon">
                                     <input type="password" id="confirmarSenha" placeholder="••••••••">
-                                    <i class="fas fa-eye toggle-password" onclick="app.modules.perfil.togglePassword('confirmarSenha')"></i>
+                                    <i class="fas fa-eye toggle-password" onclick="togglePassword('confirmarSenha')"></i>
                                 </div>
                             </div>
                         </div>
-                        <button class="btn-secondary" onclick="app.modules.perfil.alterarSenha()">
-                            <i class="fas fa-key"></i> Alterar Senha
-                        </button>
+                        <button class="btn-secondary" onclick="alterarSenha()"><i class="fas fa-key"></i> Alterar Senha</button>
+                    </div>
+                    <div class="settings-card">
+                        <h3><i class="fas fa-cog"></i> Preferências</h3>
+                        <div class="preference-item">
+                            <div class="preference-info"><h4>Notificações por E-mail</h4><p>Receber notificações de tarefas e eventos</p></div>
+                            <label class="toggle-switch"><input type="checkbox" id="notifEmail" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="preference-item">
+                            <div class="preference-info"><h4>Notificações Push</h4><p>Receber notificações no navegador</p></div>
+                            <label class="toggle-switch"><input type="checkbox" id="notifPush" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="preference-item">
+                            <div class="preference-info"><h4>Tema Escuro</h4><p>Ativar modo escuro na interface</p></div>
+                            <label class="toggle-switch"><input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="preference-item">
+                            <div class="preference-info"><h4>Idioma</h4><p>Selecione o idioma da interface</p></div>
+                            <select class="preference-select" id="languageSelect">
+                                <option value="pt-BR">Português (Brasil)</option>
+                                <option value="en-US">English (US)</option>
+                                <option value="es">Español</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="settings-card danger-zone">
                         <h3><i class="fas fa-exclamation-triangle"></i> Zona de Perigo</h3>
                         <p class="danger-text">Ações irreversíveis que podem afetar sua conta permanentemente.</p>
                         <div class="danger-actions">
-                            <button class="btn-danger-outline" onclick="app.modules.perfil.exportarDados()">
-                                <i class="fas fa-download"></i> Exportar Dados
-                            </button>
-                            <button class="btn-danger" onclick="app.modules.perfil.deletarConta()">
-                                <i class="fas fa-trash"></i> Deletar Conta
-                            </button>
+                            <button class="btn-danger-outline" onclick="exportarDados()"><i class="fas fa-download"></i> Exportar Dados</button>
+                            <button class="btn-danger" onclick="deletarConta()"><i class="fas fa-trash"></i> Deletar Conta</button>
                         </div>
                     </div>
                 </div>
@@ -573,7 +1031,36 @@
 
     </main>
 </div>
-
+<!-- ========================================== -->
+<!-- VERIFICAÇÃO DE LOGIN - SPA                 -->
+<!-- ========================================== -->
+<script>
+    (function() {
+        console.log('[SPA] 🔍 Verificando autenticação...');
+        
+        // Verificar se está logado
+        const usuario = localStorage.getItem('usuarioLogado');
+        
+        if (!usuario) {
+            console.log('[SPA] ❌ Usuário não logado, redirecionando para login...');
+            window.location.href = 'login/index.html';
+            return;
+        }
+        
+        try {
+            const user = JSON.parse(usuario);
+            if (!user.id || !user.email) {
+                console.log('[SPA] ❌ Dados de usuário inválidos, redirecionando para login...');
+                window.location.href = 'login/index.html';
+                return;
+            }
+            console.log('[SPA] ✅ Usuário logado:', user.email);
+        } catch(e) {
+            console.log('[SPA] ❌ Erro ao ler dados do usuário, redirecionando para login...');
+            window.location.href = 'login/index.html';
+        }
+    })();
+</script>
 <!-- ========================================== -->
 <!-- MODAIS GLOBAIS                             -->
 <!-- ========================================== -->
@@ -584,15 +1071,9 @@
         <div class="notif-modal-header">
             <h2><i class="fas fa-bell"></i> Notificações</h2>
             <div class="notif-actions">
-                <button class="notif-btn-action" id="btnMarkAllRead">
-                    <i class="fas fa-check-double"></i> Marcar todas
-                </button>
-                <button class="notif-btn-action notif-btn-clear" id="btnClearAll">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <button class="notif-btn-close" onclick="app.closeNotifications()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button class="notif-btn-action" id="btnMarkAllRead"><i class="fas fa-check-double"></i> Marcar todas</button>
+                <button class="notif-btn-action notif-btn-clear" id="btnClearAll"><i class="fas fa-trash"></i></button>
+                <button class="notif-btn-close" onclick="app.closeNotifications()"><i class="fas fa-times"></i></button>
             </div>
         </div>
         <div class="notif-tabs">
@@ -601,22 +1082,7 @@
             <button class="notif-tab" data-filter="aulas">Aulas</button>
             <button class="notif-tab" data-filter="tarefas">Tarefas</button>
         </div>
-        <div class="notif-list" id="notifList">
-            <!-- Notificações via JS -->
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Confirmação -->
-<div class="confirm-modal" id="confirmModal">
-    <div class="confirm-modal-content">
-        <div class="confirm-icon"><i class="fas fa-exclamation-triangle"></i></div>
-        <h3 id="confirmTitle">Confirmar ação</h3>
-        <p id="confirmMessage">Tem certeza que deseja continuar?</p>
-        <div class="confirm-buttons">
-            <button class="btn-cancel" id="confirmCancel">Cancelar</button>
-            <button class="btn-ok" id="confirmOk">Confirmar</button>
-        </div>
+        <div class="notif-list" id="notifList"></div>
     </div>
 </div>
 
@@ -627,29 +1093,43 @@
 </div>
 
 <!-- ========================================== -->
+<!-- BOTÃO FLUTUANTE DA IA (SEMPRE VISÍVEL)    -->
+<!-- ========================================== -->
+<button class="fab-ia" id="btnOpenIA" title="Assistente IA">
+    <ion-icon name="sparkles-outline"></ion-icon>
+</button>
+
+<!-- ========================================== -->
 <!-- SCRIPTS                                   -->
 <!-- ========================================== -->
 
 <!-- Serviços Compartilhados -->
-<script src="../mobile-telas/supabase-client.js"></script>
-<script src="../mobile-telas/database-service.js"></script>
-<script src="../mobile-telas/notifications-sync.js"></script>
-<script src="../mobile-telas/realtime-sync.js"></script>
-<script src="../mobile-telas/cache-manager.js"></script>
-<script src="../mobile-telas/shared-data.js"></script>
-<script src="../mobile-telas/sync-helper.js"></script>
-<script src="../mobile-telas/daily-phrases.js"></script>
-<script src="../mobile-telas/notes-sync.js"></script>
+<script src="mobile-telas/supabase-client.js"></script>
+<script src="mobile-telas/database-service.js"></script>
+<script src="mobile-telas/notifications-sync.js"></script>
+<script src="mobile-telas/realtime-sync.js"></script>
+<script src="mobile-telas/cache-manager.js"></script>
+<script src="mobile-telas/shared-data.js"></script>
+<script src="mobile-telas/sync-helper.js"></script>
+<script src="mobile-telas/daily-phrases.js"></script>
+<script src="mobile-telas/notes-sync.js"></script>
+<script src="mobile-telas/maintenance-check.js"></script>
 
 <!-- Módulos JavaScript -->
+<script src="modules/inicio.js"></script>
 <script src="modules/dashboard.js"></script>
 <script src="modules/calendario.js"></script>
 <script src="modules/tarefas.js"></script>
 <script src="modules/anotacoes.js"></script>
 <script src="modules/perfil.js"></script>
+<script src="modules/ia.js"></script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
+
+<!-- Ion Icons -->
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
 </body>
 </html>
