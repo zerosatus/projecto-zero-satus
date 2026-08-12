@@ -1,5 +1,6 @@
+// modules/ia.js - VERSÃO CORRIGIDA (SUBSTITUIR COMPLETAMENTE)
 // ============================================
-// modules/ia.js - ASSISTENTE IA (SPA)
+// modules/ia.js - MÓDULO DA IA COM MULTI-API
 // ============================================
 
 class IaModule {
@@ -11,13 +12,12 @@ class IaModule {
         this.currentHistoryId = null;
         this.isLoading = false;
         this.notifications = [];
+        this._modoGiria = false;
         
         console.log('[IA] 🤖 Módulo inicializado');
     }
     
     render(data) {
-        console.log('[IA] 🤖 Renderizando...');
-        
         this.notifications = data.notifications || [];
         this.profile = data.profile || {};
         this.usuarioAtual = this.app.user || {};
@@ -28,9 +28,9 @@ class IaModule {
         this.atualizarNomeUsuario();
         this.updateBadge();
         this.setupEvents();
-        this.atualizarIconeTema();
+        this._atualizarStatusGiria();
+        this._atualizarStatusLimite();
         
-        // Focar input
         document.getElementById('ia-input')?.focus();
     }
     
@@ -41,15 +41,15 @@ class IaModule {
         if (!this.usuarioAtual) return;
         const userId = this.usuarioAtual.id;
         
-        const saved = localStorage.getItem(`${userId}_ia_history`);
-        if (saved) {
-            try { this.history = JSON.parse(saved); } catch (e) { this.history = []; }
-        }
+        try { 
+            this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]'); 
+        } catch (e) { this.history = []; }
         
-        const savedMessages = localStorage.getItem(`${userId}_ia_messages`);
-        if (savedMessages) {
-            try { this.messages = JSON.parse(savedMessages); } catch (e) { this.messages = []; }
-        }
+        try { 
+            this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]'); 
+        } catch (e) { this.messages = []; }
+        
+        this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
     }
     
     salvarHistorico() {
@@ -92,9 +92,6 @@ class IaModule {
         this.atualizarTituloChat();
     }
     
-    // ============================================
-    // RENDER HISTÓRICO
-    // ============================================
     renderHistoryList(filtroTexto = '') {
         const container = document.getElementById('historyList');
         if (!container) return;
@@ -145,9 +142,6 @@ class IaModule {
         container.innerHTML = html;
     }
     
-    // ============================================
-    // RENDER CHAT
-    // ============================================
     renderChat() {
         const container = document.getElementById('ia-messages-container');
         const quickActions = document.getElementById('ia-quick-actions');
@@ -205,7 +199,7 @@ class IaModule {
     }
     
     // ============================================
-    // ENVIAR MENSAGEM
+    // ⭐ ENVIAR MENSAGEM (COM MULTI-API)
     // ============================================
     async sendMessage(text) {
         if (this.isLoading) return;
@@ -239,15 +233,32 @@ class IaModule {
         this.scrollChatFim();
         
         try {
-            const resposta = await this.simularResposta(text);
-            loadingDiv.remove();
-            this.messages.push({ role: 'assistant', content: resposta, timestamp: new Date().toISOString() });
-            this.salvarConversaAtual();
+            // ⭐ USAR MULTI-AI SERVICE
+            const service = window.MultiAIService;
+            if (service) {
+                const context = this.buildUserContext(text);
+                const result = await service.sendMessage(text, context);
+                
+                loadingDiv.remove();
+                
+                let resposta = result.text;
+                if (result.fromCache) resposta += '\n\n*(Resposta do cache)*';
+                if (result.provider) resposta += `\n\n*(via ${result.provider})*`;
+                
+                this.messages.push({ role: 'assistant', content: resposta, timestamp: new Date().toISOString() });
+                this.salvarConversaAtual();
+            } else {
+                // Fallback local se MultiAI não estiver disponível
+                loadingDiv.remove();
+                const resposta = this._getFallbackResponse(text);
+                this.messages.push({ role: 'assistant', content: resposta, timestamp: new Date().toISOString() });
+                this.salvarConversaAtual();
+            }
         } catch (error) {
             loadingDiv.remove();
             this.messages.push({
                 role: 'assistant',
-                content: 'Desculpe, tive um problema. Tente novamente! 😕',
+                content: '❌ Ocorreu um erro. Tenta novamente!',
                 timestamp: new Date().toISOString()
             });
         }
@@ -255,21 +266,45 @@ class IaModule {
         this.isLoading = false;
         if (sendBtn) sendBtn.disabled = false;
         this.renderChat();
+        this._atualizarStatusLimite();
     }
     
     // ============================================
-    // SIMULAÇÃO DE RESPOSTA (API)
+    // ⭐ BUILD USER CONTEXT
     // ============================================
-    async simularResposta(pergunta) {
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 800));
-        const respostas = [
-            "📚 **Ótima pergunta!** Aqui estão algumas dicas que podem te ajudar:\n\n1. **Divida seu estudo** em blocos de 25 minutos com pausas de 5 minutos (técnica Pomodoro)\n2. **Revise o conteúdo** no mesmo dia\n3. **Ensine o que aprendeu** para alguém\n\nEspero que isso ajude! 🚀",
-            "🎯 **Que legal que você está buscando melhorar!**\n\nSugiro:\n• Crie um **cronograma de estudos** realista\n• **Elimine distrações** (celular, redes sociais)\n• Use a **técnica Feynman**\n\nQual dessas dicas você vai aplicar hoje?",
-            "🧠 **Excelente pergunta!**\n\nA memorização funciona melhor com:\n• **Mapas mentais**\n• **Associações** com coisas que você já conhece\n• **Revisão espaçada** (1 dia, 3 dias, 7 dias)\n• **Escrever à mão**\n\nTente aplicar isso! 📚",
-            "📋 **Vamos organizar isso!**\n\nPara organizar seus estudos:\n1. **Liste** todas as matérias e conteúdos\n2. **Priorize** os mais difíceis\n3. **Defina metas** diárias pequenas\n4. **Revise** o planejamento semanalmente\n\nPosso ajudar com mais detalhes!",
-            "🧠 **Foco é treino!**\n\nTécnicas para melhorar o foco:\n• **Pomodoro** (25 min foco, 5 min pausa)\n• **Ambiente** sem distrações\n• **Meditação** de 5 minutos\n• **Definir uma meta** clara\n\nComece com pequenos períodos!"
-        ];
-        return respostas[Math.floor(Math.random() * respostas.length)];
+    buildUserContext(textoUsuario) {
+        const user = this.app.user || {};
+        const data = this.app.data || {};
+        const tasks = data.tasks || [];
+        const pendentes = tasks.filter(t => !t.completed).length;
+        const materias = (data.disciplinas || []).length;
+        const notas = (data.notes || []).length;
+        
+        let contexto = `
+📚 CONTEXTO DO ESTUDANTE
+Nome: ${user.nome || 'Estudante'}
+Tarefas pendentes: ${pendentes}
+Disciplinas: ${materias}
+Notas: ${notas}
+`;
+        return contexto;
+    }
+    
+    // ============================================
+    // ⭐ FALLBACK
+    // ============================================
+    _getFallbackResponse(texto) {
+        const perguntas = texto.toLowerCase();
+        if (perguntas.includes('oi') || perguntas.includes('olá')) {
+            return 'Olá! Como posso ajudar você hoje?';
+        }
+        if (perguntas.includes('estudar') || perguntas.includes('estudos')) {
+            return 'Para estudar de forma eficiente: 1) Criar um cronograma, 2) Usar técnicas como Pomodoro, 3) Revisar o conteúdo regularmente.';
+        }
+        if (perguntas.includes('tarefa') || perguntas.includes('dever')) {
+            return 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas e defina prazos realistas.';
+        }
+        return 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar!';
     }
     
     // ============================================
@@ -304,22 +339,18 @@ class IaModule {
         }
     }
     
-    // ============================================
-    // TEMA
-    // ============================================
-    alternarTema() {
-        const atual = document.documentElement.getAttribute('data-theme');
-        const novo = atual === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', novo);
-        localStorage.setItem('ia_theme', novo);
-        this.atualizarIconeTema();
+    _atualizarStatusLimite() {
+        const limiteEl = document.getElementById('ia-limite-status');
+        if (!limiteEl) return;
+        if (window.getLimiteIA) {
+            const info = window.getLimiteIA();
+            limiteEl.textContent = `💬 ${info.restante}/${info.maximo} perguntas hoje`;
+            limiteEl.style.color = info.restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
+        }
     }
     
-    atualizarIconeTema() {
-        const icon = document.getElementById('themeIcon');
-        if (!icon) return;
-        const tema = document.documentElement.getAttribute('data-theme');
-        icon.setAttribute('name', tema === 'light' ? 'sunny-outline' : 'moon-outline');
+    _atualizarStatusGiria() {
+        // Implementar se necessário
     }
     
     // ============================================
@@ -341,7 +372,6 @@ class IaModule {
         const input = document.getElementById('ia-input');
         const sendBtn = document.getElementById('ia-send-btn');
         
-        // Enviar
         sendBtn?.addEventListener('click', () => this.sendMessage());
         
         input?.addEventListener('keydown', (e) => {
@@ -356,7 +386,6 @@ class IaModule {
             input.style.height = Math.min(input.scrollHeight, 160) + 'px';
         });
         
-        // Chips
         document.querySelectorAll('#ia-quick-actions .chip').forEach(chip => {
             chip.addEventListener('click', () => {
                 const prompt = chip.dataset.prompt;
@@ -364,7 +393,6 @@ class IaModule {
             });
         });
         
-        // Sidebar
         document.getElementById('newChatBtn')?.addEventListener('click', () => {
             if (this.isLoading) return;
             this.messages = [];
@@ -372,7 +400,6 @@ class IaModule {
             this.renderChat();
             this.renderHistoryList();
             this.atualizarTituloChat();
-            this.fecharSidebarMobile();
             document.getElementById('ia-input')?.focus();
         });
         
@@ -408,29 +435,17 @@ class IaModule {
                 this.renderChat();
                 this.renderHistoryList();
                 this.atualizarTituloChat();
-                this.fecharSidebarMobile();
             }
         });
         
-        // Sidebar mobile
-        document.getElementById('menuToggle')?.addEventListener('click', this.abrirSidebarMobile);
-        document.getElementById('sidebarClose')?.addEventListener('click', this.fecharSidebarMobile);
-        document.getElementById('sidebarOverlay')?.addEventListener('click', this.fecharSidebarMobile);
-        
-        // Tema
-        document.getElementById('themeToggle')?.addEventListener('click', () => this.alternarTema());
-        
-        // Voltar
         document.getElementById('navBackBtn')?.addEventListener('click', () => {
             this.app.showView('inicio');
         });
         
-        // Notificações
         document.getElementById('bellBtn')?.addEventListener('click', () => {
             this.app.openNotifications();
         });
         
-        // Atualizar dados
         window.addEventListener('cloudDataLoaded', () => {
             this.notifications = this.app.data.notifications || [];
             this.profile = this.app.data.profile || {};
@@ -440,22 +455,6 @@ class IaModule {
         });
     }
     
-    // ============================================
-    // SIDEBAR MOBILE
-    // ============================================
-    abrirSidebarMobile() {
-        document.getElementById('iaSidebar')?.classList.add('open');
-        document.getElementById('sidebarOverlay')?.classList.add('show');
-    }
-    
-    fecharSidebarMobile() {
-        document.getElementById('iaSidebar')?.classList.remove('open');
-        document.getElementById('sidebarOverlay')?.classList.remove('show');
-    }
-    
-    // ============================================
-    // TOAST
-    // ============================================
     showToast(mensagem, tipo = 'success') {
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toastMessage');
@@ -470,4 +469,4 @@ class IaModule {
     }
 }
 
-console.log('[IA] ✅ Módulo carregado!');
+console.log('[IA] ✅ Módulo carregado com Multi-API!');
