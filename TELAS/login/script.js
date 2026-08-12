@@ -474,10 +474,12 @@ async function processarLogin(user) {
                 console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
                 window.location.replace('../admin/index.html');
             } else {
-               // 🔥 REDIRECIONAR PARA O SPA NA RAIZ
-const destino = '../index.html';  // SEMPRE VAI PARA O SPA DA RAIZ
-                console.log('[Login] 👤 Usuário normal, redirecionando para:', destino);
-                window.location.replace(destino);
+                // 🔥 REDIRECIONAMENTO CORRETO
+                if (isMobile) {
+                    window.location.replace('../mobile-telas/index.html');
+                } else {
+                    window.location.replace('../index.html');
+                }
             }
         }, 1500);
 
@@ -847,8 +849,13 @@ async function checkSessionWithRole() {
                                         console.log('[Login] 🔐 Admin, redirecionando para admin');
                                         window.location.replace('../admin/index.html');
                                     } else {
+                                        // 🔥 REDIRECIONAMENTO CORRETO
                                         const isMobile = ehCelular();
-                                        window.location.replace(isMobile ? '../mobile-telas/index.html' : '../index.html');
+                                        if (isMobile) {
+                                            window.location.replace('../mobile-telas/index.html');
+                                        } else {
+                                            window.location.replace('../index.html');
+                                        }
                                     }
                                     resolve(true);
                                 } else {
