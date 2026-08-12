@@ -1943,3 +1943,49 @@ BEGIN
     RAISE NOTICE '🔔 Canal: notification_{user_id}';
     RAISE NOTICE '============================================';
 END $$;
+
+
+
+
+
+
+
+
+
+
+-- ⭐ PERMITIR QUE USUÁRIOS INSIRAM NOTIFICAÇÕES PARA SI MESMOS
+CREATE POLICY "Users can insert own notifications"
+ON public.notifications FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- ⭐ PERMITIR QUE USUÁRIOS VEJAM SUAS PRÓPRIAS NOTIFICAÇÕES
+CREATE POLICY "Users can view own notifications"
+ON public.notifications FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- ⭐ PERMITIR QUE USUÁRIOS ATUALIZEM SUAS PRÓPRIAS NOTIFICAÇÕES
+CREATE POLICY "Users can update own notifications"
+ON public.notifications FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- ⭐ PERMITIR QUE USUÁRIOS DELETEM SUAS PRÓPRIAS NOTIFICAÇÕES
+CREATE POLICY "Users can delete own notifications"
+ON public.notifications FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- ⭐ ADMIN PODE VER TODAS
+CREATE POLICY "Admin can view all notifications"
+ON public.notifications FOR SELECT
+TO authenticated
+USING (is_admin());
+
+-- ⭐ ADMIN PODE DELETAR TODAS
+CREATE POLICY "Admin can delete all notifications"
+ON public.notifications FOR DELETE
+TO authenticated
+USING (is_admin());
