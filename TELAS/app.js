@@ -236,7 +236,22 @@ class App {
     }
     
     // ============================================
-    // INICIALIZAÇÃO
+    // ⭐ OBTER NOME DO USUÁRIO (CORRIGIDO)
+    // ============================================
+    getNomeUsuario() {
+        if (!this.user) return 'Usuário';
+        
+        // Tentar várias fontes possíveis
+        return this.user.nome || 
+               this.user.displayName || 
+               this.user.full_name || 
+               this.user.name ||
+               this.user.email?.split('@')[0] || 
+               'Usuário';
+    }
+    
+    // ============================================
+    // ⭐ INICIALIZAÇÃO
     // ============================================
     async init() {
         if (this._isInitializing) {
@@ -263,9 +278,10 @@ class App {
         
         console.log('[App PC] 👤 Usuário:', this.user.email);
         console.log('[App PC] 🆔 User ID:', this.user.id);
+        console.log('[App PC] 📛 Nome:', this.getNomeUsuario());
         
-        // Atualizar nome
-        const nomeExibicao = this.user.nome || this.user.displayName || this.user.email?.split('@')[0] || 'Usuário';
+        // ⭐ OBTER NOME CORRETAMENTE
+        const nomeExibicao = this.getNomeUsuario();
         this.updateLoadingStatus(`Olá, ${nomeExibicao}!`, 10);
         this.atualizarNomeUsuario(nomeExibicao);
         
@@ -338,6 +354,75 @@ class App {
         
         this._isInitializing = false;
         console.log('[App PC] ✅ Aplicação pronta!');
+    }
+    
+    // ============================================
+    // ⭐ ATUALIZAR NOME DO USUÁRIO (CORRIGIDO)
+    // ============================================
+    atualizarNomeUsuario(nome) {
+        // Se não passou nome, buscar do user
+        if (!nome && this.user) {
+            nome = this.getNomeUsuario();
+        }
+        
+        const ids = [
+            'userNameDisplay', 'userName', 'userName2', 'userName3', 
+            'userName4', 'userName5', 'userNameIA', 'miniName',
+            'header-name', 'profile-name'
+        ];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = nome;
+        });
+        
+        // Atualizar mini email
+        const miniEmail = document.getElementById('miniEmail');
+        if (miniEmail && this.user) miniEmail.textContent = this.user.email || '';
+        
+        // Atualizar profile email
+        const profileEmail = document.getElementById('profileEmail');
+        if (profileEmail && this.user) profileEmail.textContent = this.user.email || '';
+        
+        // Atualizar avatar com iniciais
+        const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+        this.atualizarAvatar(iniciais);
+        
+        console.log('[App PC] 📛 Nome atualizado:', nome);
+    }
+    
+    // ============================================
+    // ⭐ ATUALIZAR AVATAR
+    // ============================================
+    atualizarAvatar(iniciais) {
+        const ids = [
+            'userAvatar', 'userAvatar2', 'userAvatar3', 
+            'userAvatar4', 'userAvatar5', 'userAvatarIA'
+        ];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = iniciais || 'U';
+        });
+    }
+    
+    // ============================================
+    // ⭐ CARREGAR AVATAR
+    // ============================================
+    async carregarAvatar() {
+        if (!this.user) return;
+        
+        const miniAvatar = document.getElementById('miniAvatar');
+        const avatarImage = document.getElementById('avatarImage');
+        
+        if (window.CacheManager) {
+            const photoUrl = await window.CacheManager.getProfilePhotoUrl();
+            if (photoUrl && (photoUrl.startsWith('data:') || photoUrl.startsWith('http'))) {
+                if (miniAvatar) miniAvatar.src = photoUrl;
+                if (avatarImage) avatarImage.src = photoUrl;
+                this.user.profilePhotoUrl = photoUrl;
+                localStorage.setItem('usuarioLogado', JSON.stringify(this.user));
+                console.log('[App PC] 🖼️ Avatar carregado');
+            }
+        }
     }
     
     // ============================================
@@ -441,6 +526,11 @@ class App {
             console.log(`   - Notificações: ${this.data.notifications.length}`);
             console.log(`   - Disciplinas: ${this.data.disciplinas.length}`);
             
+            // ⭐ ATUALIZAR NOME DO USUÁRIO DOS DADOS CARREGADOS
+            if (this.data.profile && this.data.profile.nome) {
+                this.atualizarNomeUsuario(this.data.profile.nome);
+            }
+            
             this.carregarAvatar();
         }
     }
@@ -527,31 +617,22 @@ class App {
                     title: n.title || 'Notificação',
                     message: n.message || '',
                     type: n.type || 'info',
-                    read: n.read || false, // ⭐ MANTER O VALOR DO BANCO
+                    read: n.read || false,
                     time: n.created_at
                 }));
 
-                // Atualizar dados
                 this.data.notifications = notificacoes;
                 
-                // Salvar no cache
                 if (window.CacheManager) {
                     window.CacheManager.set('notifications', notificacoes, true);
                 }
                 
-                // Salvar no localStorage com userId
                 const key = `${this.user.id}_notifications`;
                 localStorage.setItem(key, JSON.stringify(notificacoes));
 
                 console.log(`[App PC] ✅ ${notificacoes.length} notificações carregadas do Supabase`);
-                
-                // Atualizar badge
                 this.updateBadge();
-                
-                // Notificar UI
                 window.dispatchEvent(new CustomEvent('notificationsUpdated'));
-            } else {
-                console.log('[App PC] ℹ️ Nenhuma notificação encontrada no Supabase');
             }
         } catch (error) {
             console.error('[App PC] ❌ Erro ao carregar notificações:', error);
@@ -559,7 +640,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL (DO SUPABASE)
+    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL
     // ============================================
     async deleteNotification(id) {
         try {
@@ -677,54 +758,6 @@ class App {
 
         } catch (error) {
             console.error('[App PC] ❌ Erro ao limpar notificações:', error);
-        }
-    }
-    
-    // ============================================
-    // ATUALIZAR NOME DO USUÁRIO
-    // ============================================
-    atualizarNomeUsuario(nome) {
-        const ids = [
-            'userNameDisplay', 'userName', 'userName2', 'userName3', 
-            'userName4', 'userName5', 'userNameIA', 'miniName'
-        ];
-        ids.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = nome;
-        });
-        
-        const miniEmail = document.getElementById('miniEmail');
-        if (miniEmail && this.user) miniEmail.textContent = this.user.email || '';
-        
-        const profileEmail = document.getElementById('profileEmail');
-        if (profileEmail && this.user) profileEmail.textContent = this.user.email || '';
-    }
-    
-    atualizarAvatar(iniciais) {
-        const ids = [
-            'userAvatar', 'userAvatar2', 'userAvatar3', 
-            'userAvatar4', 'userAvatar5', 'userAvatarIA'
-        ];
-        ids.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = iniciais || 'U';
-        });
-    }
-    
-    async carregarAvatar() {
-        if (!this.user) return;
-        
-        const miniAvatar = document.getElementById('miniAvatar');
-        const avatarImage = document.getElementById('avatarImage');
-        
-        if (window.CacheManager) {
-            const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-            if (photoUrl && photoUrl.startsWith('data:')) {
-                if (miniAvatar) miniAvatar.src = photoUrl;
-                if (avatarImage) avatarImage.src = photoUrl;
-                this.user.profilePhotoUrl = photoUrl;
-                localStorage.setItem('usuarioLogado', JSON.stringify(this.user));
-            }
         }
     }
     
@@ -1072,6 +1105,17 @@ class App {
             }
         });
         
+        // ⭐ EVENTO DE DADOS ATUALIZADOS
+        window.addEventListener('dataUpdated', (e) => {
+            if (e.detail && e.detail.key) {
+                console.log(`[App PC] 📡 ${e.detail.key} atualizado via evento`);
+                if (this.modules[this.currentView]) {
+                    this.modules[this.currentView].render(this.data);
+                }
+                this.updateBadge();
+            }
+        });
+        
         // ⭐ TECLA ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -1097,8 +1141,19 @@ class App {
         
         // ⭐ SINCRONIZAÇÃO DE DADOS ENTRE ABAS
         window.addEventListener('storage', (e) => {
-            if (e.key && e.key.includes('_')) {
+            if (e.key && (e.key.includes('_') || e.key === 'usuarioLogado')) {
                 console.log('[App PC] 📡 Dados alterados em outra aba:', e.key);
+                
+                // Se o usuário foi atualizado
+                if (e.key === 'usuarioLogado' && e.newValue) {
+                    try {
+                        const user = JSON.parse(e.newValue);
+                        if (user && user.nome) {
+                            this.atualizarNomeUsuario(user.nome);
+                        }
+                    } catch(err) {}
+                }
+                
                 this.loadData();
                 if (this.modules[this.currentView]) {
                     this.modules[this.currentView].render(this.data);
@@ -1106,6 +1161,14 @@ class App {
                 this.updateBadge();
             }
         });
+        
+        // ⭐ VERIFICAR SE O NOME APARECE CORRETAMENTE APÓS O LOAD
+        setTimeout(() => {
+            const nome = this.getNomeUsuario();
+            if (nome && nome !== 'Usuário') {
+                this.atualizarNomeUsuario(nome);
+            }
+        }, 1000);
     }
 }
 
