@@ -1013,7 +1013,7 @@
 <script src="mobile-telas/supabase-client.js"></script>
 <script src="mobile-telas/cache-manager.js"></script>
 <script src="mobile-telas/daily-phrases.js"></script>
-<!-- ⭐ VERIFICADOR DE SUPABASE -->
+<!--  VERIFICADOR DE SUPABASE -->
 <script>
 // Forçar inicialização do Supabase imediatamente
 console.log('[Supabase] 🔥 Forçando inicialização...');
@@ -1029,7 +1029,7 @@ if (typeof initSupabase === 'function') {
 let checkCount = 0;
 const checkInterval = setInterval(() => {
     checkCount++;
-    const hasClient = window.supabaseClient || 
+    const hasClient = window.supabaseClient ||
                      (window.SupabaseClient && window.SupabaseClient.client) ||
                      (window.SupabaseClient && window.SupabaseClient.getClient && window.SupabaseClient.getClient());
     
@@ -1135,7 +1135,7 @@ class MultiAIService {
         // 🔥 OPENROUTER (FALLBACK)
         this.providers.push({
             name: 'OpenRouter',
-            key: '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',
+            key: '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',
             model: 'openrouter/free',
             isAvailable: true,
             usoHoje: 0,
