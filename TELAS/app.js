@@ -32,7 +32,8 @@ class App {
             'tarefas': 'css/tarefas.css',
             'anotacoes': 'css/anotacoes.css',
             'perfil': 'css/perfil.css',
-            'ia': 'css/ia.css'
+            'ia': 'css/ia.css',
+            'disciplinas': 'css/disciplinas.css'  // ← ADICIONADO
         };
         
         this.viewToModuleMap = {
@@ -43,7 +44,8 @@ class App {
             'tarefas': 'tarefas',
             'anotacoes': 'anotacoes',
             'perfil': 'perfil',
-            'ia': 'ia'
+            'ia': 'ia',
+            'disciplinas': 'disciplinas'  // ← ADICIONADO
         };
         
         this.init();
@@ -236,12 +238,11 @@ class App {
     }
     
     // ============================================
-    // ⭐ OBTER NOME DO USUÁRIO (CORRIGIDO)
+    // ⭐ OBTER NOME DO USUÁRIO
     // ============================================
     getNomeUsuario() {
         if (!this.user) return 'Usuário';
         
-        // Tentar várias fontes possíveis
         return this.user.nome || 
                this.user.displayName || 
                this.user.full_name || 
@@ -280,12 +281,10 @@ class App {
         console.log('[App PC] 🆔 User ID:', this.user.id);
         console.log('[App PC] 📛 Nome:', this.getNomeUsuario());
         
-        // ⭐ OBTER NOME CORRETAMENTE
         const nomeExibicao = this.getNomeUsuario();
         this.updateLoadingStatus(`Olá, ${nomeExibicao}!`, 10);
         this.atualizarNomeUsuario(nomeExibicao);
         
-        // Avatar
         const iniciais = nomeExibicao.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
         
@@ -318,7 +317,7 @@ class App {
         this.updateLoadingStatus('Carregando módulos...', 40);
         this.loadModules();
         
-        // ⭐ CARREGAR DADOS DA NUVEM (FORÇADO)
+        // Carregar dados da nuvem
         this.updateLoadingStatus('Carregando dados da nuvem...', 45);
         await this.loadDataFromCloud();
         
@@ -342,11 +341,11 @@ class App {
         this.updateLoadingStatus('Atualizando...', 95);
         this.updateBadge();
         
-        // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE
+        // Carregar notificações do Supabase
         this.updateLoadingStatus('Carregando notificações...', 96);
         await this.loadNotificationsFromSupabase();
         
-        // ⭐ FECHAR LOADING
+        // Fechar loading
         this.updateLoadingStatus('Pronto!', 100);
         setTimeout(() => {
             this.closeLoadingOverlay();
@@ -357,10 +356,9 @@ class App {
     }
     
     // ============================================
-    // ⭐ ATUALIZAR NOME DO USUÁRIO (CORRIGIDO)
+    // ⭐ ATUALIZAR NOME DO USUÁRIO
     // ============================================
     atualizarNomeUsuario(nome) {
-        // Se não passou nome, buscar do user
         if (!nome && this.user) {
             nome = this.getNomeUsuario();
         }
@@ -375,15 +373,12 @@ class App {
             if (el) el.textContent = nome;
         });
         
-        // Atualizar mini email
         const miniEmail = document.getElementById('miniEmail');
         if (miniEmail && this.user) miniEmail.textContent = this.user.email || '';
         
-        // Atualizar profile email
         const profileEmail = document.getElementById('profileEmail');
         if (profileEmail && this.user) profileEmail.textContent = this.user.email || '';
         
-        // Atualizar avatar com iniciais
         const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
         
@@ -484,7 +479,6 @@ class App {
     // ============================================
     async loadData() {
         if (window.CacheManager) {
-            // ⭐ CARREGAR DO CACHE (QUE JÁ TEM OS DADOS DA NUVEM)
             this.data.tasks = window.CacheManager.get('tasks', []);
             this.data.notes = window.CacheManager.get('notes', []);
             this.data.calendarEvents = window.CacheManager.get('calendarEvents', []);
@@ -502,7 +496,7 @@ class App {
                 }
             });
             
-            // ⭐ FILTRAR NOTAS FANTASMAS
+            // Filtrar notas fantasmas
             if (Array.isArray(this.data.notes)) {
                 const filtradas = this.data.notes.filter(n => {
                     const hasTitle = n.title && n.title.trim().length > 0;
@@ -526,7 +520,6 @@ class App {
             console.log(`   - Notificações: ${this.data.notifications.length}`);
             console.log(`   - Disciplinas: ${this.data.disciplinas.length}`);
             
-            // ⭐ ATUALIZAR NOME DO USUÁRIO DOS DADOS CARREGADOS
             if (this.data.profile && this.data.profile.nome) {
                 this.atualizarNomeUsuario(this.data.profile.nome);
             }
@@ -536,7 +529,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS (CORRIGIDO)
+    // ⭐ SALVAR DADOS
     // ============================================
     async saveAllData() {
         if (window.CacheManager) {
@@ -546,7 +539,6 @@ class App {
                 return;
             }
             
-            // ⭐ FILTRAR NOTAS FANTASMAS ANTES DE SALVAR
             if (Array.isArray(this.data.notes)) {
                 const antes = this.data.notes.length;
                 this.data.notes = this.data.notes.filter(n => {
@@ -574,7 +566,6 @@ class App {
             
             console.log(`[App PC] ✅ ${savedCount} tipos salvos no CacheManager`);
             
-            // ⭐ FORÇAR SYNC COM SUPABASE
             try {
                 const result = await window.CacheManager.forceSync();
                 console.log('[App PC] ✅ Sync concluído:', result ? 'com alterações' : 'sem alterações');
@@ -786,6 +777,9 @@ class App {
         if (typeof IaModule !== 'undefined') {
             this.modules.ia = new IaModule(this);
         }
+        if (typeof DisciplinasModule !== 'undefined') {
+            this.modules.disciplinas = new DisciplinasModule(this);  // ← ADICIONADO
+        }
         console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
     }
     
@@ -831,7 +825,7 @@ class App {
     showView(viewName) {
         console.log('[App PC] 📄 Mostrando:', viewName);
         
-        // 🔥 GERENCIAR SIDEBAR E SCROLL PARA IA
+        // GERENCIAR SIDEBAR E SCROLL PARA IA
         const sidebar = document.querySelector('.sidebar');
         const mainContent = document.querySelector('.main-content');
         const viewIA = document.getElementById('view-ia');
@@ -1067,7 +1061,7 @@ class App {
             }
         });
         
-        // ⭐ EVENTO DE DADOS CARREGADOS DA NUVEM
+        // EVENTO DE DADOS CARREGADOS DA NUVEM
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[App PC] 📡 Dados carregados da nuvem');
             this.loadData();
@@ -1077,7 +1071,7 @@ class App {
             this.updateBadge();
         });
         
-        // ⭐ EVENTO DE FORÇAR REFRESH
+        // EVENTO DE FORÇAR REFRESH
         window.addEventListener('forceRefresh', () => {
             console.log('[App PC] 🔄 Forçando atualização da UI');
             if (this.modules[this.currentView]) {
@@ -1086,7 +1080,7 @@ class App {
             this.updateBadge();
         });
         
-        // ⭐ EVENTO DE NOTIFICAÇÕES ATUALIZADAS
+        // EVENTO DE NOTIFICAÇÕES ATUALIZADAS
         window.addEventListener('notificationsUpdated', () => {
             console.log('[App PC] 📬 Notificações atualizadas!');
             if (this.modules[this.currentView]) {
@@ -1095,7 +1089,7 @@ class App {
             this.updateBadge();
         });
         
-        // ⭐ EVENTO DE PERFIL ATUALIZADO
+        // EVENTO DE PERFIL ATUALIZADO
         window.addEventListener('profilePhotoUpdated', (event) => {
             if (event.detail && event.detail.photoUrl) {
                 const miniAvatar = document.getElementById('miniAvatar');
@@ -1105,7 +1099,7 @@ class App {
             }
         });
         
-        // ⭐ EVENTO DE DADOS ATUALIZADOS
+        // EVENTO DE DADOS ATUALIZADOS
         window.addEventListener('dataUpdated', (e) => {
             if (e.detail && e.detail.key) {
                 console.log(`[App PC] 📡 ${e.detail.key} atualizado via evento`);
@@ -1116,7 +1110,15 @@ class App {
             }
         });
         
-        // ⭐ TECLA ESC
+        // EVENTO DE DISCIPLINAS ATUALIZADAS
+        window.addEventListener('disciplinasUpdated', () => {
+            console.log('[App PC] 📚 Disciplinas atualizadas!');
+            if (this.modules.disciplinas) {
+                this.modules.disciplinas.render(this.data);
+            }
+        });
+        
+        // TECLA ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const notifModal = document.getElementById('notifModal');
@@ -1129,7 +1131,7 @@ class App {
             }
         });
         
-        // ⭐ NOVAS NOTIFICAÇÕES EM TEMPO REAL
+        // NOVAS NOTIFICAÇÕES EM TEMPO REAL
         window.addEventListener('newNotification', (e) => {
             console.log('[App PC] 📬 Nova notificação recebida via Realtime!');
             this.loadNotificationsFromSupabase();
@@ -1139,12 +1141,11 @@ class App {
             }
         });
         
-        // ⭐ SINCRONIZAÇÃO DE DADOS ENTRE ABAS
+        // SINCRONIZAÇÃO DE DADOS ENTRE ABAS
         window.addEventListener('storage', (e) => {
             if (e.key && (e.key.includes('_') || e.key === 'usuarioLogado')) {
                 console.log('[App PC] 📡 Dados alterados em outra aba:', e.key);
                 
-                // Se o usuário foi atualizado
                 if (e.key === 'usuarioLogado' && e.newValue) {
                     try {
                         const user = JSON.parse(e.newValue);
@@ -1162,7 +1163,7 @@ class App {
             }
         });
         
-        // ⭐ VERIFICAR SE O NOME APARECE CORRETAMENTE APÓS O LOAD
+        // VERIFICAR SE O NOME APARECE CORRETAMENTE APÓS O LOAD
         setTimeout(() => {
             const nome = this.getNomeUsuario();
             if (nome && nome !== 'Usuário') {
