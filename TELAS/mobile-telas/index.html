@@ -1066,11 +1066,12 @@ const checkInterval = setInterval(() => {
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 
-<script>// ============================================
-// multi-ai-service.js - COMPLETO COM PROXY INTEGRADO E RATE LIMIT
+<script>
+// ============================================
+// multi-ai-service.js - CORRIGIDO COM CHAMADAS DIRETAS
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API COM PROXY INTEGRADO...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO COM CHAMADAS DIRETAS...');
 
 class MultiAIService {
     constructor() {
@@ -1081,334 +1082,64 @@ class MultiAIService {
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         this._lastRequestTime = 0;
-        this._minRequestInterval = 2000; // 2 segundos entre requisições
-        this._requestCount = 0;
-        this._requestResetTime = Date.now();
-        this._maxRequestsPerMinute = 10;
-        this._isProcessing = false;
-        this._queue = [];
+        this._minRequestInterval = 1000;
         
         this._registerProviders();
         
         console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados`);
         this._resetarLimite();
-        console.log('[MultiAI] 📊 Status inicial:', this.getStatus());
     }
     
     _registerProviders() {
-        // 🔥 GROK (NOVA CHAVE)
+        // 🔥 GROK
         this.providers.push({
             name: 'Grok',
-            key: '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',
+            key: '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',
+            url: 'https://api.x.ai/v1/chat/completions',
             model: 'grok-beta',
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 30,
-            falhasConsecutivas: 0,
-            ultimoErro: null
+            falhasConsecutivas: 0
         });
         
         // 🔥 SAMBANOVA
         this.providers.push({
             name: 'SambaNova',
             key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
+            url: 'https://api.sambanova.ai/v1/chat/completions',
             model: 'Llama-3.1-70B-Instruct',
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 40,
-            falhasConsecutivas: 0,
-            ultimoErro: null
+            falhasConsecutivas: 0
         });
         
         // 🔥 DEEPSEEK
         this.providers.push({
             name: 'DeepSeek',
             key: 'sk-e528baf9102b44f59696badf598dbc4b',
+            url: 'https://api.deepseek.com/v1/chat/completions',
             model: 'deepseek-chat',
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 50,
-            falhasConsecutivas: 0,
-            ultimoErro: null
+            falhasConsecutivas: 0
         });
         
         // 🔥 OPENROUTER (FALLBACK)
         this.providers.push({
             name: 'OpenRouter',
-            key: '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',
+            key: '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',
+            url: 'https://openrouter.ai/api/v1/chat/completions',
             model: 'openrouter/free',
             isAvailable: true,
             usoHoje: 0,
             limiteDiario: 20,
-            falhasConsecutivas: 0,
-            ultimoErro: null
+            falhasConsecutivas: 0
         });
     }
     
-    // ============================================
-    // ⭐ PROXY INTEGRADO (FAKE PROXY NO CLIENTE)
-    // ============================================
-    async _proxyRequest(provider, prompt, context) {
-        console.log(`[Proxy] 📤 Processando ${provider.name}...`);
-        
-        // Configurar a requisição
-        const apiUrls = {
-            'Grok': 'https://api.x.ai/v1/chat/completions',
-            'SambaNova': 'https://api.sambanova.ai/v1/chat/completions',
-            'DeepSeek': 'https://api.deepseek.com/v1/chat/completions',
-            'OpenRouter': 'https://openrouter.ai/api/v1/chat/completions'
-        };
-        
-        const apiUrl = apiUrls[provider.name];
-        if (!apiUrl) {
-            return { success: false, error: 'URL da API não encontrada' };
-        }
-        
-        const requestBody = {
-            model: provider.model,
-            messages: [
-                { role: 'system', content: context || 'Você é um assistente útil.' },
-                { role: 'user', content: prompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 1024
-        };
-        
-        console.log(`[Proxy] 📡 Chamando ${provider.name} em: ${apiUrl}`);
-        
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${provider.key}`
-                },
-                body: JSON.stringify(requestBody)
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                console.error(`[Proxy] ❌ ${provider.name} erro:`, response.status, data);
-                
-                // Detectar limites
-                const isLimit = response.status === 429 || 
-                               response.status === 402 ||
-                               data.error?.message?.toLowerCase().includes('rate limit') ||
-                               data.error?.message?.toLowerCase().includes('quota') ||
-                               data.error?.message?.toLowerCase().includes('exceeded') ||
-                               data.error?.message?.toLowerCase().includes('insufficient balance');
-                
-                if (isLimit) {
-                    provider.falhasConsecutivas++;
-                    return { success: false, error: 'Limite excedido', limitExceeded: true };
-                }
-                
-                // Se for erro 400 do Grok, marcar como indisponível temporariamente
-                if (response.status === 400 && provider.name === 'Grok') {
-                    provider.isAvailable = false;
-                    provider.ultimoErro = 'Bad Request - Chave ou modelo inválido';
-                    console.warn(`[Proxy] ⚠️ ${provider.name} marcado como indisponível temporariamente`);
-                    return { success: false, error: 'Erro na requisição', unavailable: true };
-                }
-                
-                provider.falhasConsecutivas++;
-                return {
-                    success: false,
-                    error: data.error?.message || `Erro ${response.status}`
-                };
-            }
-            
-            // Extrair resposta
-            let text = '';
-            if (data.choices && data.choices.length > 0) {
-                text = data.choices[0].message?.content || data.choices[0].text || '';
-            } else if (data.response) {
-                text = data.response;
-            } else if (data.content) {
-                text = data.content;
-            }
-            
-            if (text) {
-                provider.falhasConsecutivas = 0;
-                provider.isAvailable = true;
-                console.log(`[Proxy] ✅ ${provider.name} respondeu com sucesso!`);
-                return { success: true, text: text.trim() };
-            }
-            
-            return { success: false, error: 'Resposta vazia' };
-            
-        } catch (error) {
-            console.error(`[Proxy] ❌ ${provider.name} erro de rede:`, error.message);
-            provider.falhasConsecutivas++;
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // ============================================
-    // ⭐ RATE LIMIT
-    // ============================================
-    _checkRateLimit() {
-        const agora = Date.now();
-        
-        // Resetar contagem a cada minuto
-        if (agora - this._requestResetTime > 60000) {
-            this._requestCount = 0;
-            this._requestResetTime = agora;
-        }
-        
-        if (this._requestCount >= this._maxRequestsPerMinute) {
-            console.warn(`[MultiAI] ⚠️ Rate limit: ${this._maxRequestsPerMinute} req/min atingido`);
-            return false;
-        }
-        
-        // Intervalo mínimo entre requisições
-        if (agora - this._lastRequestTime < this._minRequestInterval) {
-            const waitTime = this._minRequestInterval - (agora - this._lastRequestTime);
-            console.log(`[MultiAI] ⏳ Aguardando ${waitTime}ms para rate limit...`);
-            return false;
-        }
-        
-        return true;
-    }
-    
-    _waitForRateLimit() {
-        return new Promise((resolve) => {
-            const check = () => {
-                if (this._checkRateLimit()) {
-                    resolve();
-                } else {
-                    setTimeout(check, 500);
-                }
-            };
-            check();
-        });
-    }
-    
-    // ============================================
-    // ⭐ ENVIAR MENSAGEM (COM RATE LIMIT E FILA)
-    // ============================================
-    async sendMessage(prompt, context = '') {
-        // ⭐ VERIFICAR SE JÁ ESTÁ PROCESSANDO
-        if (this._isProcessing) {
-            console.log('[MultiAI] ⏳ Já processando, adicionando à fila...');
-            return new Promise((resolve) => {
-                this._queue.push({ prompt, context, resolve });
-            });
-        }
-        
-        this._isProcessing = true;
-        
-        try {
-            // ⭐ AGUARDAR RATE LIMIT
-            await this._waitForRateLimit();
-            
-            console.log('[MultiAI] 📤 Enviando mensagem...');
-            console.log(`[MultiAI] 📝 Prompt: ${prompt.substring(0, 60)}...`);
-            
-            if (!this.temLimiteDisponivel()) {
-                return {
-                    success: false,
-                    error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido! Volte amanhã.`
-                };
-            }
-            
-            // Verificar cache
-            const cached = this._getFromCache(prompt, context);
-            if (cached) {
-                console.log('[MultiAI] 📦 Resposta do cache!');
-                return { success: true, text: cached, fromCache: true };
-            }
-            
-            // ⭐ ATUALIZAR CONTAGEM DE REQUISIÇÕES
-            this._requestCount++;
-            this._lastRequestTime = Date.now();
-            
-            // ⭐ ORDEM DE PRIORIDADE
-            const priorityOrder = ['Grok', 'SambaNova', 'DeepSeek', 'OpenRouter'];
-            const shuffled = [...this.providers];
-            
-            // Filtrar provedores disponíveis
-            const available = shuffled.filter(p => 
-                p.isAvailable && 
-                p.usoHoje < p.limiteDiario &&
-                p.falhasConsecutivas < 3
-            );
-            
-            // Ordenar por prioridade
-            available.sort((a, b) => {
-                const idxA = priorityOrder.indexOf(a.name);
-                const idxB = priorityOrder.indexOf(b.name);
-                return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-            });
-            
-            let lastError = null;
-            
-            for (const provider of available) {
-                console.log(`[MultiAI] 🔄 Tentando ${provider.name}...`);
-                
-                try {
-                    const result = await this._proxyRequest(provider, prompt, context);
-                    
-                    if (result.success) {
-                        provider.usoHoje++;
-                        this._incrementarUso();
-                        this._saveToCache(prompt, context, result.text);
-                        
-                        console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
-                        return {
-                            success: true,
-                            text: result.text,
-                            provider: provider.name,
-                            fromCache: false
-                        };
-                    }
-                    
-                    if (result.limitExceeded) {
-                        provider.usoHoje = provider.limiteDiario;
-                        console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite`);
-                    } else if (result.unavailable) {
-                        provider.isAvailable = false;
-                        console.log(`[MultiAI] ⚠️ ${provider.name} indisponível`);
-                    } else {
-                        console.log(`[MultiAI] ⚠️ ${provider.name} falhou:`, result.error);
-                    }
-                    
-                    lastError = result.error;
-                    
-                } catch (error) {
-                    console.error(`[MultiAI] ❌ ${provider.name} erro:`, error.message);
-                    provider.falhasConsecutivas++;
-                    lastError = error.message;
-                }
-            }
-            
-            // ⭐ FALLBACK OFFLINE
-            console.log('[MultiAI] 📦 Usando fallback offline...');
-            const fallback = this._getFallbackResponse(prompt, context);
-            return { 
-                success: true, 
-                text: fallback, 
-                fromFallback: true,
-                error: lastError 
-            };
-            
-        } finally {
-            this._isProcessing = false;
-            
-            // ⭐ PROCESSAR FILA
-            if (this._queue.length > 0) {
-                const next = this._queue.shift();
-                console.log(`[MultiAI] 📦 Processando próximo da fila (${this._queue.length} restantes)...`);
-                const result = await this.sendMessage(next.prompt, next.context);
-                next.resolve(result);
-            }
-        }
-    }
-    
-    // ============================================
-    // ⭐ HELPERS
-    // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
         const dataSalva = localStorage.getItem('multi_ai_data');
@@ -1434,7 +1165,6 @@ class MultiAIService {
         this._resetarLimite();
         this._usosHoje++;
         localStorage.setItem('multi_ai_uso', String(this._usosHoje));
-        console.log(`[MultiAI] 📊 Uso hoje: ${this._usosHoje}/${this._limiteDiario}`);
     }
     
     temLimiteDisponivel() {
@@ -1477,6 +1207,138 @@ class MultiAIService {
         }
     }
     
+    async sendMessage(prompt, context = '') {
+        console.log('[MultiAI] 📤 Enviando mensagem...');
+        
+        if (!this.temLimiteDisponivel()) {
+            return {
+                success: false,
+                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido!`
+            };
+        }
+        
+        const cached = this._getFromCache(prompt, context);
+        if (cached) {
+            return { success: true, text: cached, fromCache: true };
+        }
+        
+        // Ordem de prioridade
+        const priorityOrder = ['Grok', 'SambaNova', 'DeepSeek', 'OpenRouter'];
+        const available = this.providers
+            .filter(p => p.isAvailable && p.usoHoje < p.limiteDiario)
+            .sort((a, b) => {
+                const idxA = priorityOrder.indexOf(a.name);
+                const idxB = priorityOrder.indexOf(b.name);
+                return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+            });
+        
+        let lastError = null;
+        
+        for (const provider of available) {
+            console.log(`[MultiAI] 🔄 Tentando ${provider.name}...`);
+            
+            try {
+                const result = await this._callAPI(provider, prompt, context);
+                
+                if (result.success) {
+                    provider.usoHoje++;
+                    this._incrementarUso();
+                    this._saveToCache(prompt, context, result.text);
+                    
+                    return {
+                        success: true,
+                        text: result.text,
+                        provider: provider.name,
+                        fromCache: false
+                    };
+                }
+                
+                if (result.limitExceeded) {
+                    provider.usoHoje = provider.limiteDiario;
+                    console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite`);
+                } else {
+                    console.log(`[MultiAI] ⚠️ ${provider.name} falhou:`, result.error);
+                }
+                
+                lastError = result.error;
+                
+            } catch (error) {
+                console.error(`[MultiAI] ❌ ${provider.name} erro:`, error.message);
+                lastError = error.message;
+            }
+        }
+        
+        // Fallback offline
+        console.log('[MultiAI] 📦 Usando fallback offline...');
+        const fallback = this._getFallbackResponse(prompt, context);
+        return { 
+            success: true, 
+            text: fallback, 
+            fromFallback: true,
+            error: lastError 
+        };
+    }
+    
+    async _callAPI(provider, prompt, context) {
+        const timeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
+        );
+        
+        try {
+            const requestBody = {
+                model: provider.model,
+                messages: [
+                    { role: 'system', content: context || 'Você é um assistente útil.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024
+            };
+            
+            console.log(`[MultiAI] 📡 Chamando ${provider.name}...`);
+            
+            const fetchPromise = fetch(provider.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${provider.key}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const response = await Promise.race([fetchPromise, timeout]);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                const isLimit = response.status === 429 || 
+                    response.status === 402 ||
+                    data.error?.message?.toLowerCase().includes('rate limit') ||
+                    data.error?.message?.toLowerCase().includes('quota') ||
+                    data.error?.message?.toLowerCase().includes('exceeded');
+                
+                if (isLimit) {
+                    return { success: false, error: 'Limite excedido', limitExceeded: true };
+                }
+                
+                return { success: false, error: data.error?.message || `Erro ${response.status}` };
+            }
+            
+            let text = '';
+            if (data.choices && data.choices.length > 0) {
+                text = data.choices[0].message?.content || '';
+            }
+            
+            if (text) {
+                return { success: true, text: text.trim() };
+            }
+            
+            return { success: false, error: 'Resposta vazia' };
+            
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+    
     _getFallbackResponse(prompt, context) {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
@@ -1485,37 +1347,24 @@ class MultiAIService {
             saudacao: isGiria 
                 ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
                 : 'Olá! Como posso ajudar você hoje?',
-            
             texto: isGiria
-                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
-                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
-            
+                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Tamos juntos! 📝'
+                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise.',
             matematica: isGiria
-                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
-                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
-            
+                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro! 🧮'
+                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente.',
             estudo: isGiria
-                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.',
-            
+                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Tamos juntos! 💪'
+                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro.',
             padrao: isGiria
-                ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
-                : 'Desculpe, não entendi sua pergunta. Poderia reformular?'
+                ? '🇲🇿 Boa pergunta! Tenta reformular, tamos juntos!'
+                : 'Desculpe, não entendi. Poderia reformular?'
         };
         
-        if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
-            return respostas.saudacao;
-        }
-        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
-            return respostas.texto;
-        }
-        if (texto.includes('matem') || texto.includes('conta') || texto.includes('soma')) {
-            return respostas.matematica;
-        }
-        if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
-            return respostas.estudo;
-        }
-        
+        if (texto.includes('oi') || texto.includes('olá')) return respostas.saudacao;
+        if (texto.includes('escrever') || texto.includes('redação')) return respostas.texto;
+        if (texto.includes('matem') || texto.includes('conta')) return respostas.matematica;
+        if (texto.includes('estud') || texto.includes('aula')) return respostas.estudo;
         return respostas.padrao;
     }
     
@@ -1529,34 +1378,13 @@ class MultiAIService {
                 name: p.name,
                 usoHoje: p.usoHoje,
                 limiteDiario: p.limiteDiario,
-                disponivel: p.isAvailable && p.usoHoje < p.limiteDiario,
-                falhas: p.falhasConsecutivas,
-                percentual: Math.round((p.usoHoje / p.limiteDiario) * 100)
-            })),
-            rateLimit: {
-                requestsThisMinute: this._requestCount,
-                maxPerMinute: this._maxRequestsPerMinute,
-                queueSize: this._queue.length,
-                isProcessing: this._isProcessing
-            }
+                disponivel: p.isAvailable && p.usoHoje < p.limiteDiario
+            }))
         };
-    }
-    
-    resetLimite() {
-        localStorage.setItem('multi_ai_data', new Date().toDateString());
-        localStorage.setItem('multi_ai_uso', '0');
-        this.providers.forEach(p => p.usoHoje = 0);
-        this._usosHoje = 0;
-        this._requestCount = 0;
-        this._queue = [];
-        console.log('[MultiAI] 📅 Limite resetado manualmente');
-        return this.getStatus();
     }
 }
 
-// ============================================
-// ⭐ INSTÂNCIA GLOBAL
-// ============================================
+// Instância global
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 window.GeminiService = multiAI;
@@ -1569,19 +1397,13 @@ window.getLimiteIA = () => {
         maximo: status.limiteTotal,
         restante: status.restante,
         providers: status.providers,
-        rateLimit: status.rateLimit,
         reset: () => multiAI.resetLimite()
     };
 };
 
-console.log('[MultiAI] ✅ Serviço Multi-API com Proxy Integrado e Rate Limit carregado!');
+console.log('[MultiAI] ✅ Serviço carregado com chamadas DIRETAS às APIs!');
 console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis`);
-multiAI.providers.forEach(p => {
-    console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia`);
-});
-console.log('[MultiAI] ⚡ Rate Limit: 10 requisições/minuto, 2s entre requisições');
-console.log('[MultiAI] 💾 Cache: 50 respostas com 1h de validade');
-console.log('[MultiAI] 📋 Fila: processamento sequencial com fila de espera');</script>
+</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
