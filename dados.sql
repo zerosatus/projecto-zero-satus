@@ -1,6 +1,6 @@
 -- ============================================
 -- SCRIPT COMPLETO - PAINEL ADMIN ZERO SATUS
--- COM HISTÓRICO DE IA E SINCRONIZAÇÃO PC/MOBILE
+-- APENAS 1 ADMIN: projectozerosatus@gmail.com
 -- VERSÃO CORRIGIDA - SEM ERROS DE SINTAXE
 -- ============================================
 
@@ -45,10 +45,7 @@ DROP FUNCTION IF EXISTS listar_regras(TEXT, TEXT, TEXT, BOOLEAN) CASCADE;
 DROP FUNCTION IF EXISTS testar_permissao(TEXT, TEXT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS get_all_users() CASCADE;
 DROP FUNCTION IF EXISTS enviar_email_notificacao(TEXT, TEXT, TEXT) CASCADE;
-DROP FUNCTION IF EXISTS get_ia_history(UUID) CASCADE;
-DROP FUNCTION IF EXISTS save_ia_history(UUID, JSONB) CASCADE;
-DROP FUNCTION IF EXISTS delete_ia_history(UUID, TEXT) CASCADE;
-DROP FUNCTION IF EXISTS get_ia_conversation(UUID, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS get_logs_stats() CASCADE;
 
 -- ============================================
 -- 4. DROP E RECRIAR TABELAS
@@ -67,8 +64,7 @@ BEGIN
     EXECUTE 'ALTER TABLE IF EXISTS public.disciplinas DISABLE ROW LEVEL SECURITY';
     EXECUTE 'ALTER TABLE IF EXISTS public.profiles DISABLE ROW LEVEL SECURITY';
     EXECUTE 'ALTER TABLE IF EXISTS public.admin_notifications DISABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE IF EXISTS public.ia_history DISABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE IF EXISTS public.ia_conversations DISABLE ROW LEVEL SECURITY';
+    EXECUTE 'ALTER TABLE IF EXISTS public.audit_logs DISABLE ROW LEVEL SECURITY';
 EXCEPTION WHEN OTHERS THEN
     RAISE NOTICE 'Erro ao desabilitar RLS: %', SQLERRM;
 END $$;
@@ -84,8 +80,7 @@ DROP TABLE IF EXISTS public.user_settings CASCADE;
 DROP TABLE IF EXISTS public.disciplinas CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.admin_notifications CASCADE;
-DROP TABLE IF EXISTS public.ia_history CASCADE;
-DROP TABLE IF EXISTS public.ia_conversations CASCADE;
+DROP TABLE IF EXISTS public.audit_logs CASCADE;
 
 -- ============================================
 -- 5. TABELA: PROFILES
@@ -228,6 +223,25 @@ CREATE INDEX IF NOT EXISTS idx_admin_notifications_status ON public.admin_notifi
 CREATE INDEX IF NOT EXISTS idx_admin_notifications_enviada_em ON public.admin_notifications(enviada_em);
 
 -- ============================================
+-- 12.5 TABELA: AUDIT_LOGS (CORREÇÃO)
+-- ============================================
+CREATE TABLE public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    user_email TEXT,
+    acao TEXT NOT NULL,
+    descricao TEXT,
+    tipo TEXT DEFAULT 'system',
+    ip TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tipo ON public.audit_logs(tipo);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at);
+
+-- ============================================
 -- 13. TABELA: USER_SETTINGS
 -- ============================================
 CREATE TABLE public.user_settings (
@@ -279,39 +293,7 @@ CREATE INDEX IF NOT EXISTS idx_system_rules_ativo ON public.system_rules(ativo);
 CREATE INDEX IF NOT EXISTS idx_system_rules_prioridade ON public.system_rules(prioridade);
 
 -- ============================================
--- 16. TABELA: IA_HISTORY (Histórico de conversas)
--- ============================================
-CREATE TABLE public.ia_history (
-    id TEXT PRIMARY KEY,
-    user_id UUID NOT NULL,
-    title TEXT NOT NULL DEFAULT 'Nova conversa',
-    messages JSONB NOT NULL DEFAULT '[]',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_ia_history_user_id ON public.ia_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_ia_history_updated_at ON public.ia_history(updated_at);
-
--- ============================================
--- 17. TABELA: IA_CONVERSATIONS (Mensagens individuais) - CORRIGIDA
--- ============================================
-CREATE TABLE public.ia_conversations (
-    id TEXT PRIMARY KEY,
-    user_id UUID NOT NULL,
-    history_id TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-    content TEXT NOT NULL,
-    msg_timestamp TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_ia_conversations_user_id ON public.ia_conversations(user_id);
-CREATE INDEX IF NOT EXISTS idx_ia_conversations_history_id ON public.ia_conversations(history_id);
-CREATE INDEX IF NOT EXISTS idx_ia_conversations_msg_timestamp ON public.ia_conversations(msg_timestamp);
-
--- ============================================
--- 18. TRIGGERS
+-- 16. TRIGGERS
 -- ============================================
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -343,17 +325,15 @@ CREATE TRIGGER update_admin_notifications_updated_at BEFORE UPDATE ON public.adm
 CREATE TRIGGER update_system_rules_updated_at BEFORE UPDATE ON public.system_rules
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_ia_history_updated_at BEFORE UPDATE ON public.ia_history
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 -- ============================================
--- 19. FUNÇÃO: handle_new_user
+-- 17. FUNÇÃO: handle_new_user (APENAS 1 ADMIN)
 -- ============================================
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
 DECLARE
     v_is_admin BOOLEAN;
 BEGIN
+    -- APENAS ESTE EMAIL PODE SER ADMIN
     v_is_admin := (NEW.email = 'projectozerosatus@gmail.com');
     
     INSERT INTO public.profiles (id, email, nome, avatar_url, role)
@@ -374,7 +354,7 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================
--- 20. FUNÇÃO: is_admin
+-- 18. FUNÇÃO: is_admin (APENAS O PRINCIPAL)
 -- ============================================
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
@@ -389,13 +369,19 @@ BEGIN
         RETURN FALSE;
     END IF;
     
+    -- Buscar o email do usuário
     SELECT email INTO v_user_email FROM auth.users WHERE id = v_user_id;
-    SELECT role INTO v_user_role FROM public.profiles WHERE id = v_user_id;
+    
+    -- Buscar a role
+    SELECT role INTO v_user_role 
+    FROM public.profiles 
+    WHERE id = v_user_id;
     
     IF v_user_role IS NULL THEN
         RETURN FALSE;
     END IF;
     
+    -- APENAS O EMAIL PRINCIPAL É ADMIN
     RETURN (v_user_role = 'admin' AND v_user_email = 'projectozerosatus@gmail.com');
 EXCEPTION
     WHEN OTHERS THEN
@@ -404,10 +390,10 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ============================================
--- 21. FUNÇÕES DE USUÁRIO
+-- 19. FUNÇÕES DE USUÁRIO
 -- ============================================
 
--- 21.1 BANIR USUÁRIO
+-- 19.1 BANIR USUÁRIO
 CREATE OR REPLACE FUNCTION banir_usuario(email_usuario TEXT)
 RETURNS TEXT AS $$
 DECLARE
@@ -421,6 +407,7 @@ BEGIN
     
     SELECT id INTO v_user_id FROM auth.users WHERE email = email_usuario;
     
+    -- NÃO PERMITE BANIR O ADMIN PRINCIPAL
     IF email_usuario = 'projectozerosatus@gmail.com' THEN
         RETURN 'ERRO: Nao e possivel banir o administrador principal!';
     END IF;
@@ -440,7 +427,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 21.2 DESBANIR USUÁRIO
+-- 19.2 DESBANIR USUÁRIO
 CREATE OR REPLACE FUNCTION desbanir_usuario(email_usuario TEXT)
 RETURNS TEXT AS $$
 DECLARE
@@ -457,7 +444,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 21.3 DELETAR USUÁRIO
+-- 19.3 DELETAR USUÁRIO
 CREATE OR REPLACE FUNCTION deletar_usuario(email_usuario TEXT)
 RETURNS TEXT AS $$
 DECLARE
@@ -471,6 +458,7 @@ BEGIN
     
     SELECT id INTO v_user_id FROM auth.users WHERE email = email_usuario;
     
+    -- NÃO PERMITE DELETAR O ADMIN PRINCIPAL
     IF email_usuario = 'projectozerosatus@gmail.com' THEN
         RETURN 'ERRO: Nao e possivel deletar o administrador principal!';
     END IF;
@@ -483,8 +471,6 @@ BEGIN
     DELETE FROM public.notifications WHERE user_id = v_user_id;
     DELETE FROM public.user_settings WHERE user_id = v_user_id;
     DELETE FROM public.disciplinas WHERE user_id = v_user_id;
-    DELETE FROM public.ia_history WHERE user_id = v_user_id;
-    DELETE FROM public.ia_conversations WHERE user_id = v_user_id;
     DELETE FROM public.profiles WHERE id = v_user_id;
     
     BEGIN
@@ -496,13 +482,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 21.4 TORNAR ADMIN
+-- 19.4 TORNAR ADMIN (APENAS PARA O EMAIL PRINCIPAL)
 CREATE OR REPLACE FUNCTION tornar_admin(email_usuario TEXT)
 RETURNS TEXT AS $$
 DECLARE
     v_user_id UUID;
     v_user_exists BOOLEAN;
 BEGIN
+    -- VERIFICA SE É O EMAIL PRINCIPAL
     IF email_usuario != 'projectozerosatus@gmail.com' THEN
         RETURN 'ERRO: Apenas o email projectozerosatus@gmail.com pode ser administrador!';
     END IF;
@@ -532,12 +519,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 21.5 TORNAR USER
+-- 19.5 TORNAR USER
 CREATE OR REPLACE FUNCTION tornar_user(email_usuario TEXT)
 RETURNS TEXT AS $$
 DECLARE
     v_user_exists BOOLEAN;
 BEGIN
+    -- NÃO PERMITE REMOVER ADMIN DO EMAIL PRINCIPAL
     IF email_usuario = 'projectozerosatus@gmail.com' THEN
         RETURN 'ERRO: Nao e possivel remover o administrador principal!';
     END IF;
@@ -553,7 +541,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 21.6 GET_ALL_USERS
+-- 19.6 GET_ALL_USERS
 CREATE OR REPLACE FUNCTION get_all_users()
 RETURNS TABLE(
     id UUID,
@@ -581,7 +569,7 @@ BEGIN
     FROM public.profiles p
     ORDER BY p.created_at DESC;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION is_admin() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_all_users() TO authenticated;
@@ -592,139 +580,7 @@ GRANT EXECUTE ON FUNCTION tornar_admin(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION tornar_user(TEXT) TO authenticated;
 
 -- ============================================
--- 22. FUNÇÕES PARA IA HISTORY
--- ============================================
-
--- 22.1 GET IA HISTORY
-CREATE OR REPLACE FUNCTION get_ia_history(p_user_id UUID)
-RETURNS TABLE(
-    id TEXT,
-    title TEXT,
-    messages JSONB,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ,
-    message_count BIGINT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        h.id,
-        h.title,
-        h.messages,
-        h.created_at,
-        h.updated_at,
-        (SELECT COUNT(*) FROM public.ia_conversations c WHERE c.history_id = h.id) as message_count
-    FROM public.ia_history h
-    WHERE h.user_id = p_user_id
-    ORDER BY h.updated_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 22.2 SAVE IA HISTORY (CORRIGIDO)
-CREATE OR REPLACE FUNCTION save_ia_history(
-    p_user_id UUID,
-    p_history JSONB
-)
-RETURNS TEXT AS $$
-DECLARE
-    v_history_id TEXT;
-    v_title TEXT;
-    v_messages JSONB;
-    v_created_at TIMESTAMPTZ;
-    v_updated_at TIMESTAMPTZ;
-    v_msg RECORD;
-BEGIN
-    v_history_id := p_history->>'id';
-    v_title := COALESCE(p_history->>'title', 'Nova conversa');
-    v_messages := p_history->'messages';
-    v_created_at := COALESCE((p_history->>'created_at')::TIMESTAMPTZ, NOW());
-    v_updated_at := NOW();
-    
-    -- Inserir ou atualizar o histórico
-    INSERT INTO public.ia_history (id, user_id, title, messages, created_at, updated_at)
-    VALUES (v_history_id, p_user_id, v_title, v_messages, v_created_at, v_updated_at)
-    ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        messages = EXCLUDED.messages,
-        updated_at = EXCLUDED.updated_at;
-    
-    -- Salvar mensagens individuais
-    DELETE FROM public.ia_conversations WHERE history_id = v_history_id;
-    
-    FOR v_msg IN SELECT * FROM jsonb_to_recordset(v_messages) AS x(role TEXT, content TEXT, msg_timestamp TIMESTAMPTZ)
-    LOOP
-        INSERT INTO public.ia_conversations (id, user_id, history_id, role, content, msg_timestamp)
-        VALUES (
-            gen_random_uuid()::TEXT,
-            p_user_id,
-            v_history_id,
-            v_msg.role,
-            v_msg.content,
-            COALESCE(v_msg.msg_timestamp, NOW())
-        );
-    END LOOP;
-    
-    RETURN 'SUCESSO: Histórico de IA salvo!';
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 22.3 DELETE IA HISTORY
-CREATE OR REPLACE FUNCTION delete_ia_history(
-    p_user_id UUID,
-    p_history_id TEXT
-)
-RETURNS TEXT AS $$
-DECLARE
-    v_exists BOOLEAN;
-BEGIN
-    SELECT EXISTS (
-        SELECT 1 FROM public.ia_history 
-        WHERE id = p_history_id AND user_id = p_user_id
-    ) INTO v_exists;
-    
-    IF NOT v_exists THEN
-        RETURN 'ERRO: Histórico não encontrado!';
-    END IF;
-    
-    DELETE FROM public.ia_conversations WHERE history_id = p_history_id;
-    DELETE FROM public.ia_history WHERE id = p_history_id AND user_id = p_user_id;
-    
-    RETURN 'SUCESSO: Histórico de IA deletado!';
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 22.4 GET IA CONVERSATION (CORRIGIDO)
-CREATE OR REPLACE FUNCTION get_ia_conversation(
-    p_user_id UUID,
-    p_history_id TEXT
-)
-RETURNS TABLE(
-    id TEXT,
-    role TEXT,
-    content TEXT,
-    msg_timestamp TIMESTAMPTZ
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        c.id,
-        c.role,
-        c.content,
-        c.msg_timestamp
-    FROM public.ia_conversations c
-    WHERE c.user_id = p_user_id AND c.history_id = p_history_id
-    ORDER BY c.msg_timestamp ASC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- GRANT PERMISSIONS FOR IA FUNCTIONS
-GRANT EXECUTE ON FUNCTION get_ia_history(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION save_ia_history(UUID, JSONB) TO authenticated;
-GRANT EXECUTE ON FUNCTION delete_ia_history(UUID, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION get_ia_conversation(UUID, TEXT) TO authenticated;
-
--- ============================================
--- 23. FUNÇÃO: get_admin_stats
+-- 20. FUNÇÃO: get_admin_stats
 -- ============================================
 CREATE OR REPLACE FUNCTION get_admin_stats()
 RETURNS TABLE(
@@ -752,7 +608,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- 24. FUNÇÃO: get_recent_activities
+-- 21. FUNÇÃO: get_recent_activities
 -- ============================================
 CREATE OR REPLACE FUNCTION get_recent_activities(limit_count INTEGER DEFAULT 10)
 RETURNS TABLE(
@@ -825,10 +681,31 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- 25. FUNÇÕES DE NOTIFICAÇÃO
+-- 21.5 FUNÇÃO: get_logs_stats (CORREÇÃO)
+-- ============================================
+CREATE OR REPLACE FUNCTION get_logs_stats()
+RETURNS TABLE(
+    total_logs BIGINT,
+    logs_seguranca BIGINT,
+    logs_hoje BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) AS total_logs,
+        COUNT(*) FILTER (WHERE tipo = 'security') AS logs_seguranca,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS logs_hoje
+    FROM public.audit_logs;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION get_logs_stats() TO authenticated;
+
+-- ============================================
+-- 22. FUNÇÕES DE NOTIFICAÇÃO (CORRIGIDAS)
 -- ============================================
 
--- 25.1 enviar_notificacao_para_todos
+-- 22.1 FUNÇÃO: enviar_notificacao_para_todos
 CREATE OR REPLACE FUNCTION enviar_notificacao_para_todos(
     p_titulo TEXT,
     p_mensagem TEXT,
@@ -894,7 +771,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 25.2 enviar_notificacao_para_role
+-- 22.2 FUNÇÃO: enviar_notificacao_para_role
 CREATE OR REPLACE FUNCTION enviar_notificacao_para_role(
     p_role TEXT,
     p_titulo TEXT,
@@ -973,7 +850,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 25.3 enviar_notificacao_para_usuario
+-- 22.3 FUNÇÃO: enviar_notificacao_para_usuario
 CREATE OR REPLACE FUNCTION enviar_notificacao_para_usuario(
     p_email TEXT,
     p_titulo TEXT,
@@ -1042,7 +919,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 25.4 enviar_notificacao (principal)
+-- 22.4 FUNÇÃO PRINCIPAL: enviar_notificacao
 CREATE OR REPLACE FUNCTION enviar_notificacao(
     p_destino TEXT,
     p_titulo TEXT,
@@ -1083,6 +960,7 @@ BEGIN
         );
     END IF;
     
+    -- Se for um email (contém @), enviar para usuário específico
     IF (p_destino LIKE '%@%') THEN
         RETURN enviar_notificacao_para_usuario(
             p_email => p_destino,
@@ -1111,7 +989,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 25.5 get_notificacoes_admin
+-- 22.5 FUNÇÃO: get_notificacoes_admin
 CREATE OR REPLACE FUNCTION get_notificacoes_admin(
     p_limit INTEGER DEFAULT 50,
     p_offset INTEGER DEFAULT 0
@@ -1160,7 +1038,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 25.6 marcar_notificacao_lida
+-- 22.6 FUNÇÃO: marcar_notificacao_lida
 CREATE OR REPLACE FUNCTION marcar_notificacao_lida(
     p_notificacao_id TEXT,
     p_user_id UUID
@@ -1196,7 +1074,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- 26. FUNÇÕES DA TABELA DE REGRAS
+-- 23. FUNÇÕES DA TABELA DE REGRAS
 -- ============================================
 
 CREATE OR REPLACE FUNCTION verificar_permissao(
@@ -1340,10 +1218,11 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- 27. INSERIR REGRAS PADRÃO
+-- 24. INSERIR REGRAS PADRÃO
 -- ============================================
 
 INSERT INTO public.system_rules (nome, descricao, categoria, tipo, tabela, operacao, condicao, prioridade) VALUES
+-- ADMIN: PERMISSAO TOTAL
 ('Admin - Ver todos os perfis', 'Admin ve todos os perfis', 'admin', 'permissao', 'profiles', 'SELECT', NULL, 100),
 ('Admin - Ver todas as tasks', 'Admin ve todas as tasks', 'admin', 'permissao', 'tasks', 'SELECT', NULL, 100),
 ('Admin - Ver todas as notificacoes', 'Admin ve todas as notificacoes', 'admin', 'permissao', 'notifications', 'SELECT', NULL, 100),
@@ -1353,9 +1232,8 @@ INSERT INTO public.system_rules (nome, descricao, categoria, tipo, tabela, opera
 ('Admin - Atualizar perfis', 'Admin atualiza qualquer perfil', 'admin', 'permissao', 'profiles', 'UPDATE', NULL, 90),
 ('Admin - Ver regras', 'Admin ve regras do sistema', 'admin', 'permissao', 'system_rules', 'SELECT', NULL, 100),
 ('Admin - Gerenciar regras', 'Admin gerencia regras do sistema', 'admin', 'permissao', 'system_rules', 'ALL', NULL, 100),
-('Admin - Ver historico IA', 'Admin ve historico de IA de todos', 'admin', 'permissao', 'ia_history', 'SELECT', NULL, 100),
-('Admin - Gerenciar historico IA', 'Admin gerencia historico de IA', 'admin', 'permissao', 'ia_history', 'ALL', NULL, 100),
 
+-- USER: APENAS PROPRIOS DADOS
 ('User - Ver proprio perfil', 'User ve apenas seu perfil', 'user', 'permissao', 'profiles', 'SELECT', 'auth.uid() = id', 50),
 ('User - Atualizar proprio perfil', 'User atualiza apenas seu perfil', 'user', 'permissao', 'profiles', 'UPDATE', 'auth.uid() = id', 50),
 ('User - Ver proprias tasks', 'User ve apenas suas tasks', 'user', 'permissao', 'tasks', 'SELECT', 'auth.uid() = user_id', 50),
@@ -1368,14 +1246,10 @@ INSERT INTO public.system_rules (nome, descricao, categoria, tipo, tabela, opera
 ('User - Atualizar proprias notas', 'User atualiza apenas suas notas', 'user', 'permissao', 'notes', 'UPDATE', 'auth.uid() = user_id', 50),
 ('User - Deletar proprias notas', 'User deleta apenas suas notas', 'user', 'permissao', 'notes', 'DELETE', 'auth.uid() = user_id', 50),
 ('User - Ver proprios eventos', 'User ve apenas seus eventos', 'user', 'permissao', 'calendar_events', 'SELECT', 'auth.uid() = user_id', 50),
-('User - Ver proprias disciplinas', 'User ve apenas suas disciplinas', 'user', 'permissao', 'disciplinas', 'SELECT', 'auth.uid() = user_id', 50),
-('User - Ver proprio historico IA', 'User ve apenas seu historico IA', 'user', 'permissao', 'ia_history', 'SELECT', 'auth.uid() = user_id', 50),
-('User - Criar historico IA', 'User cria seu historico IA', 'user', 'permissao', 'ia_history', 'INSERT', 'auth.uid() = user_id', 50),
-('User - Atualizar proprio historico IA', 'User atualiza seu historico IA', 'user', 'permissao', 'ia_history', 'UPDATE', 'auth.uid() = user_id', 50),
-('User - Deletar proprio historico IA', 'User deleta seu historico IA', 'user', 'permissao', 'ia_history', 'DELETE', 'auth.uid() = user_id', 50);
+('User - Ver proprias disciplinas', 'User ve apenas suas disciplinas', 'user', 'permissao', 'disciplinas', 'SELECT', 'auth.uid() = user_id', 50);
 
 -- ============================================
--- 28. POLÍTICAS RLS
+-- 25. POLÍTICAS RLS CORRETAS
 -- ============================================
 
 -- PROFILES
@@ -1576,6 +1450,24 @@ ON public.admin_notifications FOR DELETE
 TO authenticated
 USING (is_admin());
 
+-- AUDIT_LOGS (CORREÇÃO)
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin view audit logs"
+ON public.audit_logs FOR SELECT
+TO authenticated
+USING (is_admin());
+
+CREATE POLICY "Admin insert audit logs"
+ON public.audit_logs FOR INSERT
+TO authenticated
+WITH CHECK (is_admin());
+
+CREATE POLICY "Admin delete audit logs"
+ON public.audit_logs FOR DELETE
+TO authenticated
+USING (is_admin());
+
 -- USER_SETTINGS
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
@@ -1643,70 +1535,8 @@ ON public.system_rules FOR DELETE
 TO authenticated
 USING (is_admin());
 
--- IA_HISTORY
-ALTER TABLE public.ia_history ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "User view own ia history"
-ON public.ia_history FOR SELECT
-TO authenticated
-USING (auth.uid() = user_id);
-
-CREATE POLICY "User insert ia history"
-ON public.ia_history FOR INSERT
-TO authenticated
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "User update own ia history"
-ON public.ia_history FOR UPDATE
-TO authenticated
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "User delete own ia history"
-ON public.ia_history FOR DELETE
-TO authenticated
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Admin view all ia history"
-ON public.ia_history FOR SELECT
-TO authenticated
-USING (is_admin());
-
-CREATE POLICY "Admin delete all ia history"
-ON public.ia_history FOR DELETE
-TO authenticated
-USING (is_admin());
-
--- IA_CONVERSATIONS
-ALTER TABLE public.ia_conversations ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "User view own ia conversations"
-ON public.ia_conversations FOR SELECT
-TO authenticated
-USING (auth.uid() = user_id);
-
-CREATE POLICY "User insert ia conversations"
-ON public.ia_conversations FOR INSERT
-TO authenticated
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "User delete own ia conversations"
-ON public.ia_conversations FOR DELETE
-TO authenticated
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Admin view all ia conversations"
-ON public.ia_conversations FOR SELECT
-TO authenticated
-USING (is_admin());
-
-CREATE POLICY "Admin delete all ia conversations"
-ON public.ia_conversations FOR DELETE
-TO authenticated
-USING (is_admin());
-
 -- ============================================
--- 29. STORAGE BUCKET
+-- 26. STORAGE BUCKET
 -- ============================================
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES ('user-content', 'user-content', true, 5242880)
@@ -1767,7 +1597,7 @@ BEGIN
 END $$;
 
 -- ============================================
--- 30. CRIAR PERFIS PARA USUÁRIOS FALTANTES
+-- 27. CRIAR PERFIS PARA USUÁRIOS FALTANTES
 -- ============================================
 INSERT INTO public.profiles (id, email, nome, avatar_url, role, created_at, updated_at)
 SELECT 
@@ -1788,20 +1618,24 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = NOW();
 
 -- ============================================
--- 31. TORNAR USUÁRIO ADMIN
+-- 28. TORNAR USUÁRIO ADMIN (APENAS O PRINCIPAL)
 -- ============================================
 SELECT tornar_admin('projectozerosatus@gmail.com');
 
 -- ============================================
--- 32. VERIFICAÇÕES FINAIS
+-- 29. VERIFICAÇÕES FINAIS
 -- ============================================
 
+-- Verificar todos os usuários
 SELECT id, email, nome, role FROM public.profiles ORDER BY created_at DESC;
 
+-- Verificar estatísticas
 SELECT * FROM get_admin_stats();
 
+-- Verificar regras
 SELECT * FROM listar_regras();
 
+-- Verificar se o admin está correto
 SELECT 
     id, 
     email, 
@@ -1815,8 +1649,11 @@ SELECT
 FROM public.profiles 
 WHERE email = 'projectozerosatus@gmail.com' OR role = 'admin';
 
+-- Verificar a tabela audit_logs e função get_logs_stats
+SELECT * FROM get_logs_stats();
+
 -- ============================================
--- 33. TESTAR NOTIFICAÇÃO
+-- 30. TESTAR NOTIFICAÇÃO
 -- ============================================
 SELECT enviar_notificacao(
     'todos',
@@ -1831,7 +1668,7 @@ SELECT enviar_notificacao(
 );
 
 -- ============================================
--- 34. MENSAGEM DE CONCLUSÃO
+-- 31. MENSAGEM DE CONCLUSÃO
 -- ============================================
 DO $$ 
 BEGIN
@@ -1847,106 +1684,11 @@ BEGIN
     RAISE NOTICE '📬 FUNCOES DE NOTIFICACAO:';
     RAISE NOTICE '   - enviar_notificacao(destino, titulo, mensagem)';
     RAISE NOTICE '============================================';
-    RAISE NOTICE '🤖 HISTORICO DE IA:';
-    RAISE NOTICE '   - get_ia_history(user_id) - Lista conversas';
-    RAISE NOTICE '   - save_ia_history(user_id, history_json) - Salva conversa';
-    RAISE NOTICE '   - delete_ia_history(user_id, history_id) - Deleta conversa';
-    RAISE NOTICE '   - get_ia_conversation(user_id, history_id) - Pega mensagens';
-    RAISE NOTICE '============================================';
-    RAISE NOTICE '🔄 SINCRONIZACAO PC/MOBILE:';
-    RAISE NOTICE '   - Historico de IA sincronizado automaticamente';
-    RAISE NOTICE '   - Mensagens individuais armazenadas';
-    RAISE NOTICE '   - Compativel com PC e Mobile';
+    RAISE NOTICE '📊 FUNCAO get_logs_stats CRIADA!';
     RAISE NOTICE '============================================';
     RAISE NOTICE '⚠️ IMPORTANTE: Saia e entre novamente!';
     RAISE NOTICE '============================================';
 END $$;
-
-
-
-
-
-
-
-
-
-
-
-
-
-colar a parte no canto 
--- ============================================
--- HABILITAR REALTIME PARA NOTIFICAÇÕES
--- ============================================
-
-ALTER TABLE public.notifications REPLICA IDENTITY FULL;
-
-CREATE OR REPLACE FUNCTION notify_new_notification()
-RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM pg_notify(
-        'notification_' || NEW.user_id,
-        json_build_object(
-            'id', NEW.id,
-            'title', NEW.title,
-            'message', NEW.message,
-            'type', NEW.type,
-            'created_at', NEW.created_at
-        )::text
-    );
-    
-    IF NEW.read = true AND OLD.read = false THEN
-        PERFORM pg_notify(
-            'notification_read',
-            json_build_object(
-                'notification_id', NEW.id,
-                'user_id', NEW.user_id
-            )::text
-        );
-    END IF;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS trigger_notify_notification ON public.notifications;
-
-CREATE TRIGGER trigger_notify_notification
-    AFTER INSERT OR UPDATE OF read ON public.notifications
-    FOR EACH ROW
-    EXECUTE FUNCTION notify_new_notification();
-
--- ============================================
--- VERIFICAR SE FUNCIONOU (VERSÃO CORRIGIDA)
--- ============================================
-SELECT 
-    tablename,
-    CASE 
-        WHEN relreplident = 'f' THEN 'FULL'
-        WHEN relreplident = 'd' THEN 'DEFAULT'
-        WHEN relreplident = 'n' THEN 'NOTHING'
-        WHEN relreplident = 'i' THEN 'INDEX'
-        ELSE 'DESCONHECIDO'
-    END as replica_identity
-FROM pg_catalog.pg_class c
-JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-JOIN pg_catalog.pg_tables t ON t.tablename = c.relname AND t.schemaname = n.nspname
-WHERE t.tablename = 'notifications'
-AND t.schemaname = 'public';
-
-DO $$
-BEGIN
-    RAISE NOTICE '============================================';
-    RAISE NOTICE '✅ REALTIME PARA NOTIFICACOES ATIVADO!';
-    RAISE NOTICE '============================================';
-    RAISE NOTICE '📬 Tabela: public.notifications';
-    RAISE NOTICE '🔔 Canal: notification_{user_id}';
-    RAISE NOTICE '============================================';
-END $$;
-
-
-
-
 
 
 
