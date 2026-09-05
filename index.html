@@ -92,23 +92,28 @@
     }
     </script>
     
-    <!-- CSS ESPECÍFICO PARA O 3D INTERATIVO -->
+    <!-- CSS ESPECÍFICO PARA O 3D INTERATIVO - VERSÃO SIMPLES -->
     <style>
         /* =============================================
-           CSS 3D INTERATIVO
+           CSS 3D INTERATIVO - VERSÃO SIMPLES (SÓ MODELO)
            ============================================= */
 
         .interactive-3d-container {
             position: relative;
             width: 100%;
-            max-width: 800px;
-            height: 500px;
-            margin: 40px auto;
+            max-width: 900px;
+            height: 550px;
+            margin: 0 auto;
             border-radius: 20px;
             overflow: hidden;
-            perspective: 1000px;
+            perspective: 1200px;
             box-shadow: 0 20px 60px rgba(147, 51, 234, 0.3);
             background: linear-gradient(135deg, #1e1b2e 0%, #0f172a 100%);
+            cursor: grab;
+        }
+
+        .interactive-3d-container:active {
+            cursor: grabbing;
         }
 
         .iframe-wrapper {
@@ -119,6 +124,7 @@
             transform-style: preserve-3d;
             position: relative;
             z-index: 2;
+            will-change: transform;
         }
 
         .iframe-wrapper iframe {
@@ -127,184 +133,63 @@
             border: none;
             border-radius: 20px;
             background: #0f172a;
+            pointer-events: none; /* Permite arrastar sem interferir com o iframe */
         }
 
-        .overlay-3d {
+        /* Dica visual sutil */
+        .drag-hint {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 50px;
+            color: white;
+            font-size: 0.85rem;
             display: flex;
             align-items: center;
-            justify-content: center;
-            z-index: 3;
+            gap: 10px;
+            z-index: 10;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.3s;
             pointer-events: none;
+        }
+
+        .drag-hint i {
+            color: var(--accent);
+            font-size: 1rem;
+        }
+
+        .drag-hint.hidden {
             opacity: 0;
-            transition: opacity 0.3s ease;
-            background: linear-gradient(135deg, rgba(147, 51, 234, 0.3), rgba(15, 23, 42, 0.5));
-            backdrop-filter: blur(5px);
         }
 
-        .interactive-3d-container:hover .overlay-3d {
-            opacity: 1;
-        }
-
-        .overlay-content {
-            text-align: center;
-            color: white;
-            pointer-events: none;
-        }
-
-        .overlay-content i {
-            font-size: 3rem;
-            color: var(--accent);
-            margin-bottom: 16px;
-            display: block;
-            animation: float3d 2s ease-in-out infinite;
-        }
-
-        .overlay-content h3 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-        }
-
-        .overlay-content p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .controls-3d {
-            position: absolute;
-            bottom: 16px;
-            left: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 4;
-        }
-
-        .control-btn {
-            width: 40px;
-            height: 40px;
-            background: rgba(30, 41, 59, 0.9);
-            border: 1px solid var(--accent);
-            border-radius: 8px;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-        }
-
-        .control-btn:hover {
-            background: var(--accent);
-            transform: scale(1.1);
-        }
-
-        .control-btn.active {
-            background: var(--accent);
-            box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
-        }
-
-        .rotation-indicator {
-            position: absolute;
-            bottom: 16px;
-            right: 16px;
-            background: rgba(30, 41, 59, 0.9);
-            padding: 8px 12px;
-            border-radius: 8px;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            z-index: 4;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s;
-        }
-
-        .rotation-indicator i {
-            color: var(--accent);
-        }
-
-        .rotation-indicator.rotating {
-            background: var(--accent);
-            color: white;
-        }
-
-        .rotation-indicator.rotating i {
-            color: white;
-        }
-
-        .interactive-3d-container::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at center, rgba(147, 51, 234, 0.1) 0%, transparent 50%);
-            transform: rotate(0deg);
-            z-index: 1;
-            transition: transform 0.1s ease-out;
-        }
-
-        @keyframes float3d {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
+        /* Responsividade */
         @media (max-width: 768px) {
             .interactive-3d-container {
-                width: 100%;
-                height: 300px;
-                margin: 20px 0;
+                height: 350px;
+                border-radius: 12px;
             }
             
-            .controls-3d {
-                bottom: 8px;
-                left: 8px;
-            }
-            
-            .rotation-indicator {
-                bottom: 8px;
-                right: 8px;
-            }
-            
-            .overlay-content i {
-                font-size: 2rem;
-            }
-            
-            .overlay-content h3 {
-                font-size: 1.2rem;
-            }
-            
-            .overlay-content p {
-                font-size: 0.8rem;
+            .drag-hint {
+                bottom: 12px;
+                padding: 8px 16px;
+                font-size: 0.75rem;
             }
         }
 
         @media (max-width: 480px) {
             .interactive-3d-container {
-                height: 250px;
+                height: 280px;
             }
             
-            .control-btn {
-                width: 36px;
-                height: 36px;
-                font-size: 0.8rem;
-            }
-            
-            .rotation-indicator {
+            .drag-hint {
+                bottom: 8px;
+                padding: 6px 12px;
                 font-size: 0.7rem;
-                padding: 6px 10px;
             }
         }
     </style>
@@ -483,14 +368,14 @@
     </section>
 
     <!-- ============================================ -->
-    <!-- 🔥 3D INTERATIVO (ADICIONADO AQUI) -->
+    <!-- 🔥 3D INTERATIVO - VERSÃO LIMPA (SÓ O MODELO) -->
     <!-- ============================================ -->
     
-    <section id="3d-interactive" style="padding: 60px 0; background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), transparent);">
+    <section id="3d-interactive" style="padding: 60px 0;">
         <div class="container">
             <div class="section-title">
                 <h2>Explore em <span>3D</span></h2>
-                <p>Interaja com nosso modelo tridimensional</p>
+                <p>Arraste para girar o modelo</p>
             </div>
             
             <div class="interactive-3d-container">
@@ -503,32 +388,10 @@
                     </iframe>
                 </div>
                 
-                <div class="overlay-3d">
-                    <div class="overlay-content">
-                        <i class="fas fa-cube"></i>
-                        <h3>Explore em 3D</h3>
-                        <p>Arraste para interagir com o modelo</p>
-                    </div>
-                </div>
-                
-                <div class="controls-3d">
-                    <button class="control-btn" data-action="rotate-left" title="Rotacionar para esquerda">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button class="control-btn" data-action="rotate-right" title="Rotacionar para direita">
-                        <i class="fas fa-redo"></i>
-                    </button>
-                    <button class="control-btn" data-action="reset" title="Resetar visualização">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <button class="control-btn" data-action="toggle-rotate" title="Parar/Iniciar rotação automática">
-                        <i class="fas fa-pause"></i>
-                    </button>
-                </div>
-                
-                <div class="rotation-indicator">
+                <!-- Dica visual sutil -->
+                <div class="drag-hint">
                     <i class="fas fa-mouse-pointer"></i>
-                    <span>Arraste para explorar</span>
+                    <span>Arraste para girar</span>
                 </div>
             </div>
         </div>
@@ -759,20 +622,19 @@
     <script src="script.js"></script>
 
     <!-- ============================================ -->
-    <!-- 🔥 3D INTERACTIVE JAVASCRIPT -->
+    <!-- 🔥 3D INTERACTIVE JAVASCRIPT - VERSÃO SIMPLES -->
     <!-- ============================================ -->
     
     <script>
     // ============================================
-    // 3D INTERACTIVE IFRAME
+    // 3D INTERACTIVE IFRAME - VERSÃO SIMPLES
     // ============================================
 
     class Interactive3DIframe {
         constructor() {
             this.container = document.querySelector('.interactive-3d-container');
             this.iframeWrapper = document.querySelector('.iframe-wrapper');
-            this.overlay = document.querySelector('.overlay-3d');
-            this.rotationIndicator = document.querySelector('.rotation-indicator');
+            this.dragHint = document.querySelector('.drag-hint');
             
             if (!this.container || !this.iframeWrapper) return;
             
@@ -782,52 +644,13 @@
             this.isAutoRotating = true;
             this.lastMouseX = 0;
             this.lastMouseY = 0;
-            this.autoRotateSpeed = 0.5;
-            this.maxRotation = 30;
-            this.currentScale = 1;
+            this.autoRotateSpeed = 0.3;
+            this.maxRotation = 25;
             
-            this.initControls();
             this.initEvents();
             this.initAutoRotation();
             this.initTouchSupport();
-        }
-        
-        initControls() {
-            const controlsHTML = `
-                <div class="controls-3d">
-                    <button class="control-btn" data-action="rotate-left" title="Rotacionar esquerda">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button class="control-btn" data-action="rotate-right" title="Rotacionar direita">
-                        <i class="fas fa-redo"></i>
-                    </button>
-                    <button class="control-btn" data-action="reset" title="Resetar view">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <button class="control-btn" data-action="toggle-rotate" title="Parar rotação">
-                        <i class="fas fa-pause"></i>
-                    </button>
-                </div>
-                <div class="rotation-indicator">
-                    <i class="fas fa-mouse-pointer"></i>
-                    <span>Arraste para explorar</span>
-                </div>
-            `;
-            
-            // Inserir controles
-            const parser = new DOMParser();
-            const controlsDoc = parser.parseFromString(controlsHTML, 'text/html');
-            this.container.appendChild(controlsDoc.body.firstElementChild);
-            this.container.appendChild(controlsDoc.body.lastElementChild);
-            
-            // Atualizar referências
-            this.controls = document.querySelector('.controls-3d');
-            this.rotationIndicator = document.querySelector('.rotation-indicator');
-            
-            // Bind events
-            this.controls.querySelectorAll('.control-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => this.handleControlClick(e));
-            });
+            this.hideHintAfterDelay();
         }
         
         initEvents() {
@@ -836,23 +659,18 @@
             document.addEventListener('mousemove', (e) => this.drag(e));
             document.addEventListener('mouseup', () => this.endDrag());
             
-            // Wheel event para zoom
-            this.container.addEventListener('wheel', (e) => this.handleZoom(e));
-            
             // Touch events
             this.container.addEventListener('touchstart', (e) => this.startTouch(e));
             this.container.addEventListener('touchmove', (e) => this.moveTouch(e));
             this.container.addEventListener('touchend', () => this.endTouch());
             
-            // Hover event
-            this.container.addEventListener('mouseenter', () => {
-                this.isHovering = true;
-                this.rotationIndicator.classList.add('rotating');
+            // Esconder hint ao interagir
+            this.container.addEventListener('mousedown', () => {
+                if (this.dragHint) this.dragHint.classList.add('hidden');
             });
             
-            this.container.addEventListener('mouseleave', () => {
-                this.isHovering = false;
-                this.rotationIndicator.classList.remove('rotating');
+            this.container.addEventListener('touchstart', () => {
+                if (this.dragHint) this.dragHint.classList.add('hidden');
             });
         }
         
@@ -866,12 +684,19 @@
         }
         
         initTouchSupport() {
-            // Detect touch device
             this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             
             if (this.isTouchDevice) {
-                this.rotationIndicator.querySelector('span').textContent = 'Toque e arraste';
+                if (this.dragHint) {
+                    this.dragHint.innerHTML = '<i class="fas fa-hand-pointer"></i><span>Arraste para girar</span>';
+                }
             }
+        }
+        
+        hideHintAfterDelay() {
+            setTimeout(() => {
+                if (this.dragHint) this.dragHint.classList.add('hidden');
+            }, 5000);
         }
         
         startDrag(e) {
@@ -880,15 +705,8 @@
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
             
-            // Atualizar indicador
-            this.rotationIndicator.classList.add('rotating');
-            this.rotationIndicator.querySelector('span').textContent = 'Explorando...';
-            
-            // Atualizar botão pause
-            const pauseBtn = this.controls.querySelector('[data-action="toggle-rotate"]');
-            if (pauseBtn) {
-                pauseBtn.querySelector('i').className = 'fas fa-play';
-                pauseBtn.classList.add('active');
+            if (this.dragHint) {
+                this.dragHint.classList.add('hidden');
             }
         }
         
@@ -901,7 +719,6 @@
             this.rotationY += deltaX * 0.3;
             this.rotationX -= deltaY * 0.3;
             
-            // Limitar rotação
             this.rotationX = Math.max(-this.maxRotation, Math.min(this.maxRotation, this.rotationX));
             
             this.lastMouseX = e.clientX;
@@ -916,6 +733,8 @@
                 this.isAutoRotating = false;
                 this.lastTouchX = e.touches[0].clientX;
                 this.lastTouchY = e.touches[0].clientY;
+                
+                if (this.dragHint) this.dragHint.classList.add('hidden');
             }
         }
         
@@ -941,10 +760,6 @@
         endDrag() {
             this.isDragging = false;
             this.isAutoRotating = true;
-            
-            // Reset indicator
-            this.rotationIndicator.classList.remove('rotating');
-            this.rotationIndicator.querySelector('span').textContent = 'Arraste para explorar';
         }
         
         endTouch() {
@@ -952,87 +767,17 @@
             this.isAutoRotating = true;
         }
         
-        handleZoom(e) {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? -5 : 5;
-            this.currentScale = Math.max(0.5, Math.min(1.5, (this.currentScale || 1) + delta * 0.01));
-            this.iframeWrapper.style.transform = `scale(${this.currentScale}) rotateX(${this.rotationX}deg) rotateY(${this.rotationY}deg)`;
-        }
-        
-        handleControlClick(e) {
-            const action = e.currentTarget.dataset.action;
-            
-            switch(action) {
-                case 'rotate-left':
-                    this.rotationY -= 15;
-                    this.applyTransform();
-                    break;
-                case 'rotate-right':
-                    this.rotationY += 15;
-                    this.applyTransform();
-                    break;
-                case 'reset':
-                    this.rotationX = 0;
-                    this.rotationY = 0;
-                    this.currentScale = 1;
-                    this.applyTransform();
-                    break;
-                case 'toggle-rotate':
-                    this.isAutoRotating = !this.isAutoRotating;
-                    const btn = e.currentTarget;
-                    btn.querySelector('i').className = this.isAutoRotating ? 'fas fa-pause' : 'fas fa-play';
-                    btn.classList.toggle('active');
-                    
-                    // Mostrar toast
-                    if (window.mostrarToast) {
-                        mostrarToast(this.isAutoRotating ? '▶️ Rotação automática ativada' : '⏸️ Rotação pausada');
-                    }
-                    break;
-            }
-        }
-        
         applyTransform() {
             this.iframeWrapper.style.transform = `rotateX(${this.rotationX}deg) rotateY(${this.rotationY}deg)`;
-            
-            // Criar efeito parallax no background
-            this.container.style.setProperty('--rotation-y', `${this.rotationY}deg`);
-            
-            // Atualizar tooltip de posição
-            this.updateRotationInfo();
-        }
-        
-        updateRotationInfo() {
-            this.rotationIndicator.querySelector('span').textContent = 
-                `X: ${this.rotationX.toFixed(0)}° | Y: ${this.rotationY.toFixed(0)}°`;
         }
     }
 
-    // Inicializar
+    // Inicializar quando o DOM estiver pronto
     document.addEventListener('DOMContentLoaded', () => {
         const interactive3D = new Interactive3DIframe();
         
-        // Expor para console
+        // Expor para console para debug
         window.interactive3D = interactive3D;
-        
-        // Adicionar efeito de tilt no hover (apenas desktop)
-        if (!interactive3D.isTouchDevice) {
-            interactive3D.container.addEventListener('mousemove', (e) => {
-                if (!interactive3D.isDragging) return;
-                
-                const rect = interactive3D.container.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const mouseX = e.clientX - centerX;
-                const mouseY = e.clientY - centerY;
-                
-                const tiltX = -(mouseY / rect.height) * 15;
-                const tiltY = (mouseX / rect.width) * 15;
-                
-                interactive3D.rotationX = tiltX;
-                interactive3D.rotationY = tiltY;
-                interactive3D.applyTransform();
-            });
-        }
     });
     </script>
 
