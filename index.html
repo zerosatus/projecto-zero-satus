@@ -91,770 +91,220 @@
       }
     }
     </script>
+    
+    <!-- CSS ESPECÍFICO PARA O 3D INTERATIVO -->
     <style>
-        /* ============================================ */
-        /* ESTILOS GLOBAIS */
-        /* ============================================ */
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* =============================================
+           CSS 3D INTERATIVO
+           ============================================= */
 
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --bg-hover: #475569;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --accent: #9333ea;
-            --accent-hover: #7c3aed;
-            --accent-light: rgba(147, 51, 234, 0.15);
-            --border: #334155;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --header-height: 70px;
-            --container-padding: 16px;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b2e 50%, #0f172a 100%);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 var(--container-padding);
+        .interactive-3d-container {
+            position: relative;
             width: 100%;
-        }
-
-        /* ============================================ */
-        /* HEADER */
-        /* ============================================ */
-        
-        header {
-            padding: 12px 0;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 1000;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(147, 51, 234, 0.3);
-            height: var(--header-height);
-            display: flex;
-            align-items: center;
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: transparent;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            max-width: 800px;
+            height: 500px;
+            margin: 40px auto;
+            border-radius: 20px;
             overflow: hidden;
+            perspective: 1000px;
+            box-shadow: 0 20px 60px rgba(147, 51, 234, 0.3);
+            background: linear-gradient(135deg, #1e1b2e 0%, #0f172a 100%);
         }
 
-        .logo-icon img {
+        .iframe-wrapper {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .logo-text {
-            font-size: 22px;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent), #a855f7);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-        }
-
-        /* Menu Desktop */
-        .desktop-menu {
-            display: none;
-        }
-
-        .desktop-menu ul {
-            display: flex;
-            gap: 30px;
-            list-style: none;
-        }
-
-        .desktop-menu ul li a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-            font-size: 0.95rem;
-        }
-
-        .desktop-menu ul li a:hover {
-            color: var(--accent);
-        }
-
-        /* Botão Entrar */
-        .btn-login {
-            background: transparent;
-            border: 2px solid var(--accent);
-            color: var(--accent);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.9rem;
-            white-space: nowrap;
-        }
-
-        .btn-login:hover {
-            background: var(--accent);
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        /* ============================================ */
-        /* 🔥 BOTÃO INSTALAR APP - SÓ PC */
-        /* ============================================ */
-        
-        #installAppBtn {
-            display: none !important;
-            background: linear-gradient(135deg, #9333ea, #7c3aed);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-left: 10px;
-            transition: all 0.3s;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            white-space: nowrap;
-            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3);
-        }
-
-        #installAppBtn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(147, 51, 234, 0.5);
-        }
-
-        #installAppBtn i {
-            font-size: 1rem;
-        }
-
-        #installAppBtn.visible {
-            display: inline-flex !important;
-        }
-
-        /* ============================================ */
-        /* 🔥 BOTÃO VER DEMO - SÓ MOBILE */
-        /* ============================================ */
-        
-        #btnDemo {
-            display: none !important;
-        }
-        
-        @media (max-width: 1023px) {
-            #btnDemo {
-                display: inline-flex !important;
-            }
-        }
-        
-        @media (max-width: 640px) {
-            #btnDemo {
-                display: inline-flex !important;
-            }
-        }
-        
-        @media (min-width: 641px) and (max-width: 1023px) {
-            #btnDemo {
-                display: inline-flex !important;
-            }
-        }
-        
-        @media (min-width: 1024px) {
-            #btnDemo {
-                display: none !important;
-            }
-        }
-
-        /* ============================================ */
-        /* HERO */
-        /* ============================================ */
-        
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            padding-top: var(--header-height);
+            transform: rotateY(0deg) rotateX(0deg);
+            transition: transform 0.1s ease-out;
+            transform-style: preserve-3d;
             position: relative;
-            overflow: hidden;
-            padding-bottom: 40px;
+            z-index: 2;
         }
 
-        .hero::before {
-            content: '';
+        .iframe-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 20px;
+            background: #0f172a;
+        }
+
+        .overlay-3d {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 20% 50%, rgba(147, 51, 234, 0.1) 0%, transparent 50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            background: linear-gradient(135deg, rgba(147, 51, 234, 0.3), rgba(15, 23, 42, 0.5));
+            backdrop-filter: blur(5px);
+        }
+
+        .interactive-3d-container:hover .overlay-3d {
+            opacity: 1;
+        }
+
+        .overlay-content {
+            text-align: center;
+            color: white;
             pointer-events: none;
         }
 
-        .hero-content {
-            display: flex;
-            flex-direction: column;
-            gap: 40px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .hero-text h1 {
-            font-size: clamp(28px, 6vw, 48px);
-            line-height: 1.2;
-            margin-bottom: 16px;
-        }
-
-        .hero-text h1 span {
+        .overlay-content i {
+            font-size: 3rem;
             color: var(--accent);
-            position: relative;
-            display: inline-block;
+            margin-bottom: 16px;
+            display: block;
+            animation: float3d 2s ease-in-out infinite;
         }
 
-        .hero-text h1 span::after {
-            content: '';
-            position: absolute;
-            bottom: 5px;
-            left: 0;
-            width: 100%;
-            height: 8px;
-            background: var(--accent-light);
-            z-index: -1;
+        .overlay-content h3 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
         }
 
-        .hero-text p {
-            font-size: clamp(14px, 4vw, 18px);
+        .overlay-content p {
             color: var(--text-secondary);
-            margin-bottom: 24px;
+            font-size: 0.9rem;
         }
 
-        .hero-buttons {
+        .controls-3d {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-bottom: 30px;
+            gap: 8px;
+            z-index: 4;
         }
 
-        .btn-primary, .btn-secondary {
-            padding: 14px 24px;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            color: white;
             cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            width: 100%;
-            border: none;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            border: 2px solid var(--accent);
-            color: var(--accent);
-        }
-
-        .btn-secondary:hover {
-            background: var(--accent);
-            color: white;
-            transform: translateY(-3px);
-        }
-
-        .hero-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 20px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: clamp(20px, 5vw, 32px);
-            font-weight: 700;
-            color: var(--accent);
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .hero-image {
-            position: relative;
-            margin-top: 20px;
-        }
-
-        .hero-image img {
-            width: 100%;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(147, 51, 234, 0.3);
-        }
-
-        /* ============================================ */
-        /* FEATURES */
-        /* ============================================ */
-        
-        .features, .modules, .testimonials {
-            padding: 60px 0;
-        }
-
-        .section-title {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .section-title h2 {
-            font-size: clamp(24px, 5vw, 36px);
-            margin-bottom: 12px;
-        }
-
-        .section-title h2 span {
-            color: var(--accent);
-        }
-
-        .section-title p {
-            color: var(--text-secondary);
-            font-size: clamp(14px, 3.5vw, 18px);
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 0 16px;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-
-        .feature-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(147, 51, 234, 0.2);
-            border-radius: 20px;
-            padding: 24px;
             transition: all 0.3s;
             backdrop-filter: blur(10px);
         }
 
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent);
-            box-shadow: 0 20px 40px rgba(147, 51, 234, 0.2);
-        }
-
-        .feature-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--accent-light);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: var(--accent);
-            margin-bottom: 16px;
-        }
-
-        .feature-card h3 {
-            font-size: 1.1rem;
-            margin-bottom: 12px;
-        }
-
-        .feature-card p {
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-        }
-
-        /* ============================================ */
-        /* MODULES */
-        /* ============================================ */
-        
-        .modules-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-        }
-
-        .module-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(147, 51, 234, 0.2);
-            border-radius: 16px;
-            padding: 20px 16px;
-            text-align: center;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .module-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent);
-        }
-
-        .module-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--accent-light);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: var(--accent);
-            margin: 0 auto 12px;
-        }
-
-        .module-card h3 {
-            font-size: 0.9rem;
-            margin-bottom: 6px;
-        }
-
-        .module-card p {
-            color: var(--text-secondary);
-            font-size: 0.7rem;
-        }
-
-        /* ============================================ */
-        /* TESTIMONIALS */
-        /* ============================================ */
-        
-        .testimonials-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-
-        .testimonial-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(147, 51, 234, 0.2);
-            border-radius: 16px;
-            padding: 24px;
-        }
-
-        .testimonial-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .testimonial-avatar {
-            width: 40px;
-            height: 40px;
+        .control-btn:hover {
             background: var(--accent);
-            border-radius: 50%;
+            transform: scale(1.1);
+        }
+
+        .control-btn.active {
+            background: var(--accent);
+            box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
+        }
+
+        .rotation-indicator {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            z-index: 4;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 1rem;
-            flex-shrink: 0;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
         }
 
-        .testimonial-info h4 {
-            font-size: 0.9rem;
-            margin-bottom: 4px;
-        }
-
-        .testimonial-info p {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-        }
-
-        .testimonial-text {
-            color: var(--text-secondary);
-            font-style: italic;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
-        }
-
-        .testimonial-rating {
-            color: var(--warning);
-            font-size: 0.8rem;
-        }
-
-        /* ============================================ */
-        /* CTA */
-        /* ============================================ */
-        
-        .cta {
-            padding: 60px 16px;
-            background: linear-gradient(135deg, var(--accent-light), transparent);
-            border-radius: 20px;
-            margin: 0 16px 60px;
-        }
-
-        .cta-content {
-            text-align: center;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .cta-content h2 {
-            font-size: clamp(20px, 5vw, 32px);
-            margin-bottom: 16px;
-        }
-
-        .cta-content p {
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-            font-size: 0.9rem;
-        }
-
-        .cta-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        /* ============================================ */
-        /* FOOTER */
-        /* ============================================ */
-        
-        footer {
-            background: rgba(15, 23, 42, 0.95);
-            border-top: 1px solid rgba(147, 51, 234, 0.3);
-            padding: 40px 0 20px;
-        }
-
-        .footer-content {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .footer-col h4 {
-            font-size: 1rem;
-            margin-bottom: 16px;
-            color: white;
-        }
-
-        .footer-col ul {
-            list-style: none;
-        }
-
-        .footer-col ul li {
-            margin-bottom: 8px;
-        }
-
-        .footer-col ul li a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: color 0.3s;
-            font-size: 0.85rem;
-        }
-
-        .footer-col ul li a:hover {
+        .rotation-indicator i {
             color: var(--accent);
         }
 
-        .social-links {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .social-links a {
-            width: 36px;
-            height: 36px;
-            background: var(--bg-tertiary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            transition: all 0.3s;
-        }
-
-        .footer-bottom {
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-        }
-
-        /* ============================================ */
-        /* TOAST */
-        /* ============================================ */
-        
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: linear-gradient(135deg, #10b981, #059669);
+        .rotation-indicator.rotating {
+            background: var(--accent);
             color: white;
-            padding: 16px 24px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transform: translateY(100px);
-            opacity: 0;
-            transition: all 0.3s;
-            z-index: 3000;
-            max-width: 400px;
         }
 
-        .toast.show {
-            transform: translateY(0);
-            opacity: 1;
+        .rotation-indicator.rotating i {
+            color: white;
         }
 
-        .toast.error {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
+        .interactive-3d-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(147, 51, 234, 0.1) 0%, transparent 50%);
+            transform: rotate(0deg);
+            z-index: 1;
+            transition: transform 0.1s ease-out;
         }
 
-        .toast.warning {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+        @keyframes float3d {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
-        /* ============================================ */
-        /* RESPONSIVIDADE */
-        /* ============================================ */
-        
-        @media (min-width: 640px) {
-            .features-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .testimonials-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        @media (min-width: 1024px) {
-            .desktop-menu {
-                display: block;
-            }
-            
-            .hero-content {
-                flex-direction: row;
-                align-items: center;
-                gap: 60px;
-            }
-            
-            .hero-text {
-                flex: 1;
-            }
-            
-            .hero-image {
-                flex: 1;
-            }
-            
-            .hero-buttons {
-                flex-direction: row;
-                justify-content: flex-start;
-            }
-            
-            .btn-primary, .btn-secondary {
-                width: auto;
-            }
-            
-            .features-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .modules-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .testimonials-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .footer-content {
-                grid-template-columns: 2fr repeat(3, 1fr);
-            }
-            
-            .cta-buttons {
-                flex-direction: row;
-                justify-content: center;
-            }
-            
-            #installAppBtn {
-                font-size: 0.9rem;
-                padding: 10px 20px;
-            }
-        }
-
-        @media (max-width: 1023px) {
-            #installAppBtn {
-                display: none !important;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .hero-buttons {
-                flex-direction: column;
-            }
-            .btn-primary, .btn-secondary {
+        @media (max-width: 768px) {
+            .interactive-3d-container {
                 width: 100%;
+                height: 300px;
+                margin: 20px 0;
             }
-            .toast {
-                left: 16px;
-                right: 16px;
-                max-width: none;
+            
+            .controls-3d {
+                bottom: 8px;
+                left: 8px;
+            }
+            
+            .rotation-indicator {
+                bottom: 8px;
+                right: 8px;
+            }
+            
+            .overlay-content i {
+                font-size: 2rem;
+            }
+            
+            .overlay-content h3 {
+                font-size: 1.2rem;
+            }
+            
+            .overlay-content p {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .interactive-3d-container {
+                height: 250px;
+            }
+            
+            .control-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 0.8rem;
+            }
+            
+            .rotation-indicator {
+                font-size: 0.7rem;
+                padding: 6px 10px;
             }
         }
     </style>
@@ -875,16 +325,16 @@
             </div>
             
             <!-- Menu Desktop -->
-          <nav class="desktop-menu">
-    <ul>
-        <li><a href="#home">Início</a></li>
-        <li><a href="#features">Funcionalidades</a></li>
-        <li><a href="#modules">Módulos</a></li>
-        <li><a href="#blog">Blog</a></li>
-        <li><a href="#testimonials">Depoimentos</a></li>
-        <li><a href="#contact">Contato</a></li>
-    </ul>
-</nav>
+            <nav class="desktop-menu">
+                <ul>
+                    <li><a href="#home">Início</a></li>
+                    <li><a href="#features">Funcionalidades</a></li>
+                    <li><a href="#modules">Módulos</a></li>
+                    <li><a href="#blog">Blog</a></li>
+                    <li><a href="#testimonials">Depoimentos</a></li>
+                    <li><a href="#contact">Contato</a></li>
+                </ul>
+            </nav>
 
             <!-- 🔥 BOTÃO INSTALAR - SÓ PC -->
             <button id="installAppBtn" class="install-btn">
@@ -1031,7 +481,60 @@
             </div>
         </div>
     </section>
-        <!-- ============================================ -->
+
+    <!-- ============================================ -->
+    <!-- 🔥 3D INTERATIVO (ADICIONADO AQUI) -->
+    <!-- ============================================ -->
+    
+    <section id="3d-interactive" style="padding: 60px 0; background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), transparent);">
+        <div class="container">
+            <div class="section-title">
+                <h2>Explore em <span>3D</span></h2>
+                <p>Interaja com nosso modelo tridimensional</p>
+            </div>
+            
+            <div class="interactive-3d-container">
+                <div class="iframe-wrapper">
+                    <iframe src="https://supavoxel.com/embed/cmto5dukx06k9ajcjw6kw6r4u" 
+                            width="100%" 
+                            height="100%" 
+                            style="border:none;" 
+                            allowfullscreen>
+                    </iframe>
+                </div>
+                
+                <div class="overlay-3d">
+                    <div class="overlay-content">
+                        <i class="fas fa-cube"></i>
+                        <h3>Explore em 3D</h3>
+                        <p>Arraste para interagir com o modelo</p>
+                    </div>
+                </div>
+                
+                <div class="controls-3d">
+                    <button class="control-btn" data-action="rotate-left" title="Rotacionar para esquerda">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="control-btn" data-action="rotate-right" title="Rotacionar para direita">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button class="control-btn" data-action="reset" title="Resetar visualização">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="control-btn" data-action="toggle-rotate" title="Parar/Iniciar rotação automática">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                </div>
+                
+                <div class="rotation-indicator">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <span>Arraste para explorar</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================ -->
     <!-- 🔥 BLOG - SEÇÃO DE DESTAQUE -->
     <!-- ============================================ -->
     
@@ -1192,22 +695,22 @@
                         <a href="#"><i class="fab fa-github"></i></a>
                     </div>
                 </div>
-              <div class="footer-col">
-    <h4>Links Úteis</h4>
-    <ul>
-        <li><a href='#'>Sobre nós</a></li>
-        <li><a href='blog.html'>Blog</a></li>
-        <li><a href='#'>Suporte</a></li>
-        <li><a href='termos.html'>Termos de uso</a></li>
-        <li><a href='privacidade.html'>Política de Privacidade</a></li>
-    </ul>
-</div>
+                <div class="footer-col">
+                    <h4>Links Úteis</h4>
+                    <ul>
+                        <li><a href='#'>Sobre nós</a></li>
+                        <li><a href='blog.html'>Blog</a></li>
+                        <li><a href='#'>Suporte</a></li>
+                        <li><a href='termos.html'>Termos de uso</a></li>
+                        <li><a href='privacidade.html'>Política de Privacidade</a></li>
+                    </ul>
+                </div>
                 
                 <div class="footer-col">
                     <h4>Contato</h4>
                     <ul>
                         <li><i class="fas fa-envelope" style="margin-right: 10px;"></i> ########@gmail.com</li>
-                        <li><i class="fas fa-phone" style="margin-right: 10px;"></i> +""###""##"#"#"#</li>
+                        <li><i class="fas fa-phone" style="margin-right: 10px;"></i> +"###"##"#"#"#</li>
                         <li><i class="fas fa-map-marker-alt" style="margin-right: 10px;"></i> Chimoio, MZ</li>
                     </ul>
                 </div>
@@ -1254,6 +757,284 @@
     
     <!-- 5. Script Principal -->
     <script src="script.js"></script>
+
+    <!-- ============================================ -->
+    <!-- 🔥 3D INTERACTIVE JAVASCRIPT -->
+    <!-- ============================================ -->
+    
+    <script>
+    // ============================================
+    // 3D INTERACTIVE IFRAME
+    // ============================================
+
+    class Interactive3DIframe {
+        constructor() {
+            this.container = document.querySelector('.interactive-3d-container');
+            this.iframeWrapper = document.querySelector('.iframe-wrapper');
+            this.overlay = document.querySelector('.overlay-3d');
+            this.rotationIndicator = document.querySelector('.rotation-indicator');
+            
+            if (!this.container || !this.iframeWrapper) return;
+            
+            this.rotationX = 0;
+            this.rotationY = 0;
+            this.isDragging = false;
+            this.isAutoRotating = true;
+            this.lastMouseX = 0;
+            this.lastMouseY = 0;
+            this.autoRotateSpeed = 0.5;
+            this.maxRotation = 30;
+            this.currentScale = 1;
+            
+            this.initControls();
+            this.initEvents();
+            this.initAutoRotation();
+            this.initTouchSupport();
+        }
+        
+        initControls() {
+            const controlsHTML = `
+                <div class="controls-3d">
+                    <button class="control-btn" data-action="rotate-left" title="Rotacionar esquerda">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="control-btn" data-action="rotate-right" title="Rotacionar direita">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button class="control-btn" data-action="reset" title="Resetar view">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="control-btn" data-action="toggle-rotate" title="Parar rotação">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                </div>
+                <div class="rotation-indicator">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <span>Arraste para explorar</span>
+                </div>
+            `;
+            
+            // Inserir controles
+            const parser = new DOMParser();
+            const controlsDoc = parser.parseFromString(controlsHTML, 'text/html');
+            this.container.appendChild(controlsDoc.body.firstElementChild);
+            this.container.appendChild(controlsDoc.body.lastElementChild);
+            
+            // Atualizar referências
+            this.controls = document.querySelector('.controls-3d');
+            this.rotationIndicator = document.querySelector('.rotation-indicator');
+            
+            // Bind events
+            this.controls.querySelectorAll('.control-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => this.handleControlClick(e));
+            });
+        }
+        
+        initEvents() {
+            // Mouse events
+            this.container.addEventListener('mousedown', (e) => this.startDrag(e));
+            document.addEventListener('mousemove', (e) => this.drag(e));
+            document.addEventListener('mouseup', () => this.endDrag());
+            
+            // Wheel event para zoom
+            this.container.addEventListener('wheel', (e) => this.handleZoom(e));
+            
+            // Touch events
+            this.container.addEventListener('touchstart', (e) => this.startTouch(e));
+            this.container.addEventListener('touchmove', (e) => this.moveTouch(e));
+            this.container.addEventListener('touchend', () => this.endTouch());
+            
+            // Hover event
+            this.container.addEventListener('mouseenter', () => {
+                this.isHovering = true;
+                this.rotationIndicator.classList.add('rotating');
+            });
+            
+            this.container.addEventListener('mouseleave', () => {
+                this.isHovering = false;
+                this.rotationIndicator.classList.remove('rotating');
+            });
+        }
+        
+        initAutoRotation() {
+            this.autoRotateInterval = setInterval(() => {
+                if (this.isAutoRotating && !this.isDragging) {
+                    this.rotationY += this.autoRotateSpeed;
+                    this.applyTransform();
+                }
+            }, 16);
+        }
+        
+        initTouchSupport() {
+            // Detect touch device
+            this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            if (this.isTouchDevice) {
+                this.rotationIndicator.querySelector('span').textContent = 'Toque e arraste';
+            }
+        }
+        
+        startDrag(e) {
+            this.isDragging = true;
+            this.isAutoRotating = false;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+            
+            // Atualizar indicador
+            this.rotationIndicator.classList.add('rotating');
+            this.rotationIndicator.querySelector('span').textContent = 'Explorando...';
+            
+            // Atualizar botão pause
+            const pauseBtn = this.controls.querySelector('[data-action="toggle-rotate"]');
+            if (pauseBtn) {
+                pauseBtn.querySelector('i').className = 'fas fa-play';
+                pauseBtn.classList.add('active');
+            }
+        }
+        
+        drag(e) {
+            if (!this.isDragging) return;
+            
+            const deltaX = e.clientX - this.lastMouseX;
+            const deltaY = e.clientY - this.lastMouseY;
+            
+            this.rotationY += deltaX * 0.3;
+            this.rotationX -= deltaY * 0.3;
+            
+            // Limitar rotação
+            this.rotationX = Math.max(-this.maxRotation, Math.min(this.maxRotation, this.rotationX));
+            
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+            
+            this.applyTransform();
+        }
+        
+        startTouch(e) {
+            if (e.touches.length === 1) {
+                this.isDragging = true;
+                this.isAutoRotating = false;
+                this.lastTouchX = e.touches[0].clientX;
+                this.lastTouchY = e.touches[0].clientY;
+            }
+        }
+        
+        moveTouch(e) {
+            if (!this.isDragging || e.touches.length !== 1) return;
+            
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - this.lastTouchX;
+            const deltaY = touch.clientY - this.lastTouchY;
+            
+            this.rotationY += deltaX * 0.5;
+            this.rotationX -= deltaY * 0.5;
+            
+            this.rotationX = Math.max(-this.maxRotation, Math.min(this.maxRotation, this.rotationX));
+            
+            this.lastTouchX = touch.clientX;
+            this.lastTouchY = touch.clientY;
+            
+            this.applyTransform();
+            e.preventDefault();
+        }
+        
+        endDrag() {
+            this.isDragging = false;
+            this.isAutoRotating = true;
+            
+            // Reset indicator
+            this.rotationIndicator.classList.remove('rotating');
+            this.rotationIndicator.querySelector('span').textContent = 'Arraste para explorar';
+        }
+        
+        endTouch() {
+            this.isDragging = false;
+            this.isAutoRotating = true;
+        }
+        
+        handleZoom(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -5 : 5;
+            this.currentScale = Math.max(0.5, Math.min(1.5, (this.currentScale || 1) + delta * 0.01));
+            this.iframeWrapper.style.transform = `scale(${this.currentScale}) rotateX(${this.rotationX}deg) rotateY(${this.rotationY}deg)`;
+        }
+        
+        handleControlClick(e) {
+            const action = e.currentTarget.dataset.action;
+            
+            switch(action) {
+                case 'rotate-left':
+                    this.rotationY -= 15;
+                    this.applyTransform();
+                    break;
+                case 'rotate-right':
+                    this.rotationY += 15;
+                    this.applyTransform();
+                    break;
+                case 'reset':
+                    this.rotationX = 0;
+                    this.rotationY = 0;
+                    this.currentScale = 1;
+                    this.applyTransform();
+                    break;
+                case 'toggle-rotate':
+                    this.isAutoRotating = !this.isAutoRotating;
+                    const btn = e.currentTarget;
+                    btn.querySelector('i').className = this.isAutoRotating ? 'fas fa-pause' : 'fas fa-play';
+                    btn.classList.toggle('active');
+                    
+                    // Mostrar toast
+                    if (window.mostrarToast) {
+                        mostrarToast(this.isAutoRotating ? '▶️ Rotação automática ativada' : '⏸️ Rotação pausada');
+                    }
+                    break;
+            }
+        }
+        
+        applyTransform() {
+            this.iframeWrapper.style.transform = `rotateX(${this.rotationX}deg) rotateY(${this.rotationY}deg)`;
+            
+            // Criar efeito parallax no background
+            this.container.style.setProperty('--rotation-y', `${this.rotationY}deg`);
+            
+            // Atualizar tooltip de posição
+            this.updateRotationInfo();
+        }
+        
+        updateRotationInfo() {
+            this.rotationIndicator.querySelector('span').textContent = 
+                `X: ${this.rotationX.toFixed(0)}° | Y: ${this.rotationY.toFixed(0)}°`;
+        }
+    }
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', () => {
+        const interactive3D = new Interactive3DIframe();
+        
+        // Expor para console
+        window.interactive3D = interactive3D;
+        
+        // Adicionar efeito de tilt no hover (apenas desktop)
+        if (!interactive3D.isTouchDevice) {
+            interactive3D.container.addEventListener('mousemove', (e) => {
+                if (!interactive3D.isDragging) return;
+                
+                const rect = interactive3D.container.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const mouseX = e.clientX - centerX;
+                const mouseY = e.clientY - centerY;
+                
+                const tiltX = -(mouseY / rect.height) * 15;
+                const tiltY = (mouseX / rect.width) * 15;
+                
+                interactive3D.rotationX = tiltX;
+                interactive3D.rotationY = tiltY;
+                interactive3D.applyTransform();
+            });
+        }
+    });
+    </script>
 
     <!-- ============================================ -->
     <!-- 🔥 CONTROLADOR DO BOTÃO "VER DEMO" (SÓ MOBILE) -->
