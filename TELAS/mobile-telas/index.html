@@ -1068,10 +1068,10 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// multi-ai-service.js - GROK COM MÚLTIPLOS MODELOS + FALLBACK
+// multi-ai-service.js - OPENROUTER COM 15+ MODELOS + FALLBACK
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROK + FALLBACK...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO COM OPENROUTER + 15 MODELOS...');
 
 class MultiAIService {
     constructor() {
@@ -1080,17 +1080,42 @@ class MultiAIService {
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        // ⭐ CONFIGURAÇÃO DO GROK COM VÁRIOS MODELOS
-        this.provider = {
-            name: 'Grok',
-            key: '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',
-            url: 'https://api.x.ai/v1/chat/completions',
-            models: ['grok-2-latest', 'grok-2-1212', 'grok-1', 'grok-beta'] // ordem de tentativa
-        };
+        // ⭐ CHAVE OPENROUTER (a que você forneceu)
+        this.apiKey = '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';
+        this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+        
+        // ⭐ LISTA DE 15+ MODELOS (ordem de prioridade)
+        this.models = [
+            // OpenAI
+            'openai/gpt-4o',
+            'openai/gpt-4-turbo',
+            'openai/gpt-3.5-turbo',
+            // Anthropic
+            'anthropic/claude-3.5-sonnet',
+            'anthropic/claude-3-opus',
+            // Meta Llama
+            'meta-llama/llama-3.1-70b-instruct',
+            'meta-llama/llama-3-70b-instruct',
+            // Google
+            'google/gemini-pro',
+            // Mistral
+            'mistralai/mistral-7b-instruct',
+            'mistralai/mixtral-8x7b-instruct',
+            // Microsoft
+            'microsoft/phi-3-mini-128k-instruct',
+            // Cohere
+            'cohere/command-r-plus',
+            // DeepSeek
+            'deepseek/deepseek-chat',
+            // Qwen
+            'qwen/qwen-2-72b-instruct',
+            // Nous
+            'nousresearch/nous-hermes-2-mixtral-8x7b-dpo'
+        ];
         
         this._resetarLimite();
-        console.log('[MultiAI] ✅ Serviço carregado (Grok com fallback)');
-        console.log('[MultiAI] 📦 Modelos disponíveis:', this.provider.models.join(', '));
+        console.log('[MultiAI] ✅ Serviço carregado com OpenRouter + 15 modelos');
+        console.log('[MultiAI] 📦 Modelos:', this.models.join(', '));
     }
     
     _resetarLimite() {
@@ -1165,12 +1190,12 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR CADA MODELO DO GROK
+        // ⭐ TENTAR CADA MODELO EM ORDEM
         let lastError = null;
-        for (const model of this.provider.models) {
+        for (const model of this.models) {
             try {
-                console.log(`[MultiAI] 🔄 Tentando Grok com modelo: ${model}...`);
-                const result = await this._callGrok(prompt, context, model);
+                console.log(`[MultiAI] 🔄 Tentando modelo: ${model}...`);
+                const result = await this._callOpenRouter(prompt, context, model);
                 
                 if (result.success) {
                     this._incrementarUso();
@@ -1178,14 +1203,18 @@ class MultiAIService {
                     return {
                         success: true,
                         text: result.text,
-                        provider: `Grok (${model})`,
+                        provider: model,
                         fromCache: false
                     };
                 }
-                console.log(`[MultiAI] ⚠️ Grok (${model}) falhou:`, result.error);
+                console.log(`[MultiAI] ⚠️ ${model} falhou:`, result.error);
                 lastError = result.error;
+                
+                // Se for erro de autenticação (401), não adianta tentar outros modelos
+                if (result.status === 401) break;
+                
             } catch (error) {
-                console.error(`[MultiAI] ❌ Grok (${model}) erro:`, error.message);
+                console.error(`[MultiAI] ❌ ${model} erro:`, error.message);
                 lastError = error.message;
             }
         }
@@ -1201,7 +1230,7 @@ class MultiAIService {
         };
     }
     
-    async _callGrok(prompt, context, model) {
+    async _callOpenRouter(prompt, context, model) {
         const timeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
         );
@@ -1217,11 +1246,13 @@ class MultiAIService {
                 max_tokens: 1024
             };
             
-            const fetchPromise = fetch(this.provider.url, {
+            const fetchPromise = fetch(this.baseUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.provider.key}`
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'HTTP-Referer': window.location.origin,
+                    'X-Title': 'Zero Satus App'
                 },
                 body: JSON.stringify(requestBody)
             });
@@ -1230,10 +1261,11 @@ class MultiAIService {
             const data = await response.json();
             
             if (!response.ok) {
-                console.error(`[Grok-${model}] ❌ Status ${response.status}:`, data);
+                console.error(`[OpenRouter-${model}] ❌ Status ${response.status}:`, data);
                 return { 
                     success: false, 
-                    error: data.error?.message || `Erro ${response.status}` 
+                    error: data.error?.message || `Erro ${response.status}`,
+                    status: response.status
                 };
             }
             
@@ -1246,7 +1278,7 @@ class MultiAIService {
                 return { success: true, text: text.trim() };
             }
             
-            return { success: false, error: 'Resposta vazia' };
+            return { success: false, error: 'Resposta vazia', status: response.status };
             
         } catch (error) {
             return { success: false, error: error.message };
@@ -1306,8 +1338,8 @@ class MultiAIService {
             usoTotal: this._usosHoje,
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
-            provider: this.provider.name,
-            models: this.provider.models,
+            provider: 'OpenRouter',
+            models: this.models,
             cacheSize: this._cache.size
         };
     }
@@ -1337,13 +1369,16 @@ window.getLimiteIA = () => {
         restante: status.restante,
         provider: status.provider,
         models: status.models,
+        cacheSize: status.cacheSize,
         reset: () => multiAI.resetLimite()
     };
 };
 
-console.log('[MultiAI] ✅ Serviço carregado com múltiplos modelos Grok!');
-console.log(`[MultiAI] 📊 Modelos: ${multiAI.provider.models.join(', ')}`);
-console.log('[MultiAI] 💡 Se nenhum funcionar, usa fallback offline com respostas úteis');
+console.log('[MultiAI] ✅ Serviço carregado com 15+ modelos via OpenRouter!');
+console.log(`[MultiAI] 📊 Modelos disponíveis: ${multiAI.models.length}`);
+multiAI.models.slice(0, 5).forEach(m => console.log(`   - ${m}`));
+console.log(`[MultiAI] ... e mais ${multiAI.models.length - 5} modelos`);
+console.log('[MultiAI] 💡 Se todos falharem, usa fallback offline com respostas úteis');
 </script>
 
 <!-- App Principal -->
