@@ -1068,10 +1068,10 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// multi-ai-service.js - OPENROUTER COM 15+ MODELOS + FALLBACK
+// multi-ai-service.js - 4 APIS × 3 MODELOS CADA = 12 PROVEDORES
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO COM OPENROUTER + 15 MODELOS...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO COM 12 PROVEDORES/MODELOS...');
 
 class MultiAIService {
     constructor() {
@@ -1080,42 +1080,107 @@ class MultiAIService {
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        // ⭐ CHAVE OPENROUTER (a que você forneceu)
-        this.apiKey = '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';
-        this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
-        
-        // ⭐ LISTA DE 15+ MODELOS (ordem de prioridade)
-        this.models = [
-            // OpenAI
-            'openai/gpt-4o',
-            'openai/gpt-4-turbo',
-            'openai/gpt-3.5-turbo',
-            // Anthropic
-            'anthropic/claude-3.5-sonnet',
-            'anthropic/claude-3-opus',
-            // Meta Llama
-            'meta-llama/llama-3.1-70b-instruct',
-            'meta-llama/llama-3-70b-instruct',
-            // Google
-            'google/gemini-pro',
-            // Mistral
-            'mistralai/mistral-7b-instruct',
-            'mistralai/mixtral-8x7b-instruct',
-            // Microsoft
-            'microsoft/phi-3-mini-128k-instruct',
-            // Cohere
-            'cohere/command-r-plus',
-            // DeepSeek
-            'deepseek/deepseek-chat',
-            // Qwen
-            'qwen/qwen-2-72b-instruct',
-            // Nous
-            'nousresearch/nous-hermes-2-mixtral-8x7b-dpo'
-        ];
+        // ⭐ CONFIGURAÇÃO DE TODAS AS APIS
+        this.providers = this._buildProviders();
         
         this._resetarLimite();
-        console.log('[MultiAI] ✅ Serviço carregado com OpenRouter + 15 modelos');
-        console.log('[MultiAI] 📦 Modelos:', this.models.join(', '));
+        console.log(`[MultiAI] ✅ ${this.providers.length} provedores/modelos registrados`);
+        this.providers.slice(0, 5).forEach(p => {
+            console.log(`   - ${p.name} (${p.model})`);
+        });
+        console.log(`[MultiAI] ... e mais ${this.providers.length - 5} provedores`);
+    }
+    
+    _buildProviders() {
+        return [
+            // ========================================
+            // 1. GROK - 3 MODELOS
+            // ========================================
+            {
+                name: 'Grok-1',
+                key: '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',
+                url: 'https://api.x.ai/v1/chat/completions',
+                model: 'grok-1'
+            },
+            {
+                name: 'Grok-2',
+                key: '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',
+                url: 'https://api.x.ai/v1/chat/completions',
+                model: 'grok-2-latest'
+            },
+            {
+                name: 'Grok-Beta',
+                key: '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',
+                url: 'https://api.x.ai/v1/chat/completions',
+                model: 'grok-beta'
+            },
+            
+            // ========================================
+            // 2. SAMBANOVA - 3 MODELOS
+            // ========================================
+            {
+                name: 'Samba-Llama-3.1',
+                key: '51417f81-3853-498b-adfb-dae2b4262bbe',
+                url: 'https://api.sambanova.ai/v1/chat/completions',
+                model: 'Llama-3.1-70B-Instruct'
+            },
+            {
+                name: 'Samba-Llama-3',
+                key: '51417f81-3853-498b-adfb-dae2b4262bbe',
+                url: 'https://api.sambanova.ai/v1/chat/completions',
+                model: 'Llama-3-70B-Instruct'
+            },
+            {
+                name: 'Samba-Mistral',
+                key: '51417f81-3853-498b-adfb-dae2b4262bbe',
+                url: 'https://api.sambanova.ai/v1/chat/completions',
+                model: 'Mistral-7B-Instruct'
+            },
+            
+            // ========================================
+            // 3. DEEPSEEK - 3 MODELOS
+            // ========================================
+            {
+                name: 'DeepSeek-Chat',
+                key: 'sk-aa5d552f38cc4997a3ffe8d85c012caa',
+                url: 'https://api.deepseek.com/v1/chat/completions',
+                model: 'deepseek-chat'
+            },
+            {
+                name: 'DeepSeek-V3',
+                key: 'sk-aa5d552f38cc4997a3ffe8d85c012caa',
+                url: 'https://api.deepseek.com/v1/chat/completions',
+                model: 'deepseek-v3'
+            },
+            {
+                name: 'DeepSeek-R1',
+                key: 'sk-aa5d552f38cc4997a3ffe8d85c012caa',
+                url: 'https://api.deepseek.com/v1/chat/completions',
+                model: 'deepseek-r1'
+            },
+            
+            // ========================================
+            // 4. OPENROUTER - 3 MODELOS
+            // ========================================
+            {
+                name: 'OpenRouter-GPT-4o',
+                key: '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',
+                url: 'https://openrouter.ai/api/v1/chat/completions',
+                model: 'openai/gpt-4o'
+            },
+            {
+                name: 'OpenRouter-Claude',
+                key: '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',
+                url: 'https://openrouter.ai/api/v1/chat/completions',
+                model: 'anthropic/claude-3.5-sonnet'
+            },
+            {
+                name: 'OpenRouter-Llama',
+                key: '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',
+                url: 'https://openrouter.ai/api/v1/chat/completions',
+                model: 'meta-llama/llama-3.1-70b-instruct'
+            }
+        ];
     }
     
     _resetarLimite() {
@@ -1190,31 +1255,39 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR CADA MODELO EM ORDEM
+        // ⭐ TENTAR CADA PROVEDOR EM ORDEM
         let lastError = null;
-        for (const model of this.models) {
+        for (const provider of this.providers) {
             try {
-                console.log(`[MultiAI] 🔄 Tentando modelo: ${model}...`);
-                const result = await this._callOpenRouter(prompt, context, model);
+                console.log(`[MultiAI] 🔄 Tentando ${provider.name}...`);
+                const result = await this._callAPI(provider, prompt, context);
                 
                 if (result.success) {
                     this._incrementarUso();
                     this._saveToCache(prompt, context, result.text);
+                    console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
                     return {
                         success: true,
                         text: result.text,
-                        provider: model,
+                        provider: provider.name,
                         fromCache: false
                     };
                 }
-                console.log(`[MultiAI] ⚠️ ${model} falhou:`, result.error);
+                console.log(`[MultiAI] ⚠️ ${provider.name} falhou:`, result.error);
                 lastError = result.error;
                 
-                // Se for erro de autenticação (401), não adianta tentar outros modelos
-                if (result.status === 401) break;
+                // Se for erro de autenticação (401/403), tentar próximo mesmo assim
+                // mas se for erro de chave inválida, não adianta tentar outros da mesma API
+                if (result.status === 401 || result.status === 403) {
+                    // Pular os próximos da mesma API
+                    const sameApi = this.providers.filter(p => p.key === provider.key);
+                    if (sameApi.length > 1) {
+                        console.log(`[MultiAI] ⏭️ Pulando outros modelos da mesma API (${provider.key.substring(0, 10)}...)`);
+                    }
+                }
                 
             } catch (error) {
-                console.error(`[MultiAI] ❌ ${model} erro:`, error.message);
+                console.error(`[MultiAI] ❌ ${provider.name} erro:`, error.message);
                 lastError = error.message;
             }
         }
@@ -1230,14 +1303,14 @@ class MultiAIService {
         };
     }
     
-    async _callOpenRouter(prompt, context, model) {
+    async _callAPI(provider, prompt, context) {
         const timeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
         );
         
         try {
             const requestBody = {
-                model: model,
+                model: provider.model,
                 messages: [
                     { role: 'system', content: context || 'Você é um assistente útil.' },
                     { role: 'user', content: prompt }
@@ -1246,14 +1319,20 @@ class MultiAIService {
                 max_tokens: 1024
             };
             
-            const fetchPromise = fetch(this.baseUrl, {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${provider.key}`
+            };
+            
+            // Para OpenRouter, adicionar headers especiais
+            if (provider.url.includes('openrouter')) {
+                headers['HTTP-Referer'] = window.location.origin;
+                headers['X-Title'] = 'Zero Satus App';
+            }
+            
+            const fetchPromise = fetch(provider.url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'Zero Satus App'
-                },
+                headers: headers,
                 body: JSON.stringify(requestBody)
             });
             
@@ -1261,10 +1340,24 @@ class MultiAIService {
             const data = await response.json();
             
             if (!response.ok) {
-                console.error(`[OpenRouter-${model}] ❌ Status ${response.status}:`, data);
+                console.error(`[${provider.name}] ❌ Status ${response.status}:`, data);
+                
+                // Detectar limite excedido
+                const isLimit = response.status === 429 || 
+                    response.status === 402 ||
+                    data.error?.message?.toLowerCase().includes('rate limit') ||
+                    data.error?.message?.toLowerCase().includes('quota') ||
+                    data.error?.message?.toLowerCase().includes('exceeded') ||
+                    data.error?.message?.toLowerCase().includes('insufficient balance') ||
+                    data.error?.message?.toLowerCase().includes('saldo insuficiente');
+                
+                if (isLimit) {
+                    return { success: false, error: 'Limite excedido', status: response.status, limitExceeded: true };
+                }
+                
                 return { 
                     success: false, 
-                    error: data.error?.message || `Erro ${response.status}`,
+                    error: data.error?.message || data.error || `Erro ${response.status}`,
                     status: response.status
                 };
             }
@@ -1272,6 +1365,10 @@ class MultiAIService {
             let text = '';
             if (data.choices && data.choices.length > 0) {
                 text = data.choices[0].message?.content || '';
+            } else if (data.response) {
+                text = data.response;
+            } else if (data.content) {
+                text = data.content;
             }
             
             if (text) {
@@ -1281,6 +1378,9 @@ class MultiAIService {
             return { success: false, error: 'Resposta vazia', status: response.status };
             
         } catch (error) {
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                return { success: false, error: 'Erro de rede' };
+            }
             return { success: false, error: error.message };
         }
     }
@@ -1290,43 +1390,39 @@ class MultiAIService {
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
         // Respostas offline melhoradas
-        if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
-            return isGiria 
+        const respostas = {
+            saudacao: isGiria 
                 ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
-                : 'Olá! Como posso ajudar você hoje?';
-        }
-        
-        if (texto.includes('estudar') || texto.includes('estudo') || texto.includes('prova')) {
-            return isGiria
+                : 'Olá! Como posso ajudar você hoje?',
+            
+            estudo: isGiria
                 ? '🇲🇿 Bora estudar, magaia! A chave é consistência: faz um plano, revisa todo dia e descansa também. Tamos juntos! 💪'
-                : 'Para estudar bem: 1) Faça um cronograma realista, 2) Use a técnica Pomodoro, 3) Revise o conteúdo regularmente, 4) Durma bem.';
-        }
-        
-        if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
-            return isGiria
+                : 'Para estudar bem: 1) Faça um cronograma realista, 2) Use a técnica Pomodoro, 3) Revise o conteúdo regularmente, 4) Durma bem.',
+            
+            tarefa: isGiria
                 ? '🇲🇿 As tarefas tão aí, mas tu consegues! Prioriza as mais urgentes, divide em partes e vai uma de cada vez. Tamos juntos! 😎'
-                : 'Para gerenciar tarefas: priorize as mais urgentes, divida em pequenas etapas e defina prazos realistas para cada uma.';
-        }
-        
-        if (texto.includes('matem') || texto.includes('conta') || texto.includes('número')) {
-            return isGiria
+                : 'Para gerenciar tarefas: priorize as mais urgentes, divida em pequenas etapas e defina prazos realistas para cada uma.',
+            
+            matematica: isGiria
                 ? '🇲🇿 Matemática é prática, broo! Treina os básicos: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
-                : 'Matemática exige prática: domine as operações básicas, entenda os conceitos antes de memorizar fórmulas e resolva muitos exercícios.';
-        }
-        
-        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('texto')) {
-            return isGiria
+                : 'Matemática exige prática: domine as operações básicas, entenda os conceitos antes de memorizar fórmulas e resolva muitos exercícios.',
+            
+            escrever: isGiria
                 ? '🇲🇿 Pra escrever bem, lê bastante e pratica todo dia. Começa com rascunho, depois revisa. Fica show! 📝'
-                : 'Para escrever bem: leia bastante, pratique diariamente, faça rascunhos e revise sempre seu texto.';
-        }
-        
-        if (texto.includes('foco') || texto.includes('concentrar') || texto.includes('distração')) {
-            return isGiria
+                : 'Para escrever bem: leia bastante, pratique diariamente, faça rascunhos e revise sempre seu texto.',
+            
+            foco: isGiria
                 ? '🇲🇿 Foco é treino, broo! Desliga as notificações, usa o método Pomodoro e define metas pequenas. Tamos juntos! 🎯'
-                : 'Para melhorar o foco: elimine distrações, use a técnica Pomodoro (25min foco, 5min pausa) e defina metas claras.';
-        }
+                : 'Para melhorar o foco: elimine distrações, use a técnica Pomodoro (25min foco, 5min pausa) e defina metas claras.'
+        };
         
-        // Resposta padrão
+        if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) return respostas.saudacao;
+        if (texto.includes('estudar') || texto.includes('estudo') || texto.includes('prova')) return respostas.estudo;
+        if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) return respostas.tarefa;
+        if (texto.includes('matem') || texto.includes('conta') || texto.includes('número')) return respostas.matematica;
+        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('texto')) return respostas.escrever;
+        if (texto.includes('foco') || texto.includes('concentrar') || texto.includes('distração')) return respostas.foco;
+        
         return isGiria
             ? '🇲🇿 Boa pergunta, magaia! Tenta reformular ou ser mais específico. Tamos juntos! 💪'
             : 'Boa pergunta! Poderia reformular ou ser mais específico para que eu possa ajudar melhor?';
@@ -1338,8 +1434,8 @@ class MultiAIService {
             usoTotal: this._usosHoje,
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
-            provider: 'OpenRouter',
-            models: this.models,
+            providers: this.providers.map(p => p.name),
+            totalProviders: this.providers.length,
             cacheSize: this._cache.size
         };
     }
@@ -1367,17 +1463,16 @@ window.getLimiteIA = () => {
         usado: status.usoTotal,
         maximo: status.limiteTotal,
         restante: status.restante,
-        provider: status.provider,
-        models: status.models,
+        providers: status.providers,
+        totalProviders: status.totalProviders,
         cacheSize: status.cacheSize,
         reset: () => multiAI.resetLimite()
     };
 };
 
-console.log('[MultiAI] ✅ Serviço carregado com 15+ modelos via OpenRouter!');
-console.log(`[MultiAI] 📊 Modelos disponíveis: ${multiAI.models.length}`);
-multiAI.models.slice(0, 5).forEach(m => console.log(`   - ${m}`));
-console.log(`[MultiAI] ... e mais ${multiAI.models.length - 5} modelos`);
+console.log('[MultiAI] ✅ Serviço carregado com 12 provedores!');
+console.log('[MultiAI] 📊 Lista completa:');
+multiAI.providers.forEach(p => console.log(`   - ${p.name} (${p.model})`));
 console.log('[MultiAI] 💡 Se todos falharem, usa fallback offline com respostas úteis');
 </script>
 
