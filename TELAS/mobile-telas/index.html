@@ -1068,7 +1068,7 @@ const checkInterval = setInterval(() => {
 
 <script>
 // ============================================
-// multi-ai-service.js - VERSÃO COM GROK + FALLBACK
+// multi-ai-service.js - GROK COM MÚLTIPLOS MODELOS + FALLBACK
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROK + FALLBACK...');
@@ -1080,16 +1080,17 @@ class MultiAIService {
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        // ⭐ APENAS GROK
+        // ⭐ CONFIGURAÇÃO DO GROK COM VÁRIOS MODELOS
         this.provider = {
             name: 'Grok',
             key: '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',
             url: 'https://api.x.ai/v1/chat/completions',
-            model: 'grok-beta'
+            models: ['grok-2-latest', 'grok-2-1212', 'grok-1', 'grok-beta'] // ordem de tentativa
         };
         
         this._resetarLimite();
-        console.log('[MultiAI] ✅ Serviço carregado (apenas Grok)');
+        console.log('[MultiAI] ✅ Serviço carregado (Grok com fallback)');
+        console.log('[MultiAI] 📦 Modelos disponíveis:', this.provider.models.join(', '));
     }
     
     _resetarLimite() {
@@ -1164,24 +1165,29 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR GROK
-        try {
-            console.log('[MultiAI] 🔄 Tentando Grok...');
-            const result = await this._callGrok(prompt, context);
-            
-            if (result.success) {
-                this._incrementarUso();
-                this._saveToCache(prompt, context, result.text);
-                return {
-                    success: true,
-                    text: result.text,
-                    provider: 'Grok',
-                    fromCache: false
-                };
+        // ⭐ TENTAR CADA MODELO DO GROK
+        let lastError = null;
+        for (const model of this.provider.models) {
+            try {
+                console.log(`[MultiAI] 🔄 Tentando Grok com modelo: ${model}...`);
+                const result = await this._callGrok(prompt, context, model);
+                
+                if (result.success) {
+                    this._incrementarUso();
+                    this._saveToCache(prompt, context, result.text);
+                    return {
+                        success: true,
+                        text: result.text,
+                        provider: `Grok (${model})`,
+                        fromCache: false
+                    };
+                }
+                console.log(`[MultiAI] ⚠️ Grok (${model}) falhou:`, result.error);
+                lastError = result.error;
+            } catch (error) {
+                console.error(`[MultiAI] ❌ Grok (${model}) erro:`, error.message);
+                lastError = error.message;
             }
-            console.log('[MultiAI] ⚠️ Grok falhou:', result.error);
-        } catch (error) {
-            console.error('[MultiAI] ❌ Grok erro:', error.message);
         }
         
         // ⭐ FALLBACK OFFLINE (respostas úteis)
@@ -1190,18 +1196,19 @@ class MultiAIService {
         return { 
             success: true, 
             text: fallback, 
-            fromFallback: true
+            fromFallback: true,
+            error: lastError
         };
     }
     
-    async _callGrok(prompt, context) {
+    async _callGrok(prompt, context, model) {
         const timeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
         );
         
         try {
             const requestBody = {
-                model: this.provider.model,
+                model: model,
                 messages: [
                     { role: 'system', content: context || 'Você é um assistente útil.' },
                     { role: 'user', content: prompt }
@@ -1223,7 +1230,7 @@ class MultiAIService {
             const data = await response.json();
             
             if (!response.ok) {
-                console.error(`[Grok] ❌ Status ${response.status}:`, data);
+                console.error(`[Grok-${model}] ❌ Status ${response.status}:`, data);
                 return { 
                     success: false, 
                     error: data.error?.message || `Erro ${response.status}` 
@@ -1300,6 +1307,7 @@ class MultiAIService {
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
             provider: this.provider.name,
+            models: this.provider.models,
             cacheSize: this._cache.size
         };
     }
@@ -1328,13 +1336,14 @@ window.getLimiteIA = () => {
         maximo: status.limiteTotal,
         restante: status.restante,
         provider: status.provider,
+        models: status.models,
         reset: () => multiAI.resetLimite()
     };
 };
 
-console.log('[MultiAI] ✅ Serviço carregado!');
-console.log(`[MultiAI] 📊 Provider: ${multiAI.provider.name}`);
-console.log('[MultiAI] 💡 Se a API falhar, usa fallback offline com respostas úteis');
+console.log('[MultiAI] ✅ Serviço carregado com múltiplos modelos Grok!');
+console.log(`[MultiAI] 📊 Modelos: ${multiAI.provider.models.join(', ')}`);
+console.log('[MultiAI] 💡 Se nenhum funcionar, usa fallback offline com respostas úteis');
 </script>
 
 <!-- App Principal -->
