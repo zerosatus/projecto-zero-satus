@@ -189,37 +189,54 @@ async function verificarAdmin() {
 }
 
 // ==========================================
-// FUNÇÃO PARA TORNAR ADMIN POR EMAIL
+// FUNÇÃO PARA TORNAR ADMIN POR EMAIL (CORRIGIDA)
+// ⭐ USA RPC EM VEZ DE ADMIN.LISTUSERS()
 // ==========================================
 async function tornarAdminPorEmail(email) {
     try {
         const supabaseClient = window.supabaseClient;
-        if (!supabaseClient) return;
-        
-        // Buscar o usuário no auth
-        const { data: { users } } = await supabaseClient.auth.admin.listUsers();
-        const user = users?.find(u => u.email === email);
-        
-        if (!user) {
-            console.error('[Auth] ❌ Usuário não encontrado no auth');
+        if (!supabaseClient) {
+            console.error('[Auth] ❌ Supabase não inicializado');
             return;
         }
+
+        console.log('[Auth] 📡 Chamando RPC tornar_admin para:', email);
         
-        // Atualizar ou inserir perfil como admin
-        const { error } = await supabaseClient
-            .from('profiles')
-            .upsert({
-                id: user.id,
-                email: user.email,
-                nome: user.user_metadata?.full_name || email.split('@')[0],
-                role: 'admin',
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'id' });
-        
+        // ⭐ USA A FUNÇÃO RPC QUE JÁ EXISTE NO BANCO
+        const { data, error } = await supabaseClient.rpc('tornar_admin', {
+            email_usuario: email
+        });
+
         if (error) {
-            console.error('[Auth] ❌ Erro ao tornar admin:', error);
+            console.error('[Auth] ❌ Erro ao tornar admin via RPC:', error);
+            
+            // Fallback: tentar upsert direto na tabela profiles
+            console.log('[Auth] 🔄 Tentando fallback: upsert direto...');
+            const { data: userData, error: userError } = await supabaseClient
+                .from('auth.users')
+                .select('id')
+                .eq('email', email)
+                .single();
+            
+            if (!userError && userData) {
+                const { error: upsertError } = await supabaseClient
+                    .from('profiles')
+                    .upsert({
+                        id: userData.id,
+                        email: email,
+                        role: 'admin',
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'id' });
+                
+                if (upsertError) {
+                    console.error('[Auth] ❌ Fallback também falhou:', upsertError);
+                } else {
+                    console.log('[Auth] ✅ Admin definido via fallback!');
+                }
+            }
         } else {
-            console.log('[Auth] ✅ Usuário tornado ADMIN:', email);
+            console.log('[Auth] ✅ Usuário tornado ADMIN via RPC:', email);
+            console.log('[Auth] 📝 Resposta:', data);
         }
     } catch (error) {
         console.error('[Auth] ❌ Erro ao tornar admin:', error);
@@ -456,4 +473,12 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-console.log('[Auth] ✅ auth.js carregado!');
+// ==========================================
+// EXPORTAR FUNÇÕES GLOBAIS
+// ==========================================
+window.verificarAdmin = verificarAdmin;
+window.logoutAdmin = window.logoutAdmin;
+window.criarPerfilUsuario = criarPerfilUsuario;
+window.tornarAdminPorEmail = tornarAdminPorEmail;
+
+console.log('[Auth] ✅ auth.js carregado com correções!');
