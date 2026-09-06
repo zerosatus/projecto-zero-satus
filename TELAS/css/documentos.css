@@ -1,0 +1,402 @@
+/* ============================================
+   documentos.css - ESTILOS DOS DOCUMENTOS
+   ============================================ */
+
+/* ============================================
+   VIEW DOCUMENTOS
+   ============================================ */
+#view-documentos {
+    padding: 24px 30px;
+}
+
+.documentos-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.documentos-header h1 {
+    flex: 1;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.btn-back-view {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-back-view:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-add-documento {
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px var(--purple-glow);
+}
+
+.btn-add-documento:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5);
+}
+
+/* ============================================
+   CATEGORIAS
+   ============================================ */
+.documentos-categorias {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    scrollbar-width: none;
+}
+
+.documentos-categorias::-webkit-scrollbar {
+    display: none;
+}
+
+.cat-btn {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cat-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.cat-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.cat-btn .cat-count {
+    background: rgba(255,255,255,0.15);
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 0.6rem;
+}
+
+.cat-btn.active .cat-count {
+    background: rgba(255,255,255,0.25);
+}
+
+/* ============================================
+   INFO
+   ============================================ */
+.documentos-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+/* ============================================
+   LISTA DE DOCUMENTOS
+   ============================================ */
+.documentos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.documento-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.3s ease;
+}
+
+.documento-item:hover {
+    background: var(--card-bg-hover);
+    transform: translateX(4px);
+    border-color: var(--primary-color);
+}
+
+.documento-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.documento-icon.trabalhos {
+    background: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.documento-icon.provas {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.documento-icon.apresentações {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.documento-icon.artigos {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.documento-icon.outros {
+    background: rgba(139, 92, 246, 0.2);
+    color: #8b5cf6;
+}
+
+.documento-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.documento-nome {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.documento-meta {
+    display: flex;
+    gap: 14px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.documento-categoria {
+    background: var(--border-color);
+    padding: 1px 10px;
+    border-radius: 10px;
+}
+
+.documento-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.documento-actions button {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.documento-actions .btn-download:hover {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    transform: scale(1.1);
+}
+
+.documento-actions .btn-delete-doc:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
+/* ============================================
+   FILE UPLOAD AREA
+   ============================================ */
+.file-upload-area {
+    background: var(--bg-color);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary-color);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.file-upload-area ion-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    display: block;
+    margin-bottom: 10px;
+}
+
+.file-upload-area span {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-documentos {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-documentos ion-icon {
+    font-size: 3.5rem;
+    opacity: 0.4;
+    margin-bottom: 16px;
+}
+
+.empty-documentos p {
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+.btn-add-documento-empty {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    border: none;
+    color: white;
+    padding: 12px 28px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px var(--purple-glow);
+}
+
+.btn-add-documento-empty:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5);
+}
+
+/* ============================================
+   RESPONSIVO
+   ============================================ */
+@media (max-width: 768px) {
+    #view-documentos {
+        padding: 16px;
+    }
+    
+    .documentos-header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .btn-add-documento {
+        padding: 10px 14px;
+        font-size: 0.8rem;
+    }
+    
+    .btn-add-documento span {
+        display: none;
+    }
+    
+    .documento-item {
+        padding: 12px 14px;
+        gap: 12px;
+    }
+    
+    .documento-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+    
+    .documento-nome {
+        font-size: 0.85rem;
+    }
+    
+    .documento-meta {
+        font-size: 0.65rem;
+        gap: 10px;
+    }
+    
+    .documento-actions button {
+        width: 32px;
+        height: 32px;
+        font-size: 0.95rem;
+    }
+    
+    .file-upload-area {
+        padding: 20px;
+    }
+    
+    .file-upload-area ion-icon {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .documentos-categorias {
+        gap: 6px;
+    }
+    
+    .cat-btn {
+        padding: 6px 12px;
+        font-size: 0.7rem;
+    }
+    
+    .documento-item {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .documento-actions {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: 4px;
+        border-top: 1px solid var(--border-color);
+    }
+}
