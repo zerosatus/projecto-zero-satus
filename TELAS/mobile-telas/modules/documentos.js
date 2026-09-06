@@ -1,4 +1,5 @@
-// modules/documentos.js - GERENCIADOR DE DOCUMENTOS
+// ============================================
+// modules/documentos.js - GERENCIADOR DE DOCUMENTOS (CORRIGIDO)
 // ============================================
 
 class DocumentosModule {
@@ -10,6 +11,7 @@ class DocumentosModule {
         this.selectedCategory = 'Todos';
         this.isSaving = false;
         this._isSubmitting = false;
+        this._selectedFile = null;
         
         console.log('[Documentos] 📁 Módulo inicializado');
     }
@@ -22,10 +24,30 @@ class DocumentosModule {
         
         this.documentos = data.documentos || [];
         this.notifications = data.notifications || [];
+        this.profile = data.profile || {};
         
+        this.atualizarNomeUsuario();
+        this.renderCategorias();
         this.renderDocumentos();
         this.updateBadge();
         this.setupEvents();
+    }
+
+    // ============================================
+    // ATUALIZAR NOME DO USUÁRIO
+    // ============================================
+    atualizarNomeUsuario() {
+        const profile = this.profile || this.app.user || {};
+        const nome = profile.nome || profile.displayName || 'Usuário';
+        
+        const userName = document.getElementById('userNameDocs');
+        if (userName) userName.textContent = nome;
+        
+        const userAvatar = document.getElementById('userAvatarDocs');
+        if (userAvatar) {
+            const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            userAvatar.textContent = iniciais || 'U';
+        }
     }
 
     // ============================================
@@ -58,6 +80,47 @@ class DocumentosModule {
     }
 
     // ============================================
+    // RENDER CATEGORIAS (FILTROS)
+    // ============================================
+    renderCategorias() {
+        const container = document.getElementById('documentos-categorias');
+        if (!container) return;
+        
+        const counts = {};
+        this.categorias.forEach(cat => counts[cat] = 0);
+        this.documentos.forEach(d => {
+            const cat = d.categoria || 'Outros';
+            if (counts[cat] !== undefined) counts[cat]++;
+            else counts['Outros'] = (counts['Outros'] || 0) + 1;
+        });
+        
+        let html = `
+            <button class="cat-btn ${this.selectedCategory === 'Todos' ? 'active' : ''}" data-cat="Todos">
+                Todos <span class="cat-count">${this.documentos.length}</span>
+            </button>
+        `;
+        
+        this.categorias.forEach(cat => {
+            const count = counts[cat] || 0;
+            html += `
+                <button class="cat-btn ${this.selectedCategory === cat ? 'active' : ''}" data-cat="${cat}">
+                    ${cat} <span class="cat-count">${count}</span>
+                </button>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+        container.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.selectedCategory = btn.dataset.cat;
+                this.renderCategorias();
+                this.renderDocumentos();
+            });
+        });
+    }
+
+    // ============================================
     // RENDER DOCUMENTOS
     // ============================================
     renderDocumentos() {
@@ -69,7 +132,6 @@ class DocumentosModule {
             filtered = this.documentos.filter(d => d.categoria === this.selectedCategory);
         }
         
-        // Ordenar por data (mais recentes primeiro)
         filtered.sort((a, b) => new Date(b.dataUpload) - new Date(a.dataUpload));
         
         if (filtered.length === 0) {
@@ -77,7 +139,7 @@ class DocumentosModule {
                 <div class="empty-documentos">
                     <ion-icon name="document-outline"></ion-icon>
                     <p>${this.selectedCategory !== 'Todos' ? 'Nenhum documento nesta categoria' : 'Nenhum documento enviado'}</p>
-                    <button class="btn-add-documento" onclick="app.modules.documentos.openUploadModal()">
+                    <button class="btn-add-documento-empty" onclick="app.modules.documentos.openUploadModal()">
                         <ion-icon name="cloud-upload-outline"></ion-icon> Enviar Documento
                     </button>
                 </div>
@@ -135,7 +197,6 @@ class DocumentosModule {
         });
         container.innerHTML = html;
         
-        // Atualizar contador
         const countEl = document.getElementById('documentos-count');
         if (countEl) {
             const total = this.documentos.length;
@@ -187,6 +248,8 @@ class DocumentosModule {
         this._selectedFile = null;
         
         modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
         setTimeout(() => {
             document.getElementById('doc-nome')?.focus();
         }, 300);
@@ -194,7 +257,10 @@ class DocumentosModule {
 
     closeUploadModal() {
         const modal = document.getElementById('documento-modal');
-        if (modal) modal.classList.remove('active');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
         this._selectedFile = null;
         this._isSubmitting = false;
     }
@@ -204,16 +270,13 @@ class DocumentosModule {
     // ============================================
     selectFile() {
         const input = document.getElementById('doc-file-input');
-        if (!input) return;
-        
-        input.click();
+        if (input) input.click();
     }
 
     handleFileSelect(event) {
         const file = event.target.files?.[0];
         if (!file) return;
         
-        // Verificar tamanho (máx 10MB)
         if (file.size > 10 * 1024 * 1024) {
             if (typeof showToast === 'function') {
                 showToast('⚠️ Arquivo muito grande! Máximo 10MB.', 'error');
@@ -223,7 +286,6 @@ class DocumentosModule {
         
         this._selectedFile = file;
         
-        // Preencher nome automaticamente se vazio
         const nomeInput = document.getElementById('doc-nome');
         if (nomeInput && !nomeInput.value) {
             nomeInput.value = file.name;
@@ -270,7 +332,6 @@ class DocumentosModule {
         this._isSubmitting = true;
         
         try {
-            // Ler o arquivo como base64 para armazenar
             const base64 = await this.fileToBase64(this._selectedFile);
             
             const novoDoc = {
@@ -330,7 +391,6 @@ class DocumentosModule {
         }
         
         try {
-            // Criar link para download
             const link = document.createElement('a');
             link.href = doc.arquivo;
             link.download = doc.nomeArquivo || doc.nome;
@@ -370,102 +430,37 @@ class DocumentosModule {
     }
 
     // ============================================
-    // RENDER CATEGORIAS (FILTROS)
-    // ============================================
-    renderCategorias() {
-        const container = document.getElementById('documentos-categorias');
-        if (!container) return;
-        
-        // Contar documentos por categoria
-        const counts = {};
-        this.categorias.forEach(cat => counts[cat] = 0);
-        this.documentos.forEach(d => {
-            const cat = d.categoria || 'Outros';
-            if (counts[cat] !== undefined) counts[cat]++;
-            else counts['Outros'] = (counts['Outros'] || 0) + 1;
-        });
-        
-        let html = `
-            <button class="cat-btn ${this.selectedCategory === 'Todos' ? 'active' : ''}" data-cat="Todos">
-                Todos <span class="cat-count">${this.documentos.length}</span>
-            </button>
-        `;
-        
-        this.categorias.forEach(cat => {
-            const count = counts[cat] || 0;
-            html += `
-                <button class="cat-btn ${this.selectedCategory === cat ? 'active' : ''}" data-cat="${cat}">
-                    ${cat} <span class="cat-count">${count}</span>
-                </button>
-            `;
-        });
-        
-        container.innerHTML = html;
-        
-        // Eventos dos botões de categoria
-        container.querySelectorAll('.cat-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.selectedCategory = btn.dataset.cat;
-                this.renderCategorias();
-                this.renderDocumentos();
-            });
-        });
-    }
-
-    // ============================================
     // NOTIFICAÇÕES
     // ============================================
     updateBadge() {
-        const badge = document.getElementById('notification-badge');
-        if (!badge) return;
-        
+        const badge = document.getElementById('notificationBadgeDocs');
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
-        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+        if (badge) {
+            badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+        }
     }
 
     // ============================================
     // EVENTOS DA UI
     // ============================================
     setupEvents() {
-        // Botão novo documento
         document.getElementById('btn-add-documento')?.addEventListener('click', () => {
             this.openUploadModal();
         });
         
-        // Fechar modal
-        const modal = document.getElementById('documento-modal');
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal || e.target.closest('.btn-back-modal') || e.target.closest('.btn-close-modal-btn')) {
-                    this.closeUploadModal();
-                }
-            });
-        }
-        
-        // Tecla ESC
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeUploadModal();
-            }
-        });
-        
-        // Botão selecionar arquivo
         document.getElementById('btn-select-file')?.addEventListener('click', () => {
             this.selectFile();
         });
         
-        // Input file
         document.getElementById('doc-file-input')?.addEventListener('change', (e) => {
             this.handleFileSelect(e);
         });
         
-        // Botão salvar
         document.getElementById('btn-save-documento')?.addEventListener('click', () => {
             this.saveDocumento();
         });
         
-        // Enter para salvar
         document.getElementById('doc-nome')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -473,12 +468,39 @@ class DocumentosModule {
             }
         });
         
-        // Escutar atualizações da nuvem
+        document.getElementById('documento-modal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeUploadModal();
+            }
+        });
+        
+        document.querySelectorAll('#documento-modal .btn-back-modal, #documento-modal .btn-close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.closeUploadModal();
+            });
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeUploadModal();
+            }
+        });
+        
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Documentos] 📡 Dados da nuvem atualizados');
             this.documentos = this.app.data.documentos || [];
-            this.renderDocumentos();
+            this.notifications = this.app.data.notifications || [];
+            this.profile = this.app.data.profile || {};
+            this.atualizarNomeUsuario();
             this.renderCategorias();
+            this.renderDocumentos();
+            this.updateBadge();
+        });
+        
+        window.addEventListener('documentosUpdated', () => {
+            this.documentos = this.app.data.documentos || [];
+            this.renderCategorias();
+            this.renderDocumentos();
         });
     }
 }
