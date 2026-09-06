@@ -869,7 +869,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DOCUMENTOS - ADICIONADO
+        // ⭐ DOCUMENTOS - COM STORAGE (MIGRAÇÃO)
         // ============================================
         async function getDocumentos(userId) {
             console.log('[Database] 🔍 Buscando documentos para userId:', userId);
@@ -898,7 +898,8 @@ if (window.DatabaseService) {
                     tipo: doc.tipo || 'application/octet-stream',
                     nomeArquivo: doc.nome_arquivo || doc.nome,
                     tamanho: doc.tamanho || 0,
-                    dataUpload: doc.data_upload || doc.created_at
+                    dataUpload: doc.data_upload || doc.created_at,
+                    storagePath: doc.storage_path || null // ⭐ NOVO: caminho no storage
                 }));
             } catch (error) {
                 console.error('[Database] ❌ Erro ao buscar documentos:', error);
@@ -906,13 +907,90 @@ if (window.DatabaseService) {
             }
         }
 
+        // ⭐ UPLOAD PARA STORAGE
+        async function uploadDocumentoStorage(userId, file, nome) {
+            console.log('[Database] 📤 Upload de documento para Storage:', nome);
+            const client = init();
+            if (!client) return null;
+
+            try {
+                const fileExt = file.name.split('.').pop() || 'pdf';
+                const safeName = nome.replace(/\s/g, '_').substring(0, 50);
+                const fileName = `${userId}/${Date.now()}_${safeName}.${fileExt}`;
+                const filePath = `documentos/${fileName}`;
+
+                console.log('[Database] 📡 Upload para:', filePath);
+
+                const { error: uploadError } = await client.storage
+                    .from('user-content')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    console.error('[Database] ❌ Erro no upload:', uploadError);
+                    return null;
+                }
+
+                const { data: { publicUrl } } = client.storage
+                    .from('user-content')
+                    .getPublicUrl(filePath);
+
+                console.log('[Database] ✅ URL pública gerada:', publicUrl);
+                return { publicUrl, storagePath: filePath };
+
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao fazer upload:', error);
+                return null;
+            }
+        }
+
+        // ⭐ DELETAR DO STORAGE
+        async function deleteDocumentoStorage(storagePath) {
+            console.log('[Database] 🗑️ Deletando documento do Storage:', storagePath);
+            const client = init();
+            if (!client) return false;
+
+            if (!storagePath) {
+                console.log('[Database] ℹ️ Sem storagePath para deletar');
+                return true;
+            }
+
+            try {
+                const { error } = await client.storage
+                    .from('user-content')
+                    .remove([storagePath]);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar do Storage:', error);
+                    return false;
+                }
+
+                console.log('[Database] ✅ Documento deletado do Storage');
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro:', error);
+                return false;
+            }
+        }
+
+        // ⭐ SALVAR DOCUMENTOS (COM STORAGE)
         async function saveDocumentos(userId, documentos) {
             console.log(`[Database] 💾 Salvando ${documentos?.length || 0} documentos para userId:`, userId);
             const client = init();
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando documentos antigos...');
+                // ⭐ DELETAR DO STORAGE ANTES DE REMOVER DO BANCO
+                const oldDocs = await getDocumentos(userId);
+                for (const old of oldDocs) {
+                    if (old.storagePath) {
+                        await deleteDocumentoStorage(old.storagePath);
+                    }
+                }
+
+                console.log('[Database] 📡 Deletando documentos antigos do banco...');
                 const { error: deleteError } = await client
                     .from('documentos')
                     .delete()
@@ -938,6 +1016,7 @@ if (window.DatabaseService) {
                     tipo: doc.tipo || 'application/octet-stream',
                     nome_arquivo: doc.nomeArquivo || doc.nome,
                     tamanho: doc.tamanho || 0,
+                    storage_path: doc.storagePath || null, // ⭐ NOVO
                     data_upload: doc.dataUpload || new Date().toISOString(),
                     created_at: doc.dataUpload || new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -1024,7 +1103,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // STORAGE - COM LOGS
+        // STORAGE - AVATAR
         // ============================================
         async function uploadProfilePhoto(userId, file) {
             console.log('[Database] 📤 Upload de foto para userId:', userId);
@@ -1112,9 +1191,11 @@ if (window.DatabaseService) {
             saveNotifications,
             getDisciplinas,
             saveDisciplinas,
-            // ⭐ NOVAS FUNÇÕES DE DOCUMENTOS
+            // ⭐ NOVAS FUNÇÕES DE DOCUMENTOS COM STORAGE
             getDocumentos,
             saveDocumentos,
+            uploadDocumentoStorage,
+            deleteDocumentoStorage,
             getUserSettings,
             saveUserSettings,
             uploadProfilePhoto,
@@ -1124,5 +1205,5 @@ if (window.DatabaseService) {
 
     // Exportar para uso global
     window.DatabaseService = DatabaseService;
-    console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (COM LOGS DETALHADOS)');
+    console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (COM STORAGE PARA DOCUMENTOS)');
 }
