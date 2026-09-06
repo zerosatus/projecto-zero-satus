@@ -1,5 +1,5 @@
 // ============================================
-// modules/documentos.js - MEUS DOCUMENTOS (PC)
+// modules/documentos.js - MEUS DOCUMENTOS (PC) COM STORAGE
 // ============================================
 
 class DocumentosModule {
@@ -13,7 +13,7 @@ class DocumentosModule {
         this._isSubmitting = false;
         this._selectedFile = null;
         
-        console.log('[Documentos] 📁 Módulo inicializado (PC)');
+        console.log('[Documentos] 📁 Módulo inicializado (PC com Storage)');
     }
 
     // ============================================
@@ -171,6 +171,11 @@ class DocumentosModule {
             const icon = iconMap[ext] || 'fa-file';
             const sizeFormatted = this.formatFileSize(doc.tamanho || 0);
             
+            // ⭐ Verificar se é URL do Storage (começa com http) ou Base64
+            const isStorageUrl = doc.arquivo && doc.arquivo.startsWith('http');
+            const previewIcon = isStorageUrl ? 'fa-cloud' : 'fa-database';
+            const previewTitle = isStorageUrl ? 'Armazenado na nuvem' : 'Armazenado localmente';
+            
             html += `
                 <div class="documento-item" data-id="${doc.id}">
                     <div class="documento-icon ${doc.categoria?.toLowerCase() || 'outros'}">
@@ -182,6 +187,9 @@ class DocumentosModule {
                             <span class="documento-categoria">${this.app.escapeHtml(doc.categoria || 'Outros')}</span>
                             <span class="documento-tamanho">${sizeFormatted}</span>
                             <span class="documento-data">${this.formatDate(doc.dataUpload)}</span>
+                            <span class="documento-storage" style="font-size: 0.6rem; color: var(--text-secondary);">
+                                <i class="fas ${previewIcon}"></i> ${previewTitle}
+                            </span>
                         </div>
                     </div>
                     <div class="documento-actions">
@@ -277,9 +285,10 @@ class DocumentosModule {
         const file = event.target.files?.[0];
         if (!file) return;
         
-        if (file.size > 10 * 1024 * 1024) {
+        // ⭐ LIMITE AUMENTADO PARA 20MB (Storage suporta mais)
+        if (file.size > 20 * 1024 * 1024) {
             if (typeof showToast === 'function') {
-                showToast('⚠️ Arquivo muito grande! Máximo 10MB.', 'error');
+                showToast('⚠️ Arquivo muito grande! Máximo 20MB.', 'error');
             }
             return;
         }
@@ -299,7 +308,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // SALVAR DOCUMENTO (UPLOAD)
+    // SALVAR DOCUMENTO (UPLOAD PARA STORAGE)
     // ============================================
     async saveDocumento() {
         if (this._isSubmitting) {
@@ -332,17 +341,46 @@ class DocumentosModule {
         this._isSubmitting = true;
         
         try {
-            const base64 = await this.fileToBase64(this._selectedFile);
+            let arquivo = null;
+            let storagePath = null;
+            let tipo = this._selectedFile.type || 'application/octet-stream';
+            let tamanho = this._selectedFile.size;
+            let nomeArquivo = this._selectedFile.name;
+            
+            // ⭐ TENTAR UPLOAD PARA STORAGE PRIMEIRO
+            if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
+                console.log('[Documentos] 📤 Tentando upload para Storage...');
+                const result = await window.DatabaseService.uploadDocumentoStorage(
+                    this.app.user.id,
+                    this._selectedFile,
+                    nome
+                );
+                
+                if (result && result.publicUrl) {
+                    arquivo = result.publicUrl;
+                    storagePath = result.storagePath;
+                    console.log('[Documentos] ✅ Upload para Storage concluído!');
+                } else {
+                    console.log('[Documentos] ⚠️ Falha no Storage, usando Base64 fallback');
+                }
+            }
+            
+            // ⭐ FALLBACK: Se Storage falhou, usar Base64
+            if (!arquivo) {
+                console.log('[Documentos] 📦 Usando Base64 fallback...');
+                arquivo = await this.fileToBase64(this._selectedFile);
+            }
             
             const novoDoc = {
                 id: Date.now().toString(),
                 nome: nome,
                 categoria: categoria,
                 descricao: descricao,
-                arquivo: base64,
-                tipo: this._selectedFile.type || 'application/octet-stream',
-                nomeArquivo: this._selectedFile.name,
-                tamanho: this._selectedFile.size,
+                arquivo: arquivo,
+                storagePath: storagePath || null,
+                tipo: tipo,
+                nomeArquivo: nomeArquivo,
+                tamanho: tamanho,
                 dataUpload: new Date().toISOString()
             };
             
@@ -353,7 +391,11 @@ class DocumentosModule {
             this.renderCategorias();
             
             if (typeof showToast === 'function') {
-                showToast('✅ Documento enviado com sucesso!', 'success');
+                if (storagePath) {
+                    showToast('✅ Documento enviado para a nuvem!', 'success');
+                } else {
+                    showToast('✅ Documento salvo localmente!', 'success');
+                }
             }
             
         } catch (error) {
@@ -367,7 +409,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // CONVERTER FILE PARA BASE64
+    // CONVERTER FILE PARA BASE64 (FALLBACK)
     // ============================================
     fileToBase64(file) {
         return new Promise((resolve, reject) => {
@@ -411,7 +453,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // DELETAR DOCUMENTO
+    // DELETAR DOCUMENTO (COM STORAGE)
     // ============================================
     async deleteDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
@@ -419,13 +461,34 @@ class DocumentosModule {
         
         if (!confirm(`Excluir o documento "${doc.nome}"?`)) return;
         
-        this.documentos = this.documentos.filter(d => d.id != id);
-        await this.salvarDados();
-        this.renderDocumentos();
-        this.renderCategorias();
-        
-        if (typeof showToast === 'function') {
-            showToast('🗑️ Documento excluído!', 'success');
+        try {
+            // ⭐ DELETAR DO STORAGE SE EXISTIR
+            if (doc.storagePath && window.DatabaseService && window.DatabaseService.deleteDocumentoStorage) {
+                console.log('[Documentos] 🗑️ Deletando do Storage:', doc.storagePath);
+                await window.DatabaseService.deleteDocumentoStorage(doc.storagePath);
+            }
+            
+            this.documentos = this.documentos.filter(d => d.id != id);
+            await this.salvarDados();
+            this.renderDocumentos();
+            this.renderCategorias();
+            
+            if (typeof showToast === 'function') {
+                showToast('🗑️ Documento excluído!', 'success');
+            }
+            
+        } catch (error) {
+            console.error('[Documentos] ❌ Erro ao deletar:', error);
+            
+            // Mesmo com erro, remover do banco
+            this.documentos = this.documentos.filter(d => d.id != id);
+            await this.salvarDados();
+            this.renderDocumentos();
+            this.renderCategorias();
+            
+            if (typeof showToast === 'function') {
+                showToast('🗑️ Documento excluído (com erro no Storage)', 'warning');
+            }
         }
     }
 
@@ -505,4 +568,4 @@ class DocumentosModule {
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado (PC)!');
+console.log('[Documentos] ✅ Módulo carregado (PC com Storage)!');
