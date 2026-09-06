@@ -1,5 +1,5 @@
 // ============================================
-// modules/perfil.js - PERFIL COMPLETO (COM DIAGNÓSTICO)
+// modules/perfil.js - PERFIL COMPLETO (COM DOCUMENTOS)
 // ============================================
 
 class PerfilModule {
@@ -479,6 +479,19 @@ class PerfilModule {
                         break;
                     case 'ajuda':
                         this.abrirModal('ajuda-modal');
+                        break;
+                    case 'documentos':
+                        // Navegar para a view de documentos
+                        if (this.app) {
+                            // Verificar se o módulo está carregado
+                            if (!this.app.modules.documentos) {
+                                // O módulo será carregado via app.js
+                                console.log('[Perfil] ⏳ Aguardando módulo documentos carregar...');
+                            }
+                            // Salvar view atual e mostrar documentos
+                            this.app.currentView = 'perfil';
+                            this.app.showView('documentos');
+                        }
                         break;
                     case 'deletar-foto':
                         this.deleteProfilePhoto();
