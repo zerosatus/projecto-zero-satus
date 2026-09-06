@@ -1,5 +1,5 @@
 // ============================================
-// modules/documentos.js - MEUS DOCUMENTOS
+// modules/documentos.js - MEUS DOCUMENTOS (PC)
 // ============================================
 
 class DocumentosModule {
@@ -13,7 +13,7 @@ class DocumentosModule {
         this._isSubmitting = false;
         this._selectedFile = null;
         
-        console.log('[Documentos] 📁 Módulo inicializado');
+        console.log('[Documentos] 📁 Módulo inicializado (PC)');
     }
 
     // ============================================
@@ -40,13 +40,13 @@ class DocumentosModule {
         const profile = this.profile || this.app.user || {};
         const nome = profile.nome || profile.displayName || 'Usuário';
         
-        const userName = document.getElementById('userNameDocs');
-        if (userName) userName.textContent = nome;
+        const userNameDocs = document.getElementById('userNameDocs');
+        if (userNameDocs) userNameDocs.textContent = nome;
         
-        const userAvatar = document.getElementById('userAvatarDocs');
-        if (userAvatar) {
+        const userAvatarDocs = document.getElementById('userAvatarDocs');
+        if (userAvatarDocs) {
             const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-            userAvatar.textContent = iniciais || 'U';
+            userAvatarDocs.textContent = iniciais || 'U';
         }
     }
 
@@ -137,10 +137,10 @@ class DocumentosModule {
         if (filtered.length === 0) {
             container.innerHTML = `
                 <div class="empty-documentos">
-                    <ion-icon name="document-outline"></ion-icon>
+                    <i class="fas fa-file-alt" style="font-size: 3.5rem; opacity: 0.4; display: block; margin-bottom: 16px;"></i>
                     <p>${this.selectedCategory !== 'Todos' ? 'Nenhum documento nesta categoria' : 'Nenhum documento enviado'}</p>
                     <button class="btn-add-documento-empty" onclick="app.modules.documentos.openUploadModal()">
-                        <ion-icon name="cloud-upload-outline"></ion-icon> Enviar Documento
+                        <i class="fas fa-cloud-upload-alt"></i> Enviar Documento
                     </button>
                 </div>
             `;
@@ -150,31 +150,31 @@ class DocumentosModule {
         let html = '';
         filtered.forEach(doc => {
             const iconMap = {
-                'pdf': 'document-text',
-                'doc': 'document-text',
-                'docx': 'document-text',
-                'xls': 'document-text',
-                'xlsx': 'document-text',
-                'ppt': 'document-text',
-                'pptx': 'document-text',
-                'jpg': 'image',
-                'jpeg': 'image',
-                'png': 'image',
-                'gif': 'image',
-                'mp4': 'videocam',
-                'mp3': 'musical-notes',
-                'zip': 'archive',
-                'rar': 'archive'
+                'pdf': 'fa-file-pdf',
+                'doc': 'fa-file-word',
+                'docx': 'fa-file-word',
+                'xls': 'fa-file-excel',
+                'xlsx': 'fa-file-excel',
+                'ppt': 'fa-file-powerpoint',
+                'pptx': 'fa-file-powerpoint',
+                'jpg': 'fa-file-image',
+                'jpeg': 'fa-file-image',
+                'png': 'fa-file-image',
+                'gif': 'fa-file-image',
+                'mp4': 'fa-file-video',
+                'mp3': 'fa-file-audio',
+                'zip': 'fa-file-archive',
+                'rar': 'fa-file-archive'
             };
             
             const ext = doc.nome?.split('.').pop()?.toLowerCase() || 'file';
-            const icon = iconMap[ext] || 'document-outline';
+            const icon = iconMap[ext] || 'fa-file';
             const sizeFormatted = this.formatFileSize(doc.tamanho || 0);
             
             html += `
                 <div class="documento-item" data-id="${doc.id}">
                     <div class="documento-icon ${doc.categoria?.toLowerCase() || 'outros'}">
-                        <ion-icon name="${icon}-outline"></ion-icon>
+                        <i class="fas ${icon}"></i>
                     </div>
                     <div class="documento-info">
                         <div class="documento-nome">${this.app.escapeHtml(doc.nome)}</div>
@@ -186,10 +186,10 @@ class DocumentosModule {
                     </div>
                     <div class="documento-actions">
                         <button class="btn-download" onclick="app.modules.documentos.downloadDocumento('${doc.id}')" title="Baixar">
-                            <ion-icon name="download-outline"></ion-icon>
+                            <i class="fas fa-download"></i>
                         </button>
                         <button class="btn-delete-doc" onclick="app.modules.documentos.deleteDocumento('${doc.id}')" title="Excluir">
-                            <ion-icon name="trash-outline"></ion-icon>
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
@@ -497,7 +497,7 @@ class DocumentosModule {
             this.updateBadge();
         });
         
-        window.addEventListener('documentsUpdated', () => {
+        window.addEventListener('documentosUpdated', () => {
             this.documentos = this.app.data.documentos || [];
             this.renderCategorias();
             this.renderDocumentos();
@@ -505,4 +505,4 @@ class DocumentosModule {
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado!');
+console.log('[Documentos] ✅ Módulo carregado (PC)!');
