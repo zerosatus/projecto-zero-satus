@@ -1,4 +1,4 @@
-// app.js - COMPLETO E CORRIGIDO (NOTIFICAÇÕES E NOTAS)
+// app.js - COMPLETO E CORRIGIDO (NOTIFICAÇÕES, NOTAS E DOCUMENTOS)
 // ============================================
 
 console.log('[SPA] 🚀 Iniciando aplicação mobile...');
@@ -15,6 +15,7 @@ class App {
             timeSlots: [],
             notifications: [],
             disciplinas: [],
+            documentos: [], // ⭐ ADICIONADO: Array para documentos
             profile: {},
             settings: {
                 theme: 'dark',
@@ -49,7 +50,8 @@ class App {
             tarefas: 'css/tarefas.css',
             notas: 'css/notas.css',
             perfil: 'css/perfil.css',
-            ia: 'css/ia.css'
+            ia: 'css/ia.css',
+            documentos: 'css/documentos.css' // ⭐ ADICIONADO
         };
         
         this.init();
@@ -721,6 +723,12 @@ class App {
         if (typeof IAModule !== 'undefined') {
              this.modules.ia = new IAModule(this);
         }
+
+        // ⭐ ADICIONAR MÓDULO DE DOCUMENTOS
+        if (typeof DocumentosModule !== 'undefined') {
+            this.modules.documentos = new DocumentosModule(this);
+            console.log('[SPA] 📁 Módulo Documentos carregado');
+        }
         
         console.log('[SPA] 📦 Módulos carregados:', Object.keys(this.modules));
     }
@@ -762,7 +770,7 @@ class App {
         // Tentar carregar do CacheManager
         try {
             if (window.CacheManager) {
-                const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
+                const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
                 let loadedCount = 0;
                 
                 for (const tipo of tipos) {
@@ -832,7 +840,7 @@ class App {
         this.updateLoadingStatus('Carregando dados locais...', 60);
         
         const userId = this.user.id;
-        const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
+        const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
         
         let loaded = false;
         let loadedCount = 0;
@@ -934,7 +942,7 @@ class App {
             
             // Salvar no localStorage com userId
             const userId = this.user.id;
-            const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas'];
+            const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
             
             for (const type of types) {
                 const key = `${userId}_${type}`;
@@ -1060,7 +1068,8 @@ class App {
                 tarefas: 'Gerenciador de Tarefas 📋',
                 notas: 'Minhas Anotações 📝',
                 perfil: 'Configurações da Conta 👤',
-                ia: 'Assistente IA 🤖'
+                ia: 'Assistente IA 🤖',
+                documentos: 'Meus Documentos 📁' // ⭐ ADICIONADO
             };
             const subtitleEl = document.getElementById('header-subtitle');
             if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
@@ -1420,7 +1429,7 @@ class App {
             }
         });
         
-        ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'disciplinas', 'notifications'].forEach(type => {
+        ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'disciplinas', 'notifications', 'documentos'].forEach(type => {
             window.addEventListener(`${type}Updated`, (e) => {
                 if (e.detail) {
                     this.data[type] = e.detail;
@@ -1577,4 +1586,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-console.log('[SPA] ✅ app.js carregado (corrigido - notificações e notas)!');
+console.log('[SPA] ✅ app.js carregado (corrigido - notificações, notas e documentos)!');
