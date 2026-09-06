@@ -319,6 +319,10 @@ class SimpleCacheManager {
                 case 'disciplinas':
                     result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
+                // ⭐ ADICIONAR DOCUMENTOS
+                case 'documentos':
+                    result = await window.DatabaseService.saveDocumentos(userId, value);
+                    break;
                 case 'usuarioLogado':
                     if (value.id && value.email) {
                         await window.DatabaseService.ensureUserData(value.id, value.email, value.nome);
@@ -403,7 +407,9 @@ class SimpleCacheManager {
                 weeklySchedule: db.getWeeklySchedule.bind(db),
                 timeSlots: db.getTimeSlots.bind(db),
                 notifications: db.getNotifications.bind(db),
-                disciplinas: db.getDisciplinas.bind(db)
+                disciplinas: db.getDisciplinas.bind(db),
+                // ⭐ ADICIONAR DOCUMENTOS
+                documentos: db.getDocumentos.bind(db)
             };
 
             for (const [key, getter] of Object.entries(dataTypes)) {
@@ -728,6 +734,8 @@ window.getNotifications = () => window.CacheManager.get('notifications', []);
 window.setNotifications = (notifications, notify) => window.CacheManager.set('notifications', notifications, notify);
 window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
+window.getDocumentos = () => window.CacheManager.get('documentos', []);
+window.setDocumentos = (documentos, notify) => window.CacheManager.set('documentos', documentos, notify);
 window.getCacheStatus = () => window.CacheManager.getStatus();
 
 console.log('[CacheManager] ✅ CacheManager v4.0 carregado com sucesso!');

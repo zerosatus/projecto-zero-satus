@@ -869,6 +869,98 @@ if (window.DatabaseService) {
         }
 
         // ============================================
+        // ⭐ DOCUMENTOS - ADICIONADO
+        // ============================================
+        async function getDocumentos(userId) {
+            console.log('[Database] 🔍 Buscando documentos para userId:', userId);
+            const client = init();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client
+                    .from('documentos')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('data_upload', { ascending: false });
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao buscar documentos:', error);
+                    return [];
+                }
+
+                console.log(`[Database] ✅ ${data?.length || 0} documentos encontrados`);
+                return (data || []).map(doc => ({
+                    id: doc.id,
+                    nome: doc.nome,
+                    categoria: doc.categoria || 'Outros',
+                    descricao: doc.descricao || '',
+                    arquivo: doc.arquivo,
+                    tipo: doc.tipo || 'application/octet-stream',
+                    nomeArquivo: doc.nome_arquivo || doc.nome,
+                    tamanho: doc.tamanho || 0,
+                    dataUpload: doc.data_upload || doc.created_at
+                }));
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao buscar documentos:', error);
+                return [];
+            }
+        }
+
+        async function saveDocumentos(userId, documentos) {
+            console.log(`[Database] 💾 Salvando ${documentos?.length || 0} documentos para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                console.log('[Database] 📡 Deletando documentos antigos...');
+                const { error: deleteError } = await client
+                    .from('documentos')
+                    .delete()
+                    .eq('user_id', userId);
+
+                if (deleteError) {
+                    console.error('[Database] ❌ Erro ao deletar documentos:', deleteError);
+                    return false;
+                }
+
+                if (!documentos || documentos.length === 0) {
+                    console.log('[Database] ℹ️ Nenhum documento para salvar');
+                    return true;
+                }
+
+                const docsToInsert = documentos.map(doc => ({
+                    id: doc.id || generateId(),
+                    user_id: userId,
+                    nome: doc.nome || 'Documento',
+                    categoria: doc.categoria || 'Outros',
+                    descricao: doc.descricao || '',
+                    arquivo: doc.arquivo || '',
+                    tipo: doc.tipo || 'application/octet-stream',
+                    nome_arquivo: doc.nomeArquivo || doc.nome,
+                    tamanho: doc.tamanho || 0,
+                    data_upload: doc.dataUpload || new Date().toISOString(),
+                    created_at: doc.dataUpload || new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }));
+
+                console.log(`[Database] 📡 Inserindo ${docsToInsert.length} documentos...`);
+                const batchSize = 50;
+                for (let i = 0; i < docsToInsert.length; i += batchSize) {
+                    const batch = docsToInsert.slice(i, i + batchSize);
+                    const { error } = await client.from('documentos').insert(batch);
+                    if (error) throw error;
+                    console.log(`[Database] ✅ Batch ${Math.floor(i/batchSize) + 1} salvo`);
+                }
+
+                console.log(`[Database] ✅ ${documentos.length} documentos salvos com sucesso`);
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao salvar documentos:', error);
+                return false;
+            }
+        }
+
+        // ============================================
         // USER SETTINGS - COM LOGS
         // ============================================
         async function getUserSettings(userId) {
@@ -1020,6 +1112,9 @@ if (window.DatabaseService) {
             saveNotifications,
             getDisciplinas,
             saveDisciplinas,
+            // ⭐ NOVAS FUNÇÕES DE DOCUMENTOS
+            getDocumentos,
+            saveDocumentos,
             getUserSettings,
             saveUserSettings,
             uploadProfilePhoto,
