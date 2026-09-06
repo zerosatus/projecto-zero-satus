@@ -45,10 +45,9 @@ DROP FUNCTION IF EXISTS listar_regras(TEXT, TEXT, TEXT, BOOLEAN) CASCADE;
 DROP FUNCTION IF EXISTS testar_permissao(TEXT, TEXT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS get_all_users() CASCADE;
 DROP FUNCTION IF EXISTS enviar_email_notificacao(TEXT, TEXT, TEXT) CASCADE;
-DROP FUNCTION IF EXISTS get_logs_stats() CASCADE;
 
 -- ============================================
--- 4. DROP E RECRIAR TABELAS
+-- 4. DROP E RECRIAR TABELASa
 -- ============================================
 
 DO $$ 
@@ -64,7 +63,6 @@ BEGIN
     EXECUTE 'ALTER TABLE IF EXISTS public.disciplinas DISABLE ROW LEVEL SECURITY';
     EXECUTE 'ALTER TABLE IF EXISTS public.profiles DISABLE ROW LEVEL SECURITY';
     EXECUTE 'ALTER TABLE IF EXISTS public.admin_notifications DISABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE IF EXISTS public.audit_logs DISABLE ROW LEVEL SECURITY';
 EXCEPTION WHEN OTHERS THEN
     RAISE NOTICE 'Erro ao desabilitar RLS: %', SQLERRM;
 END $$;
@@ -80,7 +78,6 @@ DROP TABLE IF EXISTS public.user_settings CASCADE;
 DROP TABLE IF EXISTS public.disciplinas CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.admin_notifications CASCADE;
-DROP TABLE IF EXISTS public.audit_logs CASCADE;
 
 -- ============================================
 -- 5. TABELA: PROFILES
@@ -221,25 +218,6 @@ CREATE TABLE public.admin_notifications (
 CREATE INDEX IF NOT EXISTS idx_admin_notifications_tipo ON public.admin_notifications(tipo);
 CREATE INDEX IF NOT EXISTS idx_admin_notifications_status ON public.admin_notifications(status);
 CREATE INDEX IF NOT EXISTS idx_admin_notifications_enviada_em ON public.admin_notifications(enviada_em);
-
--- ============================================
--- 12.5 TABELA: AUDIT_LOGS (CORREÇÃO)
--- ============================================
-CREATE TABLE public.audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID,
-    user_email TEXT,
-    acao TEXT NOT NULL,
-    descricao TEXT,
-    tipo TEXT DEFAULT 'system',
-    ip TEXT,
-    user_agent TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_tipo ON public.audit_logs(tipo);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at);
 
 -- ============================================
 -- 13. TABELA: USER_SETTINGS
@@ -571,6 +549,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- GRANT PERMISSIONS
 GRANT EXECUTE ON FUNCTION is_admin() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_all_users() TO authenticated;
 GRANT EXECUTE ON FUNCTION banir_usuario(TEXT) TO authenticated;
@@ -679,27 +658,6 @@ BEGIN
     LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================
--- 21.5 FUNÇÃO: get_logs_stats (CORREÇÃO)
--- ============================================
-CREATE OR REPLACE FUNCTION get_logs_stats()
-RETURNS TABLE(
-    total_logs BIGINT,
-    logs_seguranca BIGINT,
-    logs_hoje BIGINT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        COUNT(*) AS total_logs,
-        COUNT(*) FILTER (WHERE tipo = 'security') AS logs_seguranca,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS logs_hoje
-    FROM public.audit_logs;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-GRANT EXECUTE ON FUNCTION get_logs_stats() TO authenticated;
 
 -- ============================================
 -- 22. FUNÇÕES DE NOTIFICAÇÃO (CORRIGIDAS)
@@ -1450,24 +1408,6 @@ ON public.admin_notifications FOR DELETE
 TO authenticated
 USING (is_admin());
 
--- AUDIT_LOGS (CORREÇÃO)
-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admin view audit logs"
-ON public.audit_logs FOR SELECT
-TO authenticated
-USING (is_admin());
-
-CREATE POLICY "Admin insert audit logs"
-ON public.audit_logs FOR INSERT
-TO authenticated
-WITH CHECK (is_admin());
-
-CREATE POLICY "Admin delete audit logs"
-ON public.audit_logs FOR DELETE
-TO authenticated
-USING (is_admin());
-
 -- USER_SETTINGS
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
@@ -1649,9 +1589,6 @@ SELECT
 FROM public.profiles 
 WHERE email = 'projectozerosatus@gmail.com' OR role = 'admin';
 
--- Verificar a tabela audit_logs e função get_logs_stats
-SELECT * FROM get_logs_stats();
-
 -- ============================================
 -- 30. TESTAR NOTIFICAÇÃO
 -- ============================================
@@ -1667,6 +1604,78 @@ SELECT enviar_notificacao(
     NULL
 );
 
+-- ============================================
+-- RECRIAR TABELA DOCUMENTOS (COM STORAGE_PATH)
+-- ============================================
+
+-- DROP e RECRIAR
+DROP TABLE IF EXISTS public.documentos CASCADE;
+
+CREATE TABLE public.documentos (
+    id TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    nome TEXT NOT NULL,
+    categoria TEXT DEFAULT 'Outros',
+    descricao TEXT,
+    arquivo TEXT,
+    tipo TEXT DEFAULT 'application/octet-stream',
+    nome_arquivo TEXT,
+    tamanho BIGINT DEFAULT 0,
+    storage_path TEXT, -- ⬅️ NOVA COLUNA
+    data_upload TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_documentos_user_id ON public.documentos(user_id);
+CREATE INDEX IF NOT EXISTS idx_documentos_categoria ON public.documentos(categoria);
+CREATE INDEX IF NOT EXISTS idx_documentos_data_upload ON public.documentos(data_upload);
+CREATE INDEX IF NOT EXISTS idx_documentos_storage_path ON public.documentos(storage_path);
+
+-- Trigger
+CREATE TRIGGER update_documentos_updated_at BEFORE UPDATE ON public.documentos
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- RLS
+ALTER TABLE public.documentos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "User view own documentos"
+ON public.documentos FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+CREATE POLICY "User insert documentos"
+ON public.documentos FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "User update own documentos"
+ON public.documentos FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "User delete own documentos"
+ON public.documentos FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Admin view all documentos"
+ON public.documentos FOR SELECT
+TO authenticated
+USING (is_admin());
+
+CREATE POLICY "Admin delete all documentos"
+ON public.documentos FOR DELETE
+TO authenticated
+USING (is_admin());
+
+-- Verificar
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'documentos' 
+ORDER BY ordinal_position;
 -- ============================================
 -- 31. MENSAGEM DE CONCLUSÃO
 -- ============================================
@@ -1684,11 +1693,28 @@ BEGIN
     RAISE NOTICE '📬 FUNCOES DE NOTIFICACAO:';
     RAISE NOTICE '   - enviar_notificacao(destino, titulo, mensagem)';
     RAISE NOTICE '============================================';
-    RAISE NOTICE '📊 FUNCAO get_logs_stats CRIADA!';
-    RAISE NOTICE '============================================';
     RAISE NOTICE '⚠️ IMPORTANTE: Saia e entre novamente!';
     RAISE NOTICE '============================================';
 END $$;
+
+-- ============================================
+-- FUNÇÃO: get_logs_stats
+-- ============================================
+CREATE OR REPLACE FUNCTION get_logs_stats()
+RETURNS TABLE(
+    total_logs BIGINT,
+    logs_seguranca BIGINT,
+    logs_hoje BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) AS total_logs,
+        COUNT(*) FILTER (WHERE tipo = 'security') AS logs_seguranca,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS logs_hoje
+    FROM public.audit_logs;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 
