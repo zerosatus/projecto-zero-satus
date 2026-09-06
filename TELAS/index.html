@@ -725,7 +725,7 @@
             </div>
         </section>
 
-                <!-- ========================================== -->
+        <!-- ========================================== -->
         <!-- VIEW: ANOTAÇÕES                           -->
         <!-- ========================================== -->
         <section id="view-anotacoes" class="view hidden">
@@ -806,7 +806,48 @@
                 </div>
             </div>
         </section>
+        <!-- ========================================== -->
+        <!-- VIEW: DOCUMENTOS                           -->
+        <!-- ========================================== -->
+        <section id="view-documentos" class="view hidden">
+            <div class="page-header">
+                <div>
+                    <h1>Meus Documentos</h1>
+                    <p class="text-muted">Gerencie seus arquivos e documentos</p>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="app.openNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadgeDocs">0</span>
+                    </button>
+                    <div class="user-profile" onclick="app.showView('perfil')">
+                        <div class="user-avatar" id="userAvatarDocs">U</div>
+                        <span id="userNameDocs">Carregando...</span>
+                    </div>
+                </div>
+            </div>
 
+            <div class="documentos-header">
+                <button class="btn-back-view" onclick="app.showView('perfil')">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1> Meus Documentos</h1>
+                <button class="btn-add-documento" id="btn-add-documento">
+                    <i class="fas fa-cloud-upload-alt"></i> <span>Enviar</span>
+                </button>
+            </div>
+
+            <!-- Categorias/Filtros -->
+            <div class="documentos-categorias" id="documentos-categorias"></div>
+
+            <!-- Contador -->
+            <div class="documentos-info">
+                <span id="documentos-count">0</span> documentos
+            </div>
+
+            <!-- Lista de Documentos -->
+            <div id="documentos-list" class="documentos-list"></div>
+        </section>
         <!-- ========================================== -->
         <!-- VIEW: ASSISTENTE IA (TOTALMENTE ISOLADA)   -->
         <!-- ========================================== -->
@@ -955,6 +996,11 @@
                     </div>
                 </div>
                 <div class="profile-right">
+                 <div class="menu-item" data-action="documentos">
+                    <i class="fas fa-folder"></i>
+                    <span>Meus Documentos</span>
+                    <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
+                </div>
                     <div class="settings-card">
                         <h3><i class="fas fa-user"></i> Informações Pessoais</h3>
                         <div class="form-row"><div class="form-group"><label>Nome Completo</label><input type="text" id="nome" placeholder="Seu nome"></div></div>
@@ -1083,6 +1129,61 @@
             <button class="notif-tab" data-filter="tarefas">Tarefas</button>
         </div>
         <div class="notif-list" id="notifList"></div>
+    </div>    <!-- ========================================== -->
+    <!-- MODAL: UPLOAD DOCUMENTO                    -->
+    <!-- ========================================== -->
+    <div class="modal" id="documento-modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-cloud-upload-alt" style="color: var(--primary-color); margin-right: 8px;"></i>Enviar Documento</h2>
+                <button class="modal-close" onclick="app.modules.documentos?.closeUploadModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="formDocumento" style="padding: 24px;">
+                <div class="form-group">
+                    <label>Nome do Documento *</label>
+                    <input type="text" id="doc-nome" placeholder="Ex: Trabalho de Matemática" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="doc-categoria">
+                        <option value="Trabalhos">Trabalhos</option>
+                        <option value="Provas">Provas</option>
+                        <option value="Apresentações">Apresentações</option>
+                        <option value="Artigos">Artigos</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descrição (Opcional)</label>
+                    <input type="text" id="doc-descricao" placeholder="Breve descrição do documento">
+                </div>
+                
+                <div class="form-group">
+                    <label>Arquivo *</label>
+                    <div class="file-upload-area" id="file-upload-area" onclick="app.modules.documentos?.selectFile()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span id="doc-file-preview">Clique para selecionar um arquivo</span>
+                        <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.rar" style="display:none">
+                    </div>
+                    <small style="color: var(--text-secondary); font-size: 0.65rem; display: block; margin-top: 6px;">
+                        Formatos suportados: PDF, Word, Excel, PowerPoint, Imagens, Vídeos, Áudio, ZIP. Máx: 10MB
+                    </small>
+                </div>
+                
+                <div class="modal-footer" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn-cancel" onclick="app.modules.documentos?.closeUploadModal()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn-create" id="btn-save-documento">
+                        <i class="fas fa-cloud-upload-alt"></i> Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -1123,7 +1224,7 @@
 <script src="modules/anotacoes.js"></script>
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
-
+<script src="modules/documentos.js"></script>
 <script>
 // ============================================
 // multi-ai-service.js - 4 APIS × 3 MODELOS CADA = 12 PROVEDORES

@@ -14,6 +14,7 @@ class App {
             timeSlots: [],
             notifications: [],
             disciplinas: [],
+            documentos: [], // ⭐ ADICIONADO: Array para documentos
             profile: {},
             settings: {}
         };
@@ -33,7 +34,8 @@ class App {
             'anotacoes': 'css/anotacoes.css',
             'perfil': 'css/perfil.css',
             'ia': 'css/ia.css',
-            'disciplinas': 'css/disciplinas.css'  // ← ADICIONADO
+            'disciplinas': 'css/disciplinas.css',
+            'documentos': 'css/documentos.css' // ⭐ ADICIONADO
         };
         
         this.viewToModuleMap = {
@@ -45,7 +47,8 @@ class App {
             'anotacoes': 'anotacoes',
             'perfil': 'perfil',
             'ia': 'ia',
-            'disciplinas': 'disciplinas'  // ← ADICIONADO
+            'disciplinas': 'disciplinas',
+            'documentos': 'documentos' // ⭐ ADICIONADO
         };
         
         this.init();
@@ -486,6 +489,7 @@ class App {
             this.data.timeSlots = window.CacheManager.get('timeSlots', []);
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
+            this.data.documentos = window.CacheManager.get('documentos', []); // ⭐ ADICIONADO
             this.data.profile = window.CacheManager.get('usuarioLogado', {});
             
             // Garantir estrutura do horário
@@ -519,6 +523,7 @@ class App {
             console.log(`   - Eventos: ${this.data.calendarEvents.length}`);
             console.log(`   - Notificações: ${this.data.notifications.length}`);
             console.log(`   - Disciplinas: ${this.data.disciplinas.length}`);
+            console.log(`   - Documentos: ${this.data.documentos.length}`); // ⭐ ADICIONADO
             
             if (this.data.profile && this.data.profile.nome) {
                 this.atualizarNomeUsuario(this.data.profile.nome);
@@ -778,7 +783,12 @@ class App {
             this.modules.ia = new IaModule(this);
         }
         if (typeof DisciplinasModule !== 'undefined') {
-            this.modules.disciplinas = new DisciplinasModule(this);  // ← ADICIONADO
+            this.modules.disciplinas = new DisciplinasModule(this);
+        }
+        // ⭐ ADICIONAR MÓDULO DE DOCUMENTOS
+        if (typeof DocumentosModule !== 'undefined') {
+            this.modules.documentos = new DocumentosModule(this);
+            console.log('[App PC] 📁 Módulo Documentos carregado');
         }
         console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
     }
@@ -1115,6 +1125,14 @@ class App {
             console.log('[App PC] 📚 Disciplinas atualizadas!');
             if (this.modules.disciplinas) {
                 this.modules.disciplinas.render(this.data);
+            }
+        });
+        
+        // EVENTO DE DOCUMENTOS ATUALIZADOS (⭐ ADICIONADO)
+        window.addEventListener('documentosUpdated', () => {
+            console.log('[App PC] 📁 Documentos atualizados!');
+            if (this.modules.documentos) {
+                this.modules.documentos.render(this.data);
             }
         });
         
