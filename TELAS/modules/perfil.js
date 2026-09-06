@@ -1,5 +1,5 @@
 // ============================================
-// modules/perfil.js - PERFIL COMPLETO
+// modules/perfil.js - PERFIL COMPLETO (COM DOCUMENTOS)
 // ============================================
 
 class PerfilModule {
@@ -386,6 +386,18 @@ class PerfilModule {
         
         document.querySelectorAll('.btn-save, .btn-save-form').forEach(btn => {
             btn.addEventListener('click', () => this.salvarAlteracoes());
+        });
+
+        // ⭐ ADICIONAR EVENTO PARA DOCUMENTOS
+        document.querySelector('.menu-item[data-action="documentos"]')?.addEventListener('click', () => {
+            if (this.app) {
+                // Verificar se o módulo documentos está carregado
+                if (!this.app.modules.documentos) {
+                    // O módulo será carregado via app.js
+                    console.log('[Perfil] 📁 Abrindo documentos...');
+                }
+                this.app.showView('documentos');
+            }
         });
     }
 }
