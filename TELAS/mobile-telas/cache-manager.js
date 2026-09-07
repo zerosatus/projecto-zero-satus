@@ -24,11 +24,11 @@ class SimpleCacheManager {
         this._initAttempts = 0;
         this._maxInitAttempts = 5;
         this._syncInProgress = false;
-        // ⭐ NOVO: controlar tentativas de inicialização do DatabaseService
         this._dbInitAttempts = 0;
         this._maxDbInitAttempts = 10;
         this._dbInitDelay = 1000;
         this._processingQueue = false;
+        this._forceCloudLoad = false;
     }
 
     init() {
@@ -40,7 +40,6 @@ class SimpleCacheManager {
         this.isInitialized = true;
         this.getCurrentUserId();
 
-        // Verificar se StorageKeys está disponível e migrar dados
         if (window.StorageKeys && typeof window.StorageKeys.migrarDadosAntigos === 'function') {
             setTimeout(() => {
                 window.StorageKeys.migrarDadosAntigos();
@@ -58,7 +57,6 @@ class SimpleCacheManager {
             return this.currentUserId;
         }
 
-        // Tentar via StorageKeys primeiro
         if (window.StorageKeys && typeof window.StorageKeys.getCurrentUserId === 'function') {
             const userId = window.StorageKeys.getCurrentUserId();
             if (userId) {
@@ -83,17 +81,12 @@ class SimpleCacheManager {
         return null;
     }
 
-    // ============================================
-    // ⭐ GARANTIR QUE DATABASE SERVICE ESTÁ DISPONÍVEL
-    // ============================================
     async _ensureDatabaseService() {
-        // Se já está disponível, retorna true
         if (window.DatabaseService) {
             this._dbInitAttempts = 0;
             return true;
         }
 
-        // Se já tentou muitas vezes, retorna false
         if (this._dbInitAttempts >= this._maxDbInitAttempts) {
             console.warn('[CacheManager] ⚠️ Máximo de tentativas para DatabaseService atingido');
             return false;
@@ -102,13 +95,11 @@ class SimpleCacheManager {
         this._dbInitAttempts++;
         console.log(`[CacheManager] 🔄 Tentando inicializar DatabaseService (${this._dbInitAttempts}/${this._maxDbInitAttempts})...`);
 
-        // Tentar inicializar Supabase
         if (window.SupabaseClient?.initSupabase) {
             try {
                 await window.SupabaseClient.initSupabase();
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Verificar se foi inicializado
                 if (window.DatabaseService) {
                     console.log('[CacheManager] ✅ DatabaseService inicializado com sucesso!');
                     this._dbInitAttempts = 0;
@@ -119,7 +110,6 @@ class SimpleCacheManager {
             }
         }
 
-        // Tentar carregar o script manualmente
         try {
             console.log('[CacheManager] 🔄 Tentando carregar database-service.js...');
             const script = document.createElement('script');
@@ -139,14 +129,12 @@ class SimpleCacheManager {
             console.warn('[CacheManager] ⚠️ Erro ao carregar script:', e);
         }
 
-        // Verificar novamente
         if (window.DatabaseService) {
             console.log('[CacheManager] ✅ DatabaseService disponível após carregamento manual');
             this._dbInitAttempts = 0;
             return true;
         }
 
-        // Se ainda não está disponível, tentar novamente após um delay
         if (this._dbInitAttempts < this._maxDbInitAttempts) {
             await new Promise(resolve => setTimeout(resolve, this._dbInitDelay));
             return this._ensureDatabaseService();
@@ -156,9 +144,6 @@ class SimpleCacheManager {
         return false;
     }
 
-    // ============================================
-    // ⭐ GET - USANDO SEMPRE userId (PADRONIZADO)
-    // ============================================
     get(key, defaultValue = null) {
         try {
             if (this._dataCache.has(key)) {
@@ -170,12 +155,10 @@ class SimpleCacheManager {
                 return defaultValue;
             }
 
-            // ⭐ USAR SEMPRE O MESMO PADRÃO
             const storageKey = `${userId}_${key}`;
             const data = localStorage.getItem(storageKey);
             
             if (data === null) {
-                // ⭐ TENTAR MIGRAR DO FORMATO ANTIGO (COM EMAIL)
                 const usuario = localStorage.getItem('usuarioLogado');
                 if (usuario) {
                     try {
@@ -205,9 +188,6 @@ class SimpleCacheManager {
         }
     }
 
-    // ============================================
-    // ⭐ SET - USANDO SEMPRE userId (PADRONIZADO)
-    // ============================================
     set(key, value, notify = true) {
         const userId = this.getCurrentUserId();
         if (!userId) {
@@ -224,7 +204,6 @@ class SimpleCacheManager {
         }
 
         try {
-            // ⭐ USAR SEMPRE O MESMO PADRÃO
             const storageKey = `${userId}_${key}`;
 
             const currentData = localStorage.getItem(storageKey);
@@ -240,11 +219,9 @@ class SimpleCacheManager {
 
             this._savingFlags.set(flagKey, true);
             
-            // Salvar no localStorage com o padrão userId
             localStorage.setItem(storageKey, JSON.stringify(value));
             this._dataCache.set(key, value);
 
-            // ⭐ TAMBÉM SALVAR COM EMAIL PARA COMPATIBILIDADE
             const usuario = localStorage.getItem('usuarioLogado');
             if (usuario) {
                 try {
@@ -255,14 +232,11 @@ class SimpleCacheManager {
                 } catch(e) {}
             }
 
-            // ⭐ ADICIONAR À FILA APENAS SE DatabaseService ESTIVER DISPONÍVEL
             if (window.DatabaseService) {
                 this._addToSaveQueue(key, value, userId);
             } else {
-                // Se não estiver disponível, tenta inicializar e adiciona à fila
                 console.log('[CacheManager] ⏳ DatabaseService não disponível, agendando para depois...');
                 this._saveQueue.push({ key, value, userId });
-                // Tenta processar a fila mais tarde
                 if (!this._processingQueue) {
                     setTimeout(() => this._processSaveQueue(), 2000);
                 }
@@ -300,7 +274,6 @@ class SimpleCacheManager {
     _addToSaveQueue(key, value, userId) {
         this._saveQueue.push({ key, value, userId });
         console.log(`[CacheManager] 📋 ${key} adicionado à fila (${this._saveQueue.length} itens)`);
-        // Processar a fila imediatamente
         this._processSaveQueue();
     }
 
@@ -313,12 +286,10 @@ class SimpleCacheManager {
         console.log(`[CacheManager] 🔄 Processando fila (${this._saveQueue.length} itens)...`);
         
         try {
-            // ⭐ VERIFICAR SE DatabaseService ESTÁ DISPONÍVEL
             const dbReady = await this._ensureDatabaseService();
             
             if (!dbReady) {
                 console.warn('[CacheManager] ⚠️ DatabaseService não disponível, fila mantida para próxima tentativa');
-                // Esperar 5 segundos antes de tentar novamente
                 setTimeout(() => {
                     this._processingQueue = false;
                     if (this._saveQueue.length > 0) {
@@ -328,7 +299,6 @@ class SimpleCacheManager {
                 return;
             }
 
-            // Verificar novamente após inicialização
             if (!window.DatabaseService) {
                 console.warn('[CacheManager] ⚠️ DatabaseService ainda não disponível, fila mantida');
                 this._processingQueue = false;
@@ -344,7 +314,6 @@ class SimpleCacheManager {
                 }
                 const result = await this.saveToCloud(item.key, item.value, userId);
                 if (!result) {
-                    // Se falhou, recolocar na fila
                     console.warn(`[CacheManager] ⚠️ Falha ao salvar ${item.key}, recolocando na fila`);
                     this._saveQueue.push(item);
                     break;
@@ -366,15 +335,9 @@ class SimpleCacheManager {
         }
     }
 
-    // ============================================
-    // ⭐ SALVAR NA NUVEM (COM VERIFICAÇÃO)
-    // ============================================
     async saveToCloud(key, value, userId) {
-        // ⭐ VERIFICAR SE DatabaseService ESTÁ DISPONÍVEL
         if (!window.DatabaseService) {
             console.error('[CacheManager] ❌ DatabaseService não disponível para salvar:', key);
-            
-            // Tentar inicializar novamente
             const dbReady = await this._ensureDatabaseService();
             if (!dbReady || !window.DatabaseService) {
                 console.error('[CacheManager] ❌ DatabaseService ainda não disponível');
@@ -460,7 +423,7 @@ class SimpleCacheManager {
     }
 
     // ============================================
-    // ⭐ CARREGAR DA NUVEM
+    // ⭐ CARREGAR DA NUVEM (COM FORÇA PARA SOBRESCREVER)
     // ============================================
     async loadFromCloud(force = false) {
         const userId = this.getCurrentUserId();
@@ -469,7 +432,6 @@ class SimpleCacheManager {
             return false;
         }
 
-        // ⭐ VERIFICAR DatabaseService
         const dbReady = await this._ensureDatabaseService();
         if (!dbReady || !window.DatabaseService) {
             console.warn('[CacheManager] ⚠️ DatabaseService não disponível para carregar');
@@ -503,42 +465,46 @@ class SimpleCacheManager {
                 try {
                     console.log(`[CacheManager] 🔍 Buscando ${key}...`);
                     const data = await getter(userId);
-                    if (data !== null && data !== undefined && data.length > 0) {
-                        const storageKey = `${userId}_${key}`;
-                        const newDataStr = JSON.stringify(data);
-                        const currentLocal = localStorage.getItem(storageKey);
-                        
-                        if (currentLocal !== newDataStr) {
-                            localStorage.setItem(storageKey, newDataStr);
-                            // Também salvar com email para compatibilidade
-                            const usuario = localStorage.getItem('usuarioLogado');
-                            if (usuario) {
-                                try {
-                                    const user = JSON.parse(usuario);
-                                    if (user.email) {
-                                        localStorage.setItem(`${key}_${user.email}`, newDataStr);
-                                    }
-                                } catch(e) {}
+                    
+                    if (data !== null && data !== undefined) {
+                        if (force || (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+                            const storageKey = `${userId}_${key}`;
+                            const newDataStr = JSON.stringify(data);
+                            const currentLocal = localStorage.getItem(storageKey);
+                            
+                            if (force || currentLocal !== newDataStr) {
+                                localStorage.setItem(storageKey, newDataStr);
+                                
+                                const usuario = localStorage.getItem('usuarioLogado');
+                                if (usuario) {
+                                    try {
+                                        const user = JSON.parse(usuario);
+                                        if (user.email) {
+                                            localStorage.setItem(`${key}_${user.email}`, newDataStr);
+                                        }
+                                    } catch(e) {}
+                                }
+                                
+                                this._dataCache.set(key, data);
+                                hasChanges = true;
+                                
+                                console.log(`[CacheManager] ✅ ${key} ${force ? 'sobrescrito' : 'carregado'} da nuvem: ${Array.isArray(data) ? data.length : Object.keys(data).length} itens`);
+                                
+                                if (this.listeners.has(key)) {
+                                    this.listeners.get(key).forEach(cb => {
+                                        try { cb(data); } catch(e) { console.warn('[CacheManager] ⚠️ Erro no listener:', e); }
+                                    });
+                                }
+                                
+                                setTimeout(() => {
+                                    window.dispatchEvent(new CustomEvent(`${key}Updated`, { detail: data }));
+                                    window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key, value: data } }));
+                                }, 50);
+                            } else {
+                                console.log(`[CacheManager] ℹ️ ${key} já está atualizado`);
                             }
-                            this._dataCache.set(key, data);
-                            hasChanges = true;
-                            
-                            console.log(`[CacheManager] ✅ ${key} carregado da nuvem: ${Array.isArray(data) ? data.length : Object.keys(data).length} itens`);
-                            
-                            if (this.listeners.has(key)) {
-                                this.listeners.get(key).forEach(cb => {
-                                    try { 
-                                        cb(data); 
-                                    } catch(e) {
-                                        console.warn('[CacheManager] ⚠️ Erro no listener:', e);
-                                    }
-                                });
-                            }
-                            
-                            setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent(`${key}Updated`, { detail: data }));
-                                window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key, value: data } }));
-                            }, 50);
+                        } else {
+                            console.log(`[CacheManager] ℹ️ ${key} vazio na nuvem, mantendo local`);
                         }
                     }
                 } catch (error) {
@@ -560,7 +526,7 @@ class SimpleCacheManager {
                 console.log('[CacheManager] ℹ️ Nenhum dado novo encontrado');
             }
 
-            return hasChanges;
+            return hasChanges || force;
         } catch (error) {
             console.error('[CacheManager] ❌ Erro no loadFromCloud:', error);
             return false;
@@ -570,7 +536,7 @@ class SimpleCacheManager {
     }
 
     // ============================================
-    // ⭐ FORÇAR SINCRONIZAÇÃO (COM RETORNO)
+    // ⭐ FORÇAR SINCRONIZAÇÃO (BIDIRECIONAL)
     // ============================================
     async forceSync() {
         if (this._syncInProgress) {
@@ -582,25 +548,30 @@ class SimpleCacheManager {
         console.log('[CacheManager] 🔄 Forçando sincronização...');
         
         try {
-            // ⭐ VERIFICAR DatabaseService
             const dbReady = await this._ensureDatabaseService();
             if (!dbReady || !window.DatabaseService) {
                 console.error('[CacheManager] ❌ DatabaseService não disponível para sync');
                 return false;
             }
             
-            // Processar fila pendente
+            // PASSO 1: Carregar da nuvem (sobrescreve local)
+            console.log('[CacheManager] ☁️ Passo 1: Carregando da nuvem...');
+            await this.loadFromCloud(true);
+            
+            // PASSO 2: Processar fila pendente (salvar local → nuvem)
             if (this._saveQueue.length > 0) {
-                console.log(`[CacheManager] 📤 Enviando ${this._saveQueue.length} itens pendentes...`);
+                console.log(`[CacheManager] 📤 Passo 2: Enviando ${this._saveQueue.length} itens pendentes...`);
                 await this._processSaveQueue();
             }
             
-            // Carregar da nuvem
-            const result = await this.loadFromCloud(true);
+            // PASSO 3: Recarregar da nuvem (consistência final)
+            console.log('[CacheManager] 🔄 Passo 3: Recarregando para consistência...');
+            await this.loadFromCloud(true);
+            
             this._lastSyncTime = Date.now();
             
-            console.log('[CacheManager] ✅ Sincronização concluída:', result ? 'com alterações' : 'sem alterações');
-            return result;
+            console.log('[CacheManager] ✅ Sincronização concluída com sucesso!');
+            return true;
         } catch (error) {
             console.error('[CacheManager] ❌ Erro no forceSync:', error);
             return false;
@@ -615,7 +586,6 @@ class SimpleCacheManager {
             window.RealtimeSyncManager.disconnect();
         }
         
-        // Tentar sincronizar antes de sair
         try {
             await this.forceSync();
         } catch(e) {
@@ -824,7 +794,7 @@ window.getDocumentos = () => window.CacheManager.get('documentos', []);
 window.setDocumentos = (documentos, notify) => window.CacheManager.set('documentos', documentos, notify);
 window.getCacheStatus = () => window.CacheManager.getStatus();
 
-console.log('[CacheManager] ✅ CacheManager v4.1 carregado com sucesso!');
+console.log('[CacheManager] ✅ CacheManager v5.0 carregado com sucesso!');
 console.log('[CacheManager] 📌 Funções disponíveis:');
 console.log('   - getCached(key, defaultValue)');
 console.log('   - setCached(key, value, notify)');

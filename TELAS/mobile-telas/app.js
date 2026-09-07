@@ -42,6 +42,7 @@ class App {
         this._maxSyncRetries = 3;
         this._saveTimeout = null;
         this._notificationRefreshTimeout = null;
+        this._cloudLoaded = false;
         
         // CSS por módulo
         this.cssModules = {
@@ -773,7 +774,7 @@ class App {
     }
     
     // ============================================
-    // CARREGAR DADOS
+    // ⭐ CARREGAR DADOS (NUVEM PRIMEIRO)
     // ============================================
     async loadAllData(retryCount = 0) {
         if (this.isLoading) return;
@@ -782,93 +783,114 @@ class App {
         console.log(`[SPA] 📊 Carregando dados... (tentativa ${retryCount + 1})`);
         this.updateLoadingStatus(`Carregando dados... (${retryCount + 1}/5)`, 35 + (retryCount * 5));
         
-        // Verificar cache primeiro
-        const cached = sessionStorage.getItem('app_data');
-        if (cached) {
-            try {
-                const data = JSON.parse(cached);
-                if (data && typeof data === 'object') {
-                    this.data = {
-                        ...this.data,
-                        ...data
-                    };
-                    console.log('[SPA] 📦 Dados carregados do cache');
-                    this.updateLoadingStatus('Dados do cache carregados', 70);
-                    this.isLoading = false;
-                    
-                    if (this.modules.dashboard) {
-                        this.modules.dashboard.render(this.data);
-                    }
-                    return;
-                }
-            } catch(e) {
-                console.warn('[SPA] ⚠️ Cache inválido, ignorando');
-            }
-        }
-        
-        // Tentar carregar do CacheManager
+        // ⭐ PRIMEIRO: TENTAR CARREGAR DA NUVEM
+        let loadedFromCloud = false;
         try {
-            if (window.CacheManager) {
-                const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
-                let loadedCount = 0;
-                
-                for (const tipo of tipos) {
-                    const dados = window.CacheManager.get(tipo, null);
-                    if (dados !== null && dados !== undefined) {
-                        // ⭐ FILTRAR NOTAS FANTASMAS
-                        if (tipo === 'notes' && Array.isArray(dados)) {
-                            const filtradas = dados.filter(n => {
-                                const hasTitle = n.title && n.title.trim().length > 0;
-                                const hasContent = n.content && n.content.trim().length > 0 && 
-                                                  n.content !== '<br>' && 
-                                                  n.content !== '<div><br></div>' &&
-                                                  n.content !== '<p><br></p>';
-                                return hasTitle || hasContent;
-                            });
-                            if (filtradas.length !== dados.length) {
-                                console.log(`[SPA] 🧹 Removidas ${dados.length - filtradas.length} notas fantasmas do cache`);
-                                this.data[tipo] = filtradas;
-                                window.CacheManager.set(tipo, filtradas, true);
-                            } else {
-                                this.data[tipo] = dados;
-                            }
-                        } else {
-                            this.data[tipo] = dados;
+            if (window.CacheManager && window.DatabaseService) {
+                const userId = this.user?.id;
+                if (userId) {
+                    console.log('[SPA] ☁️ Tentando carregar da nuvem primeiro...');
+                    this.updateLoadingStatus('Carregando da nuvem...', 40);
+                    
+                    const cloudData = await window.CacheManager.loadFromCloud(true);
+                    if (cloudData) {
+                        loadedFromCloud = true;
+                        console.log('[SPA] ✅ Dados carregados da nuvem com sucesso!');
+                        this.updateLoadingStatus('Dados da nuvem carregados!', 70);
+                        
+                        await this._syncDataFromCacheManager();
+                        this.isLoading = false;
+                        
+                        if (this.modules.dashboard) {
+                            this.modules.dashboard.render(this.data);
                         }
-                        loadedCount++;
-                        console.log(`[SPA] 📊 ${tipo} carregado: ${Array.isArray(dados) ? dados.length : Object.keys(dados).length} itens`);
+                        return;
                     }
                 }
-                
-                const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-                dias.forEach(day => {
-                    if (!this.data.weeklySchedule[day]) {
-                        this.data.weeklySchedule[day] = [];
-                    }
-                });
-                
-                if (!this.data.settings || typeof this.data.settings !== 'object') {
-                    this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
-                }
-                
-                sessionStorage.setItem('app_data', JSON.stringify(this.data));
-                
-                console.log(`[SPA] ✅ Dados carregados do CacheManager (${loadedCount} tipos)`);
-                this.updateLoadingStatus('Dados carregados!', 80);
-                this.isLoading = false;
-                
-                if (this.modules.dashboard) {
-                    this.modules.dashboard.render(this.data);
-                }
-                return;
             }
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao carregar dados do CacheManager:', error);
+            console.warn('[SPA] ⚠️ Erro ao carregar da nuvem:', error);
         }
         
-        // Fallback: localStorage
+        // ⭐ SE NÃO CONSEGUIU DA NUVEM, TENTAR CACHE
+        if (!loadedFromCloud) {
+            // Verificar cache primeiro
+            const cached = sessionStorage.getItem('app_data');
+            if (cached) {
+                try {
+                    const data = JSON.parse(cached);
+                    if (data && typeof data === 'object') {
+                        this.data = {
+                            ...this.data,
+                            ...data
+                        };
+                        console.log('[SPA] 📦 Dados carregados do cache');
+                        this.updateLoadingStatus('Dados do cache carregados', 70);
+                        this.isLoading = false;
+                        
+                        if (this.modules.dashboard) {
+                            this.modules.dashboard.render(this.data);
+                        }
+                        return;
+                    }
+                } catch(e) {
+                    console.warn('[SPA] ⚠️ Cache inválido, ignorando');
+                }
+            }
+        }
+        
+        // ⭐ FALLBACK: localStorage
         this.loadDataFromLocalStorage();
         this.isLoading = false;
+    }
+    
+    // ⭐ NOVO MÉTODO: Sincronizar dados do CacheManager para o app
+    async _syncDataFromCacheManager() {
+        if (!window.CacheManager) return;
+        
+        const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
+        
+        for (const tipo of tipos) {
+            const dados = window.CacheManager.get(tipo, null);
+            if (dados !== null && dados !== undefined) {
+                // ⭐ FILTRAR NOTAS FANTASMAS
+                if (tipo === 'notes' && Array.isArray(dados)) {
+                    const filtradas = dados.filter(n => {
+                        const hasTitle = n.title && n.title.trim().length > 0;
+                        const hasContent = n.content && n.content.trim().length > 0 && 
+                                          n.content !== '<br>' && 
+                                          n.content !== '<div><br></div>' &&
+                                          n.content !== '<p><br></p>';
+                        return hasTitle || hasContent;
+                    });
+                    if (filtradas.length !== dados.length) {
+                        console.log(`[SPA] 🧹 Removidas ${dados.length - filtradas.length} notas fantasmas do cache`);
+                        this.data[tipo] = filtradas;
+                        window.CacheManager.set(tipo, filtradas, true);
+                    } else {
+                        this.data[tipo] = dados;
+                    }
+                } else {
+                    this.data[tipo] = dados;
+                }
+                console.log(`[SPA] 📊 ${tipo} sincronizado: ${Array.isArray(dados) ? dados.length : Object.keys(dados).length} itens`);
+            }
+        }
+        
+        // Garantir dias da semana
+        const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+        dias.forEach(day => {
+            if (!this.data.weeklySchedule[day]) {
+                this.data.weeklySchedule[day] = [];
+            }
+        });
+        
+        if (!this.data.settings || typeof this.data.settings !== 'object') {
+            this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
+        }
+        
+        // Salvar no sessionStorage
+        sessionStorage.setItem('app_data', JSON.stringify(this.data));
     }
     
     // ============================================
@@ -1625,4 +1647,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-console.log('[SPA] ✅ app.js carregado (corrigido - notificações, notas, documentos e cache)!');
+console.log('[SPA] ✅ app.js carregado (corrigido - sincronização automática)!');
