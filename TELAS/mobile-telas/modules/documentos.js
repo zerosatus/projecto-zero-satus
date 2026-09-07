@@ -15,6 +15,8 @@ class DocumentosModule {
         this._isSubmitting = false;
         this._selectedFile = null;
         this._cacheManagerReady = false;
+        this._lastSyncTime = 0;
+        this._syncDebounce = 2000;
         
         console.log('[Documentos] 📁 Módulo inicializado');
     }
@@ -301,7 +303,74 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ SALVAR DADOS (CORRIGIDO - NÃO APAGA SEM NECESSIDADE)
+    // ⭐ CARREGAR DOCUMENTOS DO CACHE (CORRIGIDO)
+    // ============================================
+    async carregarDocumentosDoCache() {
+        try {
+            // Tentar do CacheManager
+            if (window.CacheManager && this._cacheManagerReady) {
+                const cached = window.CacheManager.get('documentos', null);
+                if (cached && Array.isArray(cached) && cached.length > 0) {
+                    this.documentos = cached;
+                    this.app.data.documentos = cached;
+                    console.log('[Documentos] 📦 Carregado do CacheManager:', this.documentos.length);
+                    this.renderDocumentos();
+                    this.renderCategorias();
+                    return true;
+                }
+            }
+            
+            // Tentar do localStorage
+            if (this.app.user?.id) {
+                const userId = this.app.user.id;
+                const saved = localStorage.getItem(`${userId}_documentos`);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        this.documentos = parsed;
+                        this.app.data.documentos = parsed;
+                        console.log('[Documentos] 📦 Carregado do localStorage:', this.documentos.length);
+                        this.renderDocumentos();
+                        this.renderCategorias();
+                        return true;
+                    }
+                }
+                
+                // Tentar sessionStorage
+                const sessionSaved = sessionStorage.getItem(`${userId}_documentos`);
+                if (sessionSaved) {
+                    const parsed = JSON.parse(sessionSaved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        this.documentos = parsed;
+                        this.app.data.documentos = parsed;
+                        console.log('[Documentos] 📦 Carregado do sessionStorage:', this.documentos.length);
+                        this.renderDocumentos();
+                        this.renderCategorias();
+                        return true;
+                    }
+                }
+                
+                // Tentar IndexedDB
+                const indexedData = await this._carregarDoIndexedDB(userId);
+                if (indexedData && Array.isArray(indexedData) && indexedData.length > 0) {
+                    this.documentos = indexedData;
+                    this.app.data.documentos = indexedData;
+                    console.log('[Documentos] 📦 Carregado do IndexedDB:', this.documentos.length);
+                    this.renderDocumentos();
+                    this.renderCategorias();
+                    return true;
+                }
+            }
+            
+            return false;
+        } catch (error) {
+            console.warn('[Documentos] ⚠️ Erro ao carregar documentos:', error);
+            return false;
+        }
+    }
+
+    // ============================================
+    // ⭐ SALVAR DADOS (CORRIGIDO - NÃO APAGA)
     // ============================================
     async salvarDados() {
         if (this.isSaving || !this.app) return;
@@ -310,9 +379,13 @@ class DocumentosModule {
         try {
             await this._ensureCacheManager();
             
+            // ⭐ ATUALIZAR APP DATA
             this.app.data.documentos = this.documentos;
             
-            // ⭐ SALVAR NO CACHE MANAGER (SE DISPONÍVEL) - SEMPRE TENTAR
+            // ⭐ VERIFICAR ESPAÇO NO STORAGE
+            const hasSpace = this._checkStorageSpace();
+            
+            // ⭐ SALVAR NO CACHE MANAGER (SE DISPONÍVEL)
             if (window.CacheManager && this._cacheManagerReady) {
                 if (!window.CacheManager.isInitialized) {
                     console.log('[Documentos] 🔄 Inicializando CacheManager...');
@@ -324,18 +397,20 @@ class DocumentosModule {
                 }
                 
                 try {
-                    // ⭐ USAR set() SEMPRE, MESMO SE FALHAR, CONTINUA
                     const result = window.CacheManager.set('documentos', this.documentos, true);
                     if (result) {
                         console.log('[Documentos] ✅ Dados salvos no CacheManager:', this.documentos.length);
                     } else {
-                        console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager, continuando...');
+                        console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager');
+                        this._salvarFallback();
                     }
                 } catch (cacheError) {
                     console.warn('[Documentos] ⚠️ Erro no CacheManager:', cacheError.message);
+                    this._salvarFallback();
                 }
             } else {
                 console.warn('[Documentos] ⚠️ CacheManager não disponível, usando fallback');
+                this._salvarFallback();
             }
             
             // ⭐ SALVAR VIA APP (SEMPRE, É O FALLBACK PRINCIPAL)
@@ -404,62 +479,6 @@ class DocumentosModule {
             return false;
         } catch (error) {
             console.error('[Documentos] ❌ Falha no fallback:', error);
-            return false;
-        }
-    }
-
-    // ============================================
-    // ⭐ CARREGAR DOCUMENTOS DO CACHE
-    // ============================================
-    async carregarDocumentosDoCache() {
-        try {
-            if (window.CacheManager && this._cacheManagerReady) {
-                const cached = window.CacheManager.get('documentos', null);
-                if (cached && Array.isArray(cached) && cached.length > 0) {
-                    this.documentos = cached;
-                    console.log('[Documentos] 📦 Carregado do CacheManager:', this.documentos.length);
-                    return true;
-                }
-            }
-            
-            if (this.app.user?.id) {
-                const userId = this.app.user.id;
-                
-                let saved = localStorage.getItem(`${userId}_documentos`);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        this.documentos = parsed;
-                        console.log('[Documentos] 📦 Carregado do localStorage:', this.documentos.length);
-                        
-                        if (window.CacheManager && this._cacheManagerReady) {
-                            window.CacheManager.set('documentos', this.documentos, false);
-                        }
-                        return true;
-                    }
-                }
-                
-                saved = sessionStorage.getItem(`${userId}_documentos`);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        this.documentos = parsed;
-                        console.log('[Documentos] 📦 Carregado do sessionStorage:', this.documentos.length);
-                        return true;
-                    }
-                }
-                
-                const indexedData = await this._carregarDoIndexedDB(userId);
-                if (indexedData && Array.isArray(indexedData) && indexedData.length > 0) {
-                    this.documentos = indexedData;
-                    console.log('[Documentos] 📦 Carregado do IndexedDB:', this.documentos.length);
-                    return true;
-                }
-            }
-            
-            return false;
-        } catch (error) {
-            console.warn('[Documentos] ⚠️ Erro ao carregar documentos:', error);
             return false;
         }
     }
