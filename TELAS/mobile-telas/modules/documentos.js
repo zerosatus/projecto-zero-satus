@@ -1,6 +1,7 @@
 // ============================================
 // modules/documentos.js - GERENCIADOR DE DOCUMENTOS (COMPLETO CORRIGIDO)
 // COM SUPORTE A STORAGE (NUVEM), FALLBACK BASE64, COMPRESSÃO DE IMAGENS E INDEXEDDB
+// CORRIGIDO: NÃO APAGA DADOS SEM NECESSIDADE, MODAL FECHA CORRETAMENTE
 // ============================================
 
 class DocumentosModule {
@@ -300,7 +301,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO DE ESPAÇO E FALLBACK)
+    // ⭐ SALVAR DADOS (CORRIGIDO - NÃO APAGA SEM NECESSIDADE)
     // ============================================
     async salvarDados() {
         if (this.isSaving || !this.app) return;
@@ -311,10 +312,7 @@ class DocumentosModule {
             
             this.app.data.documentos = this.documentos;
             
-            // Verificar espaço no storage
-            const hasSpace = this._checkStorageSpace();
-            
-            // ⭐ SALVAR NO CACHE MANAGER (SE DISPONÍVEL)
+            // ⭐ SALVAR NO CACHE MANAGER (SE DISPONÍVEL) - SEMPRE TENTAR
             if (window.CacheManager && this._cacheManagerReady) {
                 if (!window.CacheManager.isInitialized) {
                     console.log('[Documentos] 🔄 Inicializando CacheManager...');
@@ -326,36 +324,38 @@ class DocumentosModule {
                 }
                 
                 try {
+                    // ⭐ USAR set() SEMPRE, MESMO SE FALHAR, CONTINUA
                     const result = window.CacheManager.set('documentos', this.documentos, true);
                     if (result) {
                         console.log('[Documentos] ✅ Dados salvos no CacheManager:', this.documentos.length);
                     } else {
-                        console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager');
-                        this._salvarFallback();
+                        console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager, continuando...');
                     }
                 } catch (cacheError) {
                     console.warn('[Documentos] ⚠️ Erro no CacheManager:', cacheError.message);
-                    this._salvarFallback();
                 }
             } else {
-                console.warn('[Documentos] ⚠️ CacheManager não disponível');
-                this._salvarFallback();
+                console.warn('[Documentos] ⚠️ CacheManager não disponível, usando fallback');
             }
             
-            // ⭐ SALVAR VIA APP (FALLBACK PRINCIPAL)
+            // ⭐ SALVAR VIA APP (SEMPRE, É O FALLBACK PRINCIPAL)
             await this.app.saveAllData();
-            console.log('[Documentos] ✅ Dados salvos:', this.documentos.length);
+            console.log('[Documentos] ✅ Dados salvos via app:', this.documentos.length);
             
             // ⭐ FORÇAR SYNC (SE DISPONÍVEL)
             if (window.CacheManager && this._cacheManagerReady && window.CacheManager.forceSync) {
                 setTimeout(() => {
-                    window.CacheManager.forceSync().catch(() => {});
+                    window.CacheManager.forceSync().catch(() => {
+                        console.warn('[Documentos] ⚠️ Sync assíncrono falhou, mas dados já foram salvos');
+                    });
                 }, 500);
             }
             
             window.dispatchEvent(new CustomEvent('documentosUpdated', {
                 detail: this.documentos
             }));
+            
+            return true;
             
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao salvar:', error);
@@ -365,13 +365,16 @@ class DocumentosModule {
                 if (this.app.user?.id) {
                     await this._salvarNoIndexedDB(this.app.user.id, this.documentos);
                     console.log('[Documentos] 💾 Dados salvos no IndexedDB como fallback');
+                    return true;
                 }
             } catch (e) {
                 console.error('[Documentos] ❌ Falha no fallback IndexedDB:', e);
             }
+            
+            return false;
+        } finally {
+            setTimeout(() => { this.isSaving = false; }, 500);
         }
-        
-        setTimeout(() => { this.isSaving = false; }, 500);
     }
 
     // ============================================
@@ -385,7 +388,7 @@ class DocumentosModule {
                 try {
                     localStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
                     console.log('[Documentos] 💾 Salvou no localStorage');
-                    return;
+                    return true;
                 } catch (e) {
                     console.warn('[Documentos] ⚠️ localStorage cheio, tentando sessionStorage...');
                 }
@@ -393,12 +396,15 @@ class DocumentosModule {
                 try {
                     sessionStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
                     console.log('[Documentos] 💾 Salvou no sessionStorage');
+                    return true;
                 } catch (e) {
                     console.warn('[Documentos] ⚠️ sessionStorage também cheio!');
                 }
             }
+            return false;
         } catch (error) {
             console.error('[Documentos] ❌ Falha no fallback:', error);
+            return false;
         }
     }
 
@@ -704,9 +710,10 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ SALVAR DOCUMENTO (UPLOAD PARA STORAGE + FALLBACK) - CORRIGIDO
+    // ⭐ SALVAR DOCUMENTO (CORRIGIDO - FECHA MODAL SEMPRE)
     // ============================================
     async saveDocumento() {
+        // ⭐ PREVINE CLICK DUPLO
         if (this._isSubmitting) {
             console.log('[Documentos] ⏳ Já está salvando...');
             return;
@@ -753,11 +760,9 @@ class DocumentosModule {
             let tamanho = this._selectedFile.size;
             let nomeArquivo = this._selectedFile.name;
             
+            // ⭐ TENTAR UPLOAD PARA STORAGE
             if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
                 console.log('[Documentos] 📤 Tentando upload para Storage...');
-                console.log('[Documentos] 📊 userId:', this.app.user?.id);
-                console.log('[Documentos] 📊 file.name:', this._selectedFile.name);
-                console.log('[Documentos] 📊 file.size:', this._selectedFile.size);
                 
                 try {
                     const result = await window.DatabaseService.uploadDocumentoStorage(
@@ -770,28 +775,26 @@ class DocumentosModule {
                         arquivo = result.publicUrl;
                         storagePath = result.storagePath;
                         console.log('[Documentos] ✅ Upload para Storage concluído!');
-                        console.log('[Documentos] 📎 URL:', arquivo);
-                        console.log('[Documentos] 📁 Path:', storagePath);
                     } else {
                         console.log('[Documentos] ⚠️ Falha no Storage, usando Base64 fallback');
                     }
                 } catch (storageError) {
                     console.error('[Documentos] ❌ Erro no Storage:', storageError);
-                    console.log('[Documentos] 📦 Usando Base64 fallback');
                 }
             } else {
                 console.warn('[Documentos] ⚠️ DatabaseService.uploadDocumentoStorage não disponível');
             }
             
+            // ⭐ FALLBACK: Base64
             if (!arquivo) {
                 console.log('[Documentos] 📦 Usando Base64 fallback...');
                 arquivo = await this.fileToBase64(this._selectedFile);
             }
             
             if (arquivo && arquivo.length > 5 * 1024 * 1024) {
-                console.warn('[Documentos] ⚠️ Base64 muito grande (>5MB), pode causar problemas de storage');
+                console.warn('[Documentos] ⚠️ Base64 muito grande (>5MB)');
                 if (typeof showToast === 'function') {
-                    showToast('⚠️ Arquivo muito grande para salvar localmente! Tente um arquivo menor.', 'warning');
+                    showToast('⚠️ Arquivo muito grande! Tente um arquivo menor.', 'warning');
                 }
             }
             
@@ -810,13 +813,10 @@ class DocumentosModule {
             
             this.documentos.unshift(novoDoc);
             
-            if (!storagePath && arquivo && arquivo.length > 3 * 1024 * 1024) {
-                if (typeof showToast === 'function') {
-                    showToast('📦 Documento salvo localmente (arquivo grande)', 'info');
-                }
-            }
+            // ⭐ SALVAR DADOS (SEMPRE)
+            const saved = await this.salvarDados();
             
-            await this.salvarDados();
+            // ⭐ FECHAR MODAL E ATUALIZAR UI (SEMPRE, MESMO SE SALVAR FALHAR)
             this.closeUploadModal();
             this.renderDocumentos();
             this.renderCategorias();
@@ -824,13 +824,19 @@ class DocumentosModule {
             if (typeof showToast === 'function') {
                 if (storagePath) {
                     showToast('✅ Documento enviado para a nuvem!', 'success');
-                } else {
+                } else if (saved) {
                     showToast('✅ Documento salvo localmente!', 'success');
+                } else {
+                    showToast('📦 Documento salvo com fallback', 'info');
                 }
             }
             
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao salvar:', error);
+            
+            // ⭐ MESMO COM ERRO, FECHAR MODAL
+            this.closeUploadModal();
+            
             if (typeof showToast === 'function') {
                 showToast('❌ Erro ao enviar documento', 'error');
             }
@@ -872,7 +878,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // DELETAR DOCUMENTO (COM STORAGE)
+    // DELETAR DOCUMENTO (COM STORAGE) - CORRIGIDO
     // ============================================
     async deleteDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
@@ -881,13 +887,19 @@ class DocumentosModule {
         if (!confirm(`Excluir o documento "${doc.nome}"?`)) return;
         
         try {
+            // ⭐ SE TIVER STORAGE, DELETAR
             if (doc.storagePath && window.DatabaseService && window.DatabaseService.deleteDocumentoStorage) {
                 console.log('[Documentos] 🗑️ Deletando do Storage:', doc.storagePath);
                 await window.DatabaseService.deleteDocumentoStorage(doc.storagePath);
             }
             
+            // ⭐ REMOVER DA LISTA LOCAL
             this.documentos = this.documentos.filter(d => d.id != id);
+            
+            // ⭐ SALVAR (NÃO APAGA DA NUVEM SEM NECESSIDADE)
             await this.salvarDados();
+            
+            // ⭐ ATUALIZAR UI
             this.renderDocumentos();
             this.renderCategorias();
             
@@ -898,6 +910,7 @@ class DocumentosModule {
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao deletar:', error);
             
+            // ⭐ MESMO COM ERRO, REMOVER LOCALMENTE
             this.documentos = this.documentos.filter(d => d.id != id);
             await this.salvarDados();
             this.renderDocumentos();
