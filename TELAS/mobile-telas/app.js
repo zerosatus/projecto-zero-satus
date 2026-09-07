@@ -505,20 +505,34 @@ class App {
             window.CacheManager.init();
             window.CacheManager.currentUserId = this.user.id;
             console.log('[SPA] ✅ CacheManager inicializado com userId:', this.user.id);
+            window.dispatchEvent(new CustomEvent('cacheReady'));
         } else {
             console.warn('[SPA] ⚠️ CacheManager não encontrado, tentando carregar...');
-            // Tentar carregar novamente
+            // Tentar carregar novamente - CAMINHO CORRIGIDO
             const script = document.createElement('script');
-            script.src = 'mobile-telas/cache-manager.js';
+            script.src = '/TELAS/mobile-telas/cache-manager.js';
             script.onload = () => {
                 if (window.CacheManager) {
                     window.CacheManager.init();
                     window.CacheManager.currentUserId = this.user.id;
                     console.log('[SPA] ✅ CacheManager carregado e inicializado!');
+                    window.dispatchEvent(new CustomEvent('cacheReady'));
                 }
             };
             script.onerror = () => {
-                console.error('[SPA] ❌ Falha ao carregar CacheManager');
+                console.error('[SPA] ❌ Falha ao carregar CacheManager, tentando fallback...');
+                // Tentar caminho relativo como fallback
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'cache-manager.js';
+                fallbackScript.onload = () => {
+                    if (window.CacheManager) {
+                        window.CacheManager.init();
+                        window.CacheManager.currentUserId = this.user.id;
+                        console.log('[SPA] ✅ CacheManager carregado via fallback!');
+                        window.dispatchEvent(new CustomEvent('cacheReady'));
+                    }
+                };
+                document.head.appendChild(fallbackScript);
             };
             document.head.appendChild(script);
         }
