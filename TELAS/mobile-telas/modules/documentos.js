@@ -1,6 +1,6 @@
 // ============================================
 // modules/documentos.js - GERENCIADOR DE DOCUMENTOS (COMPLETO CORRIGIDO)
-// COM SUPORTE A STORAGE (NUVEM), FALLBACK BASE64 E COMPRESSÃO DE IMAGENS
+// COM SUPORTE A STORAGE (NUVEM), FALLBACK BASE64, COMPRESSÃO DE IMAGENS E INDEXEDDB
 // ============================================
 
 class DocumentosModule {
@@ -101,12 +101,10 @@ class DocumentosModule {
     // ⭐ COMPRIMIR IMAGEM (REDUZ TAMANHO PARA EVITAR QUOTA EXCEEDED)
     // ============================================
     async _compressImage(file, maxSizeKB = 500) {
-        // Se não for imagem, retorna o arquivo original
         if (!file || !file.type || !file.type.startsWith('image/')) {
             return file;
         }
 
-        // Se a imagem já é pequena, não comprime
         if (file.size < maxSizeKB * 1024) {
             console.log('[Documentos] ℹ️ Imagem já é pequena, pulando compressão');
             return file;
@@ -121,7 +119,6 @@ class DocumentosModule {
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     
-                    // Reduzir para no máximo 800px (mantendo proporção)
                     let width = img.width;
                     let height = img.height;
                     const MAX_SIZE = 800;
@@ -143,7 +140,6 @@ class DocumentosModule {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Qualidade ajustável (0.6 = 60%)
                     const quality = Math.min(0.8, (maxSizeKB * 1024) / (file.size * 1.5));
                     const finalQuality = Math.max(0.4, Math.min(0.9, quality));
 
@@ -155,7 +151,7 @@ class DocumentosModule {
                         }
 
                         const compressedFile = new File([blob], file.name, {
-                            type: 'image/jpeg' // Converter para JPEG para reduzir tamanho
+                            type: 'image/jpeg'
                         });
 
                         const reduction = ((file.size - compressedFile.size) / file.size * 100).toFixed(0);
@@ -184,7 +180,7 @@ class DocumentosModule {
     _checkStorageSpace() {
         try {
             const testKey = '__storage_test__';
-            const testValue = 'A'.repeat(1024 * 100); // 100KB
+            const testValue = 'A'.repeat(1024 * 100);
             localStorage.setItem(testKey, testValue);
             localStorage.removeItem(testKey);
             return true;
@@ -329,7 +325,6 @@ class DocumentosModule {
                     window.CacheManager.currentUserId = this.app.user.id;
                 }
                 
-                // Tentar salvar no CacheManager
                 try {
                     const result = window.CacheManager.set('documentos', this.documentos, true);
                     if (result) {
@@ -387,7 +382,6 @@ class DocumentosModule {
             if (this.app.user?.id) {
                 const userId = this.app.user.id;
                 
-                // Tentar localStorage primeiro
                 try {
                     localStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
                     console.log('[Documentos] 💾 Salvou no localStorage');
@@ -396,7 +390,6 @@ class DocumentosModule {
                     console.warn('[Documentos] ⚠️ localStorage cheio, tentando sessionStorage...');
                 }
                 
-                // Fallback: sessionStorage
                 try {
                     sessionStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
                     console.log('[Documentos] 💾 Salvou no sessionStorage');
@@ -414,7 +407,6 @@ class DocumentosModule {
     // ============================================
     async carregarDocumentosDoCache() {
         try {
-            // Tentar do CacheManager primeiro
             if (window.CacheManager && this._cacheManagerReady) {
                 const cached = window.CacheManager.get('documentos', null);
                 if (cached && Array.isArray(cached) && cached.length > 0) {
@@ -424,11 +416,9 @@ class DocumentosModule {
                 }
             }
             
-            // Fallback: localStorage
             if (this.app.user?.id) {
                 const userId = this.app.user.id;
                 
-                // Tentar localStorage
                 let saved = localStorage.getItem(`${userId}_documentos`);
                 if (saved) {
                     const parsed = JSON.parse(saved);
@@ -443,7 +433,6 @@ class DocumentosModule {
                     }
                 }
                 
-                // Tentar sessionStorage
                 saved = sessionStorage.getItem(`${userId}_documentos`);
                 if (saved) {
                     const parsed = JSON.parse(saved);
@@ -454,7 +443,6 @@ class DocumentosModule {
                     }
                 }
                 
-                // Tentar IndexedDB
                 const indexedData = await this._carregarDoIndexedDB(userId);
                 if (indexedData && Array.isArray(indexedData) && indexedData.length > 0) {
                     this.documentos = indexedData;
@@ -528,10 +516,10 @@ class DocumentosModule {
         if (filtered.length === 0) {
             container.innerHTML = `
                 <div class="empty-documentos">
-                    <i class="fas fa-file-alt" style="font-size: 3.5rem; opacity: 0.4; display: block; margin-bottom: 16px;"></i>
+                    <ion-icon name="document-outline" style="font-size: 3rem; opacity: 0.4; display: block; margin-bottom: 16px;"></ion-icon>
                     <p>${this.selectedCategory !== 'Todos' ? 'Nenhum documento nesta categoria' : 'Nenhum documento enviado'}</p>
-                    <button class="btn-add-documento-empty" onclick="app.modules.documentos.openUploadModal()">
-                        <i class="fas fa-cloud-upload-alt"></i> Enviar Documento
+                    <button class="btn-add-documento" onclick="app.modules.documentos.openUploadModal()">
+                        <ion-icon name="cloud-upload-outline"></ion-icon> Enviar Documento
                     </button>
                 </div>
             `;
@@ -541,36 +529,35 @@ class DocumentosModule {
         let html = '';
         filtered.forEach(doc => {
             const iconMap = {
-                'pdf': 'fa-file-pdf',
-                'doc': 'fa-file-word',
-                'docx': 'fa-file-word',
-                'xls': 'fa-file-excel',
-                'xlsx': 'fa-file-excel',
-                'ppt': 'fa-file-powerpoint',
-                'pptx': 'fa-file-powerpoint',
-                'jpg': 'fa-file-image',
-                'jpeg': 'fa-file-image',
-                'png': 'fa-file-image',
-                'gif': 'fa-file-image',
-                'mp4': 'fa-file-video',
-                'mp3': 'fa-file-audio',
-                'zip': 'fa-file-archive',
-                'rar': 'fa-file-archive'
+                'pdf': 'document',
+                'doc': 'document',
+                'docx': 'document',
+                'xls': 'document',
+                'xlsx': 'document',
+                'ppt': 'document',
+                'pptx': 'document',
+                'jpg': 'image',
+                'jpeg': 'image',
+                'png': 'image',
+                'gif': 'image',
+                'mp4': 'videocam',
+                'mp3': 'musical-notes',
+                'zip': 'archive',
+                'rar': 'archive'
             };
             
             const ext = doc.nome?.split('.').pop()?.toLowerCase() || 'file';
-            const icon = iconMap[ext] || 'fa-file';
+            const icon = iconMap[ext] || 'document';
             const sizeFormatted = this.formatFileSize(doc.tamanho || 0);
             
             const isStorage = doc.storagePath && doc.storagePath.length > 0;
             const isStorageUrl = doc.arquivo && doc.arquivo.startsWith('http');
-            const storageIcon = isStorage || isStorageUrl ? 'fa-cloud' : 'fa-database';
             const storageLabel = isStorage || isStorageUrl ? '☁️ Nuvem' : '📦 Local';
             
             html += `
                 <div class="documento-item" data-id="${doc.id}">
                     <div class="documento-icon ${doc.categoria?.toLowerCase() || 'outros'}">
-                        <i class="fas ${icon}"></i>
+                        <ion-icon name="${icon}-outline"></ion-icon>
                     </div>
                     <div class="documento-info">
                         <div class="documento-nome">${this.app.escapeHtml(doc.nome)}</div>
@@ -579,16 +566,16 @@ class DocumentosModule {
                             <span class="documento-tamanho">${sizeFormatted}</span>
                             <span class="documento-data">${this.formatDate(doc.dataUpload)}</span>
                             <span class="documento-storage" style="font-size: 0.6rem; color: var(--text-secondary);">
-                                <i class="fas ${storageIcon}"></i> ${storageLabel}
+                                ${storageLabel}
                             </span>
                         </div>
                     </div>
                     <div class="documento-actions">
                         <button class="btn-download" onclick="app.modules.documentos.downloadDocumento('${doc.id}')" title="Baixar">
-                            <i class="fas fa-download"></i>
+                            <ion-icon name="download-outline"></ion-icon>
                         </button>
                         <button class="btn-delete-doc" onclick="app.modules.documentos.deleteDocumento('${doc.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
+                            <ion-icon name="trash-outline"></ion-icon>
                         </button>
                     </div>
                 </div>
@@ -645,6 +632,7 @@ class DocumentosModule {
         document.getElementById('doc-file-preview').textContent = 'Nenhum arquivo selecionado';
         document.getElementById('doc-file-preview').style.color = 'var(--text-secondary)';
         this._selectedFile = null;
+        this._isSubmitting = false;
         
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -676,7 +664,6 @@ class DocumentosModule {
         const file = event.target.files?.[0];
         if (!file) return;
         
-        // ⭐ LIMITE DE 20MB
         if (file.size > 20 * 1024 * 1024) {
             if (typeof showToast === 'function') {
                 showToast('⚠️ Arquivo muito grande! Máximo 20MB.', 'error');
@@ -684,10 +671,9 @@ class DocumentosModule {
             return;
         }
         
-        // ⭐ COMPRIMIR IMAGENS ANTES DE SALVAR
         let processedFile = file;
         if (file.type.startsWith('image/')) {
-            processedFile = await this._compressImage(file, 500); // 500KB máximo
+            processedFile = await this._compressImage(file, 500);
         }
         
         this._selectedFile = processedFile;
@@ -718,7 +704,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ SALVAR DOCUMENTO (UPLOAD PARA STORAGE + FALLBACK)
+    // ⭐ SALVAR DOCUMENTO (UPLOAD PARA STORAGE + FALLBACK) - CORRIGIDO
     // ============================================
     async saveDocumento() {
         if (this._isSubmitting) {
@@ -750,10 +736,8 @@ class DocumentosModule {
         
         this._isSubmitting = true;
         
-        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
         await this._ensureCacheManager();
         
-        // ⭐ GARANTIR QUE O DATABASE SERVICE ESTÁ DISPONÍVEL
         if (!window.DatabaseService) {
             console.warn('[Documentos] ⚠️ DatabaseService não disponível, tentando inicializar...');
             if (window.SupabaseClient?.initSupabase) {
@@ -769,7 +753,6 @@ class DocumentosModule {
             let tamanho = this._selectedFile.size;
             let nomeArquivo = this._selectedFile.name;
             
-            // ⭐ TENTAR UPLOAD PARA STORAGE PRIMEIRO
             if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
                 console.log('[Documentos] 📤 Tentando upload para Storage...');
                 console.log('[Documentos] 📊 userId:', this.app.user?.id);
@@ -800,13 +783,11 @@ class DocumentosModule {
                 console.warn('[Documentos] ⚠️ DatabaseService.uploadDocumentoStorage não disponível');
             }
             
-            // ⭐ FALLBACK: Se Storage falhou, usar Base64
             if (!arquivo) {
                 console.log('[Documentos] 📦 Usando Base64 fallback...');
                 arquivo = await this.fileToBase64(this._selectedFile);
             }
             
-            // ⭐ VERIFICAR TAMANHO DO BASE64
             if (arquivo && arquivo.length > 5 * 1024 * 1024) {
                 console.warn('[Documentos] ⚠️ Base64 muito grande (>5MB), pode causar problemas de storage');
                 if (typeof showToast === 'function') {
@@ -829,7 +810,6 @@ class DocumentosModule {
             
             this.documentos.unshift(novoDoc);
             
-            // ⭐ SE FOR BASE64 MUITO GRANDE, AVISAR
             if (!storagePath && arquivo && arquivo.length > 3 * 1024 * 1024) {
                 if (typeof showToast === 'function') {
                     showToast('📦 Documento salvo localmente (arquivo grande)', 'info');
@@ -933,12 +913,12 @@ class DocumentosModule {
     // NOTIFICAÇÕES
     // ============================================
     updateBadge() {
-        const badge = document.getElementById('notificationBadgeDocs');
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
+        
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
-        if (badge) {
-            badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-        }
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
 
     // ============================================
