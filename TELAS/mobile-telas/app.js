@@ -1,4 +1,4 @@
-// app.js - COMPLETO E CORRIGIDO (NOTIFICAÇÕES, NOTAS E DOCUMENTOS)
+// app.js - MOBILE COMPLETO E CORRIGIDO (NOTIFICAÇÕES, NOTAS, DOCUMENTOS E CACHE)
 // ============================================
 
 console.log('[SPA] 🚀 Iniciando aplicação mobile...');
@@ -15,7 +15,7 @@ class App {
             timeSlots: [],
             notifications: [],
             disciplinas: [],
-            documentos: [], // ⭐ ADICIONADO: Array para documentos
+            documentos: [],
             profile: {},
             settings: {
                 theme: 'dark',
@@ -51,7 +51,7 @@ class App {
             notas: 'css/notas.css',
             perfil: 'css/perfil.css',
             ia: 'css/ia.css',
-            documentos: 'css/documentos.css' // ⭐ ADICIONADO
+            documentos: 'css/documentos.css'
         };
         
         this.init();
@@ -497,6 +497,32 @@ class App {
         
         this.updateLoadingStatus(`Olá, ${this.user.nome || 'Usuário'}!`, 10);
         
+        // ⭐ ============================================
+        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
+        // ⭐ ============================================
+        if (window.CacheManager) {
+            console.log('[SPA] 🔄 Inicializando CacheManager...');
+            window.CacheManager.init();
+            window.CacheManager.currentUserId = this.user.id;
+            console.log('[SPA] ✅ CacheManager inicializado com userId:', this.user.id);
+        } else {
+            console.warn('[SPA] ⚠️ CacheManager não encontrado, tentando carregar...');
+            // Tentar carregar novamente
+            const script = document.createElement('script');
+            script.src = 'mobile-telas/cache-manager.js';
+            script.onload = () => {
+                if (window.CacheManager) {
+                    window.CacheManager.init();
+                    window.CacheManager.currentUserId = this.user.id;
+                    console.log('[SPA] ✅ CacheManager carregado e inicializado!');
+                }
+            };
+            script.onerror = () => {
+                console.error('[SPA] ❌ Falha ao carregar CacheManager');
+            };
+            document.head.appendChild(script);
+        }
+        
         const nomeExibicao = this.user.nome || this.user.displayName || this.user.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
@@ -507,7 +533,7 @@ class App {
         // Aguardar Supabase
         await this.waitForSupabase();
         
-        // Inicializar CacheManager
+        // Inicializar CacheManager (garantia)
         this.updateLoadingStatus('Inicializando cache...', 25);
         if (window.CacheManager) {
             window.CacheManager.init();
@@ -724,7 +750,6 @@ class App {
              this.modules.ia = new IAModule(this);
         }
 
-        // ⭐ ADICIONAR MÓDULO DE DOCUMENTOS
         if (typeof DocumentosModule !== 'undefined') {
             this.modules.documentos = new DocumentosModule(this);
             console.log('[SPA] 📁 Módulo Documentos carregado');
@@ -1069,7 +1094,7 @@ class App {
                 notas: 'Minhas Anotações 📝',
                 perfil: 'Configurações da Conta 👤',
                 ia: 'Assistente IA 🤖',
-                documentos: 'Meus Documentos 📁' // ⭐ ADICIONADO
+                documentos: 'Meus Documentos 📁'
             };
             const subtitleEl = document.getElementById('header-subtitle');
             if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
@@ -1586,4 +1611,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-console.log('[SPA] ✅ app.js carregado (corrigido - notificações, notas e documentos)!');
+console.log('[SPA] ✅ app.js carregado (corrigido - notificações, notas, documentos e cache)!');
