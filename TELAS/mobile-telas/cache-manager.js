@@ -24,6 +24,11 @@ class SimpleCacheManager {
         this._initAttempts = 0;
         this._maxInitAttempts = 5;
         this._syncInProgress = false;
+        // ⭐ NOVO: controlar tentativas de inicialização do DatabaseService
+        this._dbInitAttempts = 0;
+        this._maxDbInitAttempts = 10;
+        this._dbInitDelay = 1000;
+        this._processingQueue = false;
     }
 
     init() {
@@ -76,6 +81,79 @@ class SimpleCacheManager {
         }
         console.warn('[CacheManager] ⚠️ Nenhum usuário logado');
         return null;
+    }
+
+    // ============================================
+    // ⭐ GARANTIR QUE DATABASE SERVICE ESTÁ DISPONÍVEL
+    // ============================================
+    async _ensureDatabaseService() {
+        // Se já está disponível, retorna true
+        if (window.DatabaseService) {
+            this._dbInitAttempts = 0;
+            return true;
+        }
+
+        // Se já tentou muitas vezes, retorna false
+        if (this._dbInitAttempts >= this._maxDbInitAttempts) {
+            console.warn('[CacheManager] ⚠️ Máximo de tentativas para DatabaseService atingido');
+            return false;
+        }
+
+        this._dbInitAttempts++;
+        console.log(`[CacheManager] 🔄 Tentando inicializar DatabaseService (${this._dbInitAttempts}/${this._maxDbInitAttempts})...`);
+
+        // Tentar inicializar Supabase
+        if (window.SupabaseClient?.initSupabase) {
+            try {
+                await window.SupabaseClient.initSupabase();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Verificar se foi inicializado
+                if (window.DatabaseService) {
+                    console.log('[CacheManager] ✅ DatabaseService inicializado com sucesso!');
+                    this._dbInitAttempts = 0;
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[CacheManager] ⚠️ Erro ao inicializar Supabase:', e.message);
+            }
+        }
+
+        // Tentar carregar o script manualmente
+        try {
+            console.log('[CacheManager] 🔄 Tentando carregar database-service.js...');
+            const script = document.createElement('script');
+            script.src = '/TELAS/mobile-telas/database-service.js';
+            script.onload = () => {
+                console.log('[CacheManager] ✅ database-service.js carregado!');
+                if (window.DatabaseService) {
+                    this._dbInitAttempts = 0;
+                }
+            };
+            script.onerror = () => {
+                console.warn('[CacheManager] ⚠️ Falha ao carregar database-service.js');
+            };
+            document.head.appendChild(script);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch(e) {
+            console.warn('[CacheManager] ⚠️ Erro ao carregar script:', e);
+        }
+
+        // Verificar novamente
+        if (window.DatabaseService) {
+            console.log('[CacheManager] ✅ DatabaseService disponível após carregamento manual');
+            this._dbInitAttempts = 0;
+            return true;
+        }
+
+        // Se ainda não está disponível, tentar novamente após um delay
+        if (this._dbInitAttempts < this._maxDbInitAttempts) {
+            await new Promise(resolve => setTimeout(resolve, this._dbInitDelay));
+            return this._ensureDatabaseService();
+        }
+
+        console.warn('[CacheManager] ⚠️ DatabaseService não disponível após múltiplas tentativas');
+        return false;
     }
 
     // ============================================
@@ -177,8 +255,18 @@ class SimpleCacheManager {
                 } catch(e) {}
             }
 
-            // Adicionar à fila para enviar ao Supabase
-            this._addToSaveQueue(key, value, userId);
+            // ⭐ ADICIONAR À FILA APENAS SE DatabaseService ESTIVER DISPONÍVEL
+            if (window.DatabaseService) {
+                this._addToSaveQueue(key, value, userId);
+            } else {
+                // Se não estiver disponível, tenta inicializar e adiciona à fila
+                console.log('[CacheManager] ⏳ DatabaseService não disponível, agendando para depois...');
+                this._saveQueue.push({ key, value, userId });
+                // Tenta processar a fila mais tarde
+                if (!this._processingQueue) {
+                    setTimeout(() => this._processSaveQueue(), 2000);
+                }
+            }
 
             if (notify) {
                 if (this.listeners.has(key)) {
@@ -217,27 +305,34 @@ class SimpleCacheManager {
     }
 
     async _processSaveQueue() {
-        if (this._isSaving || this._saveQueue.length === 0) {
+        if (this._processingQueue || this._saveQueue.length === 0) {
             return;
         }
         
-        this._isSaving = true;
+        this._processingQueue = true;
         console.log(`[CacheManager] 🔄 Processando fila (${this._saveQueue.length} itens)...`);
         
         try {
-            // Verificar se DatabaseService está disponível
+            // ⭐ VERIFICAR SE DatabaseService ESTÁ DISPONÍVEL
+            const dbReady = await this._ensureDatabaseService();
+            
+            if (!dbReady) {
+                console.warn('[CacheManager] ⚠️ DatabaseService não disponível, fila mantida para próxima tentativa');
+                // Esperar 5 segundos antes de tentar novamente
+                setTimeout(() => {
+                    this._processingQueue = false;
+                    if (this._saveQueue.length > 0) {
+                        this._processSaveQueue();
+                    }
+                }, 5000);
+                return;
+            }
+
+            // Verificar novamente após inicialização
             if (!window.DatabaseService) {
-                console.warn('[CacheManager] ⚠️ DatabaseService não disponível, tentando inicializar...');
-                if (window.SupabaseClient?.initSupabase) {
-                    await window.SupabaseClient.initSupabase();
-                }
-                // Aguardar um pouco
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                if (!window.DatabaseService) {
-                    console.error('[CacheManager] ❌ DatabaseService ainda não disponível, fila mantida');
-                    return;
-                }
+                console.warn('[CacheManager] ⚠️ DatabaseService ainda não disponível, fila mantida');
+                this._processingQueue = false;
+                return;
             }
 
             while (this._saveQueue.length > 0) {
@@ -258,11 +353,15 @@ class SimpleCacheManager {
         } catch (error) {
             console.error('[CacheManager] ❌ Erro ao processar fila:', error);
         } finally {
-            this._isSaving = false;
+            this._processingQueue = false;
             
             if (this._saveQueue.length > 0) {
-                console.log('[CacheManager] 🔄 Novos itens na fila, continuando em 2s...');
-                setTimeout(() => this._processSaveQueue(), 2000);
+                console.log('[CacheManager] 🔄 Novos itens na fila, continuando em 3s...');
+                setTimeout(() => {
+                    if (this._saveQueue.length > 0) {
+                        this._processSaveQueue();
+                    }
+                }, 3000);
             }
         }
     }
@@ -276,13 +375,8 @@ class SimpleCacheManager {
             console.error('[CacheManager] ❌ DatabaseService não disponível para salvar:', key);
             
             // Tentar inicializar novamente
-            if (window.SupabaseClient?.initSupabase) {
-                console.log('[CacheManager] 🔄 Tentando inicializar Supabase...');
-                await window.SupabaseClient.initSupabase();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            
-            if (!window.DatabaseService) {
+            const dbReady = await this._ensureDatabaseService();
+            if (!dbReady || !window.DatabaseService) {
                 console.error('[CacheManager] ❌ DatabaseService ainda não disponível');
                 return false;
             }
@@ -319,7 +413,6 @@ class SimpleCacheManager {
                 case 'disciplinas':
                     result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
-                // ⭐ ADICIONAR DOCUMENTOS
                 case 'documentos':
                     result = await window.DatabaseService.saveDocumentos(userId, value);
                     break;
@@ -376,16 +469,11 @@ class SimpleCacheManager {
             return false;
         }
 
-        if (!window.DatabaseService) {
-            console.warn('[CacheManager] ⚠️ DatabaseService não disponível, tentando inicializar...');
-            if (window.SupabaseClient?.initSupabase) {
-                await window.SupabaseClient.initSupabase();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            if (!window.DatabaseService) {
-                console.error('[CacheManager] ❌ DatabaseService não disponível para carregar');
-                return false;
-            }
+        // ⭐ VERIFICAR DatabaseService
+        const dbReady = await this._ensureDatabaseService();
+        if (!dbReady || !window.DatabaseService) {
+            console.warn('[CacheManager] ⚠️ DatabaseService não disponível para carregar');
+            return false;
         }
 
         if (this.isLoading && !force) {
@@ -408,7 +496,6 @@ class SimpleCacheManager {
                 timeSlots: db.getTimeSlots.bind(db),
                 notifications: db.getNotifications.bind(db),
                 disciplinas: db.getDisciplinas.bind(db),
-                // ⭐ ADICIONAR DOCUMENTOS
                 documentos: db.getDocumentos.bind(db)
             };
 
@@ -495,17 +582,11 @@ class SimpleCacheManager {
         console.log('[CacheManager] 🔄 Forçando sincronização...');
         
         try {
-            // Verificar DatabaseService
-            if (!window.DatabaseService) {
-                console.warn('[CacheManager] ⚠️ DatabaseService não disponível, tentando inicializar...');
-                if (window.SupabaseClient?.initSupabase) {
-                    await window.SupabaseClient.initSupabase();
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-                if (!window.DatabaseService) {
-                    console.error('[CacheManager] ❌ DatabaseService não disponível');
-                    return false;
-                }
+            // ⭐ VERIFICAR DatabaseService
+            const dbReady = await this._ensureDatabaseService();
+            if (!dbReady || !window.DatabaseService) {
+                console.error('[CacheManager] ❌ DatabaseService não disponível para sync');
+                return false;
             }
             
             // Processar fila pendente
@@ -548,6 +629,8 @@ class SimpleCacheManager {
         this._profilePhotoCache = null;
         this._dataCache.clear();
         this._saveQueue = [];
+        this._dbInitAttempts = 0;
+        this._processingQueue = false;
         if (this._saveTimeout) {
             clearTimeout(this._saveTimeout);
             this._saveTimeout = null;
@@ -705,6 +788,9 @@ class SimpleCacheManager {
             saveQueueSize: this._saveQueue.length,
             isSaving: this._isSaving,
             isLoading: this.isLoading,
+            dbAvailable: !!window.DatabaseService,
+            dbInitAttempts: this._dbInitAttempts,
+            processingQueue: this._processingQueue,
             lastSyncTime: this._lastSyncTime ? new Date(this._lastSyncTime).toLocaleString() : 'Nunca'
         };
     }
@@ -738,7 +824,7 @@ window.getDocumentos = () => window.CacheManager.get('documentos', []);
 window.setDocumentos = (documentos, notify) => window.CacheManager.set('documentos', documentos, notify);
 window.getCacheStatus = () => window.CacheManager.getStatus();
 
-console.log('[CacheManager] ✅ CacheManager v4.0 carregado com sucesso!');
+console.log('[CacheManager] ✅ CacheManager v4.1 carregado com sucesso!');
 console.log('[CacheManager] 📌 Funções disponíveis:');
 console.log('   - getCached(key, defaultValue)');
 console.log('   - setCached(key, value, notify)');
