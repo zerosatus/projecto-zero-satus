@@ -1,5 +1,6 @@
 // ============================================
-// modules/documentos.js - GERENCIADOR DE DOCUMENTOS (CORRIGIDO)
+// modules/documentos.js - GERENCIADOR DE DOCUMENTOS (COMPLETO CORRIGIDO)
+// COM SUPORTE A STORAGE (NUVEM) E FALLBACK BASE64
 // ============================================
 
 class DocumentosModule {
@@ -51,7 +52,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // SALVAR DADOS
+    // SALVAR DADOS (COM VERIFICAÇÃO DO CACHE)
     // ============================================
     async salvarDados() {
         if (this.isSaving || !this.app) return;
@@ -59,9 +60,28 @@ class DocumentosModule {
         
         try {
             this.app.data.documentos = this.documentos;
+            
+            // ⭐ SALVAR NO CACHE MANAGER
+            if (window.CacheManager) {
+                if (!window.CacheManager.isInitialized) {
+                    console.log('[Documentos] 🔄 Inicializando CacheManager...');
+                    window.CacheManager.init();
+                }
+                const result = window.CacheManager.set('documentos', this.documentos, true);
+                if (result) {
+                    console.log('[Documentos] ✅ Dados salvos no CacheManager:', this.documentos.length);
+                } else {
+                    console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager');
+                }
+            } else {
+                console.warn('[Documentos] ⚠️ CacheManager não disponível, salvando apenas no app');
+            }
+            
+            // ⭐ SALVAR VIA APP (FALLBACK)
             await this.app.saveAllData();
             console.log('[Documentos] ✅ Dados salvos:', this.documentos.length);
             
+            // ⭐ FORÇAR SYNC
             if (window.CacheManager && window.CacheManager.forceSync) {
                 setTimeout(() => {
                     window.CacheManager.forceSync().catch(() => {});
@@ -121,7 +141,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // RENDER DOCUMENTOS
+    // RENDER DOCUMENTOS (COM INDICADOR DE STORAGE)
     // ============================================
     renderDocumentos() {
         const container = document.getElementById('documentos-list');
@@ -137,10 +157,10 @@ class DocumentosModule {
         if (filtered.length === 0) {
             container.innerHTML = `
                 <div class="empty-documentos">
-                    <ion-icon name="document-outline"></ion-icon>
+                    <i class="fas fa-file-alt" style="font-size: 3.5rem; opacity: 0.4; display: block; margin-bottom: 16px;"></i>
                     <p>${this.selectedCategory !== 'Todos' ? 'Nenhum documento nesta categoria' : 'Nenhum documento enviado'}</p>
                     <button class="btn-add-documento-empty" onclick="app.modules.documentos.openUploadModal()">
-                        <ion-icon name="cloud-upload-outline"></ion-icon> Enviar Documento
+                        <i class="fas fa-cloud-upload-alt"></i> Enviar Documento
                     </button>
                 </div>
             `;
@@ -150,31 +170,37 @@ class DocumentosModule {
         let html = '';
         filtered.forEach(doc => {
             const iconMap = {
-                'pdf': 'document-text',
-                'doc': 'document-text',
-                'docx': 'document-text',
-                'xls': 'document-text',
-                'xlsx': 'document-text',
-                'ppt': 'document-text',
-                'pptx': 'document-text',
-                'jpg': 'image',
-                'jpeg': 'image',
-                'png': 'image',
-                'gif': 'image',
-                'mp4': 'videocam',
-                'mp3': 'musical-notes',
-                'zip': 'archive',
-                'rar': 'archive'
+                'pdf': 'fa-file-pdf',
+                'doc': 'fa-file-word',
+                'docx': 'fa-file-word',
+                'xls': 'fa-file-excel',
+                'xlsx': 'fa-file-excel',
+                'ppt': 'fa-file-powerpoint',
+                'pptx': 'fa-file-powerpoint',
+                'jpg': 'fa-file-image',
+                'jpeg': 'fa-file-image',
+                'png': 'fa-file-image',
+                'gif': 'fa-file-image',
+                'mp4': 'fa-file-video',
+                'mp3': 'fa-file-audio',
+                'zip': 'fa-file-archive',
+                'rar': 'fa-file-archive'
             };
             
             const ext = doc.nome?.split('.').pop()?.toLowerCase() || 'file';
-            const icon = iconMap[ext] || 'document-outline';
+            const icon = iconMap[ext] || 'fa-file';
             const sizeFormatted = this.formatFileSize(doc.tamanho || 0);
+            
+            // ⭐ VERIFICAR SE ESTÁ NO STORAGE
+            const isStorage = doc.storagePath && doc.storagePath.length > 0;
+            const isStorageUrl = doc.arquivo && doc.arquivo.startsWith('http');
+            const storageIcon = isStorage || isStorageUrl ? 'fa-cloud' : 'fa-database';
+            const storageLabel = isStorage || isStorageUrl ? '☁️ Nuvem' : '📦 Local';
             
             html += `
                 <div class="documento-item" data-id="${doc.id}">
                     <div class="documento-icon ${doc.categoria?.toLowerCase() || 'outros'}">
-                        <ion-icon name="${icon}-outline"></ion-icon>
+                        <i class="fas ${icon}"></i>
                     </div>
                     <div class="documento-info">
                         <div class="documento-nome">${this.app.escapeHtml(doc.nome)}</div>
@@ -182,14 +208,17 @@ class DocumentosModule {
                             <span class="documento-categoria">${this.app.escapeHtml(doc.categoria || 'Outros')}</span>
                             <span class="documento-tamanho">${sizeFormatted}</span>
                             <span class="documento-data">${this.formatDate(doc.dataUpload)}</span>
+                            <span class="documento-storage" style="font-size: 0.6rem; color: var(--text-secondary);">
+                                <i class="fas ${storageIcon}"></i> ${storageLabel}
+                            </span>
                         </div>
                     </div>
                     <div class="documento-actions">
                         <button class="btn-download" onclick="app.modules.documentos.downloadDocumento('${doc.id}')" title="Baixar">
-                            <ion-icon name="download-outline"></ion-icon>
+                            <i class="fas fa-download"></i>
                         </button>
                         <button class="btn-delete-doc" onclick="app.modules.documentos.deleteDocumento('${doc.id}')" title="Excluir">
-                            <ion-icon name="trash-outline"></ion-icon>
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
@@ -277,9 +306,10 @@ class DocumentosModule {
         const file = event.target.files?.[0];
         if (!file) return;
         
-        if (file.size > 10 * 1024 * 1024) {
+        // ⭐ LIMITE AUMENTADO PARA 20MB (Storage suporta mais)
+        if (file.size > 20 * 1024 * 1024) {
             if (typeof showToast === 'function') {
-                showToast('⚠️ Arquivo muito grande! Máximo 10MB.', 'error');
+                showToast('⚠️ Arquivo muito grande! Máximo 20MB.', 'error');
             }
             return;
         }
@@ -299,7 +329,19 @@ class DocumentosModule {
     }
 
     // ============================================
-    // SALVAR DOCUMENTO (UPLOAD)
+    // CONVERTER FILE PARA BASE64 (FALLBACK)
+    // ============================================
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ============================================
+    // SALVAR DOCUMENTO (UPLOAD PARA STORAGE + FALLBACK)
     // ============================================
     async saveDocumento() {
         if (this._isSubmitting) {
@@ -331,18 +373,75 @@ class DocumentosModule {
         
         this._isSubmitting = true;
         
+        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
+        if (window.CacheManager && !window.CacheManager.isInitialized) {
+            console.log('[Documentos] 🔄 Inicializando CacheManager...');
+            window.CacheManager.init();
+        }
+        
+        // ⭐ GARANTIR QUE O DATABASE SERVICE ESTÁ DISPONÍVEL
+        if (!window.DatabaseService) {
+            console.warn('[Documentos] ⚠️ DatabaseService não disponível, tentando inicializar...');
+            if (window.SupabaseClient?.initSupabase) {
+                await window.SupabaseClient.initSupabase();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+        
         try {
-            const base64 = await this.fileToBase64(this._selectedFile);
+            let arquivo = null;
+            let storagePath = null;
+            let tipo = this._selectedFile.type || 'application/octet-stream';
+            let tamanho = this._selectedFile.size;
+            let nomeArquivo = this._selectedFile.name;
+            
+            // ⭐ TENTAR UPLOAD PARA STORAGE PRIMEIRO
+            if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
+                console.log('[Documentos] 📤 Tentando upload para Storage...');
+                console.log('[Documentos] 📊 userId:', this.app.user?.id);
+                console.log('[Documentos] 📊 file.name:', this._selectedFile.name);
+                console.log('[Documentos] 📊 file.size:', this._selectedFile.size);
+                
+                try {
+                    const result = await window.DatabaseService.uploadDocumentoStorage(
+                        this.app.user.id,
+                        this._selectedFile,
+                        nome
+                    );
+                    
+                    if (result && result.publicUrl) {
+                        arquivo = result.publicUrl;
+                        storagePath = result.storagePath;
+                        console.log('[Documentos] ✅ Upload para Storage concluído!');
+                        console.log('[Documentos] 📎 URL:', arquivo);
+                        console.log('[Documentos] 📁 Path:', storagePath);
+                    } else {
+                        console.log('[Documentos] ⚠️ Falha no Storage, usando Base64 fallback');
+                    }
+                } catch (storageError) {
+                    console.error('[Documentos] ❌ Erro no Storage:', storageError);
+                    console.log('[Documentos] 📦 Usando Base64 fallback');
+                }
+            } else {
+                console.warn('[Documentos] ⚠️ DatabaseService.uploadDocumentoStorage não disponível');
+            }
+            
+            // ⭐ FALLBACK: Se Storage falhou, usar Base64
+            if (!arquivo) {
+                console.log('[Documentos] 📦 Usando Base64 fallback...');
+                arquivo = await this.fileToBase64(this._selectedFile);
+            }
             
             const novoDoc = {
                 id: Date.now().toString(),
                 nome: nome,
                 categoria: categoria,
                 descricao: descricao,
-                arquivo: base64,
-                tipo: this._selectedFile.type || 'application/octet-stream',
-                nomeArquivo: this._selectedFile.name,
-                tamanho: this._selectedFile.size,
+                arquivo: arquivo,
+                storagePath: storagePath || null,
+                tipo: tipo,
+                nomeArquivo: nomeArquivo,
+                tamanho: tamanho,
                 dataUpload: new Date().toISOString()
             };
             
@@ -353,7 +452,11 @@ class DocumentosModule {
             this.renderCategorias();
             
             if (typeof showToast === 'function') {
-                showToast('✅ Documento enviado com sucesso!', 'success');
+                if (storagePath) {
+                    showToast('✅ Documento enviado para a nuvem!', 'success');
+                } else {
+                    showToast('✅ Documento salvo localmente!', 'success');
+                }
             }
             
         } catch (error) {
@@ -364,18 +467,6 @@ class DocumentosModule {
         } finally {
             this._isSubmitting = false;
         }
-    }
-
-    // ============================================
-    // CONVERTER FILE PARA BASE64
-    // ============================================
-    fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = (e) => reject(e);
-            reader.readAsDataURL(file);
-        });
     }
 
     // ============================================
@@ -411,7 +502,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // DELETAR DOCUMENTO
+    // DELETAR DOCUMENTO (COM STORAGE)
     // ============================================
     async deleteDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
@@ -419,13 +510,34 @@ class DocumentosModule {
         
         if (!confirm(`Excluir o documento "${doc.nome}"?`)) return;
         
-        this.documentos = this.documentos.filter(d => d.id != id);
-        await this.salvarDados();
-        this.renderDocumentos();
-        this.renderCategorias();
-        
-        if (typeof showToast === 'function') {
-            showToast('🗑️ Documento excluído!', 'success');
+        try {
+            // ⭐ DELETAR DO STORAGE SE EXISTIR
+            if (doc.storagePath && window.DatabaseService && window.DatabaseService.deleteDocumentoStorage) {
+                console.log('[Documentos] 🗑️ Deletando do Storage:', doc.storagePath);
+                await window.DatabaseService.deleteDocumentoStorage(doc.storagePath);
+            }
+            
+            this.documentos = this.documentos.filter(d => d.id != id);
+            await this.salvarDados();
+            this.renderDocumentos();
+            this.renderCategorias();
+            
+            if (typeof showToast === 'function') {
+                showToast('🗑️ Documento excluído!', 'success');
+            }
+            
+        } catch (error) {
+            console.error('[Documentos] ❌ Erro ao deletar:', error);
+            
+            // Mesmo com erro, remover do banco
+            this.documentos = this.documentos.filter(d => d.id != id);
+            await this.salvarDados();
+            this.renderDocumentos();
+            this.renderCategorias();
+            
+            if (typeof showToast === 'function') {
+                showToast('🗑️ Documento excluído (com erro no Storage)', 'warning');
+            }
         }
     }
 
@@ -445,22 +557,27 @@ class DocumentosModule {
     // EVENTOS DA UI
     // ============================================
     setupEvents() {
+        // Botão abrir modal
         document.getElementById('btn-add-documento')?.addEventListener('click', () => {
             this.openUploadModal();
         });
         
-        document.getElementById('btn-select-file')?.addEventListener('click', () => {
+        // Área de upload (clique)
+        document.getElementById('file-upload-area')?.addEventListener('click', () => {
             this.selectFile();
         });
         
+        // Input file
         document.getElementById('doc-file-input')?.addEventListener('change', (e) => {
             this.handleFileSelect(e);
         });
         
+        // Botão salvar
         document.getElementById('btn-save-documento')?.addEventListener('click', () => {
             this.saveDocumento();
         });
         
+        // Enter para salvar
         document.getElementById('doc-nome')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -468,24 +585,28 @@ class DocumentosModule {
             }
         });
         
+        // Fechar modal - clique fora
         document.getElementById('documento-modal')?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
                 this.closeUploadModal();
             }
         });
         
+        // Fechar modal - botões
         document.querySelectorAll('#documento-modal .btn-back-modal, #documento-modal .btn-close-modal-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.closeUploadModal();
             });
         });
         
+        // Tecla ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeUploadModal();
             }
         });
         
+        // ⭐ ESCUTAR ATUALIZAÇÕES DA NUVEM
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Documentos] 📡 Dados da nuvem atualizados');
             this.documentos = this.app.data.documentos || [];
@@ -497,12 +618,23 @@ class DocumentosModule {
             this.updateBadge();
         });
         
+        // ⭐ ESCUTAR ATUALIZAÇÕES DE DOCUMENTOS
         window.addEventListener('documentosUpdated', () => {
             this.documentos = this.app.data.documentos || [];
             this.renderCategorias();
             this.renderDocumentos();
         });
+        
+        // ⭐ ESCUTAR SINCronização CONCLUÍDA
+        window.addEventListener('syncCompleted', (e) => {
+            console.log('[Documentos] 📡 Sync concluído:', e.detail);
+            if (e.detail && e.detail.success) {
+                this.documentos = this.app.data.documentos || [];
+                this.renderDocumentos();
+                this.renderCategorias();
+            }
+        });
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado!');
+console.log('[Documentos] ✅ Módulo carregado com Storage + Base64 fallback!');
