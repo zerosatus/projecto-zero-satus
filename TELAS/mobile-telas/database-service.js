@@ -869,7 +869,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DOCUMENTOS - COM STORAGE (MIGRAÇÃO)
+        // ⭐ DOCUMENTOS - COM STORAGE (CORRIGIDO)
         // ============================================
         async function getDocumentos(userId) {
             console.log('[Database] 🔍 Buscando documentos para userId:', userId);
@@ -899,7 +899,7 @@ if (window.DatabaseService) {
                     nomeArquivo: doc.nome_arquivo || doc.nome,
                     tamanho: doc.tamanho || 0,
                     dataUpload: doc.data_upload || doc.created_at,
-                    storagePath: doc.storage_path || null // ⭐ NOVO: caminho no storage
+                    storagePath: doc.storage_path || null
                 }));
             } catch (error) {
                 console.error('[Database] ❌ Erro ao buscar documentos:', error);
@@ -907,20 +907,24 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ UPLOAD PARA STORAGE
+        // ⭐ UPLOAD PARA STORAGE - CORRIGIDO
         async function uploadDocumentoStorage(userId, file, nome) {
             console.log('[Database] 📤 Upload de documento para Storage:', nome);
             const client = init();
             if (!client) return null;
 
             try {
+                // Gerar nome único para o arquivo
                 const fileExt = file.name.split('.').pop() || 'pdf';
                 const safeName = nome.replace(/\s/g, '_').substring(0, 50);
-                const fileName = `${userId}/${Date.now()}_${safeName}.${fileExt}`;
-                const filePath = `documentos/${fileName}`;
-
+                const timestamp = Date.now();
+                
+                // ⭐ CAMINHO CORRETO: user-content/documentos/userId/timestamp_nome.ext
+                const filePath = `documentos/${userId}/${timestamp}_${safeName}.${fileExt}`;
+                
                 console.log('[Database] 📡 Upload para:', filePath);
 
+                // ⭐ USAR O BUCKET CORRETO
                 const { error: uploadError } = await client.storage
                     .from('user-content')
                     .upload(filePath, file, {
@@ -930,14 +934,19 @@ if (window.DatabaseService) {
 
                 if (uploadError) {
                     console.error('[Database] ❌ Erro no upload:', uploadError);
+                    console.error('[Database] ❌ Detalhes:', JSON.stringify(uploadError, null, 2));
                     return null;
                 }
 
+                // ⭐ OBTER URL PÚBLICA
                 const { data: { publicUrl } } = client.storage
                     .from('user-content')
                     .getPublicUrl(filePath);
 
-                console.log('[Database] ✅ URL pública gerada:', publicUrl);
+                console.log('[Database] ✅ Upload concluído!');
+                console.log('[Database] 📎 URL pública:', publicUrl);
+                console.log('[Database] 📁 Path:', filePath);
+
                 return { publicUrl, storagePath: filePath };
 
             } catch (error) {
@@ -1016,7 +1025,7 @@ if (window.DatabaseService) {
                     tipo: doc.tipo || 'application/octet-stream',
                     nome_arquivo: doc.nomeArquivo || doc.nome,
                     tamanho: doc.tamanho || 0,
-                    storage_path: doc.storagePath || null, // ⭐ NOVO
+                    storage_path: doc.storagePath || null,
                     data_upload: doc.dataUpload || new Date().toISOString(),
                     created_at: doc.dataUpload || new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -1112,14 +1121,16 @@ if (window.DatabaseService) {
 
             try {
                 const fileExt = file.name.split('.').pop() || 'png';
-                const fileName = `${userId}_${Date.now()}.${fileExt}`;
-                const filePath = `avatars/${fileName}`;
+                const fileName = `avatars/${userId}_${Date.now()}.${fileExt}`;
 
-                console.log('[Database] 📡 Upload para:', filePath);
+                console.log('[Database] 📡 Upload para:', fileName);
 
                 const { error: uploadError } = await client.storage
                     .from('user-content')
-                    .upload(filePath, file);
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
 
                 if (uploadError) {
                     console.error('[Database] ❌ Erro no upload:', uploadError);
@@ -1128,7 +1139,7 @@ if (window.DatabaseService) {
 
                 const { data: { publicUrl } } = client.storage
                     .from('user-content')
-                    .getPublicUrl(filePath);
+                    .getPublicUrl(fileName);
 
                 if (publicUrl) {
                     console.log('[Database] ✅ URL pública gerada:', publicUrl);
