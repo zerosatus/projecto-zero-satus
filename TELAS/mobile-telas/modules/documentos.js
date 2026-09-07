@@ -30,7 +30,7 @@ class DocumentosModule {
 
         // Esperar até 5 segundos pelo CacheManager
         let attempts = 0;
-        const maxAttempts = 25; // 5 segundos (200ms * 25)
+        const maxAttempts = 25;
 
         while (attempts < maxAttempts) {
             if (window.CacheManager) {
@@ -54,14 +54,43 @@ class DocumentosModule {
                 return true;
             }
 
-            // Tentar forçar carregamento do script
+            // Tentar forçar carregamento do script - CAMINHO CORRIGIDO
             if (attempts === 5) {
                 console.log('[Documentos] 🔄 Tentando carregar CacheManager manualmente...');
                 try {
                     const script = document.createElement('script');
-                    script.src = 'mobile-telas/cache-manager.js';
+                    // ⭐ CAMINHO ABSOLUTO A PARTIR DA RAIZ
+                    script.src = '/TELAS/mobile-telas/cache-manager.js';
+                    script.onload = () => {
+                        console.log('[Documentos] ✅ CacheManager carregado via script!');
+                        if (window.CacheManager && !window.CacheManager.isInitialized) {
+                            window.CacheManager.init();
+                            if (this.app?.user?.id) {
+                                window.CacheManager.currentUserId = this.app.user.id;
+                            }
+                            this._cacheManagerReady = true;
+                            window.dispatchEvent(new CustomEvent('cacheReady'));
+                        }
+                    };
+                    script.onerror = () => {
+                        console.warn('[Documentos] ⚠️ Falha ao carregar script, tentando caminho alternativo...');
+                        // Tentar caminho relativo como fallback
+                        const fallbackScript = document.createElement('script');
+                        fallbackScript.src = 'cache-manager.js';
+                        fallbackScript.onload = () => {
+                            if (window.CacheManager) {
+                                window.CacheManager.init();
+                                if (this.app?.user?.id) {
+                                    window.CacheManager.currentUserId = this.app.user.id;
+                                }
+                                this._cacheManagerReady = true;
+                                window.dispatchEvent(new CustomEvent('cacheReady'));
+                            }
+                        };
+                        document.head.appendChild(fallbackScript);
+                    };
                     document.head.appendChild(script);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 } catch(e) {
                     console.warn('[Documentos] ⚠️ Erro ao carregar script:', e);
                 }
