@@ -43,6 +43,7 @@ class App {
         this._saveTimeout = null;
         this._notificationRefreshTimeout = null;
         this._cloudLoaded = false;
+        this._dataLoadedFromCloud = false;
         
         // CSS por módulo
         this.cssModules = {
@@ -509,7 +510,6 @@ class App {
             window.dispatchEvent(new CustomEvent('cacheReady'));
         } else {
             console.warn('[SPA] ⚠️ CacheManager não encontrado, tentando carregar...');
-            // Tentar carregar novamente - CAMINHO CORRIGIDO
             const script = document.createElement('script');
             script.src = '/TELAS/mobile-telas/cache-manager.js';
             script.onload = () => {
@@ -522,7 +522,6 @@ class App {
             };
             script.onerror = () => {
                 console.error('[SPA] ❌ Falha ao carregar CacheManager, tentando fallback...');
-                // Tentar caminho relativo como fallback
                 const fallbackScript = document.createElement('script');
                 fallbackScript.src = 'cache-manager.js';
                 fallbackScript.onload = () => {
@@ -659,24 +658,18 @@ class App {
                     time: n.created_at
                 }));
 
-                // Atualizar dados
                 this.data.notifications = notificacoes;
                 
-                // Salvar no cache
                 if (window.CacheManager) {
                     window.CacheManager.set('notifications', notificacoes, true);
                 }
                 
-                // Salvar no localStorage com userId
                 const key = `${this.user.id}_notifications`;
                 localStorage.setItem(key, JSON.stringify(notificacoes));
 
                 console.log(`[SPA] ✅ ${notificacoes.length} notificações carregadas do Supabase`);
                 
-                // Atualizar badge
                 this.updateBadge();
-                
-                // Notificar UI
                 window.dispatchEvent(new CustomEvent('notificationsUpdated'));
             } else {
                 console.log('[SPA] ℹ️ Nenhuma notificação encontrada no Supabase');
@@ -698,7 +691,6 @@ class App {
                 return false;
             }
             
-            // Verificar DatabaseService
             if (!window.DatabaseService) {
                 console.warn('[SPA] ⚠️ DatabaseService não disponível, tentando inicializar...');
                 if (window.SupabaseClient?.initSupabase) {
@@ -711,11 +703,9 @@ class App {
                 }
             }
             
-            // Tentar sincronizar
             const result = await window.CacheManager.forceSync();
             console.log('[SPA] ✅ Sincronização inicial:', result ? 'com alterações' : 'sem alterações');
             
-            // Atualizar dados após sincronização
             await this.loadAllData();
             if (this.modules[this.currentView]) {
                 this.modules[this.currentView].render(this.data);
@@ -725,7 +715,6 @@ class App {
         } catch (error) {
             console.error('[SPA] ❌ Erro na sincronização inicial:', error);
             
-            // Tentar novamente após 3s
             if (this._syncRetryCount < this._maxSyncRetries) {
                 this._syncRetryCount++;
                 console.log(`[SPA] 🔄 Tentativa ${this._syncRetryCount}/${this._maxSyncRetries} em 3s...`);
@@ -795,6 +784,7 @@ class App {
                     const cloudData = await window.CacheManager.loadFromCloud(true);
                     if (cloudData) {
                         loadedFromCloud = true;
+                        this._dataLoadedFromCloud = true;
                         console.log('[SPA] ✅ Dados carregados da nuvem com sucesso!');
                         this.updateLoadingStatus('Dados da nuvem carregados!', 70);
                         
@@ -814,16 +804,12 @@ class App {
         
         // ⭐ SE NÃO CONSEGUIU DA NUVEM, TENTAR CACHE
         if (!loadedFromCloud) {
-            // Verificar cache primeiro
             const cached = sessionStorage.getItem('app_data');
             if (cached) {
                 try {
                     const data = JSON.parse(cached);
                     if (data && typeof data === 'object') {
-                        this.data = {
-                            ...this.data,
-                            ...data
-                        };
+                        this.data = { ...this.data, ...data };
                         console.log('[SPA] 📦 Dados carregados do cache');
                         this.updateLoadingStatus('Dados do cache carregados', 70);
                         this.isLoading = false;
@@ -844,7 +830,7 @@ class App {
         this.isLoading = false;
     }
     
-    // ⭐ NOVO MÉTODO: Sincronizar dados do CacheManager para o app
+    // ⭐ Sincronizar dados do CacheManager para o app
     async _syncDataFromCacheManager() {
         if (!window.CacheManager) return;
         
@@ -853,8 +839,12 @@ class App {
         for (const tipo of tipos) {
             const dados = window.CacheManager.get(tipo, null);
             if (dados !== null && dados !== undefined) {
-                // ⭐ FILTRAR NOTAS FANTASMAS
-                if (tipo === 'notes' && Array.isArray(dados)) {
+                // ⭐ PARA DOCUMENTOS: SÓ SOBRESCREVER SE TIVER DADOS
+                if (tipo === 'documentos' && Array.isArray(dados)) {
+                    if (dados.length > 0 || this.data.documentos.length > 0) {
+                        this.data[tipo] = dados;
+                    }
+                } else if (tipo === 'notes' && Array.isArray(dados)) {
                     const filtradas = dados.filter(n => {
                         const hasTitle = n.title && n.title.trim().length > 0;
                         const hasContent = n.content && n.content.trim().length > 0 && 
@@ -863,12 +853,9 @@ class App {
                                           n.content !== '<p><br></p>';
                         return hasTitle || hasContent;
                     });
-                    if (filtradas.length !== dados.length) {
-                        console.log(`[SPA] 🧹 Removidas ${dados.length - filtradas.length} notas fantasmas do cache`);
-                        this.data[tipo] = filtradas;
+                    this.data[tipo] = filtradas;
+                    if (filtradas.length > 0) {
                         window.CacheManager.set(tipo, filtradas, true);
-                    } else {
-                        this.data[tipo] = dados;
                     }
                 } else {
                     this.data[tipo] = dados;
@@ -877,7 +864,6 @@ class App {
             }
         }
         
-        // Garantir dias da semana
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(day => {
             if (!this.data.weeklySchedule[day]) {
@@ -889,7 +875,6 @@ class App {
             this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
         }
         
-        // Salvar no sessionStorage
         sessionStorage.setItem('app_data', JSON.stringify(this.data));
     }
     
@@ -913,7 +898,6 @@ class App {
                 try {
                     const parsed = JSON.parse(data);
                     if (parsed && (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0)) {
-                        // ⭐ FILTRAR NOTAS FANTASMAS
                         if (type === 'notes' && Array.isArray(parsed)) {
                             const filtradas = parsed.filter(n => {
                                 const hasTitle = n.title && n.title.trim().length > 0;
@@ -1010,7 +994,6 @@ class App {
                 if (this.data[type] !== undefined && this.data[type] !== null) {
                     localStorage.setItem(key, JSON.stringify(this.data[type]));
                     
-                    // ⭐ TAMBÉM SALVAR COM EMAIL PARA COMPATIBILIDADE
                     if (this.user.email) {
                         localStorage.setItem(`${type}_${this.user.email}`, JSON.stringify(this.data[type]));
                     }
@@ -1037,7 +1020,6 @@ class App {
                 
                 console.log(`[SPA] 📊 ${savedCount} tipos salvos, ${failedCount} falhas`);
                 
-                // ⭐ FORÇAR SYNC
                 if (savedCount > 0) {
                     try {
                         console.log('[SPA] 🔄 Forçando sincronização imediata...');
@@ -1142,7 +1124,6 @@ class App {
                 this.updateProfileStats();
             }
             
-            // ⭐ CONTROLE DO BOTÃO FLUTUANTE DA IA
             const fabIa = document.getElementById('btn-open-ia');
             if (fabIa) {
                 if (viewName === 'ia') {
@@ -1152,7 +1133,6 @@ class App {
                 }
             }
             
-            // ⭐ ESCONDE A BARRA DE NAVEGAÇÃO NA TELA DE IA
             const navBar = document.querySelector('.bottom-nav');
             if (navBar) {
                 navBar.style.display = (viewName === 'ia') ? 'none' : 'flex';
@@ -1167,7 +1147,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ NOTIFICAÇÕES - CORRIGIDO (APAGA DO SUPABASE)
+    // ⭐ NOTIFICAÇÕES
     // ============================================
     openNotifications() {
         const modal = document.getElementById('notifications-modal');
@@ -1217,7 +1197,6 @@ class App {
         });
         container.innerHTML = html;
         
-        // ⭐ EVENTO PARA DELETAR NOTIFICAÇÃO INDIVIDUAL
         container.querySelectorAll('.btn-delete-notification').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -1228,13 +1207,12 @@ class App {
     }
     
     // ============================================
-    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL (DO SUPABASE)
+    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL
     // ============================================
     async deleteNotification(id) {
         try {
             const client = this.getSupabase();
             if (client && this.user) {
-                // Deletar do Supabase
                 const { error } = await client
                     .from('notifications')
                     .delete()
@@ -1243,29 +1221,23 @@ class App {
 
                 if (error) {
                     console.error('[SPA] ❌ Erro ao deletar notificação do Supabase:', error);
-                    // Tentar deletar localmente mesmo com erro
                 }
             }
 
-            // Deletar localmente
             this.data.notifications = this.data.notifications.filter(n => n.id != id);
             
-            // Salvar no localStorage
             if (this.user) {
                 const key = `${this.user.id}_notifications`;
                 localStorage.setItem(key, JSON.stringify(this.data.notifications));
             }
             
-            // Salvar no CacheManager
             if (window.CacheManager) {
                 window.CacheManager.set('notifications', this.data.notifications, true);
             }
             
-            // Atualizar UI
             this.updateBadge();
             this.renderNotificationsModal();
             
-            // Atualizar dashboard
             if (this.modules.dashboard) {
                 this.modules.dashboard.renderNotifications();
             }
@@ -1285,7 +1257,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ MARCAR TODAS COMO LIDAS (COM SUPABASE)
+    // ⭐ MARCAR TODAS COMO LIDAS
     // ============================================
     async marcarTodasComoLidas() {
         try {
@@ -1299,7 +1271,6 @@ class App {
 
             const client = this.getSupabase();
             if (client && this.user) {
-                // Atualizar no Supabase
                 const ids = naoLidas.map(n => n.id);
                 const { error } = await client
                     .from('notifications')
@@ -1312,23 +1283,19 @@ class App {
                 }
             }
 
-            // Atualizar localmente
             this.data.notifications.forEach(n => {
                 if (!n.read) n.read = true;
             });
 
-            // Salvar no localStorage
             if (this.user) {
                 const key = `${this.user.id}_notifications`;
                 localStorage.setItem(key, JSON.stringify(this.data.notifications));
             }
 
-            // Salvar no CacheManager
             if (window.CacheManager) {
                 window.CacheManager.set('notifications', this.data.notifications, true);
             }
 
-            // Atualizar UI
             this.updateBadge();
             this.renderNotificationsModal();
 
@@ -1349,7 +1316,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ LIMPAR TODAS AS NOTIFICAÇÕES (DO SUPABASE)
+    // ⭐ LIMPAR TODAS AS NOTIFICAÇÕES
     // ============================================
     async limparTodasNotificacoes() {
         if (!confirm('Limpar todas as notificações?')) return;
@@ -1357,7 +1324,6 @@ class App {
         try {
             const client = this.getSupabase();
             if (client && this.user) {
-                // Deletar todas do Supabase
                 const { error } = await client
                     .from('notifications')
                     .delete()
@@ -1368,21 +1334,17 @@ class App {
                 }
             }
 
-            // Limpar localmente
             this.data.notifications = [];
 
-            // Salvar no localStorage
             if (this.user) {
                 const key = `${this.user.id}_notifications`;
                 localStorage.setItem(key, JSON.stringify(this.data.notifications));
             }
 
-            // Salvar no CacheManager
             if (window.CacheManager) {
                 window.CacheManager.set('notifications', this.data.notifications, true);
             }
 
-            // Atualizar UI
             this.updateBadge();
             this.renderNotificationsModal();
 
@@ -1445,12 +1407,10 @@ class App {
             document.getElementById('notifications-modal').classList.remove('active');
         });
         
-        // ⭐ MARCAR TODAS COMO LIDAS (CORRIGIDO)
         document.getElementById('btn-mark-read')?.addEventListener('click', () => {
             this.marcarTodasComoLidas();
         });
         
-        // ⭐ LIMPAR TODAS (CORRIGIDO)
         document.getElementById('btn-clear-all')?.addEventListener('click', () => {
             this.limparTodasNotificacoes();
         });
@@ -1525,7 +1485,6 @@ class App {
             }
         });
 
-        // ⭐ NOVAS NOTIFICAÇÕES EM TEMPO REAL
         window.addEventListener('newNotification', (e) => {
             console.log('[App] 📬 Nova notificação recebida via Realtime!');
             
@@ -1602,12 +1561,10 @@ class App {
             }
         });
 
-        // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE AO INICIAR
         setTimeout(() => {
             this.loadNotificationsFromSupabase();
         }, 2000);
 
-        // ⭐ BOTÃO FLUTUANTE DA IA - OBSERVER
         const fabIa = document.getElementById('btn-open-ia');
         
         const observer = new MutationObserver(() => {

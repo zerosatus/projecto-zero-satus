@@ -29,6 +29,8 @@ class SimpleCacheManager {
         this._dbInitDelay = 1000;
         this._processingQueue = false;
         this._forceCloudLoad = false;
+        this._syncErrorCount = 0;
+        this._maxSyncErrors = 5;
     }
 
     init() {
@@ -458,7 +460,7 @@ class SimpleCacheManager {
                 timeSlots: db.getTimeSlots.bind(db),
                 notifications: db.getNotifications.bind(db),
                 disciplinas: db.getDisciplinas.bind(db),
-                documentos: db.getDocumentos.bind(db)
+                documentos: db.getDocumentos.bind(db)  // ⭐ DOCUMENTOS ADICIONADO
             };
 
             for (const [key, getter] of Object.entries(dataTypes)) {
@@ -569,11 +571,20 @@ class SimpleCacheManager {
             await this.loadFromCloud(true);
             
             this._lastSyncTime = Date.now();
+            this._syncErrorCount = 0;
             
             console.log('[CacheManager] ✅ Sincronização concluída com sucesso!');
             return true;
         } catch (error) {
-            console.error('[CacheManager] ❌ Erro no forceSync:', error);
+            this._syncErrorCount++;
+            console.error(`[CacheManager] ❌ Erro no forceSync (${this._syncErrorCount}/${this._maxSyncErrors}):`, error);
+            
+            if (this._syncErrorCount < this._maxSyncErrors) {
+                console.log('[CacheManager] 🔄 Tentando novamente em 5s...');
+                setTimeout(() => {
+                    this.forceSync();
+                }, 5000);
+            }
             return false;
         } finally {
             this._syncInProgress = false;
@@ -761,7 +772,8 @@ class SimpleCacheManager {
             dbAvailable: !!window.DatabaseService,
             dbInitAttempts: this._dbInitAttempts,
             processingQueue: this._processingQueue,
-            lastSyncTime: this._lastSyncTime ? new Date(this._lastSyncTime).toLocaleString() : 'Nunca'
+            lastSyncTime: this._lastSyncTime ? new Date(this._lastSyncTime).toLocaleString() : 'Nunca',
+            syncErrorCount: this._syncErrorCount
         };
     }
 }
@@ -794,7 +806,7 @@ window.getDocumentos = () => window.CacheManager.get('documentos', []);
 window.setDocumentos = (documentos, notify) => window.CacheManager.set('documentos', documentos, notify);
 window.getCacheStatus = () => window.CacheManager.getStatus();
 
-console.log('[CacheManager] ✅ CacheManager v5.0 carregado com sucesso!');
+console.log('[CacheManager] ✅ CacheManager v5.1 carregado com sucesso!');
 console.log('[CacheManager] 📌 Funções disponíveis:');
 console.log('   - getCached(key, defaultValue)');
 console.log('   - setCached(key, value, notify)');
