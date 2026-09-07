@@ -13,8 +13,67 @@ class DocumentosModule {
         this.isSaving = false;
         this._isSubmitting = false;
         this._selectedFile = null;
+        this._cacheManagerReady = false;
         
         console.log('[Documentos] 📁 Módulo inicializado');
+    }
+
+    // ============================================
+    // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ PRONTO
+    // ============================================
+    async _ensureCacheManager() {
+        if (this._cacheManagerReady && window.CacheManager) {
+            return true;
+        }
+
+        console.log('[Documentos] 🔄 Verificando CacheManager...');
+
+        // Esperar até 5 segundos pelo CacheManager
+        let attempts = 0;
+        const maxAttempts = 25; // 5 segundos (200ms * 25)
+
+        while (attempts < maxAttempts) {
+            if (window.CacheManager) {
+                console.log('[Documentos] ✅ CacheManager encontrado!');
+                
+                // Inicializar se necessário
+                if (!window.CacheManager.isInitialized) {
+                    console.log('[Documentos] 🔄 Inicializando CacheManager...');
+                    window.CacheManager.init();
+                    
+                    // Aguardar inicialização
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                // Definir userId
+                if (this.app?.user?.id && !window.CacheManager.currentUserId) {
+                    window.CacheManager.currentUserId = this.app.user.id;
+                }
+
+                this._cacheManagerReady = true;
+                return true;
+            }
+
+            // Tentar forçar carregamento do script
+            if (attempts === 5) {
+                console.log('[Documentos] 🔄 Tentando carregar CacheManager manualmente...');
+                try {
+                    const script = document.createElement('script');
+                    script.src = 'mobile-telas/cache-manager.js';
+                    document.head.appendChild(script);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch(e) {
+                    console.warn('[Documentos] ⚠️ Erro ao carregar script:', e);
+                }
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+        }
+
+        console.warn('[Documentos] ⚠️ CacheManager não disponível após timeout');
+        this._cacheManagerReady = false;
+        return false;
     }
 
     // ============================================
@@ -26,6 +85,13 @@ class DocumentosModule {
         this.documentos = data.documentos || [];
         this.notifications = data.notifications || [];
         this.profile = data.profile || {};
+        
+        // ⭐ GARANTIR CACHE MANAGER NA RENDERIZAÇÃO
+        this._ensureCacheManager().then(ready => {
+            if (ready) {
+                console.log('[Documentos] ✅ CacheManager pronto para uso');
+            }
+        });
         
         this.atualizarNomeUsuario();
         this.renderCategorias();
@@ -52,37 +118,57 @@ class DocumentosModule {
     }
 
     // ============================================
-    // SALVAR DADOS (COM VERIFICAÇÃO DO CACHE)
+    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO DO CACHE)
     // ============================================
     async salvarDados() {
         if (this.isSaving || !this.app) return;
         this.isSaving = true;
         
         try {
+            // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ PRONTO
+            await this._ensureCacheManager();
+            
             this.app.data.documentos = this.documentos;
             
-            // ⭐ SALVAR NO CACHE MANAGER
-            if (window.CacheManager) {
+            // ⭐ SALVAR NO CACHE MANAGER (SE DISPONÍVEL)
+            if (window.CacheManager && this._cacheManagerReady) {
+                // Verificar se está inicializado
                 if (!window.CacheManager.isInitialized) {
                     console.log('[Documentos] 🔄 Inicializando CacheManager...');
                     window.CacheManager.init();
                 }
+                
+                // Definir userId se necessário
+                if (this.app.user?.id && !window.CacheManager.currentUserId) {
+                    window.CacheManager.currentUserId = this.app.user.id;
+                }
+                
                 const result = window.CacheManager.set('documentos', this.documentos, true);
                 if (result) {
                     console.log('[Documentos] ✅ Dados salvos no CacheManager:', this.documentos.length);
                 } else {
-                    console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager');
+                    console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager, salvando apenas no localStorage');
+                    // Fallback: salvar no localStorage diretamente
+                    if (this.app.user?.id) {
+                        const userId = this.app.user.id;
+                        localStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
+                    }
                 }
             } else {
-                console.warn('[Documentos] ⚠️ CacheManager não disponível, salvando apenas no app');
+                console.warn('[Documentos] ⚠️ CacheManager não disponível, salvando apenas no localStorage');
+                // Fallback: salvar no localStorage
+                if (this.app.user?.id) {
+                    const userId = this.app.user.id;
+                    localStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
+                }
             }
             
-            // ⭐ SALVAR VIA APP (FALLBACK)
+            // ⭐ SALVAR VIA APP (FALLBACK PRINCIPAL)
             await this.app.saveAllData();
             console.log('[Documentos] ✅ Dados salvos:', this.documentos.length);
             
-            // ⭐ FORÇAR SYNC
-            if (window.CacheManager && window.CacheManager.forceSync) {
+            // ⭐ FORÇAR SYNC (SE DISPONÍVEL)
+            if (window.CacheManager && this._cacheManagerReady && window.CacheManager.forceSync) {
                 setTimeout(() => {
                     window.CacheManager.forceSync().catch(() => {});
                 }, 500);
@@ -94,9 +180,61 @@ class DocumentosModule {
             
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao salvar:', error);
+            
+            // ⭐ TENTAR SALVAR NO LOCALSTORAGE COMO ÚLTIMO RECURSO
+            try {
+                if (this.app.user?.id) {
+                    const userId = this.app.user.id;
+                    localStorage.setItem(`${userId}_documentos`, JSON.stringify(this.documentos));
+                    console.log('[Documentos] 💾 Dados salvos no localStorage como fallback');
+                }
+            } catch (e) {
+                console.error('[Documentos] ❌ Falha no fallback:', e);
+            }
         }
         
         setTimeout(() => { this.isSaving = false; }, 500);
+    }
+
+    // ============================================
+    // ⭐ CARREGAR DOCUMENTOS DO CACHE
+    // ============================================
+    carregarDocumentosDoCache() {
+        try {
+            // Tentar do CacheManager primeiro
+            if (window.CacheManager && this._cacheManagerReady) {
+                const cached = window.CacheManager.get('documentos', null);
+                if (cached && Array.isArray(cached) && cached.length > 0) {
+                    this.documentos = cached;
+                    console.log('[Documentos] 📦 Carregado do CacheManager:', this.documentos.length);
+                    return true;
+                }
+            }
+            
+            // Fallback: localStorage
+            if (this.app.user?.id) {
+                const userId = this.app.user.id;
+                const saved = localStorage.getItem(`${userId}_documentos`);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        this.documentos = parsed;
+                        console.log('[Documentos] 📦 Carregado do localStorage:', this.documentos.length);
+                        
+                        // Tentar sincronizar com CacheManager
+                        if (window.CacheManager && this._cacheManagerReady) {
+                            window.CacheManager.set('documentos', this.documentos, false);
+                        }
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        } catch (error) {
+            console.warn('[Documentos] ⚠️ Erro ao carregar documentos:', error);
+            return false;
+        }
     }
 
     // ============================================
@@ -341,7 +479,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // SALVAR DOCUMENTO (UPLOAD PARA STORAGE + FALLBACK)
+    // ⭐ SALVAR DOCUMENTO (UPLOAD PARA STORAGE + FALLBACK)
     // ============================================
     async saveDocumento() {
         if (this._isSubmitting) {
@@ -374,10 +512,7 @@ class DocumentosModule {
         this._isSubmitting = true;
         
         // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
-        if (window.CacheManager && !window.CacheManager.isInitialized) {
-            console.log('[Documentos] 🔄 Inicializando CacheManager...');
-            window.CacheManager.init();
-        }
+        await this._ensureCacheManager();
         
         // ⭐ GARANTIR QUE O DATABASE SERVICE ESTÁ DISPONÍVEL
         if (!window.DatabaseService) {
@@ -634,7 +769,17 @@ class DocumentosModule {
                 this.renderCategorias();
             }
         });
+        
+        // ⭐ ESCUTAR EVENTO DE CACHE PRONTO
+        window.addEventListener('cacheReady', () => {
+            console.log('[Documentos] 📡 Cache pronto, atualizando...');
+            this._cacheManagerReady = true;
+            // Tentar carregar documentos do cache
+            this.carregarDocumentosDoCache();
+            this.renderDocumentos();
+            this.renderCategorias();
+        });
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado com Storage + Base64 fallback!');
+console.log('[Documentos] ✅ Módulo carregado com Storage + Base64 fallback + CacheManager seguro!');
