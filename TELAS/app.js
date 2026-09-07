@@ -14,7 +14,7 @@ class App {
             timeSlots: [],
             notifications: [],
             disciplinas: [],
-            documentos: [], // ⭐ ADICIONADO: Array para documentos
+            documentos: [],
             profile: {},
             settings: {}
         };
@@ -35,7 +35,7 @@ class App {
             'perfil': 'css/perfil.css',
             'ia': 'css/ia.css',
             'disciplinas': 'css/disciplinas.css',
-            'documentos': 'css/documentos.css' // ⭐ ADICIONADO
+            'documentos': 'css/documentos.css'
         };
         
         this.viewToModuleMap = {
@@ -48,7 +48,7 @@ class App {
             'perfil': 'perfil',
             'ia': 'ia',
             'disciplinas': 'disciplinas',
-            'documentos': 'documentos' // ⭐ ADICIONADO
+            'documentos': 'documentos'
         };
         
         this.init();
@@ -291,7 +291,33 @@ class App {
         const iniciais = nomeExibicao.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
         
-        // Inicializar CacheManager
+        // ⭐ ============================================
+        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
+        // ⭐ ============================================
+        if (window.CacheManager) {
+            console.log('[App PC] 🔄 Inicializando CacheManager...');
+            window.CacheManager.init();
+            window.CacheManager.currentUserId = this.user.id;
+            console.log('[App PC] ✅ CacheManager inicializado com userId:', this.user.id);
+        } else {
+            console.warn('[App PC] ⚠️ CacheManager não encontrado, tentando carregar...');
+            // Tentar carregar novamente
+            const script = document.createElement('script');
+            script.src = 'mobile-telas/cache-manager.js';
+            script.onload = () => {
+                if (window.CacheManager) {
+                    window.CacheManager.init();
+                    window.CacheManager.currentUserId = this.user.id;
+                    console.log('[App PC] ✅ CacheManager carregado e inicializado!');
+                }
+            };
+            script.onerror = () => {
+                console.error('[App PC] ❌ Falha ao carregar CacheManager');
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Inicializar CacheManager (garantia)
         this.updateLoadingStatus('Inicializando cache...', 20);
         if (window.CacheManager) {
             window.CacheManager.init();
@@ -489,7 +515,7 @@ class App {
             this.data.timeSlots = window.CacheManager.get('timeSlots', []);
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
-            this.data.documentos = window.CacheManager.get('documentos', []); // ⭐ ADICIONADO
+            this.data.documentos = window.CacheManager.get('documentos', []);
             this.data.profile = window.CacheManager.get('usuarioLogado', {});
             
             // Garantir estrutura do horário
@@ -523,7 +549,7 @@ class App {
             console.log(`   - Eventos: ${this.data.calendarEvents.length}`);
             console.log(`   - Notificações: ${this.data.notifications.length}`);
             console.log(`   - Disciplinas: ${this.data.disciplinas.length}`);
-            console.log(`   - Documentos: ${this.data.documentos.length}`); // ⭐ ADICIONADO
+            console.log(`   - Documentos: ${this.data.documentos.length}`);
             
             if (this.data.profile && this.data.profile.nome) {
                 this.atualizarNomeUsuario(this.data.profile.nome);
@@ -785,7 +811,6 @@ class App {
         if (typeof DisciplinasModule !== 'undefined') {
             this.modules.disciplinas = new DisciplinasModule(this);
         }
-        // ⭐ ADICIONAR MÓDULO DE DOCUMENTOS
         if (typeof DocumentosModule !== 'undefined') {
             this.modules.documentos = new DocumentosModule(this);
             console.log('[App PC] 📁 Módulo Documentos carregado');
@@ -1128,7 +1153,7 @@ class App {
             }
         });
         
-        // EVENTO DE DOCUMENTOS ATUALIZADOS (⭐ ADICIONADO)
+        // EVENTO DE DOCUMENTOS ATUALIZADOS
         window.addEventListener('documentosUpdated', () => {
             console.log('[App PC] 📁 Documentos atualizados!');
             if (this.modules.documentos) {
