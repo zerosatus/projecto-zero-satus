@@ -1182,6 +1182,10 @@ if (window.DatabaseService) {
         // API PÚBLICA
         // ============================================
         return {
+            uploadDocumentoStorage: uploadDocumentoStorage,  // ⬅️ ESSENCIAL
+            deleteDocumentoStorage: deleteDocumentoStorage,   // ⬅️ ESSENCIAL
+            getDocumentos: getDocumentos,                     // ⬅️ ESSENCIAL
+            saveDocumentos: saveDocumentos,
             init,
             getCurrentUserId,
             getUserProfile,
