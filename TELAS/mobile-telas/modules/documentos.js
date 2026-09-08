@@ -1,6 +1,6 @@
 // ============================================
-// modules/documentos.js - GERENCIADOR DE DOCUMENTOS (CORRIGIDO)
-// COM SUPORTE A STORAGE (NUVEM) E FALLBACK BASE64
+// modules/documentos.js - GERENCIADOR DE DOCUMENTOS (CORRIGIDO v2)
+// COM LOGS DETALHADOS E FECHAMENTO OBRIGATÓRIO DO MODAL
 // ============================================
 
 class DocumentosModule {
@@ -47,45 +47,6 @@ class DocumentosModule {
 
                 this._cacheManagerReady = true;
                 return true;
-            }
-
-            if (attempts === 5) {
-                console.log('[Documentos] 🔄 Tentando carregar CacheManager manualmente...');
-                try {
-                    const script = document.createElement('script');
-                    script.src = '/TELAS/mobile-telas/cache-manager.js';
-                    script.onload = () => {
-                        console.log('[Documentos] ✅ CacheManager carregado via script!');
-                        if (window.CacheManager && !window.CacheManager.isInitialized) {
-                            window.CacheManager.init();
-                            if (this.app?.user?.id) {
-                                window.CacheManager.currentUserId = this.app.user.id;
-                            }
-                            this._cacheManagerReady = true;
-                            window.dispatchEvent(new CustomEvent('cacheReady'));
-                        }
-                    };
-                    script.onerror = () => {
-                        console.warn('[Documentos] ⚠️ Falha ao carregar script, tentando caminho alternativo...');
-                        const fallbackScript = document.createElement('script');
-                        fallbackScript.src = 'cache-manager.js';
-                        fallbackScript.onload = () => {
-                            if (window.CacheManager) {
-                                window.CacheManager.init();
-                                if (this.app?.user?.id) {
-                                    window.CacheManager.currentUserId = this.app.user.id;
-                                }
-                                this._cacheManagerReady = true;
-                                window.dispatchEvent(new CustomEvent('cacheReady'));
-                            }
-                        };
-                        document.head.appendChild(fallbackScript);
-                    };
-                    document.head.appendChild(script);
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                } catch(e) {
-                    console.warn('[Documentos] ⚠️ Erro ao carregar script:', e);
-                }
             }
 
             await new Promise(resolve => setTimeout(resolve, 200));
@@ -298,7 +259,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ ABRIR MODAL DE UPLOAD (CORRIGIDO)
+    // ⭐ ABRIR MODAL DE UPLOAD
     // ============================================
     openUploadModal() {
         const modal = document.getElementById('documento-modal');
@@ -323,9 +284,10 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ FECHAR MODAL (CORRIGIDO)
+    // ⭐ FECHAR MODAL (OBRIGATÓRIO - SEMPRE FECHA)
     // ============================================
     closeUploadModal() {
+        console.log('[Documentos] 🔚 Fechando modal de upload...');
         const modal = document.getElementById('documento-modal');
         if (modal) {
             modal.classList.remove('active');
@@ -349,6 +311,8 @@ class DocumentosModule {
     async handleFileSelect(event) {
         const file = event.target.files?.[0];
         if (!file) return;
+        
+        console.log('[Documentos] 📄 Arquivo selecionado:', file.name, file.size, file.type);
         
         if (file.size > 20 * 1024 * 1024) {
             if (typeof showToast === 'function') {
@@ -443,6 +407,8 @@ class DocumentosModule {
             // ⭐ TENTAR UPLOAD PARA STORAGE
             if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
                 console.log('[Documentos] 📤 Tentando upload para Storage...');
+                console.log('[Documentos] 📄 Arquivo:', nomeArquivo, tamanho, tipo);
+                console.log('[Documentos] 👤 User ID:', this.app.user.id);
                 
                 try {
                     const result = await window.DatabaseService.uploadDocumentoStorage(
@@ -451,24 +417,35 @@ class DocumentosModule {
                         nome
                     );
                     
+                    console.log('[Documentos] 📥 Resultado do Storage:', result);
+                    
                     if (result && result.publicUrl) {
                         arquivo = result.publicUrl;
                         storagePath = result.storagePath;
-                        console.log('[Documentos] ✅ Upload para Storage concluído!');
+                        console.log('[Documentos] ✅ Upload para Storage concluído! URL:', arquivo);
                     } else {
                         console.log('[Documentos] ⚠️ Falha no Storage, usando Base64 fallback');
                     }
                 } catch (storageError) {
                     console.error('[Documentos] ❌ Erro no Storage:', storageError);
+                    console.error('[Documentos] ❌ Stack:', storageError.stack);
                 }
             } else {
                 console.warn('[Documentos] ⚠️ DatabaseService.uploadDocumentoStorage não disponível');
+                console.log('[Documentos] 🔍 DatabaseService:', !!window.DatabaseService);
+                console.log('[Documentos] 🔍 uploadDocumentoStorage:', !!window.DatabaseService?.uploadDocumentoStorage);
             }
             
             // ⭐ FALLBACK: Base64
             if (!arquivo) {
                 console.log('[Documentos] 📦 Usando Base64 fallback...');
-                arquivo = await this.fileToBase64(this._selectedFile);
+                try {
+                    arquivo = await this.fileToBase64(this._selectedFile);
+                    console.log('[Documentos] ✅ Base64 gerado com sucesso (tamanho:', (arquivo.length / 1024).toFixed(1), 'KB)');
+                } catch (base64Error) {
+                    console.error('[Documentos] ❌ Erro ao gerar Base64:', base64Error);
+                    throw new Error('Falha ao processar arquivo: ' + base64Error.message);
+                }
             }
             
             const novoDoc = {
@@ -483,6 +460,8 @@ class DocumentosModule {
                 tamanho: tamanho,
                 dataUpload: new Date().toISOString()
             };
+            
+            console.log('[Documentos] 📄 Novo documento:', novoDoc);
             
             this.documentos.unshift(novoDoc);
             
@@ -504,6 +483,7 @@ class DocumentosModule {
             
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao salvar:', error);
+            console.error('[Documentos] ❌ Stack:', error.stack);
             
             // ⭐ MESMO COM ERRO, FECHAR MODAL
             this.closeUploadModal();
@@ -727,4 +707,4 @@ class DocumentosModule {
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado com Storage + Base64 fallback!');
+console.log('[Documentos] ✅ Módulo carregado com Storage + Base64 fallback + LOGS!');
