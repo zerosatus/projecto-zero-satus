@@ -1,122 +1,177 @@
 // ============================================
-// multi-ai-service.js - CORRIGIDO
-// NÃO MARCA PROVEDORES COMO LIMITE EM ERROS INVÁLIDOS
+// multi-ai-service.js - POLLINATIONS.AI
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API VIA PROXY...');
+console.log('🔥 [MultiAI] CARREGANDO POLLINATIONS.AI...');
 
 class MultiAIService {
     constructor() {
-        this.providers = [];
+        // ⭐ SUA CHAVE DA POLLINATIONS
+        this.POLLINATIONS_API_KEY = 'sk_URhX96g3ylXVWJFqk6eBMIwGZVAG0Bqn';
+        
         this._cache = new Map();
         this._cacheMaxSize = 50;
         this._limiteDiario = 80;
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        this._registerProviders();
-        
-        console.log(`[MultiAI] ✅ ${this.providers.length} provedores registrados`);
+        console.log('[MultiAI] 🚀 Inicializando Pollinations...');
+        console.log('[MultiAI] 🔑 Chave:', this.POLLINATIONS_API_KEY ? '✅ Configurada' : '❌ Não configurada');
         this._resetarLimite();
-        console.log('[MultiAI] 📊 Status inicial:', this.getStatus());
+        console.log('[MultiAI] ✅ Serviço pronto!');
+        console.log('[MultiAI] 📊 Status:', this.getStatus());
     }
     
-    _registerProviders() {
-        // 🔥 GROK
-        this.providers.push({
-            name: 'Grok',
-            key: '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',
-            url: '/api/proxy',
-            model: 'grok-beta',
-            body: (prompt, context) => ({
-                provider: 'grok',
-                prompt: prompt,
-                context: context || '',
-                model: 'grok-beta'
-            }),
-            isAvailable: true,
-            usoHoje: 0,
-            limiteDiario: 30
-        });
+    // ⭐ MÉTODO PRINCIPAL
+    async sendMessage(prompt, context = '') {
+        console.log('[Pollinations] 📤 Enviando:', prompt.substring(0, 60) + '...');
         
-        // 🔥 SAMBANOVA
-        this.providers.push({
-            name: 'SambaNova',
-            key: 'f3319e62-2d30-4f16-b9a2-0ec452183696',
-            url: '/api/proxy',
-            model: 'Llama-3.1-70B-Instruct',
-            body: (prompt, context) => ({
-                provider: 'sambanova',
-                prompt: prompt,
-                context: context || '',
-                model: 'Llama-3.1-70B-Instruct'
-            }),
-            isAvailable: true,
-            usoHoje: 0,
-            limiteDiario: 40
-        });
+        // Verificar limite
+        if (!this.temLimiteDisponivel()) {
+            return {
+                success: false,
+                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido!`
+            };
+        }
         
-        // 🔥 DEEPSEEK
-        this.providers.push({
-            name: 'DeepSeek',
-            key: 'sk-e528baf9102b44f59696badf598dbc4b',
-            url: '/api/proxy',
-            model: 'deepseek-chat',
-            body: (prompt, context) => ({
-                provider: 'deepseek',
-                prompt: prompt,
-                context: context || '',
-                model: 'deepseek-chat'
-            }),
-            isAvailable: true,
-            usoHoje: 0,
-            limiteDiario: 50
-        });
+        // Verificar cache
+        const cached = this._getFromCache(prompt, context);
+        if (cached) {
+            console.log('[Pollinations] 📦 Resposta do cache!');
+            return { success: true, text: cached, fromCache: true };
+        }
         
-        // 🔥 OPENROUTER
-        this.providers.push({
-            name: 'OpenRouter',
-            key: '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',
-            url: '/api/proxy',
-            model: 'openrouter/free',
-            body: (prompt, context) => ({
-                provider: 'openrouter',
-                prompt: prompt,
-                context: context || '',
-                model: 'openrouter/free'
-            }),
-            isAvailable: true,
-            usoHoje: 0,
-            limiteDiario: 20
-        });
+        try {
+            const result = await this._callAPI(prompt, context);
+            
+            if (result.success) {
+                this._incrementarUso();
+                this._saveToCache(prompt, context, result.text);
+                console.log('[Pollinations] ✅ Resposta recebida!');
+                return result;
+            }
+            
+            console.log('[Pollinations] ⚠️ Falha na API:', result.error);
+            
+            // FALLBACK OFFLINE
+            const fallback = this._getFallback(prompt, context);
+            return {
+                success: true,
+                text: fallback,
+                fromFallback: true,
+                error: result.error
+            };
+            
+        } catch (error) {
+            console.error('[Pollinations] ❌ Erro:', error);
+            const fallback = this._getFallback(prompt, context);
+            return {
+                success: true,
+                text: fallback,
+                fromFallback: true,
+                error: error.message
+            };
+        }
     }
     
+    // ⭐ CHAMADA À API POLLINATIONS
+    async _callAPI(prompt, context) {
+        const url = 'https://text.pollinations.ai/api/v1/chat/completions';
+        
+        const body = {
+            model: 'openai',
+            messages: [
+                { 
+                    role: 'system', 
+                    content: context || 'Você é um assistente útil chamado Zero, que ajuda estudantes com suas dúvidas educacionais.' 
+                },
+                { 
+                    role: 'user', 
+                    content: prompt 
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 1024
+        };
+        
+        console.log('[Pollinations] 📡 URL:', url);
+        console.log('[Pollinations] 📡 Modelo:', body.model);
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.POLLINATIONS_API_KEY}`,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+            
+            console.log('[Pollinations] 📥 Status:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[Pollinations] ❌ Erro:', response.status, errorText);
+                
+                if (response.status === 429 || response.status === 402) {
+                    return { success: false, error: 'Limite excedido', limitExceeded: true };
+                }
+                
+                return { 
+                    success: false, 
+                    error: `Erro ${response.status}: ${errorText.substring(0, 100)}` 
+                };
+            }
+            
+            const data = await response.json();
+            console.log('[Pollinations] ✅ Dados recebidos');
+            
+            let text = '';
+            if (data.choices && data.choices.length > 0) {
+                text = data.choices[0].message?.content || '';
+            } else if (data.response) {
+                text = data.response;
+            } else if (data.text) {
+                text = data.text;
+            }
+            
+            if (text) {
+                return { success: true, text: text.trim() };
+            }
+            
+            return { success: false, error: 'Resposta vazia' };
+            
+        } catch (error) {
+            console.error('[Pollinations] ❌ Erro na requisição:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    // ⭐ MÉTODOS DE LIMITE
     _resetarLimite() {
         const hoje = new Date().toDateString();
-        const dataSalva = localStorage.getItem('multi_ai_data');
+        const dataSalva = localStorage.getItem('pollinations_data');
         
         if (dataSalva !== hoje) {
-            localStorage.setItem('multi_ai_data', hoje);
-            localStorage.setItem('multi_ai_uso', '0');
-            this.providers.forEach(p => p.usoHoje = 0);
+            localStorage.setItem('pollinations_data', hoje);
+            localStorage.setItem('pollinations_uso', '0');
             this._usosHoje = 0;
-            this._dataReset = hoje;
-            console.log('[MultiAI] 📅 Limite resetado para novo dia');
+            console.log('[Pollinations] 📅 Limite resetado');
         }
     }
     
     getUsoHoje() {
         this._resetarLimite();
-        const saved = localStorage.getItem('multi_ai_uso');
-        this._usosHoje = parseInt(saved) || 0;
+        this._usosHoje = parseInt(localStorage.getItem('pollinations_uso')) || 0;
         return this._usosHoje;
     }
     
     _incrementarUso() {
         this._resetarLimite();
         this._usosHoje++;
-        localStorage.setItem('multi_ai_uso', String(this._usosHoje));
-        console.log(`[MultiAI] 📊 Uso hoje: ${this._usosHoje}/${this._limiteDiario}`);
+        localStorage.setItem('pollinations_uso', String(this._usosHoje));
+        console.log(`[Pollinations] 📊 Uso: ${this._usosHoje}/${this._limiteDiario}`);
     }
     
     temLimiteDisponivel() {
@@ -127,6 +182,7 @@ class MultiAIService {
         return Math.max(0, this._limiteDiario - this.getUsoHoje());
     }
     
+    // ⭐ CACHE
     _getCacheKey(prompt, context) {
         return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
     }
@@ -136,7 +192,6 @@ class MultiAIService {
         if (this._cache.has(key)) {
             const item = this._cache.get(key);
             if (Date.now() - item.timestamp < 3600000) {
-                console.log('[MultiAI] 📦 Resposta do cache!');
                 return item.value;
             }
             this._cache.delete(key);
@@ -160,179 +215,8 @@ class MultiAIService {
         }
     }
     
-    async sendMessage(prompt, context = '') {
-        console.log('[MultiAI] 📤 Enviando mensagem...');
-        console.log(`[MultiAI] 📝 Prompt: ${prompt.substring(0, 60)}...`);
-        
-        if (!this.temLimiteDisponivel()) {
-            return {
-                success: false,
-                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido! Volte amanhã.`
-            };
-        }
-        
-        const cached = this._getFromCache(prompt, context);
-        if (cached) {
-            return { success: true, text: cached, fromCache: true };
-        }
-        
-        const shuffledProviders = this._shuffleProviders();
-        let lastError = null;
-        
-        for (let i = 0; i < shuffledProviders.length; i++) {
-            const provider = shuffledProviders[i];
-            
-            // ⭐ SÓ PULAR SE REALMENTE USOU TODAS AS PERGUNTAS
-            if (provider.usoHoje >= provider.limiteDiario) {
-                console.log(`[MultiAI] ⏭️ ${provider.name} realmente atingiu limite (${provider.usoHoje}/${provider.limiteDiario})`);
-                continue;
-            }
-            
-            console.log(`[MultiAI] 🔄 Tentando ${provider.name} (${i+1}/${shuffledProviders.length})...`);
-            
-            try {
-                const result = await this._tryProvider(provider, prompt, context);
-                
-                if (result.success) {
-                    provider.usoHoje++;
-                    this._incrementarUso();
-                    this._saveToCache(prompt, context, result.text);
-                    
-                    console.log(`[MultiAI] ✅ ${provider.name} respondeu com sucesso!`);
-                    return {
-                        success: true,
-                        text: result.text,
-                        provider: provider.name,
-                        fromCache: false
-                    };
-                }
-                
-                // ⭐ SÓ MARCA COMO LIMITE SE FOR REALMENTE LIMITE EXCEDIDO
-                if (result.limitExceeded) {
-                    provider.usoHoje = provider.limiteDiario;
-                    console.log(`[MultiAI] ⚠️ ${provider.name} excedeu limite real`);
-                } else {
-                    console.log(`[MultiAI] ⚠️ ${provider.name} falhou (não é limite):`, result.error);
-                }
-                
-                lastError = result.error;
-                
-            } catch (error) {
-                console.error(`[MultiAI] ❌ ${provider.name} erro:`, error.message);
-                lastError = error.message;
-            }
-        }
-        
-        console.log('[MultiAI] 📦 Usando fallback offline...');
-        const fallback = this._getFallbackResponse(prompt, context);
-        return { 
-            success: true, 
-            text: fallback, 
-            fromFallback: true,
-            error: lastError 
-        };
-    }
-    
-    _shuffleProviders() {
-        const shuffled = [...this.providers];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        // PRIORIZAR GROK E SAMBANOVA
-        const priorityOrder = ['Grok', 'SambaNova', 'DeepSeek', 'OpenRouter'];
-        shuffled.sort((a, b) => {
-            const idxA = priorityOrder.indexOf(a.name);
-            const idxB = priorityOrder.indexOf(b.name);
-            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-        });
-        return shuffled;
-    }
-    
-    async _tryProvider(provider, prompt, context) {
-        const timeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout após 30s')), 30000)
-        );
-        
-        try {
-            const fetchPromise = fetch(provider.url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(provider.body(prompt, context))
-            });
-            
-            const response = await Promise.race([fetchPromise, timeout]);
-            
-            console.log(`[MultiAI] 📥 ${provider.name} Status:`, response.status);
-            
-            let data;
-            try {
-                data = await response.json();
-            } catch (e) {
-                const text = await response.text();
-                console.error(`[MultiAI] ❌ ${provider.name} resposta não-JSON:`, text.substring(0, 200));
-                return { success: false, error: 'Resposta inválida do servidor' };
-            }
-            
-            if (!response.ok) {
-                // ⭐ DETECTAR LIMITE EXCEDIDO (APENAS 429, 402 E MENSAGENS ESPECÍFICAS)
-                const isLimit = response.status === 429 || 
-                    response.status === 402 ||
-                    data.limitExceeded ||
-                    data.error?.toLowerCase().includes('rate limit') ||
-                    data.error?.toLowerCase().includes('quota') ||
-                    data.error?.toLowerCase().includes('exceeded') ||
-                    data.error?.toLowerCase().includes('insufficient balance') ||
-                    data.error?.toLowerCase().includes('saldo insuficiente') ||
-                    data.error?.toLowerCase().includes('too many requests');
-                
-                if (isLimit) {
-                    return { success: false, error: 'Limite excedido', limitExceeded: true };
-                }
-                
-                if (response.status === 401 || response.status === 403) {
-                    return { success: false, error: '🔑 Chave inválida!' };
-                }
-                
-                if (response.status === 404) {
-                    return { success: false, error: 'Modelo não encontrado', modelError: true };
-                }
-                
-                return {
-                    success: false,
-                    error: data.error || `Erro ${response.status}`
-                };
-            }
-            
-            if (data.success && data.text) {
-                return { success: true, text: data.text.trim() };
-            }
-            
-            if (data.error) {
-                const isLimit = data.error.toLowerCase().includes('limit') || 
-                    data.error.toLowerCase().includes('quota') ||
-                    data.error.toLowerCase().includes('exceeded') ||
-                    data.error.toLowerCase().includes('saldo');
-                
-                if (isLimit) {
-                    return { success: false, error: 'Limite excedido', limitExceeded: true };
-                }
-                return { success: false, error: data.error };
-            }
-            
-            return { success: false, error: 'Resposta inesperada' };
-            
-        } catch (error) {
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                return { success: false, error: 'Erro de rede' };
-            }
-            return { success: false, error: error.message };
-        }
-    }
-    
-    _getFallbackResponse(prompt, context) {
+    // ⭐ FALLBACK OFFLINE
+    _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
@@ -340,84 +224,79 @@ class MultiAIService {
             saudacao: isGiria 
                 ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje?'
                 : 'Olá! Como posso ajudar você hoje?',
-            
-            texto: isGiria
-                ? '🇲🇿 Para escrever bem, lê bastante e pratica todo dia. Começa com um rascunho, depois revisa. Tamos juntos! 📝'
-                : 'Para escrever bem: 1) Leia bastante, 2) Pratique todos os dias, 3) Faça rascunhos e revise, 4) Peça feedback.',
-            
-            matematica: isGiria
-                ? '🇲🇿 Matemática é prática, broo! Treina os básicos primeiro: adição, subtração, multiplicação e divisão. Depois vai avançando! 🧮'
-                : 'Para matemática: 1) Domine as operações básicas, 2) Pratique exercícios diariamente, 3) Entenda os conceitos antes de memorizar fórmulas.',
-            
             estudo: isGiria
-                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano e segue firme! Tamos juntos! 💪'
-                : 'Para estudar de forma eficiente: 1) Crie um cronograma, 2) Use técnicas como Pomodoro, 3) Revisão espaçada.',
-            
+                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Tamos juntos! 💪'
+                : 'Para estudar bem: 1) Faça um cronograma, 2) Use Pomodoro, 3) Revise regularmente.',
+            tarefa: isGiria
+                ? '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar. 😎'
+                : 'Priorize as tarefas mais urgentes e divida em pequenas etapas.',
             padrao: isGiria
-                ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou pergunta de outro jeito. Tamos juntos!'
-                : 'Desculpe, não entendi sua pergunta. Poderia reformular?'
+                ? '🇲🇿 Boa pergunta, broo! Tenta reformular. Tamos juntos!'
+                : 'Desculpe, não entendi. Poderia reformular?'
         };
         
         if (texto.includes('oi') || texto.includes('olá') || texto.includes('bom dia')) {
             return respostas.saudacao;
         }
-        if (texto.includes('escrever') || texto.includes('redação') || texto.includes('português')) {
-            return respostas.texto;
-        }
-        if (texto.includes('matem') || texto.includes('conta') || texto.includes('soma')) {
-            return respostas.matematica;
-        }
         if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return respostas.estudo;
         }
-        
+        if (texto.includes('tarefa') || texto.includes('dever')) {
+            return respostas.tarefa;
+        }
         return respostas.padrao;
     }
     
+    // ⭐ STATUS
     getStatus() {
-        this._resetarLimite();
         return {
-            usoTotal: this._usosHoje,
+            usoTotal: this.getUsoHoje(),
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
-            providers: this.providers.map(p => ({
-                name: p.name,
-                usoHoje: p.usoHoje,
-                limiteDiario: p.limiteDiario,
-                disponivel: p.usoHoje < p.limiteDiario,
-                percentual: Math.round((p.usoHoje / p.limiteDiario) * 100)
-            }))
+            apiKeySet: !!this.POLLINATIONS_API_KEY && this.POLLINATIONS_API_KEY.length > 10,
+            cacheSize: this._cache.size
         };
     }
     
     resetLimite() {
-        localStorage.setItem('multi_ai_data', new Date().toDateString());
-        localStorage.setItem('multi_ai_uso', '0');
-        this.providers.forEach(p => p.usoHoje = 0);
+        localStorage.setItem('pollinations_data', new Date().toDateString());
+        localStorage.setItem('pollinations_uso', '0');
         this._usosHoje = 0;
-        console.log('[MultiAI] 📅 Limite resetado manualmente');
+        console.log('[Pollinations] 📅 Limite resetado manualmente');
         return this.getStatus();
     }
 }
 
+// ============================================
+// INSTÂNCIA GLOBAL
+// ============================================
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 window.GeminiService = multiAI;
 window.OpenRouterService = multiAI;
 
+// ⭐ FUNÇÕES GLOBAIS
 window.getLimiteIA = () => {
     const status = multiAI.getStatus();
     return {
         usado: status.usoTotal,
         maximo: status.limiteTotal,
         restante: status.restante,
-        providers: status.providers,
+        apiKeySet: status.apiKeySet,
         reset: () => multiAI.resetLimite()
     };
 };
 
-console.log('[MultiAI] ✅ Serviço Multi-API via Proxy carregado!');
-console.log(`[MultiAI] 📊 ${multiAI.providers.length} provedores disponíveis`);
-multiAI.providers.forEach(p => {
-    console.log(`   - ${p.name}: ${p.limiteDiario} perguntas/dia (via proxy)`);
-});
+// ⭐ FUNÇÃO DE TESTE
+window.testPollinations = async (pergunta) => {
+    console.log('🧪 Testando Pollinations...');
+    console.log('📝 Pergunta:', pergunta);
+    const result = await multiAI.sendMessage(pergunta);
+    console.log('🤖 Resposta:', result);
+    return result;
+};
+
+console.log('[MultiAI] ✅ Pollinations carregado com sucesso!');
+console.log('[MultiAI] 🔑 Status da chave:', multiAI.POLLINATIONS_API_KEY ? '✅ Configurada' : '❌ Não configurada');
+console.log('[MultiAI] 📊 Limite:', multiAI.getLimiteRestante(), 'perguntas restantes');
+console.log('[MultiAI] 💡 Teste: window.testPollinations("Qual é a capital de Moçambique?")');
