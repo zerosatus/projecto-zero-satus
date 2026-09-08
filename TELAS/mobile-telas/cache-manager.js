@@ -460,7 +460,7 @@ class SimpleCacheManager {
                 timeSlots: db.getTimeSlots.bind(db),
                 notifications: db.getNotifications.bind(db),
                 disciplinas: db.getDisciplinas.bind(db),
-                documentos: db.getDocumentos.bind(db)  // ⭐ DOCUMENTOS ADICIONADO
+                documentos: db.getDocumentos.bind(db)
             };
 
             for (const [key, getter] of Object.entries(dataTypes)) {
@@ -812,3 +812,4 @@ console.log('   - getCached(key, defaultValue)');
 console.log('   - setCached(key, value, notify)');
 console.log('   - forceSyncCloud()');
 console.log('   - getCacheStatus()');
+console.log('   - getDocumentos() / setDocumentos()');

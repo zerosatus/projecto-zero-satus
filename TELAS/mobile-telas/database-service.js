@@ -869,7 +869,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DOCUMENTOS - COM STORAGE (CORRIGIDO)
+        // ⭐ DOCUMENTOS - COM STORAGE (COMPLETO)
         // ============================================
         async function getDocumentos(userId) {
             console.log('[Database] 🔍 Buscando documentos para userId:', userId);
@@ -907,99 +907,13 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ UPLOAD PARA STORAGE - CORRIGIDO
-        async function uploadDocumentoStorage(userId, file, nome) {
-            console.log('[Database] 📤 Upload de documento para Storage:', nome);
-            const client = init();
-            if (!client) return null;
-
-            try {
-                // Gerar nome único para o arquivo
-                const fileExt = file.name.split('.').pop() || 'pdf';
-                const safeName = nome.replace(/\s/g, '_').substring(0, 50);
-                const timestamp = Date.now();
-                
-                // ⭐ CAMINHO CORRETO: user-content/documentos/userId/timestamp_nome.ext
-                const filePath = `documentos/${userId}/${timestamp}_${safeName}.${fileExt}`;
-                
-                console.log('[Database] 📡 Upload para:', filePath);
-
-                // ⭐ USAR O BUCKET CORRETO
-                const { error: uploadError } = await client.storage
-                    .from('user-content')
-                    .upload(filePath, file, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-
-                if (uploadError) {
-                    console.error('[Database] ❌ Erro no upload:', uploadError);
-                    console.error('[Database] ❌ Detalhes:', JSON.stringify(uploadError, null, 2));
-                    return null;
-                }
-
-                // ⭐ OBTER URL PÚBLICA
-                const { data: { publicUrl } } = client.storage
-                    .from('user-content')
-                    .getPublicUrl(filePath);
-
-                console.log('[Database] ✅ Upload concluído!');
-                console.log('[Database] 📎 URL pública:', publicUrl);
-                console.log('[Database] 📁 Path:', filePath);
-
-                return { publicUrl, storagePath: filePath };
-
-            } catch (error) {
-                console.error('[Database] ❌ Erro ao fazer upload:', error);
-                return null;
-            }
-        }
-
-        // ⭐ DELETAR DO STORAGE
-        async function deleteDocumentoStorage(storagePath) {
-            console.log('[Database] 🗑️ Deletando documento do Storage:', storagePath);
-            const client = init();
-            if (!client) return false;
-
-            if (!storagePath) {
-                console.log('[Database] ℹ️ Sem storagePath para deletar');
-                return true;
-            }
-
-            try {
-                const { error } = await client.storage
-                    .from('user-content')
-                    .remove([storagePath]);
-
-                if (error) {
-                    console.error('[Database] ❌ Erro ao deletar do Storage:', error);
-                    return false;
-                }
-
-                console.log('[Database] ✅ Documento deletado do Storage');
-                return true;
-            } catch (error) {
-                console.error('[Database] ❌ Erro:', error);
-                return false;
-            }
-        }
-
-        // ⭐ SALVAR DOCUMENTOS (COM STORAGE)
         async function saveDocumentos(userId, documentos) {
             console.log(`[Database] 💾 Salvando ${documentos?.length || 0} documentos para userId:`, userId);
             const client = init();
             if (!client) return false;
 
             try {
-                // ⭐ DELETAR DO STORAGE ANTES DE REMOVER DO BANCO
-                const oldDocs = await getDocumentos(userId);
-                for (const old of oldDocs) {
-                    if (old.storagePath) {
-                        await deleteDocumentoStorage(old.storagePath);
-                    }
-                }
-
-                console.log('[Database] 📡 Deletando documentos antigos do banco...');
+                console.log('[Database] 📡 Deletando documentos antigos...');
                 const { error: deleteError } = await client
                     .from('documentos')
                     .delete()
@@ -1044,6 +958,77 @@ if (window.DatabaseService) {
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar documentos:', error);
+                return false;
+            }
+        }
+
+        // ⭐ UPLOAD PARA STORAGE - CORRIGIDO
+        async function uploadDocumentoStorage(userId, file, nome) {
+            console.log('[Database] 📤 Upload de documento para Storage:', nome);
+            const client = init();
+            if (!client) return null;
+
+            try {
+                const fileExt = file.name.split('.').pop() || 'pdf';
+                const safeName = nome.replace(/\s/g, '_').substring(0, 50);
+                const timestamp = Date.now();
+                const filePath = `documentos/${userId}/${timestamp}_${safeName}.${fileExt}`;
+                
+                console.log('[Database] 📡 Upload para:', filePath);
+
+                const { error: uploadError } = await client.storage
+                    .from('user-content')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    console.error('[Database] ❌ Erro no upload:', uploadError);
+                    console.error('[Database] ❌ Detalhes:', JSON.stringify(uploadError, null, 2));
+                    return null;
+                }
+
+                const { data: { publicUrl } } = client.storage
+                    .from('user-content')
+                    .getPublicUrl(filePath);
+
+                console.log('[Database] ✅ Upload concluído!');
+                console.log('[Database] 📎 URL pública:', publicUrl);
+                console.log('[Database] 📁 Path:', filePath);
+
+                return { publicUrl, storagePath: filePath };
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao fazer upload:', error);
+                return null;
+            }
+        }
+
+        // ⭐ DELETAR DO STORAGE
+        async function deleteDocumentoStorage(storagePath) {
+            console.log('[Database] 🗑️ Deletando documento do Storage:', storagePath);
+            const client = init();
+            if (!client) return false;
+
+            if (!storagePath) {
+                console.log('[Database] ℹ️ Sem storagePath para deletar');
+                return true;
+            }
+
+            try {
+                const { error } = await client.storage
+                    .from('user-content')
+                    .remove([storagePath]);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar do Storage:', error);
+                    return false;
+                }
+
+                console.log('[Database] ✅ Documento deletado do Storage');
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro:', error);
                 return false;
             }
         }
@@ -1182,10 +1167,6 @@ if (window.DatabaseService) {
         // API PÚBLICA
         // ============================================
         return {
-            uploadDocumentoStorage: uploadDocumentoStorage,  // ⬅️ ESSENCIAL
-            deleteDocumentoStorage: deleteDocumentoStorage,   // ⬅️ ESSENCIAL
-            getDocumentos: getDocumentos,                     // ⬅️ ESSENCIAL
-            saveDocumentos: saveDocumentos,
             init,
             getCurrentUserId,
             getUserProfile,
@@ -1206,7 +1187,6 @@ if (window.DatabaseService) {
             saveNotifications,
             getDisciplinas,
             saveDisciplinas,
-            // ⭐ NOVAS FUNÇÕES DE DOCUMENTOS COM STORAGE
             getDocumentos,
             saveDocumentos,
             uploadDocumentoStorage,
