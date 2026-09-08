@@ -1226,14 +1226,15 @@
 <script src="modules/ia.js"></script>
 <script src="modules/documentos.js"></script>
 <script>// ============================================
-// multi-ai-service.js - POLLINATIONS.AI (CORRIGIDO)
+// multi-ai-service.js - POLLINATIONS.AI (SEM CHAVE)
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO POLLINATIONS.AI...');
 
 class MultiAIService {
     constructor() {
-        this.POLLINATIONS_API_KEY = 'sk_URhX96g3ylXVWJFqk6eBMIwGZVAG0Bqn';
+        // ⭐ REMOVA A CHAVE - NÃO É NECESSÁRIA!
+        this.POLLINATIONS_API_KEY = null;
         
         this._cache = new Map();
         this._cacheMaxSize = 50;
@@ -1242,12 +1243,11 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando Pollinations...');
-        console.log('[MultiAI] 📌 Usando API: https://text.pollinations.ai/');
+        console.log('[MultiAI] 📌 Modo: ANÔNIMO (sem chave) - 100% gratuito');
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
     
-    // ⭐ MÉTODO PRINCIPAL
     async sendMessage(prompt, context = '') {
         console.log('[Pollinations] 📤 Enviando:', prompt.substring(0, 60) + '...');
         
@@ -1295,21 +1295,21 @@ class MultiAIService {
         }
     }
     
-    // ⭐ CHAMADA À API POLLINATIONS (CORRIGIDA)
+    // ⭐ CHAMADA SEM CHAVE (ANÔNIMA)
     async _callAPI(prompt, context) {
-        // ⭐ CORREÇÃO: seed precisa ser <= 2147483647
-        // Usando Math.floor(Date.now() / 1000) para manter o valor dentro do limite
         const seed = Math.floor(Date.now() / 1000) % 2147483647;
+        // ⭐ REMOVA O HEADER Authorization
         const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&seed=${seed}`;
         
         console.log('[Pollinations] 📡 URL:', url);
-        console.log('[Pollinations] 📡 Seed:', seed);
+        console.log('[Pollinations] 📡 Modo: ANÔNIMO');
         
         try {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Accept': 'text/plain'
+                    // ⭐ NÃO ENVIE AUTHORIZATION!
                 }
             });
             
@@ -1336,7 +1336,7 @@ class MultiAIService {
         }
     }
     
-    // ⭐ MÉTODOS DE LIMITE
+    // ⭐ MÉTODOS DE LIMITE (MANTIDOS)
     _resetarLimite() {
         const hoje = new Date().toDateString();
         const dataSalva = localStorage.getItem('pollinations_data');
@@ -1400,7 +1400,7 @@ class MultiAIService {
         }
     }
     
-    // ⭐ FALLBACK OFFLINE (COM GÍRIA MOÇAMBICANA)
+    // ⭐ FALLBACK
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
@@ -1432,14 +1432,13 @@ class MultiAIService {
         return respostas.padrao;
     }
     
-    // ⭐ STATUS
     getStatus() {
         return {
             usoTotal: this.getUsoHoje(),
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
-            apiKeySet: !!this.POLLINATIONS_API_KEY,
-            cacheSize: this._cache.size
+            cacheSize: this._cache.size,
+            modo: 'ANÔNIMO (gratuito)'
         };
     }
     
@@ -1466,21 +1465,21 @@ window.getLimiteIA = () => {
         usado: status.usoTotal,
         maximo: status.limiteTotal,
         restante: status.restante,
+        modo: status.modo,
         reset: () => multiAI.resetLimite()
     };
 };
 
 window.testPollinations = async (pergunta) => {
     console.log('🧪 Testando Pollinations...');
-    console.log('📝 Pergunta:', pergunta);
     const result = await multiAI.sendMessage(pergunta);
     console.log('🤖 Resposta:', result);
     return result;
 };
 
 console.log('[MultiAI] ✅ Pollinations carregado com sucesso!');
-console.log('[MultiAI] 📌 API: text.pollinations.ai (GET)');
-console.log('[MultiAI] 💡 Teste: window.testPollinations("Qual é a capital de Moçambique?")');</script>
+console.log('[MultiAI] 📌 Modo: ANÔNIMO - 100% gratuito, sem chave!');
+console.log('[MultiAI] 💡 Teste: window.testPollinations("Qual é a capital de Moçambique?")');;</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
