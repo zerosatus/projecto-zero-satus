@@ -6,7 +6,6 @@ console.log('🔥 [MultiAI] CARREGANDO POLLINATIONS.AI...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ SUA CHAVE (NÃO É USADA NA API PÚBLICA, MAS MANTIDA)
         this.POLLINATIONS_API_KEY = 'sk_URhX96g3ylXVWJFqk6eBMIwGZVAG0Bqn';
         
         this._cache = new Map();
@@ -71,14 +70,17 @@ class MultiAIService {
     
     // ⭐ CHAMADA À API POLLINATIONS (CORRIGIDA)
     async _callAPI(prompt, context) {
-        // 🔥 URL CORRETA - SEM /v1/chat/completions
-        const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&seed=${Date.now()}`;
+        // ⭐ CORREÇÃO: seed precisa ser <= 2147483647
+        // Usando Math.floor(Date.now() / 1000) para manter o valor dentro do limite
+        const seed = Math.floor(Date.now() / 1000) % 2147483647;
+        const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&seed=${seed}`;
         
         console.log('[Pollinations] 📡 URL:', url);
+        console.log('[Pollinations] 📡 Seed:', seed);
         
         try {
             const response = await fetch(url, {
-                method: 'GET', // ⭐ GET, não POST!
+                method: 'GET',
                 headers: {
                     'Accept': 'text/plain'
                 }
@@ -171,7 +173,7 @@ class MultiAIService {
         }
     }
     
-    // ⭐ FALLBACK OFFLINE
+    // ⭐ FALLBACK OFFLINE (COM GÍRIA MOÇAMBICANA)
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
