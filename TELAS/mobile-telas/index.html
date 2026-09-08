@@ -1148,14 +1148,14 @@ const checkInterval = setInterval(() => {
 <script src="modules/documentos.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - POLLINATIONS.AI
+// multi-ai-service.js - POLLINATIONS.AI (CORRIGIDO)
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO POLLINATIONS.AI...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ SUA CHAVE DA POLLINATIONS
+        // ⭐ SUA CHAVE (NÃO É USADA NA API PÚBLICA, MAS MANTIDA)
         this.POLLINATIONS_API_KEY = 'sk_URhX96g3ylXVWJFqk6eBMIwGZVAG0Bqn';
         
         this._cache = new Map();
@@ -1165,17 +1165,15 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando Pollinations...');
-        console.log('[MultiAI] 🔑 Chave:', this.POLLINATIONS_API_KEY ? '✅ Configurada' : '❌ Não configurada');
+        console.log('[MultiAI] 📌 Usando API: https://text.pollinations.ai/');
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
-        console.log('[MultiAI] 📊 Status:', this.getStatus());
     }
     
     // ⭐ MÉTODO PRINCIPAL
     async sendMessage(prompt, context = '') {
         console.log('[Pollinations] 📤 Enviando:', prompt.substring(0, 60) + '...');
         
-        // Verificar limite
         if (!this.temLimiteDisponivel()) {
             return {
                 success: false,
@@ -1183,7 +1181,6 @@ class MultiAIService {
             };
         }
         
-        // Verificar cache
         const cached = this._getFromCache(prompt, context);
         if (cached) {
             console.log('[Pollinations] 📦 Resposta do cache!');
@@ -1201,8 +1198,6 @@ class MultiAIService {
             }
             
             console.log('[Pollinations] ⚠️ Falha na API:', result.error);
-            
-            // FALLBACK OFFLINE
             const fallback = this._getFallback(prompt, context);
             return {
                 success: true,
@@ -1223,38 +1218,19 @@ class MultiAIService {
         }
     }
     
-    // ⭐ CHAMADA À API POLLINATIONS
+    // ⭐ CHAMADA À API POLLINATIONS (CORRIGIDA)
     async _callAPI(prompt, context) {
-        const url = 'https://text.pollinations.ai/api/v1/chat/completions';
-        
-        const body = {
-            model: 'openai',
-            messages: [
-                { 
-                    role: 'system', 
-                    content: context || 'Você é um assistente útil chamado Zero, que ajuda estudantes com suas dúvidas educacionais.' 
-                },
-                { 
-                    role: 'user', 
-                    content: prompt 
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 1024
-        };
+        // 🔥 URL CORRETA - SEM /v1/chat/completions
+        const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&seed=${Date.now()}`;
         
         console.log('[Pollinations] 📡 URL:', url);
-        console.log('[Pollinations] 📡 Modelo:', body.model);
         
         try {
             const response = await fetch(url, {
-                method: 'POST',
+                method: 'GET', // ⭐ GET, não POST!
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.POLLINATIONS_API_KEY}`,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(body)
+                    'Accept': 'text/plain'
+                }
             });
             
             console.log('[Pollinations] 📥 Status:', response.status);
@@ -1262,30 +1238,13 @@ class MultiAIService {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('[Pollinations] ❌ Erro:', response.status, errorText);
-                
-                if (response.status === 429 || response.status === 402) {
-                    return { success: false, error: 'Limite excedido', limitExceeded: true };
-                }
-                
-                return { 
-                    success: false, 
-                    error: `Erro ${response.status}: ${errorText.substring(0, 100)}` 
-                };
+                return { success: false, error: `Erro ${response.status}` };
             }
             
-            const data = await response.json();
-            console.log('[Pollinations] ✅ Dados recebidos');
+            const text = await response.text();
+            console.log('[Pollinations] ✅ Resposta recebida!');
             
-            let text = '';
-            if (data.choices && data.choices.length > 0) {
-                text = data.choices[0].message?.content || '';
-            } else if (data.response) {
-                text = data.response;
-            } else if (data.text) {
-                text = data.text;
-            }
-            
-            if (text) {
+            if (text && text.length > 0) {
                 return { success: true, text: text.trim() };
             }
             
@@ -1301,12 +1260,10 @@ class MultiAIService {
     _resetarLimite() {
         const hoje = new Date().toDateString();
         const dataSalva = localStorage.getItem('pollinations_data');
-        
         if (dataSalva !== hoje) {
             localStorage.setItem('pollinations_data', hoje);
             localStorage.setItem('pollinations_uso', '0');
             this._usosHoje = 0;
-            console.log('[Pollinations] 📅 Limite resetado');
         }
     }
     
@@ -1320,7 +1277,6 @@ class MultiAIService {
         this._resetarLimite();
         this._usosHoje++;
         localStorage.setItem('pollinations_uso', String(this._usosHoje));
-        console.log(`[Pollinations] 📊 Uso: ${this._usosHoje}/${this._limiteDiario}`);
     }
     
     temLimiteDisponivel() {
@@ -1402,7 +1358,7 @@ class MultiAIService {
             usoTotal: this.getUsoHoje(),
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
-            apiKeySet: !!this.POLLINATIONS_API_KEY && this.POLLINATIONS_API_KEY.length > 10,
+            apiKeySet: !!this.POLLINATIONS_API_KEY,
             cacheSize: this._cache.size
         };
     }
@@ -1411,7 +1367,7 @@ class MultiAIService {
         localStorage.setItem('pollinations_data', new Date().toDateString());
         localStorage.setItem('pollinations_uso', '0');
         this._usosHoje = 0;
-        console.log('[Pollinations] 📅 Limite resetado manualmente');
+        console.log('[Pollinations] 📅 Limite resetado');
         return this.getStatus();
     }
 }
@@ -1424,19 +1380,16 @@ window.MultiAIService = multiAI;
 window.GeminiService = multiAI;
 window.OpenRouterService = multiAI;
 
-// ⭐ FUNÇÕES GLOBAIS
 window.getLimiteIA = () => {
     const status = multiAI.getStatus();
     return {
         usado: status.usoTotal,
         maximo: status.limiteTotal,
         restante: status.restante,
-        apiKeySet: status.apiKeySet,
         reset: () => multiAI.resetLimite()
     };
 };
 
-// ⭐ FUNÇÃO DE TESTE
 window.testPollinations = async (pergunta) => {
     console.log('🧪 Testando Pollinations...');
     console.log('📝 Pergunta:', pergunta);
@@ -1446,10 +1399,8 @@ window.testPollinations = async (pergunta) => {
 };
 
 console.log('[MultiAI] ✅ Pollinations carregado com sucesso!');
-console.log('[MultiAI] 🔑 Status da chave:', multiAI.POLLINATIONS_API_KEY ? '✅ Configurada' : '❌ Não configurada');
-console.log('[MultiAI] 📊 Limite:', multiAI.getLimiteRestante(), 'perguntas restantes');
-console.log('[MultiAI] 💡 Teste: window.testPollinations("Qual é a capital de Moçambique?")');
-</script>
+console.log('[MultiAI] 📌 API: text.pollinations.ai (GET)');
+console.log('[MultiAI] 💡 Teste: window.testPollinations("Qual é a capital de Moçambique?")');</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
