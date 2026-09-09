@@ -1,6 +1,6 @@
 // ============================================
 // multi-ai-service.js - GROQ (RESPOSTA DIRETA EM PT)
-// ⭐ CORREÇÃO: FORÇAR RESPOSTA EM PORTUGUÊS COM EXEMPLOS
+// ⭐ SOLUÇÃO DEFINITIVA: FORÇAR RESPOSTA SEM PENSAMENTO
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
@@ -22,7 +22,6 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Modo: GROQ');
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
@@ -91,25 +90,18 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT SUPER FORTE - COM EXEMPLOS
-        const systemPrompt = `Você é um assistente que fala APENAS português. NUNCA use inglês.
+        // ⭐ SYSTEM PROMPT DEFINITIVO
+        const systemPrompt = `Responda APENAS em português. NUNCA use inglês. NÃO inclua pensamentos, tags ou análise.
 
-REGRAS ABSOLUTAS:
-1. SUA RESPOSTA DEVE SER 100% EM PORTUGUÊS
-2. NÃO use palavras em inglês na sua resposta
-3. NÃO pense em inglês - responda diretamente em português
-4. NÃO inclua tags como <think>, [analysis], etc.
-5. Responda APENAS o conteúdo final
+REGRAS:
+- Resposta deve ser APENAS o conteúdo final em português
+- NÃO inclua "think", "analysis", "raciocínio" ou qualquer tag
+- NÃO mostre o processo de pensamento
+- Responda de forma clara e objetiva
 
-EXEMPLO DO QUE VOCÊ DEVE FAZER:
-Usuário: "o que é um computador?"
-Você: "Um computador é uma máquina eletrônica..."
-
-EXEMPLO DO QUE VOCÊ NUNCA DEVE FAZER:
-Usuário: "o que é um computador?"
-Você: "<think>We need to answer...</think> Um computador é..."
-
-IMPORTANTE: Você deve responder DIRETAMENTE em português, sem pensar em inglês primeiro.`;
+FORMA OBRIGATÓRIA DE RESPOSTA:
+Comece SEMPRE com a resposta direta. Exemplo:
+"Sim, a internet é uma rede global de computadores..."`;
         
         try {
             const response = await fetch(url, {
@@ -127,8 +119,8 @@ IMPORTANTE: Você deve responder DIRETAMENTE em português, sem pensar em inglê
                         },
                         { role: 'user', content: prompt }
                     ],
-                    temperature: 0.2,  // ⭐ BAIXÍSSIMO = RESPOSTA DIRETA
-                    max_tokens: 600
+                    temperature: 0.1,  // ⭐ MÍNIMO - RESPOSTA DIRETA
+                    max_tokens: 500
                 })
             });
             
@@ -152,8 +144,8 @@ IMPORTANTE: Você deve responder DIRETAMENTE em português, sem pensar em inglê
                             },
                             { role: 'user', content: prompt }
                         ],
-                        temperature: 0.2,
-                        max_tokens: 600
+                        temperature: 0.1,
+                        max_tokens: 500
                     })
                 });
                 
@@ -185,19 +177,8 @@ IMPORTANTE: Você deve responder DIRETAMENTE em português, sem pensar em inglê
                 console.log('[Groq] ✅ Resposta recebida!');
                 
                 // ⭐ LIMPEZA AGRESSIVA
-                text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-                text = text.replace(/```[\s\S]*?```/g, '');
-                text = text.replace(/^\s*think\s*/i, '');
-                text = text.replace(/^\s*We need to/i, '');
-                text = text.replace(/^\s*I need to/i, '');
-                text = text.replace(/^\s*Let me/i, '');
-                text = text.replace(/^\s*First,?/i, '');
-                text = text.replace(/^\s*So,?/i, '');
-                text = text.replace(/^\s*The user is asking/i, '');
-                text = text.replace(/^\s*The question is/i, '');
-                
-                const cleanText = this._cleanText(text.trim());
-                return { success: true, text: cleanText };
+                text = this._cleanText(text.trim());
+                return { success: true, text: text };
             }
             
             return { success: false, error: 'Resposta vazia' };
@@ -213,30 +194,34 @@ IMPORTANTE: Você deve responder DIRETAMENTE em português, sem pensar em inglê
         
         let clean = text;
         
-        // Remover tags
+        // Remover tags de pensamento
         clean = clean.replace(/<think>[\s\S]*?<\/think>/gi, '');
+        clean = clean.replace(/<analysis>[\s\S]*?<\/analysis>/gi, '');
         clean = clean.replace(/```[\s\S]*?```/g, '');
         clean = clean.replace(/<[^>]*>/g, '');
         
         // Remover prefácios em inglês
-        clean = clean.replace(/^\s*think\s*/i, '');
-        clean = clean.replace(/^\s*We need to/i, '');
-        clean = clean.replace(/^\s*I need to/i, '');
-        clean = clean.replace(/^\s*Let me/i, '');
-        clean = clean.replace(/^\s*First,?/i, '');
-        clean = clean.replace(/^\s*So,?/i, '');
-        clean = clean.replace(/^\s*The user is asking/i, '');
-        clean = clean.replace(/^\s*The question is/i, '');
-        clean = clean.replace(/^\s*Here is/i, '');
-        clean = clean.replace(/^\s*Here's/i, '');
-        clean = clean.replace(/^\s*This is/i, '');
-        clean = clean.replace(/^\s*I will/i, '');
-        clean = clean.replace(/^\s*I'm going to/i, '');
+        const prefixes = [
+            'think', 'we need to', 'i need to', 'let me', 'first,', 'so,',
+            'the user is asking', 'the question is', 'here is', 'here\'s',
+            'this is', 'i will', 'i\'m going to', 'analyze', 'analysis',
+            'draft', 'response:', 'answer:', 'output:'
+        ];
+        
+        for (const prefix of prefixes) {
+            clean = clean.replace(new RegExp(`^\\s*${prefix}\\s*`, 'i'), '');
+            clean = clean.replace(new RegExp(`^\\s*${prefix}:\\s*`, 'i'), '');
+        }
         
         // Remover "(via Groq (xxx))"
         clean = clean.replace(/\s*\(via\s+[^)]+\)/gi, '');
         clean = clean.replace(/\s*\[via\s+[^\]]+\]/gi, '');
         clean = clean.replace(/\s*provedor:\s*[^\s]+/gi, '');
+        
+        // Remover emojis
+        clean = clean.replace(/[\u{1F000}-\u{1FFFF}]/gu, '');
+        clean = clean.replace(/[\u{2600}-\u{27BF}]/gu, '');
+        clean = clean.replace(/[\u{FE00}-\u{FEFF}]/gu, '');
         
         // Remover espaços extras
         clean = clean.replace(/\s+/g, ' ').trim();
@@ -255,24 +240,37 @@ IMPORTANTE: Você deve responder DIRETAMENTE em português, sem pensar em inglê
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         
-        if (texto.includes('saturno') || texto.includes('saturnao')) {
-            return 'O termo "Saturnão" parece ser uma variação de "Saturno". Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes. Na mitologia romana, Saturno era o deus da agricultura e do tempo, equivalente ao deus grego Cronos.';
+        // Dicionário de respostas comuns
+        const respostas = {
+            'internet': 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web. É a infraestrutura tecnológica que sustenta e-mails, streaming, redes sociais, jogos online e inúmeras outras aplicações.',
+            'saturno': 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso com uma densidade menor que a da água. Na mitologia romana, Saturno era o deus da agricultura e do tempo, equivalente ao deus grego Cronos.',
+            'saturnao': 'O termo "Saturnão" parece ser uma variação de "Saturno". Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes. Na mitologia romana, Saturno era o deus da agricultura e do tempo.',
+            'mouse': 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos. É essencial para a interação com sistemas operacionais e aplicativos.',
+            'oi': 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.',
+            'olá': 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.',
+            'bom dia': 'Bom dia! Como posso ajudar você hoje?',
+            'boa tarde': 'Boa tarde! Como posso ajudar você hoje?',
+            'boa noite': 'Boa noite! Como posso ajudar você hoje?'
+        };
+        
+        // Verificar se a pergunta corresponde a alguma resposta
+        for (const [key, resposta] of Object.entries(respostas)) {
+            if (texto.includes(key)) {
+                return resposta;
+            }
         }
         
-        if (texto.includes('mouse')) {
-            return 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos. É essencial para a interação com sistemas operacionais e aplicativos.';
-        }
-        
-        if (texto.includes('oi') || texto.includes('olá')) {
-            return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.';
-        }
-        
-        if (texto.includes('estud') || texto.includes('aula')) {
+        // Detectar tópicos genéricos
+        if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.';
         }
         
-        if (texto.includes('tarefa') || texto.includes('dever')) {
+        if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
             return 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas, defina prazos realistas e mantenha o foco em uma tarefa de cada vez.';
+        }
+        
+        if (texto.includes('matemática') || texto.includes('matematica') || texto.includes('cálculo')) {
+            return 'Matemática requer prática constante. Resolva exercícios diariamente, entenda os conceitos antes de memorizar fórmulas e não tenha medo de errar - o erro faz parte do aprendizado.';
         }
         
         return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.';
@@ -391,4 +389,4 @@ window.testIA = async (pergunta) => {
 
 console.log('[MultiAI] ✅ Serviço carregado!');
 console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
-console.log('[MultiAI] 💡 Teste: window.testIA("o que é saturno?")');
+console.log('[MultiAI] 💡 Teste: window.testIA("o que é a internet?")');
