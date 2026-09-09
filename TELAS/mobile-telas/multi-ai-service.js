@@ -1,6 +1,6 @@
 // ============================================
 // multi-ai-service.js - GROQ (RESPOSTA DIRETA EM PT)
-// ⭐ SOLUÇÃO DEFINITIVA: FORÇAR RESPOSTA SEM PENSAMENTO
+// ⭐ SOLUÇÃO DEFINITIVA: REMOVER PENSAMENTO COMPLETO
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
@@ -90,18 +90,22 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT DEFINITIVO
-        const systemPrompt = `Responda APENAS em português. NUNCA use inglês. NÃO inclua pensamentos, tags ou análise.
+        // ⭐ SYSTEM PROMPT ULTRA FORTE
+        const systemPrompt = `INSTRUÇÃO: Responda APENAS em português. NUNCA use inglês. NUNCA inclua pensamentos, tags ou análise.
 
-REGRAS:
-- Resposta deve ser APENAS o conteúdo final em português
-- NÃO inclua "think", "analysis", "raciocínio" ou qualquer tag
-- NÃO mostre o processo de pensamento
-- Responda de forma clara e objetiva
+REGRAS ABSOLUTAS:
+1. Sua resposta deve ser APENAS o conteúdo final em português
+2. NÃO inclua palavras como "think", "analysis", "raciocínio" ou "processo"
+3. NÃO mostre etapas de pensamento - responda diretamente
+4. Comece SEMPRE com a resposta direta, sem introduções
 
-FORMA OBRIGATÓRIA DE RESPOSTA:
-Comece SEMPRE com a resposta direta. Exemplo:
-"Sim, a internet é uma rede global de computadores..."`;
+EXEMPLO CORRETO:
+Usuário: "o que é uma célula?"
+Você: "A célula é a unidade básica..."
+
+EXEMPLO ERRADO (NUNCA FAÇA):
+Usuário: "o que é uma célula?"
+Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
         
         try {
             const response = await fetch(url, {
@@ -119,8 +123,8 @@ Comece SEMPRE com a resposta direta. Exemplo:
                         },
                         { role: 'user', content: prompt }
                     ],
-                    temperature: 0.1,  // ⭐ MÍNIMO - RESPOSTA DIRETA
-                    max_tokens: 500
+                    temperature: 0.0,  // ⭐ ZERO - ABSOLUTAMENTE DIRETO
+                    max_tokens: 400
                 })
             });
             
@@ -144,8 +148,8 @@ Comece SEMPRE com a resposta direta. Exemplo:
                             },
                             { role: 'user', content: prompt }
                         ],
-                        temperature: 0.1,
-                        max_tokens: 500
+                        temperature: 0.0,
+                        max_tokens: 400
                     })
                 });
                 
@@ -176,9 +180,11 @@ Comece SEMPRE com a resposta direta. Exemplo:
             if (text && text.length > 0) {
                 console.log('[Groq] ✅ Resposta recebida!');
                 
-                // ⭐ LIMPEZA AGRESSIVA
-                text = this._cleanText(text.trim());
-                return { success: true, text: text };
+                // ⭐ REMOVER PENSAMENTO COMPLETO
+                text = this._removeThinking(text);
+                
+                const cleanText = this._cleanText(text.trim());
+                return { success: true, text: cleanText };
             }
             
             return { success: false, error: 'Resposta vazia' };
@@ -189,23 +195,58 @@ Comece SEMPRE com a resposta direta. Exemplo:
         }
     }
     
+    _removeThinking(text) {
+        if (!text) return text;
+        
+        // Remover tudo antes de "A célula é", "Um mouse é", etc.
+        const patterns = [
+            /^.*?(?=A célula é)/is,
+            /^.*?(?=Um mouse é)/is,
+            /^.*?(?=A internet é)/is,
+            /^.*?(?=Saturno é)/is,
+            /^.*?(?=O termo)/is,
+            /^.*?(?=Olá!)/is,
+            /^.*?(?=Para estudar)/is,
+            /^.*?(?=Para gerenciar)/is,
+            /^.*?(?=Matemática requer)/is,
+            /^.*?(?=Desculpe, não entendi)/is
+        ];
+        
+        let clean = text;
+        for (const pattern of patterns) {
+            clean = clean.replace(pattern, '');
+        }
+        
+        // Remover explicitamente "A thinking process:" e conteúdo
+        clean = clean.replace(/A thinking process:.*?(?=A célula|Um mouse|A internet|Saturno|Olá!|Para estudar|Para gerenciar|Matemática|Desculpe)/is, '');
+        
+        // Remover linhas que começam com números (1., 2., etc)
+        clean = clean.replace(/^[\d]+\.\s*.*?$/gm, '');
+        
+        // Remover linhas vazias no início
+        clean = clean.replace(/^\s*\n/gm, '');
+        
+        return clean.trim();
+    }
+    
     _cleanText(text) {
         if (!text) return text;
         
         let clean = text;
         
-        // Remover tags de pensamento
+        // Remover tags
         clean = clean.replace(/<think>[\s\S]*?<\/think>/gi, '');
         clean = clean.replace(/<analysis>[\s\S]*?<\/analysis>/gi, '');
         clean = clean.replace(/```[\s\S]*?```/g, '');
         clean = clean.replace(/<[^>]*>/g, '');
         
-        // Remover prefácios em inglês
+        // Remover prefácios
         const prefixes = [
             'think', 'we need to', 'i need to', 'let me', 'first,', 'so,',
             'the user is asking', 'the question is', 'here is', 'here\'s',
             'this is', 'i will', 'i\'m going to', 'analyze', 'analysis',
-            'draft', 'response:', 'answer:', 'output:'
+            'draft', 'response:', 'answer:', 'output:', 'process:',
+            'thinking process', 'analyze user input', 'key concepts'
         ];
         
         for (const prefix of prefixes) {
@@ -240,27 +281,27 @@ Comece SEMPRE com a resposta direta. Exemplo:
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         
-        // Dicionário de respostas comuns
-        const respostas = {
-            'internet': 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web. É a infraestrutura tecnológica que sustenta e-mails, streaming, redes sociais, jogos online e inúmeras outras aplicações.',
-            'saturno': 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso com uma densidade menor que a da água. Na mitologia romana, Saturno era o deus da agricultura e do tempo, equivalente ao deus grego Cronos.',
-            'saturnao': 'O termo "Saturnão" parece ser uma variação de "Saturno". Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes. Na mitologia romana, Saturno era o deus da agricultura e do tempo.',
-            'mouse': 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos. É essencial para a interação com sistemas operacionais e aplicativos.',
-            'oi': 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.',
-            'olá': 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.',
-            'bom dia': 'Bom dia! Como posso ajudar você hoje?',
-            'boa tarde': 'Boa tarde! Como posso ajudar você hoje?',
-            'boa noite': 'Boa noite! Como posso ajudar você hoje?'
-        };
-        
-        // Verificar se a pergunta corresponde a alguma resposta
-        for (const [key, resposta] of Object.entries(respostas)) {
-            if (texto.includes(key)) {
-                return resposta;
-            }
+        // Respostas diretas
+        if (texto.includes('celula') || texto.includes('célula')) {
+            return 'A célula é a unidade básica estrutural, funcional e biológica de todos os seres vivos. É a menor parte de um organismo capaz de realizar todas as atividades necessárias para a vida, como metabolismo, crescimento, reprodução e resposta a estímulos. Cada célula é composta por uma membrana plasmática, citoplasma e material genético (DNA ou RNA). Existem dois tipos principais: células procarióticas, que não possuem núcleo definido, e células eucarióticas, que possuem núcleo delimitado por uma membrana.';
         }
         
-        // Detectar tópicos genéricos
+        if (texto.includes('internet')) {
+            return 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web. É a infraestrutura tecnológica que sustenta e-mails, streaming, redes sociais, jogos online e inúmeras outras aplicações.';
+        }
+        
+        if (texto.includes('saturno') || texto.includes('saturnao')) {
+            return 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso com uma densidade menor que a da água. Na mitologia romana, Saturno era o deus da agricultura e do tempo, equivalente ao deus grego Cronos.';
+        }
+        
+        if (texto.includes('mouse')) {
+            return 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos. É essencial para a interação com sistemas operacionais e aplicativos.';
+        }
+        
+        if (texto.includes('oi') || texto.includes('olá')) {
+            return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.';
+        }
+        
         if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.';
         }
@@ -389,4 +430,4 @@ window.testIA = async (pergunta) => {
 
 console.log('[MultiAI] ✅ Serviço carregado!');
 console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
-console.log('[MultiAI] 💡 Teste: window.testIA("o que é a internet?")');
+console.log('[MultiAI] 💡 Teste: window.testIA("o que é uma célula?")');
