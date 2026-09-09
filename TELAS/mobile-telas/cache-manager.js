@@ -546,7 +546,22 @@ class SimpleCacheManager {
                     result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
                 case 'documentos':
-                    result = await window.DatabaseService.saveDocumentos(userId, value);
+                    // ⭐ VERIFICAR SE O MÉTODO EXISTE
+                    if (typeof window.DatabaseService.saveDocumentos !== 'function') {
+                        console.warn('[CacheManager] ⚠️ saveDocumentos não é uma função, tentando recarregar...');
+                        if (window.SupabaseClient?.initSupabase) {
+                            await window.SupabaseClient.initSupabase();
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                        if (typeof window.DatabaseService.saveDocumentos === 'function') {
+                            result = await window.DatabaseService.saveDocumentos(userId, value);
+                        } else {
+                            console.error('[CacheManager] ❌ saveDocumentos ainda não disponível');
+                            return false;
+                        }
+                    } else {
+                        result = await window.DatabaseService.saveDocumentos(userId, value);
+                    }
                     break;
                 case 'usuarioLogado':
                     if (value.id && value.email) {

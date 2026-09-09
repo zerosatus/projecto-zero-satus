@@ -401,7 +401,7 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ NOVO: DELETE TASK
+        // ⭐ DELETE TASK
         async function deleteTask(userId, taskId) {
             console.log(`[Database] 🗑️ Deletando task ${taskId} para userId:`, userId);
             const client = init();
@@ -504,7 +504,7 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ NOVO: DELETE NOTE
+        // ⭐ DELETE NOTE
         async function deleteNote(userId, noteId) {
             console.log(`[Database] 🗑️ Deletando note ${noteId} para userId:`, userId);
             const client = init();
@@ -619,7 +619,7 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ NOVO: DELETE CALENDAR EVENT
+        // ⭐ DELETE CALENDAR EVENT
         async function deleteCalendarEvent(userId, eventId) {
             console.log(`[Database] 🗑️ Deletando evento ${eventId} para userId:`, userId);
             const client = init();
@@ -946,7 +946,7 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ NOVO: DELETE DISCIPLINA
+        // ⭐ DELETE DISCIPLINA
         async function deleteDisciplina(userId, disciplinaId) {
             console.log(`[Database] 🗑️ Deletando disciplina ${disciplinaId} para userId:`, userId);
             const client = init();
@@ -998,7 +998,7 @@ if (window.DatabaseService) {
                     nome: doc.nome,
                     categoria: doc.categoria || 'Outros',
                     descricao: doc.descricao || '',
-                    arquivo: doc.arquivo,
+                    arquivo: doc.arquivo || '',
                     tipo: doc.tipo || 'application/octet-stream',
                     nomeArquivo: doc.nome_arquivo || doc.nome,
                     tamanho: doc.tamanho || 0,
@@ -1033,21 +1033,35 @@ if (window.DatabaseService) {
                     return true;
                 }
 
-                const docsToInsert = documentos.map(doc => ({
-                    id: doc.id || generateId(),
-                    user_id: userId,
-                    nome: doc.nome || 'Documento',
-                    categoria: doc.categoria || 'Outros',
-                    descricao: doc.descricao || '',
-                    arquivo: doc.arquivo || '',
-                    tipo: doc.tipo || 'application/octet-stream',
-                    nome_arquivo: doc.nomeArquivo || doc.nome,
-                    tamanho: doc.tamanho || 0,
-                    storage_path: doc.storagePath || null,
-                    data_upload: doc.dataUpload || new Date().toISOString(),
-                    created_at: doc.dataUpload || new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }));
+                // Filtrar documentos para evitar estouro de quota
+                const docsToInsert = documentos
+                    .filter(doc => {
+                        if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                            console.warn('[Database] ⚠️ Documento grande ignorado:', doc.nome);
+                            return false;
+                        }
+                        return true;
+                    })
+                    .map(doc => ({
+                        id: doc.id || generateId(),
+                        user_id: userId,
+                        nome: doc.nome || 'Documento',
+                        categoria: doc.categoria || 'Outros',
+                        descricao: doc.descricao || '',
+                        arquivo: doc.arquivo || '',
+                        tipo: doc.tipo || 'application/octet-stream',
+                        nome_arquivo: doc.nomeArquivo || doc.nome,
+                        tamanho: doc.tamanho || 0,
+                        storage_path: doc.storagePath || null,
+                        data_upload: doc.dataUpload || new Date().toISOString(),
+                        created_at: doc.dataUpload || new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    }));
+
+                if (docsToInsert.length === 0) {
+                    console.log('[Database] ℹ️ Nenhum documento válido para salvar');
+                    return true;
+                }
 
                 console.log(`[Database] 📡 Inserindo ${docsToInsert.length} documentos...`);
                 const batchSize = 50;
@@ -1066,7 +1080,7 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ NOVO: DELETE DOCUMENTO (COM STORAGE)
+        // ⭐ DELETE DOCUMENTO (COM STORAGE)
         async function deleteDocumento(userId, documentoId) {
             console.log(`[Database] 🗑️ Deletando documento ${documentoId} para userId:`, userId);
             const client = init();
@@ -1083,7 +1097,6 @@ if (window.DatabaseService) {
 
                 if (findError) {
                     console.error('[Database] ❌ Erro ao buscar documento para deletar:', findError);
-                    // Continua mesmo se não encontrar
                 }
 
                 // Deletar do storage se existir
@@ -1123,7 +1136,7 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ UPLOAD PARA STORAGE - CORRIGIDO
+        // ⭐ UPLOAD PARA STORAGE
         async function uploadDocumentoStorage(userId, file, nome) {
             console.log('[Database] 📤 Upload de documento para Storage:', nome);
             const client = init();
@@ -1352,6 +1365,7 @@ if (window.DatabaseService) {
             getDisciplinas,
             saveDisciplinas,
             deleteDisciplina,
+            // ⭐ NOVOS MÉTODOS PARA DOCUMENTOS
             getDocumentos,
             saveDocumentos,
             deleteDocumento,

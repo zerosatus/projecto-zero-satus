@@ -498,9 +498,7 @@ class App {
         
         this.updateLoadingStatus(`Olá, ${this.user.nome || 'Usuário'}!`, 10);
         
-        // ⭐ ============================================
         // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
-        // ⭐ ============================================
         if (window.CacheManager) {
             console.log('[SPA] 🔄 Inicializando CacheManager...');
             window.CacheManager.init();
@@ -956,7 +954,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS
+    // ⭐ SALVAR DADOS (COM VALIDAÇÃO DE DOCUMENTOS)
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
@@ -965,7 +963,7 @@ class App {
         console.log('[SPA] 💾 Salvando dados...');
         
         try {
-            // ⭐ FILTRAR NOTAS FANTASMAS ANTES DE SALVAR
+            // ⭐ FILTRAR NOTAS FANTASMAS
             if (Array.isArray(this.data.notes)) {
                 const antes = this.data.notes.length;
                 this.data.notes = this.data.notes.filter(n => {
@@ -978,6 +976,21 @@ class App {
                 });
                 if (this.data.notes.length !== antes) {
                     console.log(`[SPA] 🧹 Removidas ${antes - this.data.notes.length} notas fantasmas ao salvar`);
+                }
+            }
+            
+            // ⭐ FILTRAR DOCUMENTOS GRANDES
+            if (Array.isArray(this.data.documentos)) {
+                const antes = this.data.documentos.length;
+                this.data.documentos = this.data.documentos.filter(doc => {
+                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[SPA] ⚠️ Documento grande removido ao salvar:', doc.nome);
+                        return false;
+                    }
+                    return true;
+                });
+                if (this.data.documentos.length !== antes) {
+                    console.log(`[SPA] 🧹 Removidos ${antes - this.data.documentos.length} documentos grandes ao salvar`);
                 }
             }
             
