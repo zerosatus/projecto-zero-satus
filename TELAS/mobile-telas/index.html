@@ -1148,21 +1148,30 @@ const checkInterval = setInterval(() => {
 <script src="modules/documentos.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - LLAMA + GROK
-// COM CHAVES CONFIGURADAS
+// multi-ai-service.js - LLAMA + GROK (MÚLTIPLOS MODELOS)
+// COM CHAVES CONFIGURADAS E FALLBACKS
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO LLAMA + GROK...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-MODELO...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ LLAMA API (via OpenRouter)
+        // ⭐ LLAMA API (via OpenRouter) - MÚLTIPLOS MODELOS
         this.LLAMA_API_KEY = "sk-ZF7pWxT4FEWvzmwFLiANNkXVhYgHHRGnR6uGqLkunbaV8y8U";
-        this.LLAMA_MODEL = "meta-llama/llama-3.2-3b-instruct:free";
+        this.LLAMA_MODELS = [
+            "meta-llama/llama-3.2-3b-instruct:free",
+            "meta-llama/llama-3.1-8b-instruct:free",
+            "meta-llama/llama-3-8b-instruct:free"
+        ];
+        this.LLAMA_INDEX = 0;
         
-        // ⭐ GROK API (via xAI)
+        // ⭐ GROK API (via xAI) - MÚLTIPLOS MODELOS
         this.GROK_API_KEY = "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";
-        this.GROK_MODEL = "grok-2-1212";
+        this.GROK_MODELS = [
+            "grok-2-1212",
+            "grok-beta"
+        ];
+        this.GROK_INDEX = 0;
         
         // Cache para reduzir chamadas
         this._cache = new Map();
@@ -1172,9 +1181,9 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Modo: LLAMA (principal) + GROK (fallback)');
-        console.log('[MultiAI] 🔑 Llama: ✅ Configurado');
-        console.log('[MultiAI] 🔑 Grok: ✅ Configurado');
+        console.log('[MultiAI] 📌 Modo: LLAMA (3 modelos) + GROK (2 modelos)');
+        console.log('[MultiAI] 🔑 Llama: ✅ Configurado com', this.LLAMA_MODELS.length, 'modelos');
+        console.log('[MultiAI] 🔑 Grok: ✅ Configurado com', this.GROK_MODELS.length, 'modelos');
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
@@ -1200,37 +1209,25 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR LLAMA PRIMEIRO (via OpenRouter)
-        if (this.LLAMA_API_KEY) {
-            try {
-                const result = await this._callLlamaAPI(prompt, context);
-                if (result.success) {
-                    this._incrementarUso();
-                    this._saveToCache(prompt, context, result.text);
-                    console.log('[MultiAI] ✅ Resposta do Llama!');
-                    return result;
-                }
-                console.log('[MultiAI] ⚠️ Llama falhou:', result.error);
-            } catch (error) {
-                console.error('[MultiAI] ❌ Erro no Llama:', error.message);
-            }
+        // ⭐ TENTAR LLAMA COM TODOS OS MODELOS
+        const llamaResult = await this._callLlamaWithFallback(prompt, context);
+        if (llamaResult.success) {
+            this._incrementarUso();
+            this._saveToCache(prompt, context, llamaResult.text);
+            console.log('[MultiAI] ✅ Resposta do Llama!');
+            return llamaResult;
         }
+        console.log('[MultiAI] ⚠️ Todos os modelos Llama falharam');
         
-        // ⭐ TENTAR GROK (xAI)
-        if (this.GROK_API_KEY) {
-            try {
-                const result = await this._callGrokAPI(prompt, context);
-                if (result.success) {
-                    this._incrementarUso();
-                    this._saveToCache(prompt, context, result.text);
-                    console.log('[MultiAI] ✅ Resposta do Grok!');
-                    return result;
-                }
-                console.log('[MultiAI] ⚠️ Grok falhou:', result.error);
-            } catch (error) {
-                console.error('[MultiAI] ❌ Erro no Grok:', error.message);
-            }
+        // ⭐ TENTAR GROK COM TODOS OS MODELOS
+        const grokResult = await this._callGrokWithFallback(prompt, context);
+        if (grokResult.success) {
+            this._incrementarUso();
+            this._saveToCache(prompt, context, grokResult.text);
+            console.log('[MultiAI] ✅ Resposta do Grok!');
+            return grokResult;
         }
+        console.log('[MultiAI] ⚠️ Todos os modelos Grok falharam');
         
         // ⭐ FALLBACK LOCAL (sempre disponível)
         console.log('[MultiAI] 📝 Usando fallback local');
@@ -1240,23 +1237,42 @@ class MultiAIService {
             success: true,
             text: fallback,
             fromFallback: true,
-            error: 'APIs indisponíveis - usando resposta local'
+            error: 'Todas as APIs falharam - usando resposta local'
         };
     }
     
     // ============================================
-    // ⭐ LLAMA API (via OpenRouter)
+    // ⭐ LLAMA API - COM FALLBACK ENTRE MODELOS
     // ============================================
-    async _callLlamaAPI(prompt, context) {
+    async _callLlamaWithFallback(prompt, context) {
+        const errors = [];
+        
+        for (let i = 0; i < this.LLAMA_MODELS.length; i++) {
+            const model = this.LLAMA_MODELS[i];
+            console.log(`[Llama] 📡 Tentando modelo ${i+1}/${this.LLAMA_MODELS.length}: ${model}`);
+            
+            try {
+                const result = await this._callLlamaAPI(prompt, context, model);
+                if (result.success) {
+                    return result;
+                }
+                errors.push(`[${model}] ${result.error}`);
+                console.log(`[Llama] ❌ Modelo ${model} falhou:`, result.error);
+            } catch (error) {
+                errors.push(`[${model}] ${error.message}`);
+                console.error(`[Llama] ❌ Erro no modelo ${model}:`, error.message);
+            }
+        }
+        
+        return { success: false, error: `Todos os modelos Llama falharam: ${errors.join('; ')}` };
+    }
+    
+    async _callLlamaAPI(prompt, context, model) {
         if (!this.LLAMA_API_KEY) {
             return { success: false, error: 'Llama não configurado' };
         }
         
         const url = 'https://openrouter.ai/api/v1/chat/completions';
-        
-        console.log('[Llama] 📡 Enviando para OpenRouter...');
-        console.log('[Llama] 🔑 Chave:', this.LLAMA_API_KEY.substring(0, 15) + '...');
-        console.log('[Llama] 📌 Modelo:', this.LLAMA_MODEL);
         
         try {
             const response = await fetch(url, {
@@ -1268,11 +1284,11 @@ class MultiAIService {
                     'X-Title': 'Zero Satus'
                 },
                 body: JSON.stringify({
-                    model: this.LLAMA_MODEL,
+                    model: model,
                     messages: [
                         { 
                             role: 'system', 
-                            content: context || 'Você é um assistente de estudos útil e amigável.'
+                            content: context || 'Você é um assistente de estudos útil e amigável. Responda em português.'
                         },
                         { role: 'user', content: prompt }
                     ],
@@ -1282,14 +1298,14 @@ class MultiAIService {
                 })
             });
             
-            console.log('[Llama] 📥 Status:', response.status);
+            console.log(`[Llama] 📥 Status:`, response.status);
             
             if (!response.ok) {
                 let errorMessage = `Erro ${response.status}`;
                 try {
                     const errorData = await response.json();
                     console.error('[Llama] ❌ Detalhes:', errorData);
-                    errorMessage = errorData.error?.message || errorMessage;
+                    errorMessage = errorData.error?.message || errorData.error || errorMessage;
                 } catch (e) {
                     // Ignorar erro ao parsear JSON
                 }
@@ -1301,7 +1317,7 @@ class MultiAIService {
             
             if (text && text.length > 0) {
                 console.log('[Llama] ✅ Resposta recebida!');
-                return { success: true, text: text.trim(), provider: 'Llama' };
+                return { success: true, text: text.trim(), provider: `Llama (${model})` };
             }
             
             return { success: false, error: 'Resposta vazia' };
@@ -1313,18 +1329,37 @@ class MultiAIService {
     }
     
     // ============================================
-    // ⭐ GROK API (via xAI)
+    // ⭐ GROK API - COM FALLBACK ENTRE MODELOS
     // ============================================
-    async _callGrokAPI(prompt, context) {
+    async _callGrokWithFallback(prompt, context) {
+        const errors = [];
+        
+        for (let i = 0; i < this.GROK_MODELS.length; i++) {
+            const model = this.GROK_MODELS[i];
+            console.log(`[Grok] 📡 Tentando modelo ${i+1}/${this.GROK_MODELS.length}: ${model}`);
+            
+            try {
+                const result = await this._callGrokAPI(prompt, context, model);
+                if (result.success) {
+                    return result;
+                }
+                errors.push(`[${model}] ${result.error}`);
+                console.log(`[Grok] ❌ Modelo ${model} falhou:`, result.error);
+            } catch (error) {
+                errors.push(`[${model}] ${error.message}`);
+                console.error(`[Grok] ❌ Erro no modelo ${model}:`, error.message);
+            }
+        }
+        
+        return { success: false, error: `Todos os modelos Grok falharam: ${errors.join('; ')}` };
+    }
+    
+    async _callGrokAPI(prompt, context, model) {
         if (!this.GROK_API_KEY) {
             return { success: false, error: 'Grok não configurado' };
         }
         
         const url = 'https://api.x.ai/v1/chat/completions';
-        
-        console.log('[Grok] 📡 Enviando para xAI...');
-        console.log('[Grok] 🔑 Chave:', this.GROK_API_KEY.substring(0, 15) + '...');
-        console.log('[Grok] 📌 Modelo:', this.GROK_MODEL);
         
         try {
             const response = await fetch(url, {
@@ -1334,11 +1369,11 @@ class MultiAIService {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: this.GROK_MODEL,
+                    model: model,
                     messages: [
                         { 
                             role: 'system', 
-                            content: context || 'Você é um assistente de estudos útil e amigável.'
+                            content: context || 'Você é um assistente de estudos útil e amigável. Responda em português.'
                         },
                         { role: 'user', content: prompt }
                     ],
@@ -1348,14 +1383,14 @@ class MultiAIService {
                 })
             });
             
-            console.log('[Grok] 📥 Status:', response.status);
+            console.log(`[Grok] 📥 Status:`, response.status);
             
             if (!response.ok) {
                 let errorMessage = `Erro ${response.status}`;
                 try {
                     const errorData = await response.json();
                     console.error('[Grok] ❌ Detalhes:', errorData);
-                    errorMessage = errorData.error?.message || errorMessage;
+                    errorMessage = errorData.error?.message || errorData.error || errorMessage;
                 } catch (e) {
                     // Ignorar erro ao parsear JSON
                 }
@@ -1367,7 +1402,7 @@ class MultiAIService {
             
             if (text && text.length > 0) {
                 console.log('[Grok] ✅ Resposta recebida!');
-                return { success: true, text: text.trim(), provider: 'Grok' };
+                return { success: true, text: text.trim(), provider: `Grok (${model})` };
             }
             
             return { success: false, error: 'Resposta vazia' };
@@ -1525,9 +1560,11 @@ class MultiAIService {
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
             cacheSize: this._cache.size,
-            modo: 'LLAMA (principal) + GROK (fallback)',
+            modo: 'LLAMA (3 modelos) + GROK (2 modelos)',
             llamaConfigurado: !!this.LLAMA_API_KEY,
-            grokConfigurado: !!this.GROK_API_KEY
+            grokConfigurado: !!this.GROK_API_KEY,
+            modelosLlama: this.LLAMA_MODELS,
+            modelosGrok: this.GROK_MODELS
         };
     }
     
@@ -1551,6 +1588,19 @@ class MultiAIService {
         console.log(`[MultiAI] ${apiKey ? '✅' : '❌'} Grok ${apiKey ? 'configurado' : 'removido'}`);
         return this.getStatus();
     }
+    
+    // ⭐ ADICIONAR MODELOS
+    adicionarModeloLlama(modelo) {
+        this.LLAMA_MODELS.push(modelo);
+        console.log(`[MultiAI] ✅ Modelo Llama adicionado: ${modelo}`);
+        return this.LLAMA_MODELS;
+    }
+    
+    adicionarModeloGrok(modelo) {
+        this.GROK_MODELS.push(modelo);
+        console.log(`[MultiAI] ✅ Modelo Grok adicionado: ${modelo}`);
+        return this.GROK_MODELS;
+    }
 }
 
 // ============================================
@@ -1573,6 +1623,8 @@ window.getLimiteIA = () => {
         modo: status.modo,
         llama: status.llamaConfigurado,
         grok: status.grokConfigurado,
+        modelosLlama: status.modelosLlama,
+        modelosGrok: status.modelosGrok,
         reset: () => multiAI.resetLimite()
     };
 };
@@ -1592,14 +1644,24 @@ window.configurarGrok = (apiKey) => {
     return multiAI.configurarGrok(apiKey);
 };
 
+window.adicionarModeloLlama = (modelo) => {
+    return multiAI.adicionarModeloLlama(modelo);
+};
+
+window.adicionarModeloGrok = (modelo) => {
+    return multiAI.adicionarModeloGrok(modelo);
+};
+
 // ============================================
 // ⭐ LOG DE INICIALIZAÇÃO
 // ============================================
 console.log('[MultiAI] ✅ Serviço carregado com sucesso!');
-console.log('[MultiAI] 📌 Modo: LLAMA (principal) + GROK (fallback) + LOCAL (último recurso)');
+console.log('[MultiAI] 📌 Modelos Llama:', multiAI.LLAMA_MODELS);
+console.log('[MultiAI] 📌 Modelos Grok:', multiAI.GROK_MODELS);
 console.log('[MultiAI] 🔑 Llama: CONFIGURADO');
 console.log('[MultiAI] 🔑 Grok: CONFIGURADO');
-console.log('[MultiAI] 💡 Teste: window.testIA("Qual é a capital de Moçambique?")');</script>
+console.log('[MultiAI] 💡 Teste: window.testIA("Qual é a capital de Moçambique?")');
+console.log('[MultiAI] 💡 Adicionar modelo Llama: window.adicionarModeloLlama("novo-modelo")');</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
