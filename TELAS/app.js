@@ -293,9 +293,7 @@ class App {
         const iniciais = nomeExibicao.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
         
-        // ⭐ ============================================
         // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
-        // ⭐ ============================================
         if (window.CacheManager) {
             console.log('[App PC] 🔄 Inicializando CacheManager...');
             window.CacheManager.init();
@@ -303,7 +301,6 @@ class App {
             console.log('[App PC] ✅ CacheManager inicializado com userId:', this.user.id);
         } else {
             console.warn('[App PC] ⚠️ CacheManager não encontrado, tentando carregar...');
-            // Tentar carregar novamente
             const script = document.createElement('script');
             script.src = 'mobile-telas/cache-manager.js';
             script.onload = () => {
@@ -528,7 +525,7 @@ class App {
                 }
             });
             
-            // Filtrar notas fantasmas
+            // ⭐ FILTRAR NOTAS FANTASMAS
             if (Array.isArray(this.data.notes)) {
                 const filtradas = this.data.notes.filter(n => {
                     const hasTitle = n.title && n.title.trim().length > 0;
@@ -542,6 +539,22 @@ class App {
                     console.log(`[App PC] 🧹 Removidas ${this.data.notes.length - filtradas.length} notas fantasmas`);
                     this.data.notes = filtradas;
                     window.CacheManager.set('notes', filtradas, true);
+                }
+            }
+            
+            // ⭐ FILTRAR DOCUMENTOS GRANDES
+            if (Array.isArray(this.data.documentos)) {
+                const filtrados = this.data.documentos.filter(doc => {
+                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[App PC] ⚠️ Documento grande removido:', doc.nome);
+                        return false;
+                    }
+                    return true;
+                });
+                if (filtrados.length !== this.data.documentos.length) {
+                    console.log(`[App PC] 🧹 Removidos ${this.data.documentos.length - filtrados.length} documentos grandes`);
+                    this.data.documentos = filtrados;
+                    window.CacheManager.set('documentos', filtrados, true);
                 }
             }
             
@@ -562,7 +575,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS
+    // ⭐ SALVAR DADOS (COM VALIDAÇÃO DE DOCUMENTOS)
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
@@ -576,6 +589,7 @@ class App {
                 return;
             }
             
+            // ⭐ FILTRAR NOTAS FANTASMAS
             if (Array.isArray(this.data.notes)) {
                 const antes = this.data.notes.length;
                 this.data.notes = this.data.notes.filter(n => {
@@ -588,6 +602,21 @@ class App {
                 });
                 if (this.data.notes.length !== antes) {
                     console.log(`[App PC] 🧹 Removidas ${antes - this.data.notes.length} notas fantasmas ao salvar`);
+                }
+            }
+            
+            // ⭐ FILTRAR DOCUMENTOS GRANDES
+            if (Array.isArray(this.data.documentos)) {
+                const antes = this.data.documentos.length;
+                this.data.documentos = this.data.documentos.filter(doc => {
+                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[App PC] ⚠️ Documento grande removido ao salvar:', doc.nome);
+                        return false;
+                    }
+                    return true;
+                });
+                if (this.data.documentos.length !== antes) {
+                    console.log(`[App PC] 🧹 Removidos ${antes - this.data.documentos.length} documentos grandes ao salvar`);
                 }
             }
             
@@ -632,19 +661,14 @@ class App {
         }
 
         try {
-            // Deletar localmente e na nuvem via CacheManager
             const deleted = window.CacheManager.delete(type, id, true);
             
             if (deleted) {
-                // Atualizar dados locais
                 this.data[type] = window.CacheManager.get(type, []);
-                
-                // Forçar sync imediato
                 await window.CacheManager.forceSync();
                 
                 console.log(`[App PC] ✅ ${type} item ${id} deletado e sincronizado`);
                 
-                // Disparar evento para atualizar a UI
                 window.dispatchEvent(new CustomEvent(`${type}Updated`, { 
                     detail: this.data[type] 
                 }));
