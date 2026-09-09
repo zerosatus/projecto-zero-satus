@@ -271,8 +271,7 @@ class App {
     // ============================================
     getSupabase() {
         if (window.SupabaseClient?.getClient) {
-            const client = window.SupabaseClient.getClient();
-            if (client) return client;
+            return window.SupabaseClient.getClient();
         }
         
         if (window.SupabaseClient?.client) {
@@ -1055,6 +1054,43 @@ class App {
         }
         
         setTimeout(() => { this.isSaving = false; }, 500);
+    }
+    
+    // ============================================
+    // ⭐ DELETAR ITEM (COM SYNC)
+    // ============================================
+    async deleteItem(type, id) {
+        if (!window.CacheManager) {
+            console.error('[SPA] ❌ CacheManager não disponível para delete');
+            return false;
+        }
+
+        const userId = this.user?.id;
+        if (!userId) {
+            console.error('[SPA] ❌ Usuário não logado para delete');
+            return false;
+        }
+
+        try {
+            // Deletar localmente e na nuvem
+            const deleted = window.CacheManager.delete(type, id, true);
+            
+            if (deleted) {
+                // Atualizar dados locais
+                this.data[type] = window.CacheManager.get(type, []);
+                
+                // Forçar sync imediato
+                await window.CacheManager.forceSync();
+                
+                console.log(`[SPA] ✅ ${type} item ${id} deletado e sincronizado`);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error(`[SPA] ❌ Erro ao deletar ${type}:`, error);
+            return false;
+        }
     }
     
     // ============================================

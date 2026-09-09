@@ -401,6 +401,32 @@ if (window.DatabaseService) {
             }
         }
 
+        // ⭐ NOVO: DELETE TASK
+        async function deleteTask(userId, taskId) {
+            console.log(`[Database] 🗑️ Deletando task ${taskId} para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client
+                    .from('tasks')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('id', taskId);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar task:', error);
+                    return false;
+                }
+
+                console.log(`[Database] ✅ Task ${taskId} deletada com sucesso`);
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao deletar task:', error);
+                return false;
+            }
+        }
+
         // ============================================
         // NOTES - COM LOGS
         // ============================================
@@ -474,6 +500,32 @@ if (window.DatabaseService) {
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar notes:', error);
+                return false;
+            }
+        }
+
+        // ⭐ NOVO: DELETE NOTE
+        async function deleteNote(userId, noteId) {
+            console.log(`[Database] 🗑️ Deletando note ${noteId} para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client
+                    .from('notes')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('id', noteId);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar note:', error);
+                    return false;
+                }
+
+                console.log(`[Database] ✅ Note ${noteId} deletada com sucesso`);
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao deletar note:', error);
                 return false;
             }
         }
@@ -563,6 +615,32 @@ if (window.DatabaseService) {
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar eventos:', error);
+                return false;
+            }
+        }
+
+        // ⭐ NOVO: DELETE CALENDAR EVENT
+        async function deleteCalendarEvent(userId, eventId) {
+            console.log(`[Database] 🗑️ Deletando evento ${eventId} para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client
+                    .from('calendar_events')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('id', eventId);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar evento:', error);
+                    return false;
+                }
+
+                console.log(`[Database] ✅ Evento ${eventId} deletado com sucesso`);
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao deletar evento:', error);
                 return false;
             }
         }
@@ -868,6 +946,32 @@ if (window.DatabaseService) {
             }
         }
 
+        // ⭐ NOVO: DELETE DISCIPLINA
+        async function deleteDisciplina(userId, disciplinaId) {
+            console.log(`[Database] 🗑️ Deletando disciplina ${disciplinaId} para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client
+                    .from('disciplinas')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('id', disciplinaId);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar disciplina:', error);
+                    return false;
+                }
+
+                console.log(`[Database] ✅ Disciplina ${disciplinaId} deletada com sucesso`);
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao deletar disciplina:', error);
+                return false;
+            }
+        }
+
         // ============================================
         // ⭐ DOCUMENTOS - COM STORAGE (COMPLETO)
         // ============================================
@@ -958,6 +1062,63 @@ if (window.DatabaseService) {
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar documentos:', error);
+                return false;
+            }
+        }
+
+        // ⭐ NOVO: DELETE DOCUMENTO (COM STORAGE)
+        async function deleteDocumento(userId, documentoId) {
+            console.log(`[Database] 🗑️ Deletando documento ${documentoId} para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                // Buscar documento para pegar storage_path
+                const { data: doc, error: findError } = await client
+                    .from('documentos')
+                    .select('storage_path')
+                    .eq('user_id', userId)
+                    .eq('id', documentoId)
+                    .single();
+
+                if (findError) {
+                    console.error('[Database] ❌ Erro ao buscar documento para deletar:', findError);
+                    // Continua mesmo se não encontrar
+                }
+
+                // Deletar do storage se existir
+                if (doc?.storage_path) {
+                    try {
+                        const { error: storageError } = await client.storage
+                            .from('user-content')
+                            .remove([doc.storage_path]);
+                        
+                        if (storageError) {
+                            console.warn('[Database] ⚠️ Erro ao deletar do storage:', storageError);
+                        } else {
+                            console.log(`[Database] ✅ Storage ${doc.storage_path} deletado`);
+                        }
+                    } catch (storageError) {
+                        console.warn('[Database] ⚠️ Erro ao deletar do storage:', storageError);
+                    }
+                }
+
+                // Deletar do banco
+                const { error } = await client
+                    .from('documentos')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('id', documentoId);
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao deletar documento do banco:', error);
+                    return false;
+                }
+
+                console.log(`[Database] ✅ Documento ${documentoId} deletado com sucesso`);
+                return true;
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao deletar documento:', error);
                 return false;
             }
         }
@@ -1175,10 +1336,13 @@ if (window.DatabaseService) {
             ensureUserData,
             getTasks,
             saveTasks,
+            deleteTask,
             getNotes,
             saveNotes,
+            deleteNote,
             getCalendarEvents,
             saveCalendarEvents,
+            deleteCalendarEvent,
             getWeeklySchedule,
             saveWeeklySchedule,
             getTimeSlots,
@@ -1187,8 +1351,10 @@ if (window.DatabaseService) {
             saveNotifications,
             getDisciplinas,
             saveDisciplinas,
+            deleteDisciplina,
             getDocumentos,
             saveDocumentos,
+            deleteDocumento,
             uploadDocumentoStorage,
             deleteDocumentoStorage,
             getUserSettings,

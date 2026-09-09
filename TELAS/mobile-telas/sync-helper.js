@@ -209,8 +209,14 @@
                 log('ℹ️ Nenhum dado novo na nuvem', 'warn');
             }
 
-            // ⭐ PASSO 2: SALVAR DADOS LOCAIS NA NUVEM
-            log('💾 Passo 2: Salvando dados locais na nuvem...');
+            // ⭐ PASSO 2: PROCESSAR FILA DE DELETE
+            if (window.CacheManager._deleteQueue?.length > 0) {
+                log(`🗑️ Passo 2: Processando ${window.CacheManager._deleteQueue.length} itens de delete...`);
+                await window.CacheManager._processDeleteQueue();
+            }
+
+            // ⭐ PASSO 3: SALVAR DADOS LOCAIS NA NUVEM
+            log('💾 Passo 3: Salvando dados locais na nuvem...');
             const dataTypes = [
                 'tasks', 'notes', 'calendarEvents',
                 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'
@@ -244,8 +250,8 @@
                 await processRetryQueue();
             }
 
-            // ⭐ PASSO 3: RECARREGAR DA NUVEM (consistência final)
-            log('🔄 Passo 3: Recarregando da nuvem para consistência...');
+            // ⭐ PASSO 4: RECARREGAR DA NUVEM (consistência final)
+            log('🔄 Passo 4: Recarregando da nuvem para consistência...');
             await window.CacheManager.loadFromCloud(true);
 
             lastSyncTime = Date.now();

@@ -31,6 +31,7 @@ class SimpleCacheManager {
         this._forceCloudLoad = false;
         this._syncErrorCount = 0;
         this._maxSyncErrors = 5;
+        this._deleteQueue = []; // ⭐ NOVO: FILA DE DELETES
     }
 
     init() {
@@ -270,6 +271,172 @@ class SimpleCacheManager {
             setTimeout(() => {
                 this._savingFlags.delete(flagKey);
             }, 1000);
+        }
+    }
+
+    // ⭐ NOVO: DELETE COM SYNC
+    delete(key, itemId, notify = true) {
+        const userId = this.getCurrentUserId();
+        if (!userId) {
+            console.error(`[CacheManager] ❌ Usuário não logado para delete: ${key}`);
+            return false;
+        }
+
+        try {
+            const currentData = this.get(key, []);
+            if (!Array.isArray(currentData)) {
+                console.warn(`[CacheManager] ⚠️ ${key} não é um array, não pode deletar`);
+                return false;
+            }
+
+            const newData = currentData.filter(item => item.id != itemId);
+            if (newData.length === currentData.length) {
+                console.warn(`[CacheManager] ⚠️ Item ${itemId} não encontrado em ${key}`);
+                return false;
+            }
+
+            // Salvar localmente
+            const storageKey = `${userId}_${key}`;
+            localStorage.setItem(storageKey, JSON.stringify(newData));
+            this._dataCache.set(key, newData);
+
+            // Adicionar à fila de delete
+            this._addToDeleteQueue(key, itemId, userId);
+
+            if (notify) {
+                if (this.listeners.has(key)) {
+                    this.listeners.get(key).forEach(cb => {
+                        try { cb(newData); } catch(e) {}
+                    });
+                }
+                setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent(`${key}Updated`, { detail: newData }));
+                    window.dispatchEvent(new CustomEvent('dataUpdated', { detail: { key, value: newData } }));
+                }, 50);
+            }
+
+            console.log(`[CacheManager] ✅ ${key} item ${itemId} deletado localmente`);
+            return true;
+        } catch (error) {
+            console.error(`[CacheManager] ❌ Erro ao delete ${key}:`, error);
+            return false;
+        }
+    }
+
+    _addToDeleteQueue(key, itemId, userId) {
+        this._deleteQueue.push({ key, itemId, userId });
+        this._processDeleteQueue();
+    }
+
+    async _processDeleteQueue() {
+        if (this._processingQueue || this._deleteQueue.length === 0) {
+            return;
+        }
+        
+        this._processingQueue = true;
+        console.log(`[CacheManager] 🔄 Processando fila de delete (${this._deleteQueue.length} itens)...`);
+        
+        try {
+            const dbReady = await this._ensureDatabaseService();
+            
+            if (!dbReady) {
+                console.warn('[CacheManager] ⚠️ DatabaseService não disponível, fila mantida');
+                setTimeout(() => {
+                    this._processingQueue = false;
+                    if (this._deleteQueue.length > 0) {
+                        this._processDeleteQueue();
+                    }
+                }, 5000);
+                return;
+            }
+
+            if (!window.DatabaseService) {
+                console.warn('[CacheManager] ⚠️ DatabaseService ainda não disponível, fila mantida');
+                this._processingQueue = false;
+                return;
+            }
+
+            while (this._deleteQueue.length > 0) {
+                const item = this._deleteQueue.shift();
+                const userId = item.userId || this.getCurrentUserId();
+                if (!userId) {
+                    console.warn('[CacheManager] ❌ Sem userId para deletar:', item.key);
+                    continue;
+                }
+                const result = await this.deleteFromCloud(item.key, item.itemId, userId);
+                if (!result) {
+                    console.warn(`[CacheManager] ⚠️ Falha ao deletar ${item.key} da nuvem, recolocando na fila`);
+                    this._deleteQueue.push(item);
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('[CacheManager] ❌ Erro ao processar fila de delete:', error);
+        } finally {
+            this._processingQueue = false;
+            
+            if (this._deleteQueue.length > 0) {
+                console.log('[CacheManager] 🔄 Novos itens na fila de delete, continuando em 3s...');
+                setTimeout(() => {
+                    if (this._deleteQueue.length > 0) {
+                        this._processDeleteQueue();
+                    }
+                }, 3000);
+            }
+        }
+    }
+
+    async deleteFromCloud(key, itemId, userId) {
+        if (!window.DatabaseService) {
+            console.error('[CacheManager] ❌ DatabaseService não disponível para deletar:', key);
+            const dbReady = await this._ensureDatabaseService();
+            if (!dbReady || !window.DatabaseService) {
+                console.error('[CacheManager] ❌ DatabaseService ainda não disponível');
+                return false;
+            }
+        }
+
+        if (!userId) {
+            console.error('[CacheManager] ❌ userId não disponível para deletar:', key);
+            return false;
+        }
+
+        try {
+            console.log(`[CacheManager] 🗑️ Deletando ${key} item ${itemId} da nuvem para userId: ${userId.substring(0, 8)}...`);
+            
+            let result = false;
+            switch(key) {
+                case 'tasks':
+                    result = await window.DatabaseService.deleteTask(userId, itemId);
+                    break;
+                case 'notes':
+                    result = await window.DatabaseService.deleteNote(userId, itemId);
+                    break;
+                case 'calendarEvents':
+                    result = await window.DatabaseService.deleteCalendarEvent(userId, itemId);
+                    break;
+                case 'disciplinas':
+                    result = await window.DatabaseService.deleteDisciplina(userId, itemId);
+                    break;
+                case 'documentos':
+                    result = await window.DatabaseService.deleteDocumento(userId, itemId);
+                    break;
+                default:
+                    console.log(`[CacheManager] ⚠️ Tipo não reconhecido para delete: ${key}`);
+                    return false;
+            }
+            
+            if (result) {
+                console.log(`[CacheManager] ✅ ${key} item ${itemId} deletado da nuvem`);
+            } else {
+                console.error(`[CacheManager] ❌ Falha ao deletar ${key} item ${itemId} da nuvem`);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error(`[CacheManager] ❌ Erro ao deletar ${key} da nuvem:`, error.message);
+            this._addToDeleteQueue(key, itemId, userId);
+            return false;
         }
     }
 
@@ -560,20 +727,27 @@ class SimpleCacheManager {
             console.log('[CacheManager] ☁️ Passo 1: Carregando da nuvem...');
             await this.loadFromCloud(true);
             
-            // PASSO 2: Processar fila pendente (salvar local → nuvem)
+            // PASSO 2: Processar fila de delete pendente
+            if (this._deleteQueue.length > 0) {
+                console.log(`[CacheManager] 🗑️ Passo 2: Processando ${this._deleteQueue.length} itens de delete...`);
+                await this._processDeleteQueue();
+            }
+            
+            // PASSO 3: Processar fila pendente (salvar local → nuvem)
             if (this._saveQueue.length > 0) {
-                console.log(`[CacheManager] 📤 Passo 2: Enviando ${this._saveQueue.length} itens pendentes...`);
+                console.log(`[CacheManager] 📤 Passo 3: Enviando ${this._saveQueue.length} itens pendentes...`);
                 await this._processSaveQueue();
             }
             
-            // PASSO 3: Recarregar da nuvem (consistência final)
-            console.log('[CacheManager] 🔄 Passo 3: Recarregando para consistência...');
+            // PASSO 4: Recarregar da nuvem (consistência final)
+            console.log('[CacheManager] 🔄 Passo 4: Recarregando para consistência...');
             await this.loadFromCloud(true);
             
             this._lastSyncTime = Date.now();
             this._syncErrorCount = 0;
             
             console.log('[CacheManager] ✅ Sincronização concluída com sucesso!');
+            window.dispatchEvent(new CustomEvent('syncCompleted', { detail: { success: true } }));
             return true;
         } catch (error) {
             this._syncErrorCount++;
@@ -610,6 +784,7 @@ class SimpleCacheManager {
         this._profilePhotoCache = null;
         this._dataCache.clear();
         this._saveQueue = [];
+        this._deleteQueue = [];
         this._dbInitAttempts = 0;
         this._processingQueue = false;
         if (this._saveTimeout) {
@@ -767,6 +942,7 @@ class SimpleCacheManager {
             userId: this.currentUserId,
             dataCacheSize: this._dataCache.size,
             saveQueueSize: this._saveQueue.length,
+            deleteQueueSize: this._deleteQueue.length,
             isSaving: this._isSaving,
             isLoading: this.isLoading,
             dbAvailable: !!window.DatabaseService,
@@ -787,6 +963,7 @@ if (typeof window.CacheManager === 'undefined') {
 // Funções globais
 window.getCached = (key, defaultValue) => window.CacheManager.get(key, defaultValue);
 window.setCached = (key, value, notify) => window.CacheManager.set(key, value, notify);
+window.deleteCached = (key, id, notify) => window.CacheManager.delete(key, id, notify);
 window.forceSyncCloud = () => window.CacheManager.forceSync();
 window.getNotes = () => window.CacheManager.get('notes', []);
 window.setNotes = (notes, notify) => window.CacheManager.set('notes', notes, notify);
@@ -806,10 +983,4 @@ window.getDocumentos = () => window.CacheManager.get('documentos', []);
 window.setDocumentos = (documentos, notify) => window.CacheManager.set('documentos', documentos, notify);
 window.getCacheStatus = () => window.CacheManager.getStatus();
 
-console.log('[CacheManager] ✅ CacheManager v5.1 carregado com sucesso!');
-console.log('[CacheManager] 📌 Funções disponíveis:');
-console.log('   - getCached(key, defaultValue)');
-console.log('   - setCached(key, value, notify)');
-console.log('   - forceSyncCloud()');
-console.log('   - getCacheStatus()');
-console.log('   - getDocumentos() / setDocumentos()');
+console.log('[CacheManager] ✅ CacheManager v6.0 carregado com DELETE em cascata!');
