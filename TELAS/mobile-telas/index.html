@@ -1148,30 +1148,24 @@ const checkInterval = setInterval(() => {
 <script src="modules/documentos.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - GROQ + LLAMA (FALLBACK)
-// USANDO API GROQ - 100% FUNCIONAL
+// multi-ai-service.js - GROQ (SEM MARCA D'ÁGUA)
+// REMOVIDO: "via Groq", "via Llama", provedores
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ + LLAMA...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ GROQ API (PRINCIPAL - Funcionando!)
+        // ⭐ GROQ API (PRINCIPAL)
         this.GROQ_API_KEY = "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";
         this.GROQ_MODELS = [
-            "llama-3.3-70b-versatile",    // ✅ Funciona (vi na imagem)
-            "llama-3.1-8b-instant",       // ✅ Funciona
-            "qwen/qwen3.6-27b",           // ✅ Funciona (vi na imagem)
-            "mixtral-8x7b-32768"          // Fallback
+            "qwen/qwen3.6-27b",
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "mixtral-8x7b-32768"
         ];
         
-        // ⭐ LLAMA API (via OpenRouter - Fallback)
-        this.LLAMA_API_KEY = "sk-ZF7pWxT4FEWvzmwFLiANNkXVhYgHHRGnR6uGqLkunbaV8y8U";
-        this.LLAMA_MODELS = [
-            "meta-llama/llama-3.2-3b-instruct:free"
-        ];
-        
-        // Cache para reduzir chamadas
+        // Cache
         this._cache = new Map();
         this._cacheMaxSize = 50;
         this._limiteDiario = 100;
@@ -1179,25 +1173,23 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Modo: GROQ (principal) + LLAMA (fallback)');
+        console.log('[MultiAI] 📌 Modo: GROQ');
         console.log('[MultiAI] 🔑 Groq: ✅ Configurado');
-        console.log('[MultiAI] 📌 Modelos Groq:', this.GROQ_MODELS);
-        console.log('[MultiAI] 📌 Modelos Llama:', this.LLAMA_MODELS);
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
     
     // ============================================
-    // ⭐ MÉTODO PRINCIPAL - ENVIAR MENSAGEM
+    // ⭐ MÉTODO PRINCIPAL
     // ============================================
     async sendMessage(prompt, context = '') {
         console.log('[MultiAI] 📤 Enviando:', prompt.substring(0, 60) + '...');
         
-        // Verificar limite diário
+        // Verificar limite
         if (!this.temLimiteDisponivel()) {
             return {
                 success: false,
-                error: `⛔ Limite diário de ${this._limiteDiario} perguntas atingido!`
+                error: `Limite diário de ${this._limiteDiario} perguntas atingido.`
             };
         }
         
@@ -1208,40 +1200,29 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR GROQ (PRINCIPAL - Mais rápido)
+        // Tentar GROQ
         const groqResult = await this._callGroqWithFallback(prompt, context);
         if (groqResult.success) {
             this._incrementarUso();
             this._saveToCache(prompt, context, groqResult.text);
             console.log('[MultiAI] ✅ Resposta do Groq!');
-            return groqResult;
+            // ⭐ REMOVER O PROVEDOR DA RESPOSTA
+            return { success: true, text: groqResult.text };
         }
-        console.log('[MultiAI] ⚠️ Todos os modelos Groq falharam');
         
-        // ⭐ TENTAR LLAMA (FALLBACK - OpenRouter)
-        const llamaResult = await this._callLlamaWithFallback(prompt, context);
-        if (llamaResult.success) {
-            this._incrementarUso();
-            this._saveToCache(prompt, context, llamaResult.text);
-            console.log('[MultiAI] ✅ Resposta do Llama!');
-            return llamaResult;
-        }
-        console.log('[MultiAI] ⚠️ Llama falhou');
-        
-        // ⭐ FALLBACK LOCAL (sempre disponível)
+        // Fallback local
         console.log('[MultiAI] 📝 Usando fallback local');
         const fallback = this._getFallback(prompt, context);
         this._incrementarUso();
         return {
             success: true,
             text: fallback,
-            fromFallback: true,
-            error: 'Todas as APIs falharam - usando resposta local'
+            fromFallback: true
         };
     }
     
     // ============================================
-    // ⭐ GROQ API - COM FALLBACK ENTRE MODELOS
+    // ⭐ GROQ API COM FALLBACK
     // ============================================
     async _callGroqWithFallback(prompt, context) {
         const errors = [];
@@ -1253,7 +1234,8 @@ class MultiAIService {
             try {
                 const result = await this._callGroqAPI(prompt, context, model);
                 if (result.success) {
-                    return result;
+                    // ⭐ NÃO RETORNAR O PROVEDOR NA RESPOSTA
+                    return { success: true, text: result.text };
                 }
                 errors.push(`[${model}] ${result.error}`);
                 console.log(`[Groq] ❌ Modelo ${model} falhou:`, result.error);
@@ -1263,7 +1245,7 @@ class MultiAIService {
             }
         }
         
-        return { success: false, error: `Todos os modelos Groq falharam: ${errors.join('; ')}` };
+        return { success: false, error: `Todos os modelos falharam: ${errors.join('; ')}` };
     }
     
     async _callGroqAPI(prompt, context, model) {
@@ -1296,15 +1278,49 @@ class MultiAIService {
             
             console.log(`[Groq] 📥 Status:`, response.status);
             
+            // Tentar sem prefixo se 404
+            if (response.status === 404 && model.includes('/')) {
+                const modelSimple = model.split('/').pop();
+                console.log(`[Groq] 🔄 Tentando sem prefixo: ${modelSimple}`);
+                const response2 = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.GROQ_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelSimple,
+                        messages: [
+                            { 
+                                role: 'system', 
+                                content: context || 'Você é um assistente de estudos útil e amigável. Responda em português de forma clara e concisa.'
+                            },
+                            { role: 'user', content: prompt }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 500
+                    })
+                });
+                
+                if (response2.ok) {
+                    const data2 = await response2.json();
+                    const text2 = data2.choices?.[0]?.message?.content;
+                    if (text2 && text2.length > 0) {
+                        console.log('[Groq] ✅ Resposta recebida!');
+                        // ⭐ LIMPAR A RESPOSTA (remover emojis, caracteres especiais)
+                        const cleanText = this._cleanText(text2.trim());
+                        return { success: true, text: cleanText };
+                    }
+                }
+            }
+            
             if (!response.ok) {
                 let errorMessage = `Erro ${response.status}`;
                 try {
                     const errorData = await response.json();
                     console.error('[Groq] ❌ Detalhes:', errorData);
                     errorMessage = errorData.error?.message || errorData.error || errorMessage;
-                } catch (e) {
-                    // Ignorar erro ao parsear JSON
-                }
+                } catch (e) {}
                 return { success: false, error: errorMessage };
             }
             
@@ -1313,7 +1329,9 @@ class MultiAIService {
             
             if (text && text.length > 0) {
                 console.log('[Groq] ✅ Resposta recebida!');
-                return { success: true, text: text.trim(), provider: `Groq (${model})` };
+                // ⭐ LIMPAR A RESPOSTA
+                const cleanText = this._cleanText(text.trim());
+                return { success: true, text: cleanText };
             }
             
             return { success: false, error: 'Resposta vazia' };
@@ -1325,113 +1343,46 @@ class MultiAIService {
     }
     
     // ============================================
-    // ⭐ LLAMA API (FALLBACK - OpenRouter)
+    // ⭐ LIMPAR TEXTO (REMOVER MARCAS)
     // ============================================
-    async _callLlamaWithFallback(prompt, context) {
-        const errors = [];
+    _cleanText(text) {
+        if (!text) return text;
         
-        for (let i = 0; i < this.LLAMA_MODELS.length; i++) {
-            const model = this.LLAMA_MODELS[i];
-            console.log(`[Llama] 📡 Tentando modelo ${i+1}/${this.LLAMA_MODELS.length}: ${model}`);
-            
-            try {
-                const result = await this._callLlamaAPI(prompt, context, model);
-                if (result.success) {
-                    return result;
-                }
-                errors.push(`[${model}] ${result.error}`);
-                console.log(`[Llama] ❌ Modelo ${model} falhou:`, result.error);
-            } catch (error) {
-                errors.push(`[${model}] ${error.message}`);
-                console.error(`[Llama] ❌ Erro no modelo ${model}:`, error.message);
-            }
-        }
+        // Remover padrões como "(via Groq (xxx))" ou "(via Llama (xxx))"
+        let clean = text.replace(/\s*\(via\s+[^)]+\)/gi, '');
+        clean = clean.replace(/\s*\[via\s+[^\]]+\]/gi, '');
+        clean = clean.replace(/\s*provedor:\s*[^\s]+/gi, '');
         
-        return { success: false, error: `Todos os modelos Llama falharam: ${errors.join('; ')}` };
-    }
-    
-    async _callLlamaAPI(prompt, context, model) {
-        if (!this.LLAMA_API_KEY) {
-            return { success: false, error: 'Llama não configurado' };
-        }
+        // Remover emojis e caracteres especiais
+        clean = clean.replace(/[\u{1F000}-\u{1FFFF}]/gu, '');
+        clean = clean.replace(/[\u{2600}-\u{27BF}]/gu, '');
+        clean = clean.replace(/[\u{FE00}-\u{FEFF}]/gu, '');
         
-        const url = 'https://openrouter.ai/api/v1/chat/completions';
+        // Remover espaços extras
+        clean = clean.replace(/\s+/g, ' ').trim();
         
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.LLAMA_API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': 'https://zero-satus.app',
-                    'X-Title': 'Zero Satus'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { 
-                            role: 'system', 
-                            content: context || 'Você é um assistente de estudos útil e amigável. Responda em português.'
-                        },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 500,
-                    top_p: 0.9
-                })
-            });
-            
-            console.log(`[Llama] 📥 Status:`, response.status);
-            
-            if (!response.ok) {
-                let errorMessage = `Erro ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    console.error('[Llama] ❌ Detalhes:', errorData);
-                    errorMessage = errorData.error?.message || errorData.error || errorMessage;
-                } catch (e) {
-                    // Ignorar erro ao parsear JSON
-                }
-                return { success: false, error: errorMessage };
-            }
-            
-            const data = await response.json();
-            const text = data.choices?.[0]?.message?.content;
-            
-            if (text && text.length > 0) {
-                console.log('[Llama] ✅ Resposta recebida!');
-                return { success: true, text: text.trim(), provider: `Llama (${model})` };
-            }
-            
-            return { success: false, error: 'Resposta vazia' };
-            
-        } catch (error) {
-            console.error('[Llama] ❌ Erro de rede:', error.message);
-            return { success: false, error: error.message };
-        }
+        return clean;
     }
     
     // ============================================
-    // ⭐ FALLBACK LOCAL INTELIGENTE
+    // ⭐ FALLBACK LOCAL (SEM MARCAS)
     // ============================================
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
-        const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
         // Detectar tópicos
         const topicos = {
-            saudacao: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'e aí', 'qual é'],
-            estudo: ['estud', 'aula', 'prova', 'matéria', 'aprender', 'revisar', 'capital', 'país'],
+            saudacao: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'e aí'],
+            estudo: ['estud', 'aula', 'prova', 'matéria', 'aprender', 'revisar'],
             tarefa: ['tarefa', 'dever', 'trabalho', 'entrega', 'prazo'],
             matematica: ['matemática', 'matematica', 'cálculo', 'equação', 'fórmula', 'número'],
             fisica: ['física', 'fisica', 'movimento', 'energia', 'força'],
             historia: ['história', 'historia', 'passado', 'acontecimento', 'época'],
             programacao: ['programação', 'programacao', 'código', 'javascript', 'python'],
             motivacao: ['motivação', 'motivacao', 'ânimo', 'animar', 'força', 'foco'],
-            geografia: ['capital', 'país', 'cidade', 'estado', 'países', 'continente', 'África', 'Europa', 'Ásia', 'América']
+            geografia: ['capital', 'país', 'cidade', 'estado', 'países', 'continente']
         };
         
-        // Encontrar tópico principal
         let topicoPrincipal = 'padrao';
         let maiorMatch = 0;
         for (const [key, palavras] of Object.entries(topicos)) {
@@ -1442,47 +1393,17 @@ class MultiAIService {
             }
         }
         
-        // Respostas por tópico
         const respostas = {
-            saudacao: isGiria 
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje? Tamos juntos! 😎'
-                : 'Olá! Como posso ajudar você hoje? Estou aqui para te auxiliar nos estudos!',
-            
-            estudo: isGiria
-                ? '🇲🇿 Bora estudar, magaia! A chave é consistência. Faz um plano, segue firme e tamos juntos! 💪'
-                : 'Para estudar de forma eficiente, recomendo: 1) Criar um cronograma realista, 2) Usar técnicas como Pomodoro (25min foco, 5min pausa), 3) Revisar o conteúdo regularmente, 4) Fazer resumos e mapas mentais.',
-            
-            geografia: isGiria
-                ? `🇲🇿 Sobre geografia, broo! ${this._respostaGeografia(texto)}`
-                : `Sobre geografia: ${this._respostaGeografia(texto)}`,
-            
-            tarefa: isGiria
-                ? '🇲🇿 As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Faz uma lista e prioriza! 😎'
-                : 'Para gerenciar suas tarefas: 1) Priorize as mais urgentes, 2) Divida em pequenas etapas, 3) Defina prazos realistas, 4) Use a técnica Pomodoro para manter o foco.',
-            
-            matematica: isGiria
-                ? '🇲🇿 Matemática é treino, broo! Resolve exercícios todo dia que melhora! Tamos juntos! 📐'
-                : 'Matemática requer prática constante. Resolva exercícios diariamente, entenda os conceitos antes de memorizar fórmulas e não tenha medo de errar — o erro faz parte do aprendizado.',
-            
-            fisica: isGiria
-                ? '🇲🇿 Física é entender o mundo, magaia! Pensa nos exemplos do dia a dia! ⚡'
-                : 'Física é sobre entender como o mundo funciona. Relacione os conceitos com situações cotidianas e pratique a resolução de problemas com calma.',
-            
-            historia: isGiria
-                ? '🇲🇿 História é contar histórias! Liga os acontecimentos que fica mais fácil! 📖'
-                : 'História é sobre conexões. Entenda a linha do tempo, os contextos e as relações entre eventos. Fazer resumos cronológicos ajuda muito.',
-            
-            programacao: isGiria
-                ? '🇲🇿 Programação é prática, broo! Escreve código todo dia e vai ficando! 💻'
-                : 'Programação se aprende praticando. Escreva código todos os dias, resolva problemas pequenos primeiro e não desista dos erros — eles são seus melhores professores.',
-            
-            motivacao: isGiria
-                ? '🇲🇿 Força, magaia! Tu consegues! Cada dia é uma vitória! Tamos juntos! 🚀'
-                : 'Você é capaz de realizar grandes coisas! Lembre-se: o sucesso é a soma de pequenos esforços repetidos dia após dia. Continue firme!',
-            
-            padrao: isGiria
-                ? '🇲🇿 Boa pergunta, broo! Tenta reformular ou me conta mais detalhes. Tamos juntos! 🤝'
-                : 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos!'
+            saudacao: 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.',
+            estudo: 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.',
+            geografia: this._respostaGeografia(texto),
+            tarefa: 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas, defina prazos realistas e use a técnica Pomodoro para manter o foco.',
+            matematica: 'Matemática requer prática constante. Resolva exercícios diariamente, entenda os conceitos antes de memorizar fórmulas e não tenha medo de errar - o erro faz parte do aprendizado.',
+            fisica: 'Física é sobre entender como o mundo funciona. Relacione os conceitos com situações cotidianas e pratique a resolução de problemas com calma.',
+            historia: 'História é sobre conexões. Entenda a linha do tempo, os contextos e as relações entre eventos. Fazer resumos cronológicos ajuda muito.',
+            programacao: 'Programação se aprende praticando. Escreva código todos os dias, resolva problemas pequenos primeiro e não desista dos erros - eles são seus melhores professores.',
+            motivacao: 'Você é capaz de realizar grandes coisas. Lembre-se: o sucesso é a soma de pequenos esforços repetidos dia após dia. Continue firme.',
+            padrao: 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.'
         };
         
         return respostas[topicoPrincipal] || respostas.padrao;
@@ -1490,28 +1411,22 @@ class MultiAIService {
     
     _respostaGeografia(texto) {
         const paises = {
-            'moçambique': 'A capital de Moçambique é Maputo 🇲🇿',
-            'moçambicano': 'A capital de Moçambique é Maputo 🇲🇿',
-            'zambia': 'A capital da Zâmbia é Lusaka 🇿🇲',
-            'zâmbia': 'A capital da Zâmbia é Lusaka 🇿🇲',
-            'angola': 'A capital de Angola é Luanda 🇦🇴',
-            'áfrica do sul': 'A capital da África do Sul é Pretória (executiva), Cidade do Cabo (legislativa) e Bloemfontein (judiciária) 🇿🇦',
-            'brasil': 'A capital do Brasil é Brasília 🇧🇷',
-            'portugal': 'A capital de Portugal é Lisboa 🇵🇹',
-            'etiopia': 'A capital da Etiópia é Adis Abeba 🇪🇹',
-            'etiope': 'A capital da Etiópia é Adis Abeba 🇪🇹',
-            'mozambique': 'A capital de Moçambique é Maputo 🇲🇿',
-            'china': 'A capital da China é Pequim 🇨🇳',
-            'rússia': 'A capital da Rússia é Moscou 🇷🇺',
-            'eua': 'A capital dos EUA é Washington D.C. 🇺🇸',
-            'estados unidos': 'A capital dos EUA é Washington D.C. 🇺🇸',
-            'frança': 'A capital da França é Paris 🇫🇷',
-            'inglaterra': 'A capital da Inglaterra é Londres 🇬🇧',
-            'reino unido': 'A capital do Reino Unido é Londres 🇬🇧',
-            'japão': 'A capital do Japão é Tóquio 🇯🇵',
-            'índia': 'A capital da Índia é Nova Délhi 🇮🇳',
-            'nigéria': 'A capital da Nigéria é Abuja 🇳🇬',
-            'egito': 'A capital do Egito é Cairo 🇪🇬'
+            'moçambique': 'A capital de Moçambique é Maputo.',
+            'zambia': 'A capital da Zâmbia é Lusaka.',
+            'zâmbia': 'A capital da Zâmbia é Lusaka.',
+            'angola': 'A capital de Angola é Luanda.',
+            'brasil': 'A capital do Brasil é Brasília.',
+            'portugal': 'A capital de Portugal é Lisboa.',
+            'etiopia': 'A capital da Etiópia é Adis Abeba.',
+            'china': 'A capital da China é Pequim.',
+            'rússia': 'A capital da Rússia é Moscou.',
+            'eua': 'A capital dos EUA é Washington D.C.',
+            'frança': 'A capital da França é Paris.',
+            'inglaterra': 'A capital da Inglaterra é Londres.',
+            'japão': 'A capital do Japão é Tóquio.',
+            'índia': 'A capital da Índia é Nova Délhi.',
+            'nigéria': 'A capital da Nigéria é Abuja.',
+            'egito': 'A capital do Egito é Cairo.'
         };
         
         for (const [key, resposta] of Object.entries(paises)) {
@@ -1520,11 +1435,11 @@ class MultiAIService {
             }
         }
         
-        return 'Desculpe, não sei a capital desse país. Tenta perguntar de outro!';
+        return 'Desculpe, não sei a capital desse país. Tente perguntar de outro.';
     }
     
     // ============================================
-    // ⭐ MÉTODOS DE LIMITE DIÁRIO
+    // ⭐ MÉTODOS DE LIMITE E CACHE
     // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
@@ -1556,9 +1471,6 @@ class MultiAIService {
         return Math.max(0, this._limiteDiario - this.getUsoHoje());
     }
     
-    // ============================================
-    // ⭐ CACHE
-    // ============================================
     _getCacheKey(prompt, context) {
         return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
     }
@@ -1592,7 +1504,7 @@ class MultiAIService {
     }
     
     // ============================================
-    // ⭐ STATUS E CONFIGURAÇÃO
+    // ⭐ STATUS
     // ============================================
     getStatus() {
         return {
@@ -1600,11 +1512,9 @@ class MultiAIService {
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
             cacheSize: this._cache.size,
-            modo: 'GROQ (principal) + LLAMA (fallback)',
+            modo: 'GROQ',
             groqConfigurado: !!this.GROQ_API_KEY,
-            llamaConfigurado: !!this.LLAMA_API_KEY,
-            modelosGroq: this.GROQ_MODELS,
-            modelosLlama: this.LLAMA_MODELS
+            modelos: this.GROQ_MODELS
         };
     }
     
@@ -1612,20 +1522,7 @@ class MultiAIService {
         localStorage.setItem('pollinations_data', new Date().toDateString());
         localStorage.setItem('pollinations_uso', '0');
         this._usosHoje = 0;
-        console.log('[MultiAI] 📅 Limite resetado');
-        return this.getStatus();
-    }
-    
-    // ⭐ CONFIGURAR CHAVES
-    configurarGroq(apiKey) {
-        this.GROQ_API_KEY = apiKey;
-        console.log(`[MultiAI] ${apiKey ? '✅' : '❌'} Groq ${apiKey ? 'configurado' : 'removido'}`);
-        return this.getStatus();
-    }
-    
-    configurarLlama(apiKey) {
-        this.LLAMA_API_KEY = apiKey;
-        console.log(`[MultiAI] ${apiKey ? '✅' : '❌'} Llama ${apiKey ? 'configurado' : 'removido'}`);
+        console.log('[MultiAI] Limite resetado');
         return this.getStatus();
     }
 }
@@ -1635,11 +1532,9 @@ class MultiAIService {
 // ============================================
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
-window.GroqService = multiAI;
-window.LlamaService = multiAI;
 
 // ============================================
-// ⭐ FUNÇÕES GLOBAIS DE UTILIDADE
+// ⭐ FUNÇÕES GLOBAIS
 // ============================================
 window.getLimiteIA = () => {
     const status = multiAI.getStatus();
@@ -1648,10 +1543,7 @@ window.getLimiteIA = () => {
         maximo: status.limiteTotal,
         restante: status.restante,
         modo: status.modo,
-        groq: status.groqConfigurado,
-        llama: status.llamaConfigurado,
-        modelosGroq: status.modelosGroq,
-        modelosLlama: status.modelosLlama,
+        modelos: status.modelos,
         reset: () => multiAI.resetLimite()
     };
 };
@@ -1663,22 +1555,11 @@ window.testIA = async (pergunta) => {
     return result;
 };
 
-window.configurarGroq = (apiKey) => {
-    return multiAI.configurarGroq(apiKey);
-};
-
-window.configurarLlama = (apiKey) => {
-    return multiAI.configurarLlama(apiKey);
-};
-
 // ============================================
-// ⭐ LOG DE INICIALIZAÇÃO
+// ⭐ LOG
 // ============================================
-console.log('[MultiAI] ✅ Serviço carregado com sucesso!');
-console.log('[MultiAI] 📌 Modelos Groq:', multiAI.GROQ_MODELS);
-console.log('[MultiAI] 📌 Modelos Llama:', multiAI.LLAMA_MODELS);
-console.log('[MultiAI] 🔑 Groq: CONFIGURADO');
-console.log('[MultiAI] 🔑 Llama: CONFIGURADO (fallback)');
+console.log('[MultiAI] ✅ Serviço carregado!');
+console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
 console.log('[MultiAI] 💡 Teste: window.testIA("Qual é a capital de Moçambique?")');</script>
 
 <!-- App Principal -->
