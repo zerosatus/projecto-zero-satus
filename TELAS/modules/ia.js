@@ -1,472 +1,935 @@
-// modules/ia.js - VERSÃO CORRIGIDA (SUBSTITUIR COMPLETAMENTE)
 // ============================================
-// modules/ia.js - MÓDULO DA IA COM MULTI-API
+// modules/ia.js - MÓDULO DA IA COM ACESSO COMPLETO AOS DADOS
+// ⭐ + ACESSO TOTAL A TAREFAS, ANOTAÇÕES, HORÁRIO E DISCIPLINAS
+// ⭐ + LIMITE DIÁRIO DE 15 MENSAGENS
+// ⭐ + PAINEL LATERAL, HISTÓRICO E FAB SPARKLES
 // ============================================
 
-class IaModule {
+// ⭐ NOSSOS ÍCONES SVG
+const IA_SPARKLES_SVG = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+        <path d="M12 9.5q.9 4.6 5.5 5.5-4.6.9-5.5 5.5-.9-4.6-5.5-5.5 4.6-.9 5.5-5.5z"/>
+        <path d="M6.5 3.5q.6 3 3.5 3.5-2.9.6-3.5 3.5-.6-2.9-3.5-3.5 2.9-.5 3.5-3.5z"/>
+        <path d="M17.5 4.5q.5 2.5 3 3-2.5.5-3 3-.5-2.5-3-3 2.5-.5 3-3z"/>
+    </svg>`;
+
+const IA_ICONS = {
+    menu:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 17h16"/></svg>`,
+    plus:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
+    close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+    chat:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4z"/></svg>`,
+    trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`
+};
+
+class IAModule {
     constructor(app) {
         this.app = app;
         this.name = 'ia';
         this.messages = [];
+        this._previousView = 'dashboard';
+        this._isProcessing = false;
+        this._modoGiria = false;
+        this._ultimaMensagem = '';
+        
+        // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+        this.LIMITE_DIARIO = 15;
+        this._usosHoje = 0;
+        this._dataReset = new Date().toDateString();
+        
+        // ⭐ HISTÓRICO
         this.history = [];
         this.currentHistoryId = null;
-        this.isLoading = false;
-        this.notifications = [];
-        this._modoGiria = false;
         
-        console.log('[IA] 🤖 Módulo inicializado');
+        // ⭐ DADOS DO USUÁRIO (serão atualizados no render)
+        this.tasks = [];
+        this.notes = [];
+        this.weeklySchedule = {};
+        this.timeSlots = [];
+        this.disciplinas = [];
+        this.notifications = [];
+        
+        console.log('[IA] 🤖 Inicializado com acesso completo aos dados do usuário');
+        console.log('[IA] 📊 Limite diário:', this.LIMITE_DIARIO, 'mensagens');
+        this._resetarLimite();
+    }
+
+    // ============================================
+    // ⭐ RESETAR LIMITE DIÁRIO
+    // ============================================
+    _resetarLimite() {
+        const hoje = new Date().toDateString();
+        const dataSalva = localStorage.getItem('ia_limite_data');
+        if (dataSalva !== hoje) {
+            localStorage.setItem('ia_limite_data', hoje);
+            localStorage.setItem('ia_limite_uso', '0');
+            this._usosHoje = 0;
+        }
     }
     
+    getUsoHoje() {
+        this._resetarLimite();
+        this._usosHoje = parseInt(localStorage.getItem('ia_limite_uso')) || 0;
+        return this._usosHoje;
+    }
+    
+    _incrementarUso() {
+        this._resetarLimite();
+        this._usosHoje++;
+        localStorage.setItem('ia_limite_uso', String(this._usosHoje));
+    }
+    
+    temLimiteDisponivel() {
+        return this.getUsoHoje() < this.LIMITE_DIARIO;
+    }
+    
+    getLimiteRestante() {
+        return Math.max(0, this.LIMITE_DIARIO - this.getUsoHoje());
+    }
+
+    // ============================================
+    // RENDER PRINCIPAL - CARREGA TODOS OS DADOS
+    // ============================================
     render(data) {
+        // ⭐ CARREGAR TODOS OS DADOS DO USUÁRIO
         this.notifications = data.notifications || [];
-        this.profile = data.profile || {};
-        this.usuarioAtual = this.app.user || {};
+        this.tasks = data.tasks || [];
+        this.notes = data.notes || [];
+        this.weeklySchedule = data.weeklySchedule || {};
+        this.timeSlots = data.timeSlots || [];
+        this.disciplinas = data.disciplinas || [];
         
+        // ⭐ ATUALIZAR ESTATÍSTICAS NO CHAT
         this.carregarHistorico();
-        this.renderChat();
+        this.upgradeHeader();
+        this.garantirFab();
+        this.criarPainel();
         this.renderHistoryList();
-        this.atualizarNomeUsuario();
+        this.renderChat();
         this.updateBadge();
         this.setupEvents();
         this._atualizarStatusGiria();
         this._atualizarStatusLimite();
         
-        document.getElementById('ia-input')?.focus();
-    }
-    
-    // ============================================
-    // HISTÓRICO
-    // ============================================
-    carregarHistorico() {
-        if (!this.usuarioAtual) return;
-        const userId = this.usuarioAtual.id;
-        
-        try { 
-            this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]'); 
-        } catch (e) { this.history = []; }
-        
-        try { 
-            this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]'); 
-        } catch (e) { this.messages = []; }
-        
-        this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
-    }
-    
-    salvarHistorico() {
-        if (!this.usuarioAtual) return;
-        const userId = this.usuarioAtual.id;
-        localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
-        localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
-    }
-    
-    salvarConversaAtual() {
-        if (this.messages.length === 0) return;
-        const agora = new Date().toISOString();
-        const primeira = this.messages[0]?.content || 'Nova conversa';
-        const titulo = primeira.length > 30 ? primeira.substring(0, 30) + '…' : primeira;
-        
-        if (this.currentHistoryId) {
-            const index = this.history.findIndex(h => h.id === this.currentHistoryId);
-            if (index !== -1) {
-                this.history[index] = {
-                    ...this.history[index],
-                    title: titulo,
-                    messages: [...this.messages],
-                    updatedAt: agora
-                };
-            }
-        } else {
-            const newConv = {
-                id: Date.now().toString(),
-                title: titulo,
-                messages: [...this.messages],
-                createdAt: agora,
-                updatedAt: agora
-            };
-            this.history.push(newConv);
-            this.currentHistoryId = newConv.id;
-        }
-        
-        this.salvarHistorico();
-        this.renderHistoryList();
-        this.atualizarTituloChat();
-    }
-    
-    renderHistoryList(filtroTexto = '') {
-        const container = document.getElementById('historyList');
-        if (!container) return;
-        
-        const filtro = filtroTexto.toLowerCase().trim();
-        const lista = [...this.history]
-            .filter(c => !filtro || (c.title || '').toLowerCase().includes(filtro))
-            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        
-        if (lista.length === 0) {
-            container.innerHTML = `
-                <div class="history-empty">
-                    <ion-icon name="chatbox-ellipses-outline"></ion-icon>
-                    <p>${filtro ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda.<br>Comece uma nova!'}</p>
-                </div>`;
-            return;
-        }
-        
-        const grupos = { 'Hoje': [], 'Ontem': [], 'Últimos 7 dias': [], 'Anteriores': [] };
-        const agora = new Date();
-        const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-        
-        lista.forEach(conv => {
-            const d = new Date(conv.updatedAt);
-            const inicioDia = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-            const diffDias = Math.floor((inicioHoje - inicioDia) / 86400000);
-            if (diffDias <= 0) grupos['Hoje'].push(conv);
-            else if (diffDias === 1) grupos['Ontem'].push(conv);
-            else if (diffDias <= 7) grupos['Últimos 7 dias'].push(conv);
-            else grupos['Anteriores'].push(conv);
+        console.log('[IA] 📊 Dados carregados:', {
+            tasks: this.tasks.length,
+            pendentes: this.tasks.filter(t => !t.completed).length,
+            notes: this.notes.length,
+            disciplinas: this.disciplinas.length,
+            schedule: Object.keys(this.weeklySchedule).length
         });
-        
-        let html = '';
-        Object.entries(grupos).forEach(([titulo, convs]) => {
-            if (!convs.length) return;
-            html += `<div class="history-group-title">${titulo}</div>`;
-            convs.forEach(conv => {
-                html += `
-                    <div class="history-item ${conv.id === this.currentHistoryId ? 'active' : ''}" data-id="${conv.id}">
-                        <ion-icon name="chatbubble-outline"></ion-icon>
-                        <span class="h-title">${this.app.escapeHtml(conv.title)}</span>
-                        <button class="h-delete" data-delete="${conv.id}" title="Excluir conversa">
-                            <ion-icon name="trash-outline"></ion-icon>
-                        </button>
-                    </div>`;
-            });
-        });
-        container.innerHTML = html;
     }
-    
+
+    // ============================================
+    // RENDER CHAT COM ESTATÍSTICAS
+    // ============================================
     renderChat() {
         const container = document.getElementById('ia-messages-container');
-        const quickActions = document.getElementById('ia-quick-actions');
         if (!container) return;
         
         if (this.messages.length === 0) {
             const hora = new Date().getHours();
-            const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
-            const nome = this.usuarioAtual?.nome ? this.app.escapeHtml(this.usuarioAtual.nome.split(' ')[0]) : 'estudante';
+            const saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+            const nome = this.app?.user?.nome ? this.app.user.nome.split(' ')[0] : 'estudante';
+            
+            const restante = this.getLimiteRestante();
+            const pendentes = this.tasks.filter(t => !t.completed);
+            const concluidas = this.tasks.filter(t => t.completed);
             
             container.innerHTML = `
-                <div class="welcome-state">
-                    <div class="welcome-orb"><ion-icon name="sparkles"></ion-icon></div>
-                    <h2>${saudacao}, ${nome}!</h2>
-                    <p>Como posso te ajudar hoje?</p>
-                </div>`;
-            if (quickActions) quickActions.classList.remove('hidden');
+                <div class="ia-empty-state">
+                    <div class="ia-empty-orb">${IA_SPARKLES_SVG}</div>
+                    <h3>${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
+                    <p style="font-size:0.9rem;color:var(--text-secondary);">Como posso te ajudar hoje?</p>
+                    
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0;padding:12px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border-color);width:100%;">
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
+                            <span style="font-weight:700;color:var(--accent-purple);">${pendentes.length}</span>
+                            <span style="font-size:0.6rem;color:var(--text-secondary);">Pendentes</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
+                            <span style="font-weight:700;color:var(--accent-green);">${concluidas.length}</span>
+                            <span style="font-size:0.6rem;color:var(--text-secondary);">Concluídas</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
+                            <span style="font-weight:700;color:var(--accent-orange);">${this.notes.length}</span>
+                            <span style="font-size:0.6rem;color:var(--text-secondary);">Anotações</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
+                            <span style="font-weight:700;color:var(--accent-blue, #60a5fa);">${this.disciplinas.length}</span>
+                            <span style="font-size:0.6rem;color:var(--text-secondary);">Disciplinas</span>
+                        </div>
+                    </div>
+                    
+                    <p class="ia-empty-hint">💬 Digite <strong>"fala com gíria"</strong> para ativar ou 
+                        <strong>"fala normal"</strong> para desativar</p>
+                    <p class="ia-empty-limite" id="ia-limite-status">
+                        💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje
+                    </p>
+                </div>
+            `;
+            const actions = document.getElementById('ia-quick-actions');
+            if (actions) actions.style.display = 'grid';
             return;
         }
         
-        if (quickActions) quickActions.classList.add('hidden');
+        const actions = document.getElementById('ia-quick-actions');
+        if (actions) actions.style.display = 'none';
         
         let html = '';
-        this.messages.forEach(msg => {
-            const hora = new Date(msg.timestamp || Date.now())
-                .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            
-            if (msg.role === 'user') {
-                html += `
-                    <div class="msg msg-user">
-                        <div class="msg-bubble">${this.formatarResposta(msg.content)}</div>
-                    </div>`;
-            } else {
-                html += `
-                    <div class="msg msg-ai">
-                        <div class="msg-avatar"><ion-icon name="sparkles"></ion-icon></div>
-                        <div class="msg-body">
-                            <div class="msg-meta">
-                                <span class="name">Satus IA</span>
-                                <span class="time">${hora}</span>
-                            </div>
-                            <div class="msg-bubble">${this.formatarResposta(msg.content)}</div>
-                        </div>
-                    </div>`;
-            }
+        this.messages.forEach((msg) => {
+            const isUser = msg.role === 'user';
+            const isAI = !isUser;
+            const content = this.app.escapeHtml(msg.content)
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const time = msg.time || (msg.timestamp
+                ? new Date(msg.timestamp).toLocaleTimeString()
+                : new Date().toLocaleTimeString());
+            html += `
+                <div class="ia-message ${isUser ? 'ia-message-user' : 'ia-message-ai'}">
+                    <div class="ia-message-avatar">${isUser ? '👤' : '🤖'}</div>
+                    <div class="ia-message-content" ${isAI ? 'style="user-select:text;-webkit-user-select:text;"' : ''}>
+                        ${content}
+                        ${isAI ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)">📋 Copiar</span>` : ''}
+                    </div>
+                    <div class="ia-message-time">${time}</div>
+                </div>
+            `;
         });
-        
         container.innerHTML = html;
-        this.scrollChatFim();
+        container.scrollTop = container.scrollHeight;
     }
-    
-    scrollChatFim() {
-        const scroller = document.getElementById('chatScroll');
-        if (scroller) scroller.scrollTop = scroller.scrollHeight;
-    }
-    
+
     // ============================================
-    // ⭐ ENVIAR MENSAGEM (COM MULTI-API)
-    // ============================================
-    async sendMessage(text) {
-        if (this.isLoading) return;
-        
-        const input = document.getElementById('ia-input');
-        if (!text) {
-            text = input?.value.trim();
-            if (!text) return;
-            if (input) {
-                input.value = '';
-                input.style.height = 'auto';
-            }
-        }
-        
-        this.messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
-        this.renderChat();
-        
-        this.isLoading = true;
-        const sendBtn = document.getElementById('ia-send-btn');
-        if (sendBtn) sendBtn.disabled = true;
-        
-        const container = document.getElementById('ia-messages-container');
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'msg msg-ai';
-        loadingDiv.innerHTML = `
-            <div class="msg-avatar"><ion-icon name="sparkles"></ion-icon></div>
-            <div class="msg-body">
-                <div class="typing"><span></span><span></span><span></span></div>
-            </div>`;
-        container.appendChild(loadingDiv);
-        this.scrollChatFim();
-        
-        try {
-            // ⭐ USAR MULTI-AI SERVICE
-            const service = window.MultiAIService;
-            if (service) {
-                const context = this.buildUserContext(text);
-                const result = await service.sendMessage(text, context);
-                
-                loadingDiv.remove();
-                
-                let resposta = result.text;
-                if (result.fromCache) resposta += '\n\n*(Resposta do cache)*';
-                if (result.provider) resposta += `\n\n*(via ${result.provider})*`;
-                
-                this.messages.push({ role: 'assistant', content: resposta, timestamp: new Date().toISOString() });
-                this.salvarConversaAtual();
-            } else {
-                // Fallback local se MultiAI não estiver disponível
-                loadingDiv.remove();
-                const resposta = this._getFallbackResponse(text);
-                this.messages.push({ role: 'assistant', content: resposta, timestamp: new Date().toISOString() });
-                this.salvarConversaAtual();
-            }
-        } catch (error) {
-            loadingDiv.remove();
-            this.messages.push({
-                role: 'assistant',
-                content: '❌ Ocorreu um erro. Tenta novamente!',
-                timestamp: new Date().toISOString()
-            });
-        }
-        
-        this.isLoading = false;
-        if (sendBtn) sendBtn.disabled = false;
-        this.renderChat();
-        this._atualizarStatusLimite();
-    }
-    
-    // ============================================
-    // ⭐ BUILD USER CONTEXT
+    // ⭐ BUILD USER CONTEXT - ACESSO COMPLETO AOS DADOS
     // ============================================
     buildUserContext(textoUsuario) {
         const user = this.app.user || {};
-        const data = this.app.data || {};
-        const tasks = data.tasks || [];
-        const pendentes = tasks.filter(t => !t.completed).length;
-        const materias = (data.disciplinas || []).length;
-        const notas = (data.notes || []).length;
         
+        // ⭐ EXTRAIR DADOS ATUALIZADOS
+        const tasks = this.tasks || [];
+        const pendentes = tasks.filter(t => !t.completed);
+        const concluidas = tasks.filter(t => t.completed);
+        const notes = this.notes || [];
+        const schedule = this.weeklySchedule || {};
+        const slots = this.timeSlots || [];
+        const disciplinas = this.disciplinas || [];
+        
+        // ⭐ DETECTAR COMANDOS DE GÍRIA
+        const pediuGiria = this._usuarioPediuGiria(textoUsuario);
+        const querNormal = this._usuarioQuerNormal(textoUsuario);
+        
+        if (pediuGiria) {
+            this._modoGiria = true;
+            this._mostrarToast('🇲🇿 Modo Gíria ativado! Fala como magaia!');
+        } else if (querNormal) {
+            this._modoGiria = false;
+            this._mostrarToast('📚 Modo Normal ativado! Fala formal.');
+        }
+        
+        const isPerguntaSobreModo = this._usuarioPediuGiria(textoUsuario) ||
+                                    this._usuarioQuerNormal(textoUsuario);
+        
+        // ⭐ CONSTRUIR CONTEXTO COMPLETO
         let contexto = `
-📚 CONTEXTO DO ESTUDANTE
+📚 CONTEXTO COMPLETO DO ESTUDANTE - ${new Date().toLocaleString('pt-BR')}
+
+👤 PERFIL:
 Nome: ${user.nome || 'Estudante'}
-Tarefas pendentes: ${pendentes}
-Disciplinas: ${materias}
-Notas: ${notas}
+Email: ${user.email || 'Não informado'}
+ID: ${user.id || 'N/A'}
+
+📋 TAREFAS:
+Total: ${tasks.length}
+Pendentes: ${pendentes.length}
+Concluídas: ${concluidas.length}
+
+${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) => 
+    `   ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
+).join('\n') : '✅ Todas as tarefas foram concluídas! Parabéns! 🎉'}
+
+${concluidas.length > 0 ? '\n✅ TAREFAS CONCLUÍDAS:\n' + concluidas.slice(0, 5).map((t, i) => 
+    `   ${i+1}. ${t.title || t.nome || 'Sem título'}`
+).join('\n') + (concluidas.length > 5 ? `\n   ... e mais ${concluidas.length - 5} concluídas` : '') : ''}
+
+📝 ANOTAÇÕES:
+Total: ${notes.length}
+${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, i) => 
+    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}${n.content.length > 60 ? '...' : ''}` : ''}`
+).join('\n') + (notes.length > 5 ? `\n   ... e mais ${notes.length - 5} anotações` : '') : 'Nenhuma anotação ainda'}
+
+📚 DISCIPLINAS:
+${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}${d.cor ? ` (${d.cor})` : ''}`).join('\n') : 'Nenhuma disciplina cadastrada'}
+
+📅 HORÁRIO SEMANAL:
+${Object.entries(schedule).map(([dia, aulas]) => {
+    if (aulas && aulas.length > 0) {
+        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})${a.professor ? ` - ${a.professor}` : ''}`).join(', ')}`;
+    }
+    return `${dia}: Sem aulas`;
+}).join('\n')}
+
+⏰ HORÁRIOS DISPONÍVEIS: ${slots.join(', ') || 'Nenhum horário cadastrado'}
+
+🎯 LIMITE DIÁRIO DE MENSAGENS:
+Usadas hoje: ${this.getUsoHoje()}/${this.LIMITE_DIARIO}
+Restantes: ${this.getLimiteRestante()}
+
+INSTRUÇÕES DE ESTILO:
 `;
+        
+        if (this._modoGiria) {
+            contexto += `
+✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
+✅ Seja descontraído, amigável e divertido.
+✅ Use emojis frequentemente 🇲🇿
+✅ Responda com entusiasmo e calor humano.
+✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
+✅ Se perguntarem sobre tarefas, liste as pendentes.
+✅ Se perguntarem sobre anotações, mostre as últimas.
+✅ Se perguntarem sobre horário, mostre as aulas do dia.
+${isPerguntaSobreModo ? '⚠️ O usuário acabou de ativar o modo gíria. Responda comemorando!' : ''}
+`;
+        } else {
+            contexto += `
+✅ MODO NORMAL ATIVO! Fale em português formal e claro.
+✅ Seja profissional, direto e objetivo.
+✅ Use linguagem neutra, sem gírias.
+✅ Dê respostas completas e bem estruturadas.
+✅ Seja educado e respeitoso.
+✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
+✅ Se perguntarem sobre tarefas, liste as pendentes com prioridade.
+✅ Se perguntarem sobre anotações, sugira organizá-las.
+✅ Se perguntarem sobre horário, mostre a grade completa.
+${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Responda confirmando de forma educada.' : ''}
+`;
+        }
+        
         return contexto;
     }
-    
+
     // ============================================
-    // ⭐ FALLBACK
+    // ⭐ DETECTAR COMANDOS
     // ============================================
-    _getFallbackResponse(texto) {
-        const perguntas = texto.toLowerCase();
-        if (perguntas.includes('oi') || perguntas.includes('olá')) {
-            return 'Olá! Como posso ajudar você hoje?';
-        }
-        if (perguntas.includes('estudar') || perguntas.includes('estudos')) {
-            return 'Para estudar de forma eficiente: 1) Criar um cronograma, 2) Usar técnicas como Pomodoro, 3) Revisar o conteúdo regularmente.';
-        }
-        if (perguntas.includes('tarefa') || perguntas.includes('dever')) {
-            return 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas e defina prazos realistas.';
-        }
-        return 'Desculpe, não entendi sua pergunta. Poderia reformular? Estou aqui para ajudar!';
+    _usuarioPediuGiria(texto) {
+        const palavrasChave = [
+            'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
+            'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
+            'fala moçambicano', 'fala com gíria', 'fala que nem eu',
+            'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
+            'fala moçambicano', 'modo gíria', 'modo giria'
+        ];
+        return palavrasChave.some(palavra =>
+            texto.toLowerCase().includes(palavra.toLowerCase())
+        );
     }
     
-    // ============================================
-    // HELPERS
-    // ============================================
-    formatarResposta(text) {
-        let safe = this.app.escapeHtml(text);
-        safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        safe = safe.replace(/\n/g, '<br>');
-        return safe;
+    _usuarioQuerNormal(texto) {
+        const palavrasChave = [
+            'sem gíria', 'normal', 'formal', 'sem gírias',
+            'fala normal', 'sério', 'direto', 'sem brincadeira',
+            'desativa gíria', 'desativar gíria', 'fala formal',
+            'volta ao normal', 'modo normal'
+        ];
+        return palavrasChave.some(palavra =>
+            texto.toLowerCase().includes(palavra.toLowerCase())
+        );
     }
-    
-    atualizarTituloChat() {
-        const el = document.getElementById('chatTitle');
-        if (!el) return;
-        if (!this.currentHistoryId) { el.textContent = 'Nova conversa'; return; }
-        const conv = this.history.find(h => h.id === this.currentHistoryId);
-        el.textContent = conv?.title || 'Nova conversa';
+
+    // ============================================
+    // ⭐ MOSTRAR TOAST
+    // ============================================
+    _mostrarToast(mensagem) {
+        if (typeof showToast === 'function') {
+            showToast(mensagem, 'info');
+        } else {
+            console.log('[IA] 📢', mensagem);
+        }
+        this._atualizarStatusGiria();
+        this._atualizarStatusLimite();
     }
-    
-    atualizarNomeUsuario() {
-        const profile = this.profile || this.app.user || {};
-        const nome = profile.nome || profile.displayName || 'Usuário';
-        
-        const userName = document.getElementById('userName');
-        const userAvatar = document.getElementById('userAvatar');
-        
-        if (userName) userName.textContent = nome;
-        if (userAvatar) {
-            const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-            userAvatar.textContent = iniciais || 'U';
+
+    // ============================================
+    // ⭐ ATUALIZAR STATUS
+    // ============================================
+    _atualizarStatusGiria() {
+        const statusEl = document.getElementById('giria-status');
+        if (statusEl) {
+            statusEl.textContent = this._modoGiria ? 'Gíria 🇲🇿' : 'Normal';
+            statusEl.style.color = this._modoGiria ? 'var(--accent-purple)' : 'var(--text-secondary)';
+        }
+        const btn = document.getElementById('btn-toggle-giria');
+        if (btn) {
+            btn.style.borderColor = this._modoGiria ? 'var(--accent-purple)' : 'var(--border-color)';
+            btn.style.background = this._modoGiria ? 'rgba(139, 92, 246, 0.15)' : 'var(--card-bg)';
         }
     }
     
     _atualizarStatusLimite() {
         const limiteEl = document.getElementById('ia-limite-status');
         if (!limiteEl) return;
-        if (window.getLimiteIA) {
-            const info = window.getLimiteIA();
-            limiteEl.textContent = `💬 ${info.restante}/${info.maximo} perguntas hoje`;
-            limiteEl.style.color = info.restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
+        
+        const restante = this.getLimiteRestante();
+        const usado = this.getUsoHoje();
+        limiteEl.textContent = `💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje`;
+        limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
+    }
+
+    // ============================================
+    // ⭐ ALTERNAR MODO
+    // ============================================
+    toggleModoGiria() {
+        this._modoGiria = !this._modoGiria;
+        const mensagem = this._modoGiria
+            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
+            : '📚 Modo Normal ativado! Fala formal.';
+        this._mostrarToast(mensagem);
+        this._atualizarStatusGiria();
+        this.messages.push({
+            role: 'assistant',
+            content: this._modoGiria
+                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
+                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
+            time: new Date().toLocaleTimeString(),
+            isSystem: true
+        });
+        this.renderChat();
+    }
+
+    // ============================================
+    // ⭐ ENVIAR MENSAGEM
+    // ============================================
+    async sendMessage(text) {
+        if (!text) {
+            const input = document.getElementById('ia-input');
+            if (!input) return;
+            text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+        }
+        
+        if (this._isProcessing) return;
+        
+        // ⭐ VERIFICAR LIMITE DIÁRIO
+        if (!this.temLimiteDisponivel()) {
+            this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
+            this.messages.push({
+                role: 'assistant',
+                content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
+                time: new Date().toLocaleTimeString()
+            });
+            this.renderChat();
+            return;
+        }
+        
+        this._ultimaMensagem = text;
+        this.messages.push({
+            role: 'user',
+            content: text,
+            time: new Date().toLocaleTimeString(),
+            timestamp: new Date().toISOString()
+        });
+        this.renderChat();
+        this._isProcessing = true;
+        
+        const container = document.getElementById('ia-messages-container');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'ia-message ia-message-ai ia-loading';
+        loadingDiv.innerHTML = `
+            <div class="ia-message-avatar">🤖</div>
+            <div class="ia-message-content">
+                <span class="ia-dots"><span>.</span><span>.</span><span>.</span></span>
+                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">
+                    ${this._modoGiria ? 'To a pensar, broo...' : 'Processando...'}
+                </span>
+            </div>
+        `;
+        container.appendChild(loadingDiv);
+        container.scrollTop = container.scrollHeight;
+        
+        try {
+            // ⭐ CONTEXTO COMPLETO COM TODOS OS DADOS
+            const context = this.buildUserContext(text);
+            let response;
+            const service = window.MultiAIService || window.GeminiService || window.OpenRouterService;
+            
+            if (service) {
+                console.log('[IA] 📤 Enviando para Multi-API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+                console.log('[IA] 📊 Dados no contexto:', {
+                    tasks: this.tasks.length,
+                    pendentes: this.tasks.filter(t => !t.completed).length,
+                    notes: this.notes.length,
+                    disciplinas: this.disciplinas.length
+                });
+                const result = await service.sendMessage(text, context);
+                if (result.success) {
+                    response = result.text;
+                    if (result.fromCache) response += '\n\n*(Resposta do cache)*';
+                } else {
+                    response = `❌ ${result.error}`;
+                }
+            } else {
+                response = this._getFallbackResponse(text);
+            }
+            
+            loadingDiv.remove();
+            
+            // ⭐ INCREMENTAR USO
+            this._incrementarUso();
+            
+            this.messages.push({
+                role: 'assistant',
+                content: response,
+                time: new Date().toLocaleTimeString(),
+                timestamp: new Date().toISOString()
+            });
+            
+            this.salvarConversaAtual();
+            this.renderChat();
+            this._atualizarStatusLimite();
+            
+            // ⭐ VERIFICAR SE CHEGOU AO LIMITE
+            if (this.getLimiteRestante() === 0) {
+                this._mostrarToast(`⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens!`);
+            }
+            
+        } catch (error) {
+            console.error('[IA] ❌ Erro:', error);
+            loadingDiv.remove();
+            this.messages.push({
+                role: 'assistant',
+                content: '❌ Ocorreu um erro. Tenta novamente!',
+                time: new Date().toLocaleTimeString()
+            });
+            this.renderChat();
+        } finally {
+            this._isProcessing = false;
         }
     }
-    
-    _atualizarStatusGiria() {
-        // Implementar se necessário
-    }
-    
+
     // ============================================
-    // NOTIFICAÇÕES
+    // ⭐ FALLBACK (COM DADOS REAIS DO USUÁRIO)
+    // ============================================
+    _getFallbackResponse(texto) {
+        const perguntas = texto.toLowerCase();
+        const pendentes = this.tasks.filter(t => !t.completed);
+        const concluidas = this.tasks.filter(t => t.completed);
+        const notasCount = this.notes.length;
+        
+        // ⭐ PERGUNTAS SOBRE TAREFAS
+        if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente') || perguntas.includes('tenho que fazer')) {
+            if (pendentes.length === 0) {
+                return this._modoGiria 
+                    ? '🇲🇿 Não tens tarefas pendentes, broo! Tás em dia! 🎉'
+                    : 'Você não tem tarefas pendentes. Parabéns, está em dia! 🎉';
+            }
+            const lista = pendentes.map((t, i) => 
+                `${i+1}. ${t.title || t.nome}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
+            ).join('\n');
+            return this._modoGiria
+                ? `🇲🇿 Tens ${pendentes.length} tarefas pendentes, magaia!\n\n${lista}\n\nVai devagar, uma de cada vez. Tamos juntos! 💪`
+                : `Você tem ${pendentes.length} tarefas pendentes:\n\n${lista}\n\nRecomendo priorizar as mais urgentes.`;
+        }
+        
+        // ⭐ PERGUNTAS SOBRE ANOTAÇÕES
+        if (perguntas.includes('anotação') || perguntas.includes('nota') || perguntas.includes('anotacoes') || perguntas.includes('notas')) {
+            if (notasCount === 0) {
+                return this._modoGiria
+                    ? '🇲🇿 Não tens anotações guardadas, broo! Quer criar uma? 📝'
+                    : 'Você não tem anotações salvas. Que tal criar uma? 📝';
+            }
+            const lista = this.notes.slice(0, 5).map((n, i) => 
+                `${i+1}. ${n.title || 'Sem título'}`
+            ).join('\n');
+            return this._modoGiria
+                ? `🇲🇿 Tens ${notasCount} anotações guardadas, broo!\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5} anotações` : ''}\n\nQuer ver alguma em específico? 📝`
+                : `Você tem ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5} anotações` : ''}\n\nPosso ajudar a revisar alguma delas.`;
+        }
+        
+        // ⭐ PERGUNTAS SOBRE DISCIPLINAS
+        if (perguntas.includes('disciplina') || perguntas.includes('matéria') || perguntas.includes('matérias')) {
+            if (this.disciplinas.length === 0) {
+                return this._modoGiria
+                    ? '🇲🇿 Nenhuma disciplina cadastrada ainda, maning! Vai no dashboard e adiciona. 📚'
+                    : 'Nenhuma disciplina cadastrada ainda. Vá ao dashboard e adicione suas matérias. 📚';
+            }
+            const lista = this.disciplinas.map(d => `- ${d.nome}`).join('\n');
+            return this._modoGiria
+                ? `🇲🇿 Tuas disciplinas:\n\n${lista}\n\n📚 Bora estudar!`
+                : `Suas disciplinas:\n\n${lista}`;
+        }
+        
+        // ⭐ PERGUNTAS SOBRE HORÁRIO
+        if (perguntas.includes('horário') || perguntas.includes('aula') || perguntas.includes('hoje')) {
+            const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short' });
+            const diaSemana = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+            const aulasHoje = this.weeklySchedule[diaSemana] || [];
+            
+            if (aulasHoje.length === 0) {
+                return this._modoGiria
+                    ? `🇲🇿 Hoje (${diaSemana}) não tens aulas agendadas, broo! Aproveita para estudar por conta! 💪`
+                    : `Hoje (${diaSemana}) você não tem aulas agendadas. Aproveite para estudar por conta própria.`;
+            }
+            const lista = aulasHoje.map(a => 
+                `${a.materia} às ${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''}${a.professor ? ` (${a.professor})` : ''}`
+            ).join('\n');
+            return this._modoGiria
+                ? `🇲🇿 Hoje (${diaSemana}) tens:\n\n${lista}\n\n📚 Bora estudar, magaia!`
+                : `Hoje (${diaSemana}) você tem:\n\n${lista}`;
+        }
+        
+        // ⭐ PERGUNTAS SOBRE ESTATÍSTICAS
+        if (perguntas.includes('estatística') || perguntas.includes('resumo') || perguntas.includes('status')) {
+            return this._modoGiria
+                ? `🇲🇿 Teu resumo, broo!\n\n📋 Tarefas: ${this.tasks.length} (${pendentes.length} pendentes, ${concluidas.length} concluídas)\n📝 Anotações: ${notasCount}\n📚 Disciplinas: ${this.disciplinas.length}\n📅 Aulas hoje: ${(this.weeklySchedule[new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)] || []).length}\n\nTamos juntos! 💪`
+                : `Seu resumo:\n\n📋 Tarefas: ${this.tasks.length} (${pendentes.length} pendentes, ${concluidas.length} concluídas)\n📝 Anotações: ${notasCount}\n📚 Disciplinas: ${this.disciplinas.length}\n📅 Aulas hoje: ${(this.weeklySchedule[new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)] || []).length}`;
+        }
+        
+        // ⭐ SAUDAÇÕES
+        if (perguntas.includes('oi') || perguntas.includes('olá') || perguntas.includes('eai') || perguntas.includes('bom dia') || perguntas.includes('boa tarde') || perguntas.includes('boa noite')) {
+            return this._modoGiria
+                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje? Tamos juntos! 😎'
+                : 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
+        }
+        
+        // ⭐ FALLBACK PADRÃO
+        return this._modoGiria
+            ? '🇲🇿 Boa pergunta, magaia! Tenta reformular ou me conta mais detalhes. Tamos juntos! 🤝'
+            : 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos!';
+    }
+
+    // ============================================
+    // ⭐ UPDATE BADGE
     // ============================================
     updateBadge() {
-        const badge = document.getElementById('notificationBadge');
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
-        if (badge) {
-            badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-        }
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
-    
+
     // ============================================
-    // EVENTOS
+    // ⭐ SETUP EVENTS
     // ============================================
     setupEvents() {
         const input = document.getElementById('ia-input');
         const sendBtn = document.getElementById('ia-send-btn');
-        
-        sendBtn?.addEventListener('click', () => this.sendMessage());
-        
-        input?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-        
-        input?.addEventListener('input', () => {
-            input.style.height = 'auto';
-            input.style.height = Math.min(input.scrollHeight, 160) + 'px';
-        });
-        
-        document.querySelectorAll('#ia-quick-actions .chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                const prompt = chip.dataset.prompt;
-                if (prompt) this.sendMessage(prompt);
-            });
-        });
-        
-        document.getElementById('newChatBtn')?.addEventListener('click', () => {
-            if (this.isLoading) return;
-            this.messages = [];
-            this.currentHistoryId = null;
-            this.renderChat();
-            this.renderHistoryList();
-            this.atualizarTituloChat();
-            document.getElementById('ia-input')?.focus();
-        });
-        
-        document.getElementById('searchInput')?.addEventListener('input', (e) => {
-            this.renderHistoryList(e.target.value);
-        });
-        
-        document.getElementById('historyList')?.addEventListener('click', (e) => {
-            const delBtn = e.target.closest('[data-delete]');
-            if (delBtn) { 
-                const id = delBtn.dataset.delete;
-                const conv = this.history.find(h => h.id === id);
-                if (!confirm(`Excluir "${conv?.title || 'esta conversa'}"?`)) return;
-                this.history = this.history.filter(h => h.id !== id);
-                if (this.currentHistoryId === id) {
-                    this.currentHistoryId = null;
-                    this.messages = [];
-                    this.renderChat();
-                    this.atualizarTituloChat();
+        const fabBtn = document.getElementById('btn-open-ia');
+        const backBtn = document.getElementById('btn-back-ia');
+        const toggleBtn = document.getElementById('btn-toggle-giria');
+
+        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
+        if (input) {
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.sendMessage();
                 }
-                this.salvarHistorico();
-                this.renderHistoryList();
-                this.showToast('Conversa excluída!', 'info');
-                return;
-            }
-            const item = e.target.closest('.history-item');
-            if (item && !this.isLoading) {
-                const id = item.dataset.id;
-                const conv = this.history.find(h => h.id === id);
-                if (!conv) return;
-                this.currentHistoryId = id;
-                this.messages = [...(conv.messages || [])];
-                this.renderChat();
-                this.renderHistoryList();
-                this.atualizarTituloChat();
-            }
+            };
+        }
+        if (fabBtn) {
+            fabBtn.onclick = () => {
+                this._previousView = this.app.currentView;
+                this.app.showView('ia');
+                setTimeout(() => this._atualizarStatusLimite(), 500);
+            };
+        }
+        if (backBtn) {
+            backBtn.onclick = () => {
+                this.app.showView(this._previousView || 'dashboard');
+            };
+        }
+        if (toggleBtn) {
+            toggleBtn.onclick = () => {
+                this.toggleModoGiria();
+            };
+        }
+        
+        document.querySelectorAll('.ia-action-card').forEach(card => {
+            card.onclick = () => {
+                const prompt = card.dataset.prompt;
+                if (prompt) {
+                    const textoFinal = this._modoGiria
+                        ? `${prompt} (fala com gíria moçambicana)`
+                        : prompt;
+                    this.sendMessage(textoFinal);
+                }
+            };
         });
         
-        document.getElementById('navBackBtn')?.addEventListener('click', () => {
-            this.app.showView('inicio');
-        });
+        setInterval(() => {
+            this._atualizarStatusLimite();
+        }, 30000);
         
-        document.getElementById('bellBtn')?.addEventListener('click', () => {
-            this.app.openNotifications();
-        });
-        
-        window.addEventListener('cloudDataLoaded', () => {
-            this.notifications = this.app.data.notifications || [];
-            this.profile = this.app.data.profile || {};
-            this.usuarioAtual = this.app.user || {};
-            this.atualizarNomeUsuario();
-            this.updateBadge();
+        console.log('[IA] ✅ Eventos configurados! Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+    }
+
+    // ============================================
+    // ⭐ HEADER COM ☰
+    // ============================================
+    upgradeHeader() {
+        const header = document.querySelector('#view-ia .ia-header');
+        if (!header || header.classList.contains('upgraded')) return;
+        header.classList.add('upgraded');
+
+        const backBtn = document.getElementById('btn-back-ia');
+
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'ia-menu-btn';
+        menuBtn.innerHTML = IA_ICONS.menu;
+        menuBtn.title = 'Abrir conversas';
+        menuBtn.addEventListener('click', () => this.abrirPainel());
+
+        header.insertBefore(menuBtn, header.firstChild);
+
+        if (backBtn) {
+            backBtn.style.marginLeft = 'auto';
+            header.appendChild(backBtn);
+        }
+
+        header.querySelectorAll('.ia-avatar').forEach(a => a.remove());
+    }
+
+    // ============================================
+    // ⭐ FAB
+    // ============================================
+    garantirFab() {
+        let fab = document.getElementById('btn-open-ia');
+        if (!fab) {
+            fab = document.createElement('button');
+            fab.id = 'btn-open-ia';
+            fab.className = 'fab-ia';
+            document.body.appendChild(fab);
+        }
+        if (!fab.querySelector('svg')) {
+            fab.innerHTML = `<span class="pulse"></span>${IA_SPARKLES_SVG}`;
+        }
+        fab.title = 'Assistente IA';
+        return fab;
+    }
+
+    // ============================================
+    // ⭐ PAINEL LATERAL
+    // ============================================
+    criarPainel() {
+        if (document.getElementById('iaPainel')) return;
+
+        const nome = this.app?.user?.nome || 'Usuário';
+        const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'ia-painel-overlay';
+        overlay.id = 'iaPainelOverlay';
+        overlay.addEventListener('click', () => this.fecharPainel());
+
+        const painel = document.createElement('aside');
+        painel.className = 'ia-painel';
+        painel.id = 'iaPainel';
+        painel.innerHTML = `
+            <div class="ia-painel-header">
+                <div class="ia-painel-brand">
+                    <div class="ia-painel-logo">${IA_SPARKLES_SVG}</div>
+                    <div class="ia-painel-brand-text"><strong>Satus IA</strong><small>Zero Satus</small></div>
+                </div>
+                <button class="ia-painel-close" id="iaPainelClose">${IA_ICONS.close}</button>
+            </div>
+            <button class="ia-painel-new" id="iaPainelNew">${IA_ICONS.plus} Nova conversa</button>
+            <div class="ia-painel-list" id="iaPainelList"></div>
+            <div class="ia-painel-footer">
+                <div class="ia-painel-user">
+                    <div class="ia-painel-user-avatar">${this.app.escapeHtml(iniciais)}</div>
+                    <div class="ia-painel-user-info">
+                        <span>${this.app.escapeHtml(nome)}</span>
+                        <small>Aluno • Zero Satus</small>
+                    </div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(painel);
+
+        document.getElementById('iaPainelClose').addEventListener('click', () => this.fecharPainel());
+        document.getElementById('iaPainelNew').addEventListener('click', () => this.novaConversa());
+        painel.querySelector('.ia-painel-list').addEventListener('click', (e) => {
+            const del = e.target.closest('[data-del]');
+            if (del) { this.excluirConversa(del.dataset.del); return; }
+            const item = e.target.closest('.ia-painel-item');
+            if (item) this.selecionarConversa(item.dataset.id);
         });
     }
-    
-    showToast(mensagem, tipo = 'success') {
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        if (toast && toastMessage) {
-            toastMessage.textContent = mensagem;
-            toast.style.background = tipo === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
-                                   tipo === 'info' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
-                                   'linear-gradient(135deg, #10b981, #059669)';
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+
+    abrirPainel() {
+        this.renderHistoryList();
+        document.getElementById('iaPainel')?.classList.add('open');
+        document.getElementById('iaPainelOverlay')?.classList.add('show');
+    }
+    fecharPainel() {
+        document.getElementById('iaPainel')?.classList.remove('open');
+        document.getElementById('iaPainelOverlay')?.classList.remove('show');
+    }
+
+    // ============================================
+    // ⭐ HISTÓRICO
+    // ============================================
+    carregarHistorico() {
+        const userId = this.app?.user?.id;
+        if (!userId) return;
+        try { this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]'); } catch (e) { this.history = []; }
+        try { this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]'); } catch (e) { this.messages = []; }
+        this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
+    }
+
+    salvarConversaAtual() {
+        const userId = this.app?.user?.id;
+        if (!userId || this.messages.length === 0) return;
+        const agora = new Date().toISOString();
+        const primeira = this.messages.find(m => m.role === 'user')?.content || 'Nova conversa';
+        const titulo = primeira.length > 32 ? primeira.substring(0, 32) + '…' : primeira;
+
+        if (this.currentHistoryId) {
+            const i = this.history.findIndex(h => h.id === this.currentHistoryId);
+            if (i !== -1) {
+                this.history[i] = { ...this.history[i], title: titulo, messages: [...this.messages], updatedAt: agora };
+            } else { this.currentHistoryId = null; }
         }
+        if (!this.currentHistoryId) {
+            this.currentHistoryId = Date.now().toString();
+            this.history.push({ id: this.currentHistoryId, title: titulo, messages: [...this.messages], createdAt: agora, updatedAt: agora });
+        }
+        this.history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
+        localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
+        localStorage.setItem(`${userId}_ia_current`, this.currentHistoryId);
+        this.renderHistoryList();
+    }
+
+    renderHistoryList() {
+        const list = document.getElementById('iaPainelList');
+        if (!list) return;
+        if (this.history.length === 0) {
+            list.innerHTML = `<div class="ia-painel-empty">Nenhuma conversa ainda.<br>Comece uma nova! ✨</div>`;
+            return;
+        }
+        list.innerHTML = this.history.map(h => `
+            <div class="ia-painel-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
+                ${IA_ICONS.chat}
+                <span class="ia-painel-item-title">${this.app.escapeHtml(h.title)}</span>
+                <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
+            </div>`).join('');
+    }
+
+    novaConversa() {
+        if (this._isProcessing) return;
+        this.messages = [];
+        this.currentHistoryId = null;
+        const userId = this.app?.user?.id;
+        if (userId) {
+            localStorage.setItem(`${userId}_ia_messages`, '[]');
+            localStorage.removeItem(`${userId}_ia_current`);
+        }
+        this.renderChat();
+        this.renderHistoryList();
+        this.fecharPainel();
+    }
+
+    selecionarConversa(id) {
+        if (this._isProcessing) return;
+        const conv = this.history.find(h => h.id === id);
+        if (!conv) return;
+        this.currentHistoryId = id;
+        this.messages = [...(conv.messages || [])];
+        const userId = this.app?.user?.id;
+        if (userId) {
+            localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
+            localStorage.setItem(`${userId}_ia_current`, id);
+        }
+        this.renderChat();
+        this.renderHistoryList();
+        this.fecharPainel();
+    }
+
+    excluirConversa(id) {
+        const conv = this.history.find(h => h.id === id);
+        if (!confirm(`Excluir "${conv?.title || 'esta conversa'}"?`)) return;
+        this.history = this.history.filter(h => h.id !== id);
+        if (this.currentHistoryId === id) {
+            this.currentHistoryId = null;
+            this.messages = [];
+            this.renderChat();
+        }
+        const userId = this.app?.user?.id;
+        if (userId) localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
+        this.renderHistoryList();
     }
 }
 
-console.log('[IA] ✅ Módulo carregado com Multi-API!');
+// ============================================
+// ⭐ FUNÇÃO GLOBAL PARA COPIAR
+// ============================================
+window.copyMessage = function(element) {
+    try {
+        const messageContent = element.closest('.ia-message-content');
+        if (!messageContent) return;
+        const text = messageContent.textContent.replace('📋 Copiar', '').trim();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    const originalText = element.textContent;
+                    element.textContent = '✅ Copiado!';
+                    setTimeout(() => { element.textContent = originalText; }, 2000);
+                })
+                .catch(() => { fallbackCopy(text, element); });
+        } else {
+            fallbackCopy(text, element);
+        }
+    } catch (error) {
+        console.error('[IA] Erro ao copiar:', error);
+    }
+};
+
+function fallbackCopy(text, element) {
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.top = '-1000px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        const originalText = element.textContent;
+        element.textContent = '✅ Copiado!';
+        setTimeout(() => { element.textContent = originalText; }, 2000);
+    } catch (err) {
+        console.error('[IA] Fallback copy falhou:', err);
+        const originalText = element.textContent;
+        element.textContent = '❌ Erro ao copiar';
+        setTimeout(() => { element.textContent = originalText; }, 2000);
+    }
+}
+
+// ============================================
+// ⭐ FAB ESCONDE NA TELA DE IA
+// ============================================
+(function () {
+    function atualizarFab() {
+        const fab = document.getElementById('btn-open-ia');
+        const iaAtiva = document.getElementById('view-ia')?.classList.contains('active');
+        if (fab) fab.style.display = iaAtiva ? 'none' : '';
+    }
+    const view = document.getElementById('view-ia');
+    if (view) {
+        new MutationObserver(atualizarFab).observe(view, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+    atualizarFab();
+})();
+
+console.log('[IA] ✅ Módulo carregado com acesso COMPLETO aos dados do usuário!');
+console.log('[IA] 📊 Limite diário: 15 mensagens');
+console.log('[IA] 📋 Acesso a: Tarefas, Anotações, Horário e Disciplinas');
+console.log('[IA] 💡 Pergunte: "quantas tarefas tenho?" ou "me mostre minhas anotações"');
