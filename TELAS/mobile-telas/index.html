@@ -1148,432 +1148,851 @@ const checkInterval = setInterval(() => {
 <script src="modules/documentos.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - GROQ (RESPOSTA DIRETA EM PT)
+// modules/ia.js - MÓDULO DA IA COM MULTI-API
+// ⭐ + PAINEL LATERAL, HEADER CHAT, HISTÓRICO E FAB SPARKLES
+// ⭐ + ACESSO A ANOTAÇÕES, TAREFAS E HORÁRIO
+// ⭐ + LIMITE DIÁRIO DE 15 MENSAGENS
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
+// ⭐ NOSSOS ÍCONES SVG
+const IA_SPARKLES_SVG = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+        <path d="M12 9.5q.9 4.6 5.5 5.5-4.6.9-5.5 5.5-.9-4.6-5.5-5.5 4.6-.9 5.5-5.5z"/>
+        <path d="M6.5 3.5q.6 3 3.5 3.5-2.9.6-3.5 3.5-.6-2.9-3.5-3.5 2.9-.5 3.5-3.5z"/>
+        <path d="M17.5 4.5q.5 2.5 3 3-2.5.5-3 3-.5-2.5-3-3 2.5-.5 3-3z"/>
+    </svg>`;
 
-class MultiAIService {
-    constructor() {
-        // ⭐ GROQ API
-        this.GROQ_API_KEY = "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";
-        this.GROQ_MODELS = [
-            "qwen/qwen3.6-27b",
-            "llama-3.1-8b-instant",
-            "llama-3.3-70b-versatile",
-            "mixtral-8x7b-32768"
-        ];
+const IA_ICONS = {
+    menu:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 17h16"/></svg>`,
+    plus:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
+    close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+    chat:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4z"/></svg>`,
+    trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`
+};
+
+class IAModule {
+    constructor(app) {
+        this.app = app;
+        this.name = 'ia';
+        this.messages = [];
+        this._previousView = 'dashboard';
+        this._isProcessing = false;
+        this._modoGiria = false;
+        this._ultimaMensagem = '';
         
-        this._cache = new Map();
-        this._cacheMaxSize = 50;
-        this._limiteDiario = 100;
+        // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+        this.LIMITE_DIARIO = 15;
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Modo: GROQ');
-        console.log('[MultiAI] 🔑 Groq: ✅ Configurado');
+        // ⭐ HISTÓRICO
+        this.history = [];
+        this.currentHistoryId = null;
+        
+        console.log('[IA] 🤖 Inicializado com Multi-API');
+        console.log('[IA] 📊 Limite diário:', this.LIMITE_DIARIO, 'mensagens');
         this._resetarLimite();
-        console.log('[MultiAI] ✅ Serviço pronto!');
     }
-    
-    // ============================================
-    // ⭐ MÉTODO PRINCIPAL
-    // ============================================
-    async sendMessage(prompt, context = '') {
-        console.log('[MultiAI] 📤 Enviando:', prompt.substring(0, 60) + '...');
-        
-        if (!this.temLimiteDisponivel()) {
-            return {
-                success: false,
-                error: `Limite diário de ${this._limiteDiario} perguntas atingido.`
-            };
-        }
-        
-        const cached = this._getFromCache(prompt, context);
-        if (cached) {
-            console.log('[MultiAI] 📦 Resposta do cache!');
-            return { success: true, text: cached, fromCache: true };
-        }
-        
-        const groqResult = await this._callGroqWithFallback(prompt, context);
-        if (groqResult.success) {
-            this._incrementarUso();
-            this._saveToCache(prompt, context, groqResult.text);
-            console.log('[MultiAI] ✅ Resposta do Groq!');
-            return { success: true, text: groqResult.text };
-        }
-        
-        console.log('[MultiAI] 📝 Usando fallback local');
-        const fallback = this._getFallback(prompt, context);
-        this._incrementarUso();
-        return {
-            success: true,
-            text: fallback,
-            fromFallback: true
-        };
-    }
-    
-    // ============================================
-    // ⭐ GROQ API COM FALLBACK
-    // ============================================
-    async _callGroqWithFallback(prompt, context) {
-        const errors = [];
-        
-        for (let i = 0; i < this.GROQ_MODELS.length; i++) {
-            const model = this.GROQ_MODELS[i];
-            console.log(`[Groq] 📡 Tentando modelo ${i+1}/${this.GROQ_MODELS.length}: ${model}`);
-            
-            try {
-                const result = await this._callGroqAPI(prompt, context, model);
-                if (result.success) {
-                    return { success: true, text: result.text };
-                }
-                errors.push(`[${model}] ${result.error}`);
-                console.log(`[Groq] ❌ Modelo ${model} falhou:`, result.error);
-            } catch (error) {
-                errors.push(`[${model}] ${error.message}`);
-                console.error(`[Groq] ❌ Erro no modelo ${model}:`, error.message);
-            }
-        }
-        
-        return { success: false, error: `Todos os modelos falharam: ${errors.join('; ')}` };
-    }
-    
-    async _callGroqAPI(prompt, context, model) {
-        if (!this.GROQ_API_KEY) {
-            return { success: false, error: 'Groq não configurado' };
-        }
-        
-        const url = 'https://api.groq.com/openai/v1/chat/completions';
-        
-        // ⭐ SYSTEM PROMPT MELHORADO - FORÇA RESPOSTA EM PORTUGUÊS DIRETO
-        const systemPrompt = `Você é um assistente de estudos útil e profissional.
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Responda SEMPRE em português, de forma direta e natural
-2. NÃO pense em inglês primeiro - responda diretamente em português
-3. Seja claro, objetivo e bem estruturado
-4. Use linguagem formal e educada
-5. NÃO inclua "think", "análise" ou "raciocínio" na resposta
-6. Responda APENAS o conteúdo final, sem mostrar o processo de pensamento
-7. Seja completo, mas conciso
-
-EXEMPLO DE RESPOSTA CORRETA:
-"Um mouse é um dispositivo periférico de entrada para computadores..."
-
-EXEMPLO DE RESPOSTA ERRADA (NÃO FAÇA):
-"<think>We need to answer...</think> Um mouse é..."`;
-        
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.GROQ_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { 
-                            role: 'system', 
-                            content: systemPrompt
-                        },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.5,  // ⭐ Mais baixo = mais direto, menos criatividade
-                    max_tokens: 600
-                })
-            });
-            
-            console.log(`[Groq] 📥 Status:`, response.status);
-            
-            // Tentar sem prefixo se 404
-            if (response.status === 404 && model.includes('/')) {
-                const modelSimple = model.split('/').pop();
-                console.log(`[Groq] 🔄 Tentando sem prefixo: ${modelSimple}`);
-                const response2 = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.GROQ_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: modelSimple,
-                        messages: [
-                            { 
-                                role: 'system', 
-                                content: systemPrompt
-                            },
-                            { role: 'user', content: prompt }
-                        ],
-                        temperature: 0.5,
-                        max_tokens: 600
-                    })
-                });
-                
-                if (response2.ok) {
-                    const data2 = await response2.json();
-                    const text2 = data2.choices?.[0]?.message?.content;
-                    if (text2 && text2.length > 0) {
-                        console.log('[Groq] ✅ Resposta recebida!');
-                        const cleanText = this._cleanText(text2.trim());
-                        return { success: true, text: cleanText };
-                    }
-                }
-            }
-            
-            if (!response.ok) {
-                let errorMessage = `Erro ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    console.error('[Groq] ❌ Detalhes:', errorData);
-                    errorMessage = errorData.error?.message || errorData.error || errorMessage;
-                } catch (e) {}
-                return { success: false, error: errorMessage };
-            }
-            
-            const data = await response.json();
-            let text = data.choices?.[0]?.message?.content;
-            
-            if (text && text.length > 0) {
-                console.log('[Groq] ✅ Resposta recebida!');
-                
-                // ⭐ REMOVER QUALQUER TAG <think> ou similar
-                text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-                text = text.replace(/```[\s\S]*?```/g, '');
-                text = text.replace(/^\s*think\s*/i, '');
-                
-                const cleanText = this._cleanText(text.trim());
-                return { success: true, text: cleanText };
-            }
-            
-            return { success: false, error: 'Resposta vazia' };
-            
-        } catch (error) {
-            console.error('[Groq] ❌ Erro de rede:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-    
     // ============================================
-    // ⭐ LIMPAR TEXTO
-    // ============================================
-    _cleanText(text) {
-        if (!text) return text;
-        
-        // Remover tags de pensamento
-        let clean = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-        clean = clean.replace(/```[\s\S]*?```/g, '');
-        clean = clean.replace(/^\s*think\s*/i, '');
-        clean = clean.replace(/^\s*análise\s*/i, '');
-        clean = clean.replace(/^\s*raciocínio\s*/i, '');
-        
-        // Remover "(via Groq (xxx))"
-        clean = clean.replace(/\s*\(via\s+[^)]+\)/gi, '');
-        clean = clean.replace(/\s*\[via\s+[^\]]+\]/gi, '');
-        clean = clean.replace(/\s*provedor:\s*[^\s]+/gi, '');
-        
-        // Remover emojis
-        clean = clean.replace(/[\u{1F000}-\u{1FFFF}]/gu, '');
-        clean = clean.replace(/[\u{2600}-\u{27BF}]/gu, '');
-        clean = clean.replace(/[\u{FE00}-\u{FEFF}]/gu, '');
-        
-        // Remover espaços extras
-        clean = clean.replace(/\s+/g, ' ').trim();
-        
-        return clean;
-    }
-    
-    // ============================================
-    // ⭐ FALLBACK LOCAL
-    // ============================================
-    _getFallback(prompt, context) {
-        const texto = prompt.toLowerCase();
-        
-        const topicos = {
-            saudacao: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'e aí'],
-            estudo: ['estud', 'aula', 'prova', 'matéria', 'aprender', 'revisar'],
-            tarefa: ['tarefa', 'dever', 'trabalho', 'entrega', 'prazo'],
-            matematica: ['matemática', 'matematica', 'cálculo', 'equação', 'fórmula', 'número'],
-            fisica: ['física', 'fisica', 'movimento', 'energia', 'força'],
-            historia: ['história', 'historia', 'passado', 'acontecimento', 'época'],
-            programacao: ['programação', 'programacao', 'código', 'javascript', 'python'],
-            motivacao: ['motivação', 'motivacao', 'ânimo', 'animar', 'força', 'foco'],
-            geografia: ['capital', 'país', 'cidade', 'estado', 'países', 'continente'],
-            mouse: ['mouse', 'rato', 'periférico', 'dispositivo', 'cursor', 'computador']
-        };
-        
-        let topicoPrincipal = 'padrao';
-        let maiorMatch = 0;
-        for (const [key, palavras] of Object.entries(topicos)) {
-            const matches = palavras.filter(p => texto.includes(p)).length;
-            if (matches > maiorMatch) {
-                maiorMatch = matches;
-                topicoPrincipal = key;
-            }
-        }
-        
-        const respostas = {
-            saudacao: 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.',
-            estudo: 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.',
-            geografia: this._respostaGeografia(texto),
-            mouse: 'Um mouse é um dispositivo periférico de entrada para computadores, utilizado principalmente para controlar o cursor na tela. Sua função principal é permitir ao usuário navegar por interfaces gráficas, selecionar elementos, realizar cliques (simples, duplo ou direito), arrastar objetos e rolar páginas. É essencial para a interação com sistemas operacionais, aplicativos e jogos, oferecendo precisão e facilidade no controle do computador.',
-            tarefa: 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas, defina prazos realistas e use a técnica Pomodoro para manter o foco.',
-            matematica: 'Matemática requer prática constante. Resolva exercícios diariamente, entenda os conceitos antes de memorizar fórmulas e não tenha medo de errar - o erro faz parte do aprendizado.',
-            fisica: 'Física é sobre entender como o mundo funciona. Relacione os conceitos com situações cotidianas e pratique a resolução de problemas com calma.',
-            historia: 'História é sobre conexões. Entenda a linha do tempo, os contextos e as relações entre eventos. Fazer resumos cronológicos ajuda muito.',
-            programacao: 'Programação se aprende praticando. Escreva código todos os dias, resolva problemas pequenos primeiro e não desista dos erros - eles são seus melhores professores.',
-            motivacao: 'Você é capaz de realizar grandes coisas. Lembre-se: o sucesso é a soma de pequenos esforços repetidos dia após dia. Continue firme.',
-            padrao: 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.'
-        };
-        
-        return respostas[topicoPrincipal] || respostas.padrao;
-    }
-    
-    _respostaGeografia(texto) {
-        const paises = {
-            'moçambique': 'A capital de Moçambique é Maputo.',
-            'zambia': 'A capital da Zâmbia é Lusaka.',
-            'zâmbia': 'A capital da Zâmbia é Lusaka.',
-            'angola': 'A capital de Angola é Luanda.',
-            'brasil': 'A capital do Brasil é Brasília.',
-            'portugal': 'A capital de Portugal é Lisboa.',
-            'etiopia': 'A capital da Etiópia é Adis Abeba.',
-            'china': 'A capital da China é Pequim.',
-            'rússia': 'A capital da Rússia é Moscou.',
-            'eua': 'A capital dos EUA é Washington D.C.',
-            'frança': 'A capital da França é Paris.',
-            'inglaterra': 'A capital da Inglaterra é Londres.',
-            'japão': 'A capital do Japão é Tóquio.',
-            'índia': 'A capital da Índia é Nova Délhi.',
-            'nigéria': 'A capital da Nigéria é Abuja.',
-            'egito': 'A capital do Egito é Cairo.'
-        };
-        
-        for (const [key, resposta] of Object.entries(paises)) {
-            if (texto.includes(key)) {
-                return resposta;
-            }
-        }
-        
-        return 'Desculpe, não sei a capital desse país. Tente perguntar de outro.';
-    }
-    
-    // ============================================
-    // ⭐ MÉTODOS DE LIMITE E CACHE
+    // ⭐ RESETAR LIMITE DIÁRIO
     // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
-        const dataSalva = localStorage.getItem('pollinations_data');
+        const dataSalva = localStorage.getItem('ia_limite_data');
         if (dataSalva !== hoje) {
-            localStorage.setItem('pollinations_data', hoje);
-            localStorage.setItem('pollinations_uso', '0');
+            localStorage.setItem('ia_limite_data', hoje);
+            localStorage.setItem('ia_limite_uso', '0');
             this._usosHoje = 0;
         }
     }
     
     getUsoHoje() {
         this._resetarLimite();
-        this._usosHoje = parseInt(localStorage.getItem('pollinations_uso')) || 0;
+        this._usosHoje = parseInt(localStorage.getItem('ia_limite_uso')) || 0;
         return this._usosHoje;
     }
     
     _incrementarUso() {
         this._resetarLimite();
         this._usosHoje++;
-        localStorage.setItem('pollinations_uso', String(this._usosHoje));
+        localStorage.setItem('ia_limite_uso', String(this._usosHoje));
     }
     
     temLimiteDisponivel() {
-        return this.getUsoHoje() < this._limiteDiario;
+        return this.getUsoHoje() < this.LIMITE_DIARIO;
     }
     
     getLimiteRestante() {
-        return Math.max(0, this._limiteDiario - this.getUsoHoje());
+        return Math.max(0, this.LIMITE_DIARIO - this.getUsoHoje());
     }
-    
-    _getCacheKey(prompt, context) {
-        return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
+
+    // ============================================
+    // RENDER PRINCIPAL
+    // ============================================
+    render(data) {
+        this.notifications = data.notifications || [];
+        this.tasks = data.tasks || [];
+        this.notes = data.notes || [];
+        this.weeklySchedule = data.weeklySchedule || {};
+        this.timeSlots = data.timeSlots || [];
+        this.disciplinas = data.disciplinas || [];
+        
+        this.carregarHistorico();
+        this.upgradeHeader();
+        this.garantirFab();
+        this.criarPainel();
+        this.renderHistoryList();
+        this.renderChat();
+        this.updateBadge();
+        this.setupEvents();
+        this._atualizarStatusGiria();
+        this._atualizarStatusLimite();
     }
-    
-    _getFromCache(prompt, context) {
-        const key = this._getCacheKey(prompt, context);
-        if (this._cache.has(key)) {
-            const item = this._cache.get(key);
-            if (Date.now() - item.timestamp < 3600000) {
-                return item.value;
-            }
-            this._cache.delete(key);
+
+    // ============================================
+    // RENDER CHAT
+    // ============================================
+    renderChat() {
+        const container = document.getElementById('ia-messages-container');
+        if (!container) return;
+        
+        if (this.messages.length === 0) {
+            const hora = new Date().getHours();
+            const saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+            const nome = this.app?.user?.nome ? this.app.user.nome.split(' ')[0] : 'estudante';
+            
+            const restante = this.getLimiteRestante();
+            const tasksCount = this.tasks.filter(t => !t.completed).length;
+            const notesCount = this.notes.length;
+            
+            container.innerHTML = `
+                <div class="ia-empty-state">
+                    <div class="ia-empty-orb">${IA_SPARKLES_SVG}</div>
+                    <h3>${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
+                    <p>Como posso te ajudar hoje?</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:8px 0;font-size:0.75rem;color:var(--text-secondary);">
+                        <span>📋 ${tasksCount} tarefas pendentes</span>
+                        <span>📝 ${notesCount} anotações</span>
+                        <span>📚 ${this.disciplinas.length} disciplinas</span>
+                    </div>
+                    <p class="ia-empty-hint">💬 Digite <strong>"fala com gíria"</strong> para ativar ou 
+                        <strong>"fala normal"</strong> para desativar</p>
+                    <p class="ia-empty-limite" id="ia-limite-status">
+                        💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje
+                    </p>
+                </div>
+            `;
+            const actions = document.getElementById('ia-quick-actions');
+            if (actions) actions.style.display = 'grid';
+            return;
         }
-        return null;
+        
+        const actions = document.getElementById('ia-quick-actions');
+        if (actions) actions.style.display = 'none';
+        
+        let html = '';
+        this.messages.forEach((msg) => {
+            const isUser = msg.role === 'user';
+            const isAI = !isUser;
+            const content = this.app.escapeHtml(msg.content)
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const time = msg.time || (msg.timestamp
+                ? new Date(msg.timestamp).toLocaleTimeString()
+                : new Date().toLocaleTimeString());
+            html += `
+                <div class="ia-message ${isUser ? 'ia-message-user' : 'ia-message-ai'}">
+                    <div class="ia-message-avatar">${isUser ? '👤' : '🤖'}</div>
+                    <div class="ia-message-content" ${isAI ? 'style="user-select:text;-webkit-user-select:text;"' : ''}>
+                        ${content}
+                        ${isAI ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)">📋 Copiar</span>` : ''}
+                    </div>
+                    <div class="ia-message-time">${time}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // ============================================
+    // ⭐ BUILD USER CONTEXT COM DADOS COMPLETOS
+    // ============================================
+    buildUserContext(textoUsuario) {
+        const user = this.app.user || {};
+        
+        // ⭐ DADOS DO USUÁRIO
+        const tasks = this.tasks || [];
+        const pendentes = tasks.filter(t => !t.completed);
+        const concluidas = tasks.filter(t => t.completed);
+        const notes = this.notes || [];
+        const schedule = this.weeklySchedule || {};
+        const slots = this.timeSlots || [];
+        const disciplinas = this.disciplinas || [];
+        
+        // ⭐ DETECTAR COMANDOS DE GÍRIA
+        const pediuGiria = this._usuarioPediuGiria(textoUsuario);
+        const querNormal = this._usuarioQuerNormal(textoUsuario);
+        
+        if (pediuGiria) {
+            this._modoGiria = true;
+            this._mostrarToast('🇲🇿 Modo Gíria ativado! Fala como magaia!');
+        } else if (querNormal) {
+            this._modoGiria = false;
+            this._mostrarToast('📚 Modo Normal ativado! Fala formal.');
+        }
+        
+        const isPerguntaSobreModo = this._usuarioPediuGiria(textoUsuario) ||
+                                    this._usuarioQuerNormal(textoUsuario);
+        
+        // ⭐ CONSTRUIR CONTEXTO COMPLETO
+        let contexto = `
+📚 CONTEXTO COMPLETO DO ESTUDANTE
+
+👤 PERFIL:
+Nome: ${user.nome || 'Estudante'}
+Email: ${user.email || 'Não informado'}
+
+📋 TAREFAS:
+Total: ${tasks.length}
+Pendentes: ${pendentes.length}
+Concluídas: ${concluidas.length}
+${pendentes.length > 0 ? 'Tarefas pendentes: ' + pendentes.map(t => `- ${t.title || t.nome} (${t.subject || 'Sem disciplina'})`).join('\n') : '✅ Todas as tarefas concluídas!'}
+
+📝 ANOTAÇÕES:
+Total: ${notes.length}
+${notes.length > 0 ? 'Últimas anotações: ' + notes.slice(0, 3).map(n => `- ${n.title || 'Sem título'}`).join('\n') : 'Nenhuma anotação ainda'}
+
+📚 DISCIPLINAS:
+${disciplinas.length > 0 ? disciplinas.map(d => `- ${d.nome}`).join('\n') : 'Nenhuma disciplina cadastrada'}
+
+📅 HORÁRIO SEMANAL:
+${Object.entries(schedule).map(([dia, aulas]) => {
+    if (aulas && aulas.length > 0) {
+        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio})`).join(', ')}`;
+    }
+    return `${dia}: Sem aulas`;
+}).join('\n')}
+
+⏰ HORÁRIOS DISPONÍVEIS: ${slots.join(', ') || 'Nenhum horário cadastrado'}
+
+🎯 LIMITE DIÁRIO DE MENSAGENS:
+Usadas hoje: ${this.getUsoHoje()}/${this.LIMITE_DIARIO}
+Restantes: ${this.getLimiteRestante()}
+
+INSTRUÇÕES DE ESTILO:
+`;
+        
+        if (this._modoGiria) {
+            contexto += `
+✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
+✅ Seja descontraído, amigável e divertido.
+✅ Use emojis frequentemente 🇲🇿
+✅ Responda com entusiasmo e calor humano.
+✅ Use os dados do contexto para respostas personalizadas.
+${isPerguntaSobreModo ? '⚠️ O usuário acabou de ativar o modo gíria. Responda comemorando!' : ''}
+`;
+        } else {
+            contexto += `
+✅ MODO NORMAL ATIVO! Fale em português formal e claro.
+✅ Seja profissional, direto e objetivo.
+✅ Use linguagem neutra, sem gírias.
+✅ Dê respostas completas e bem estruturadas.
+✅ Seja educado e respeitoso.
+✅ Use os dados do contexto para respostas personalizadas.
+${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Responda confirmando de forma educada.' : ''}
+`;
+        }
+        
+        return contexto;
+    }
+
+    // ============================================
+    // ⭐ DETECTAR COMANDOS
+    // ============================================
+    _usuarioPediuGiria(texto) {
+        const palavrasChave = [
+            'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
+            'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
+            'fala moçambicano', 'fala com gíria', 'fala que nem eu',
+            'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
+            'fala moçambicano', 'modo gíria', 'modo giria'
+        ];
+        return palavrasChave.some(palavra =>
+            texto.toLowerCase().includes(palavra.toLowerCase())
+        );
     }
     
-    _saveToCache(prompt, context, response) {
-        const key = this._getCacheKey(prompt, context);
-        this._cache.set(key, {
-            value: response,
-            timestamp: Date.now()
+    _usuarioQuerNormal(texto) {
+        const palavrasChave = [
+            'sem gíria', 'normal', 'formal', 'sem gírias',
+            'fala normal', 'sério', 'direto', 'sem brincadeira',
+            'desativa gíria', 'desativar gíria', 'fala formal',
+            'volta ao normal', 'modo normal'
+        ];
+        return palavrasChave.some(palavra =>
+            texto.toLowerCase().includes(palavra.toLowerCase())
+        );
+    }
+
+    // ============================================
+    // ⭐ MOSTRAR TOAST
+    // ============================================
+    _mostrarToast(mensagem) {
+        if (typeof showToast === 'function') {
+            showToast(mensagem, 'info');
+        } else {
+            console.log('[IA] 📢', mensagem);
+        }
+        this._atualizarStatusGiria();
+        this._atualizarStatusLimite();
+    }
+
+    // ============================================
+    // ⭐ ATUALIZAR STATUS
+    // ============================================
+    _atualizarStatusGiria() {
+        const statusEl = document.getElementById('giria-status');
+        if (statusEl) {
+            statusEl.textContent = this._modoGiria ? 'Gíria 🇲🇿' : 'Normal';
+            statusEl.style.color = this._modoGiria ? 'var(--accent-purple)' : 'var(--text-secondary)';
+        }
+        const btn = document.getElementById('btn-toggle-giria');
+        if (btn) {
+            btn.style.borderColor = this._modoGiria ? 'var(--accent-purple)' : 'var(--border-color)';
+            btn.style.background = this._modoGiria ? 'rgba(139, 92, 246, 0.15)' : 'var(--card-bg)';
+        }
+    }
+    
+    _atualizarStatusLimite() {
+        const limiteEl = document.getElementById('ia-limite-status');
+        if (!limiteEl) return;
+        
+        const restante = this.getLimiteRestante();
+        const usado = this.getUsoHoje();
+        limiteEl.textContent = `💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje`;
+        limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
+    }
+
+    // ============================================
+    // ⭐ ALTERNAR MODO
+    // ============================================
+    toggleModoGiria() {
+        this._modoGiria = !this._modoGiria;
+        const mensagem = this._modoGiria
+            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
+            : '📚 Modo Normal ativado! Fala formal.';
+        this._mostrarToast(mensagem);
+        this._atualizarStatusGiria();
+        this.messages.push({
+            role: 'assistant',
+            content: this._modoGiria
+                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
+                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
+            time: new Date().toLocaleTimeString(),
+            isSystem: true
+        });
+        this.renderChat();
+    }
+
+    // ============================================
+    // ⭐ ENVIAR MENSAGEM (COM VERIFICAÇÃO DE LIMITE)
+    // ============================================
+    async sendMessage(text) {
+        if (!text) {
+            const input = document.getElementById('ia-input');
+            if (!input) return;
+            text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+        }
+        
+        if (this._isProcessing) return;
+        
+        // ⭐ VERIFICAR LIMITE DIÁRIO
+        if (!this.temLimiteDisponivel()) {
+            this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
+            this.messages.push({
+                role: 'assistant',
+                content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
+                time: new Date().toLocaleTimeString()
+            });
+            this.renderChat();
+            return;
+        }
+        
+        this._ultimaMensagem = text;
+        this.messages.push({
+            role: 'user',
+            content: text,
+            time: new Date().toLocaleTimeString(),
+            timestamp: new Date().toISOString()
+        });
+        this.renderChat();
+        this._isProcessing = true;
+        
+        const container = document.getElementById('ia-messages-container');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'ia-message ia-message-ai ia-loading';
+        loadingDiv.innerHTML = `
+            <div class="ia-message-avatar">🤖</div>
+            <div class="ia-message-content">
+                <span class="ia-dots"><span>.</span><span>.</span><span>.</span></span>
+                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">
+                    ${this._modoGiria ? 'To a pensar, broo...' : 'Processando...'}
+                </span>
+            </div>
+        `;
+        container.appendChild(loadingDiv);
+        container.scrollTop = container.scrollHeight;
+        
+        try {
+            const context = this.buildUserContext(text);
+            let response;
+            const service = window.MultiAIService || window.GeminiService || window.OpenRouterService;
+            
+            if (service) {
+                console.log('[IA] 📤 Enviando para Multi-API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+                const result = await service.sendMessage(text, context);
+                if (result.success) {
+                    response = result.text;
+                    if (result.fromCache) response += '\n\n*(Resposta do cache)*';
+                } else {
+                    response = `❌ ${result.error}`;
+                }
+            } else {
+                response = this._getFallbackResponse(text);
+            }
+            
+            loadingDiv.remove();
+            
+            // ⭐ INCREMENTAR USO
+            this._incrementarUso();
+            
+            this.messages.push({
+                role: 'assistant',
+                content: response,
+                time: new Date().toLocaleTimeString(),
+                timestamp: new Date().toISOString()
+            });
+            
+            this.salvarConversaAtual();
+            this.renderChat();
+            this._atualizarStatusLimite();
+            
+            // ⭐ VERIFICAR SE CHEGOU AO LIMITE
+            if (this.getLimiteRestante() === 0) {
+                this._mostrarToast(`⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens!`);
+            }
+            
+        } catch (error) {
+            console.error('[IA] ❌ Erro:', error);
+            loadingDiv.remove();
+            this.messages.push({
+                role: 'assistant',
+                content: '❌ Ocorreu um erro. Tenta novamente!',
+                time: new Date().toLocaleTimeString()
+            });
+            this.renderChat();
+        } finally {
+            this._isProcessing = false;
+        }
+    }
+
+    // ============================================
+    // ⭐ FALLBACK (COM DADOS DO USUÁRIO)
+    // ============================================
+    _getFallbackResponse(texto) {
+        const perguntas = texto.toLowerCase();
+        const pendentes = this.tasks.filter(t => !t.completed);
+        const notasCount = this.notes.length;
+        
+        if (this._modoGiria) {
+            if (perguntas.includes('oi') || perguntas.includes('olá')) {
+                return '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje? Tamos juntos! 😎';
+            }
+            if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente')) {
+                return `🇲🇿 Tens ${pendentes.length} tarefas pendentes, magaia! Vai devagar, uma de cada vez. Não te estresses! 😎`;
+            }
+            if (perguntas.includes('anotação') || perguntas.includes('nota') || perguntas.includes('anotacoes')) {
+                return `🇲🇿 Tens ${notasCount} anotações guardadas, broo! Quer que eu veja alguma em específico? 📝`;
+            }
+            if (perguntas.includes('disciplina') || perguntas.includes('matéria')) {
+                const disc = this.disciplinas.map(d => d.nome).join(', ');
+                return `🇲🇿 Tuas disciplinas: ${disc || 'Nenhuma cadastrada ainda, maning!'} 📚`;
+            }
+            if (perguntas.includes('horário') || perguntas.includes('aula')) {
+                const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short' });
+                const diaSemana = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+                const aulasHoje = this.weeklySchedule[diaSemana] || [];
+                if (aulasHoje.length > 0) {
+                    return `🇲🇿 Hoje (${diaSemana}) tens: ${aulasHoje.map(a => `${a.materia} às ${a.horaInicio}`).join(', ')}. Bora estudar! 📚`;
+                }
+                return `🇲🇿 Hoje (${diaSemana}) não tens aulas agendadas, broo! Aproveita para estudar por conta! 💪`;
+            }
+            return '🇲🇿 Boa pergunta, magaia! Tenta reformular ou me conta mais detalhes. Tamos juntos! 🤝';
+        } else {
+            if (perguntas.includes('oi') || perguntas.includes('olá')) {
+                return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.';
+            }
+            if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente')) {
+                return `Você tem ${pendentes.length} tarefas pendentes. Recomendo priorizar as mais urgentes e dividir em pequenas etapas.`;
+            }
+            if (perguntas.includes('anotação') || perguntas.includes('nota') || perguntas.includes('anotacoes')) {
+                return `Você tem ${notasCount} anotações salvas. Posso ajudar a revisar ou organizar alguma delas.`;
+            }
+            if (perguntas.includes('disciplina') || perguntas.includes('matéria')) {
+                const disc = this.disciplinas.map(d => d.nome).join(', ');
+                return `Suas disciplinas: ${disc || 'Nenhuma cadastrada ainda.'}`;
+            }
+            if (perguntas.includes('horário') || perguntas.includes('aula')) {
+                const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short' });
+                const diaSemana = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+                const aulasHoje = this.weeklySchedule[diaSemana] || [];
+                if (aulasHoje.length > 0) {
+                    return `Hoje (${diaSemana}) você tem: ${aulasHoje.map(a => `${a.materia} às ${a.horaInicio}`).join(', ')}.`;
+                }
+                return `Hoje (${diaSemana}) você não tem aulas agendadas.`;
+            }
+            return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos!';
+        }
+    }
+
+    // ============================================
+    // ⭐ UPDATE BADGE
+    // ============================================
+    updateBadge() {
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
+        const naoLidas = (this.notifications || []).filter(n => !n.read).length;
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+    }
+
+    // ============================================
+    // ⭐ SETUP EVENTS
+    // ============================================
+    setupEvents() {
+        const input = document.getElementById('ia-input');
+        const sendBtn = document.getElementById('ia-send-btn');
+        const fabBtn = document.getElementById('btn-open-ia');
+        const backBtn = document.getElementById('btn-back-ia');
+        const toggleBtn = document.getElementById('btn-toggle-giria');
+
+        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
+        if (input) {
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            };
+        }
+        if (fabBtn) {
+            fabBtn.onclick = () => {
+                this._previousView = this.app.currentView;
+                this.app.showView('ia');
+                setTimeout(() => this._atualizarStatusLimite(), 500);
+            };
+        }
+        if (backBtn) {
+            backBtn.onclick = () => {
+                this.app.showView(this._previousView || 'dashboard');
+            };
+        }
+        if (toggleBtn) {
+            toggleBtn.onclick = () => {
+                this.toggleModoGiria();
+            };
+        }
+        
+        document.querySelectorAll('.ia-action-card').forEach(card => {
+            card.onclick = () => {
+                const prompt = card.dataset.prompt;
+                if (prompt) {
+                    const textoFinal = this._modoGiria
+                        ? `${prompt} (fala com gíria moçambicana)`
+                        : prompt;
+                    this.sendMessage(textoFinal);
+                }
+            };
         });
         
-        if (this._cache.size > this._cacheMaxSize) {
-            const keys = Array.from(this._cache.keys());
-            const oldest = keys.sort((a, b) => 
-                this._cache.get(a).timestamp - this._cache.get(b).timestamp
-            )[0];
-            this._cache.delete(oldest);
+        setInterval(() => {
+            this._atualizarStatusLimite();
+        }, 30000);
+        
+        console.log('[IA] ✅ Eventos configurados! Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+    }
+
+    // ============================================
+    // ⭐ HEADER COM ☰
+    // ============================================
+    upgradeHeader() {
+        const header = document.querySelector('#view-ia .ia-header');
+        if (!header || header.classList.contains('upgraded')) return;
+        header.classList.add('upgraded');
+
+        const backBtn = document.getElementById('btn-back-ia');
+
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'ia-menu-btn';
+        menuBtn.innerHTML = IA_ICONS.menu;
+        menuBtn.title = 'Abrir conversas';
+        menuBtn.addEventListener('click', () => this.abrirPainel());
+
+        header.insertBefore(menuBtn, header.firstChild);
+
+        if (backBtn) {
+            backBtn.style.marginLeft = 'auto';
+            header.appendChild(backBtn);
         }
+
+        header.querySelectorAll('.ia-avatar').forEach(a => a.remove());
     }
-    
-    getStatus() {
-        return {
-            usoTotal: this.getUsoHoje(),
-            limiteTotal: this._limiteDiario,
-            restante: this.getLimiteRestante(),
-            cacheSize: this._cache.size,
-            modo: 'GROQ',
-            groqConfigurado: !!this.GROQ_API_KEY,
-            modelos: this.GROQ_MODELS
-        };
+
+    // ============================================
+    // ⭐ FAB
+    // ============================================
+    garantirFab() {
+        let fab = document.getElementById('btn-open-ia');
+        if (!fab) {
+            fab = document.createElement('button');
+            fab.id = 'btn-open-ia';
+            fab.className = 'fab-ia';
+            document.body.appendChild(fab);
+        }
+        if (!fab.querySelector('svg')) {
+            fab.innerHTML = `<span class="pulse"></span>${IA_SPARKLES_SVG}`;
+        }
+        fab.title = 'Assistente IA';
+        return fab;
     }
-    
-    resetLimite() {
-        localStorage.setItem('pollinations_data', new Date().toDateString());
-        localStorage.setItem('pollinations_uso', '0');
-        this._usosHoje = 0;
-        console.log('[MultiAI] Limite resetado');
-        return this.getStatus();
+
+    // ============================================
+    // ⭐ PAINEL LATERAL
+    // ============================================
+    criarPainel() {
+        if (document.getElementById('iaPainel')) return;
+
+        const nome = this.app?.user?.nome || 'Usuário';
+        const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'ia-painel-overlay';
+        overlay.id = 'iaPainelOverlay';
+        overlay.addEventListener('click', () => this.fecharPainel());
+
+        const painel = document.createElement('aside');
+        painel.className = 'ia-painel';
+        painel.id = 'iaPainel';
+        painel.innerHTML = `
+            <div class="ia-painel-header">
+                <div class="ia-painel-brand">
+                    <div class="ia-painel-logo">${IA_SPARKLES_SVG}</div>
+                    <div class="ia-painel-brand-text"><strong>Satus IA</strong><small>Zero Satus</small></div>
+                </div>
+                <button class="ia-painel-close" id="iaPainelClose">${IA_ICONS.close}</button>
+            </div>
+            <button class="ia-painel-new" id="iaPainelNew">${IA_ICONS.plus} Nova conversa</button>
+            <div class="ia-painel-list" id="iaPainelList"></div>
+            <div class="ia-painel-footer">
+                <div class="ia-painel-user">
+                    <div class="ia-painel-user-avatar">${this.app.escapeHtml(iniciais)}</div>
+                    <div class="ia-painel-user-info">
+                        <span>${this.app.escapeHtml(nome)}</span>
+                        <small>Aluno • Zero Satus</small>
+                    </div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(painel);
+
+        document.getElementById('iaPainelClose').addEventListener('click', () => this.fecharPainel());
+        document.getElementById('iaPainelNew').addEventListener('click', () => this.novaConversa());
+        painel.querySelector('.ia-painel-list').addEventListener('click', (e) => {
+            const del = e.target.closest('[data-del]');
+            if (del) { this.excluirConversa(del.dataset.del); return; }
+            const item = e.target.closest('.ia-painel-item');
+            if (item) this.selecionarConversa(item.dataset.id);
+        });
+    }
+
+    abrirPainel() {
+        this.renderHistoryList();
+        document.getElementById('iaPainel')?.classList.add('open');
+        document.getElementById('iaPainelOverlay')?.classList.add('show');
+    }
+    fecharPainel() {
+        document.getElementById('iaPainel')?.classList.remove('open');
+        document.getElementById('iaPainelOverlay')?.classList.remove('show');
+    }
+
+    // ============================================
+    // ⭐ HISTÓRICO
+    // ============================================
+    carregarHistorico() {
+        const userId = this.app?.user?.id;
+        if (!userId) return;
+        try { this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]'); } catch (e) { this.history = []; }
+        try { this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]'); } catch (e) { this.messages = []; }
+        this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
+    }
+
+    salvarConversaAtual() {
+        const userId = this.app?.user?.id;
+        if (!userId || this.messages.length === 0) return;
+        const agora = new Date().toISOString();
+        const primeira = this.messages.find(m => m.role === 'user')?.content || 'Nova conversa';
+        const titulo = primeira.length > 32 ? primeira.substring(0, 32) + '…' : primeira;
+
+        if (this.currentHistoryId) {
+            const i = this.history.findIndex(h => h.id === this.currentHistoryId);
+            if (i !== -1) {
+                this.history[i] = { ...this.history[i], title: titulo, messages: [...this.messages], updatedAt: agora };
+            } else { this.currentHistoryId = null; }
+        }
+        if (!this.currentHistoryId) {
+            this.currentHistoryId = Date.now().toString();
+            this.history.push({ id: this.currentHistoryId, title: titulo, messages: [...this.messages], createdAt: agora, updatedAt: agora });
+        }
+        this.history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
+        localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
+        localStorage.setItem(`${userId}_ia_current`, this.currentHistoryId);
+        this.renderHistoryList();
+    }
+
+    renderHistoryList() {
+        const list = document.getElementById('iaPainelList');
+        if (!list) return;
+        if (this.history.length === 0) {
+            list.innerHTML = `<div class="ia-painel-empty">Nenhuma conversa ainda.<br>Comece uma nova! ✨</div>`;
+            return;
+        }
+        list.innerHTML = this.history.map(h => `
+            <div class="ia-painel-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
+                ${IA_ICONS.chat}
+                <span class="ia-painel-item-title">${this.app.escapeHtml(h.title)}</span>
+                <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
+            </div>`).join('');
+    }
+
+    novaConversa() {
+        if (this._isProcessing) return;
+        this.messages = [];
+        this.currentHistoryId = null;
+        const userId = this.app?.user?.id;
+        if (userId) {
+            localStorage.setItem(`${userId}_ia_messages`, '[]');
+            localStorage.removeItem(`${userId}_ia_current`);
+        }
+        this.renderChat();
+        this.renderHistoryList();
+        this.fecharPainel();
+    }
+
+    selecionarConversa(id) {
+        if (this._isProcessing) return;
+        const conv = this.history.find(h => h.id === id);
+        if (!conv) return;
+        this.currentHistoryId = id;
+        this.messages = [...(conv.messages || [])];
+        const userId = this.app?.user?.id;
+        if (userId) {
+            localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
+            localStorage.setItem(`${userId}_ia_current`, id);
+        }
+        this.renderChat();
+        this.renderHistoryList();
+        this.fecharPainel();
+    }
+
+    excluirConversa(id) {
+        const conv = this.history.find(h => h.id === id);
+        if (!confirm(`Excluir "${conv?.title || 'esta conversa'}"?`)) return;
+        this.history = this.history.filter(h => h.id !== id);
+        if (this.currentHistoryId === id) {
+            this.currentHistoryId = null;
+            this.messages = [];
+            this.renderChat();
+        }
+        const userId = this.app?.user?.id;
+        if (userId) localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
+        this.renderHistoryList();
     }
 }
 
 // ============================================
-// ⭐ INSTÂNCIA GLOBAL
+// ⭐ FUNÇÃO GLOBAL PARA COPIAR
 // ============================================
-const multiAI = new MultiAIService();
-window.MultiAIService = multiAI;
-
-window.getLimiteIA = () => {
-    const status = multiAI.getStatus();
-    return {
-        usado: status.usoTotal,
-        maximo: status.limiteTotal,
-        restante: status.restante,
-        modo: status.modo,
-        modelos: status.modelos,
-        reset: () => multiAI.resetLimite()
-    };
+window.copyMessage = function(element) {
+    try {
+        const messageContent = element.closest('.ia-message-content');
+        if (!messageContent) return;
+        const text = messageContent.textContent.replace('📋 Copiar', '').trim();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    const originalText = element.textContent;
+                    element.textContent = '✅ Copiado!';
+                    setTimeout(() => { element.textContent = originalText; }, 2000);
+                })
+                .catch(() => { fallbackCopy(text, element); });
+        } else {
+            fallbackCopy(text, element);
+        }
+    } catch (error) {
+        console.error('[IA] Erro ao copiar:', error);
+    }
 };
 
-window.testIA = async (pergunta) => {
-    console.log('🧪 Testando IA...');
-    const result = await multiAI.sendMessage(pergunta);
-    console.log('🤖 Resposta:', result);
-    return result;
-};
+function fallbackCopy(text, element) {
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.top = '-1000px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        const originalText = element.textContent;
+        element.textContent = '✅ Copiado!';
+        setTimeout(() => { element.textContent = originalText; }, 2000);
+    } catch (err) {
+        console.error('[IA] Fallback copy falhou:', err);
+        const originalText = element.textContent;
+        element.textContent = '❌ Erro ao copiar';
+        setTimeout(() => { element.textContent = originalText; }, 2000);
+    }
+}
 
-console.log('[MultiAI] ✅ Serviço carregado!');
-console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
-console.log('[MultiAI] 💡 Teste: window.testIA("para que serve um mouse?")');</script>
+// ============================================
+// ⭐ FAB ESCONDE NA TELA DE IA
+// ============================================
+(function () {
+    function atualizarFab() {
+        const fab = document.getElementById('btn-open-ia');
+        const iaAtiva = document.getElementById('view-ia')?.classList.contains('active');
+        if (fab) fab.style.display = iaAtiva ? 'none' : '';
+    }
+    const view = document.getElementById('view-ia');
+    if (view) {
+        new MutationObserver(atualizarFab).observe(view, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+    atualizarFab();
+})();
+
+console.log('[IA] ✅ Módulo carregado com acesso a dados do usuário!');
+console.log('[IA] 📊 Limite diário: 15 mensagens');
+console.log('[IA] 📋 Acesso a: Tarefas, Anotações, Horário e Disciplinas');</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
