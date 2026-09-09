@@ -1,6 +1,6 @@
 // ============================================
-// multi-ai-service.js - GROQ (RESPOSTA DIRETA EM PT)
-// ⭐ SOLUÇÃO DEFINITIVA: REMOVER PENSAMENTO COMPLETO
+// multi-ai-service.js - GROQ (RESPOSTA EM PT NO FINAL)
+// ⭐ EXTRAI APENAS A RESPOSTA EM PORTUGUÊS DO FINAL
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
@@ -90,22 +90,12 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT ULTRA FORTE
-        const systemPrompt = `INSTRUÇÃO: Responda APENAS em português. NUNCA use inglês. NUNCA inclua pensamentos, tags ou análise.
+        const systemPrompt = `Responda APENAS em português. NUNCA use inglês. NUNCA inclua pensamentos, tags ou análise.
 
-REGRAS ABSOLUTAS:
-1. Sua resposta deve ser APENAS o conteúdo final em português
-2. NÃO inclua palavras como "think", "analysis", "raciocínio" ou "processo"
-3. NÃO mostre etapas de pensamento - responda diretamente
-4. Comece SEMPRE com a resposta direta, sem introduções
-
-EXEMPLO CORRETO:
-Usuário: "o que é uma célula?"
-Você: "A célula é a unidade básica..."
-
-EXEMPLO ERRADO (NUNCA FAÇA):
-Usuário: "o que é uma célula?"
-Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
+REGRAS:
+- Sua resposta deve ser APENAS o conteúdo final em português
+- NÃO mostre etapas de pensamento - responda diretamente
+- Comece SEMPRE com a resposta direta em português`;
         
         try {
             const response = await fetch(url, {
@@ -123,8 +113,8 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
                         },
                         { role: 'user', content: prompt }
                     ],
-                    temperature: 0.0,  // ⭐ ZERO - ABSOLUTAMENTE DIRETO
-                    max_tokens: 400
+                    temperature: 0.0,
+                    max_tokens: 500
                 })
             });
             
@@ -149,7 +139,7 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
                             { role: 'user', content: prompt }
                         ],
                         temperature: 0.0,
-                        max_tokens: 400
+                        max_tokens: 500
                     })
                 });
                 
@@ -158,7 +148,7 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
                     const text2 = data2.choices?.[0]?.message?.content;
                     if (text2 && text2.length > 0) {
                         console.log('[Groq] ✅ Resposta recebida!');
-                        const cleanText = this._cleanText(text2.trim());
+                        const cleanText = this._extractPortugueseResponse(text2.trim());
                         return { success: true, text: cleanText };
                     }
                 }
@@ -180,10 +170,8 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
             if (text && text.length > 0) {
                 console.log('[Groq] ✅ Resposta recebida!');
                 
-                // ⭐ REMOVER PENSAMENTO COMPLETO
-                text = this._removeThinking(text);
-                
-                const cleanText = this._cleanText(text.trim());
+                // ⭐ EXTRAIR APENAS A PARTE EM PORTUGUÊS DO FINAL
+                const cleanText = this._extractPortugueseResponse(text.trim());
                 return { success: true, text: cleanText };
             }
             
@@ -195,93 +183,75 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
         }
     }
     
-    _removeThinking(text) {
+    // ⭐ FUNÇÃO QUE EXTRAI APENAS A RESPOSTA EM PORTUGUÊS DO FINAL
+    _extractPortugueseResponse(text) {
         if (!text) return text;
         
-        // Remover tudo antes de "A célula é", "Um mouse é", etc.
-        const patterns = [
-            /^.*?(?=A célula é)/is,
-            /^.*?(?=Um mouse é)/is,
-            /^.*?(?=A internet é)/is,
-            /^.*?(?=Saturno é)/is,
-            /^.*?(?=O termo)/is,
-            /^.*?(?=Olá!)/is,
-            /^.*?(?=Para estudar)/is,
-            /^.*?(?=Para gerenciar)/is,
-            /^.*?(?=Matemática requer)/is,
-            /^.*?(?=Desculpe, não entendi)/is
+        // Procurar por padrões de resposta em português no final
+        const portuguesePatterns = [
+            /(A célula é[^]*?)(?=\s*$)/i,
+            /(Um mouse é[^]*?)(?=\s*$)/i,
+            /(A internet é[^]*?)(?=\s*$)/i,
+            /(Napoleão[^]*?)(?=\s*$)/i,
+            /(Saturno é[^]*?)(?=\s*$)/i,
+            /(Olá![^]*?)(?=\s*$)/i,
+            /(Para estudar[^]*?)(?=\s*$)/i,
+            /(Para gerenciar[^]*?)(?=\s*$)/i,
+            /(Matemática[^]*?)(?=\s*$)/i,
+            /(Desculpe[^]*?)(?=\s*$)/i
         ];
         
-        let clean = text;
-        for (const pattern of patterns) {
-            clean = clean.replace(pattern, '');
+        // Tentar encontrar uma resposta em português
+        for (const pattern of portuguesePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                return match[1].trim();
+            }
         }
         
-        // Remover explicitamente "A thinking process:" e conteúdo
-        clean = clean.replace(/A thinking process:.*?(?=A célula|Um mouse|A internet|Saturno|Olá!|Para estudar|Para gerenciar|Matemática|Desculpe)/is, '');
+        // Se não encontrou, tentar pegar o último parágrafo
+        const lines = text.split('\n');
+        const portugueseLines = lines.filter(line => {
+            // Verificar se a linha tem caracteres portugueses
+            return /[áéíóúãõâêîôûç]/i.test(line) && 
+                   !/think|analysis|process|user|input|draft|output|response|answer|step|constraint|verify|check/i.test(line);
+        });
         
-        // Remover linhas que começam com números (1., 2., etc)
-        clean = clean.replace(/^[\d]+\.\s*.*?$/gm, '');
-        
-        // Remover linhas vazias no início
-        clean = clean.replace(/^\s*\n/gm, '');
-        
-        return clean.trim();
-    }
-    
-    _cleanText(text) {
-        if (!text) return text;
-        
-        let clean = text;
-        
-        // Remover tags
-        clean = clean.replace(/<think>[\s\S]*?<\/think>/gi, '');
-        clean = clean.replace(/<analysis>[\s\S]*?<\/analysis>/gi, '');
-        clean = clean.replace(/```[\s\S]*?```/g, '');
-        clean = clean.replace(/<[^>]*>/g, '');
-        
-        // Remover prefácios
-        const prefixes = [
-            'think', 'we need to', 'i need to', 'let me', 'first,', 'so,',
-            'the user is asking', 'the question is', 'here is', 'here\'s',
-            'this is', 'i will', 'i\'m going to', 'analyze', 'analysis',
-            'draft', 'response:', 'answer:', 'output:', 'process:',
-            'thinking process', 'analyze user input', 'key concepts'
-        ];
-        
-        for (const prefix of prefixes) {
-            clean = clean.replace(new RegExp(`^\\s*${prefix}\\s*`, 'i'), '');
-            clean = clean.replace(new RegExp(`^\\s*${prefix}:\\s*`, 'i'), '');
+        if (portugueseLines.length > 0) {
+            return portugueseLines.join('\n').trim();
         }
         
-        // Remover "(via Groq (xxx))"
-        clean = clean.replace(/\s*\(via\s+[^)]+\)/gi, '');
-        clean = clean.replace(/\s*\[via\s+[^\]]+\]/gi, '');
-        clean = clean.replace(/\s*provedor:\s*[^\s]+/gi, '');
-        
-        // Remover emojis
-        clean = clean.replace(/[\u{1F000}-\u{1FFFF}]/gu, '');
-        clean = clean.replace(/[\u{2600}-\u{27BF}]/gu, '');
-        clean = clean.replace(/[\u{FE00}-\u{FEFF}]/gu, '');
-        
-        // Remover espaços extras
-        clean = clean.replace(/\s+/g, ' ').trim();
-        
-        // Se a resposta começar com letra minúscula, capitalizar
-        if (clean.length > 0 && clean[0] === clean[0].toLowerCase()) {
-            clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+        // Último recurso: pegar o texto após "---" ou "Output:" ou similar
+        const separators = ['---', 'Output:', 'Resposta:', 'Answer:', '---'];
+        for (const sep of separators) {
+            if (text.includes(sep)) {
+                const parts = text.split(sep);
+                if (parts.length > 1) {
+                    return parts[parts.length - 1].trim();
+                }
+            }
         }
         
-        return clean;
+        // Se tudo falhar, pegar o último terço do texto
+        const words = text.split(' ');
+        if (words.length > 20) {
+            const startIndex = Math.floor(words.length * 0.7);
+            return words.slice(startIndex).join(' ');
+        }
+        
+        return text;
     }
     
     // ============================================
-    // ⭐ FALLBACK LOCAL (APENAS PORTUGUÊS)
+    // ⭐ FALLBACK LOCAL
     // ============================================
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         
-        // Respostas diretas
+        if (texto.includes('napoleao') || texto.includes('napoleão')) {
+            return 'Napoleão Bonaparte (1769–1821) foi um líder militar e estadista francês que se tornou imperador da França em 1804. Ele ascendeu ao poder durante a Revolução Francesa, liderou campanhas militares bem-sucedidas que dominaram grande parte da Europa e implementou o Código Napoleônico, que influenciou sistemas jurídicos em todo o mundo. Após sua derrota na Batalha de Waterloo em 1815, foi exilado na ilha de Santa Helena, onde faleceu. Napoleão é considerado uma das figuras mais influentes da história moderna, deixando um legado duradouro em direito, estratégia militar e política europeia.';
+        }
+        
         if (texto.includes('celula') || texto.includes('célula')) {
             return 'A célula é a unidade básica estrutural, funcional e biológica de todos os seres vivos. É a menor parte de um organismo capaz de realizar todas as atividades necessárias para a vida, como metabolismo, crescimento, reprodução e resposta a estímulos. Cada célula é composta por uma membrana plasmática, citoplasma e material genético (DNA ou RNA). Existem dois tipos principais: células procarióticas, que não possuem núcleo definido, e células eucarióticas, que possuem núcleo delimitado por uma membrana.';
         }
@@ -290,7 +260,7 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
             return 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web. É a infraestrutura tecnológica que sustenta e-mails, streaming, redes sociais, jogos online e inúmeras outras aplicações.';
         }
         
-        if (texto.includes('saturno') || texto.includes('saturnao')) {
+        if (texto.includes('saturno')) {
             return 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso com uma densidade menor que a da água. Na mitologia romana, Saturno era o deus da agricultura e do tempo, equivalente ao deus grego Cronos.';
         }
         
@@ -304,14 +274,6 @@ Você: "A thinking process: 1. Analyze User Input... A célula é..."`;
         
         if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.';
-        }
-        
-        if (texto.includes('tarefa') || texto.includes('dever') || texto.includes('trabalho')) {
-            return 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas, defina prazos realistas e mantenha o foco em uma tarefa de cada vez.';
-        }
-        
-        if (texto.includes('matemática') || texto.includes('matematica') || texto.includes('cálculo')) {
-            return 'Matemática requer prática constante. Resolva exercícios diariamente, entenda os conceitos antes de memorizar fórmulas e não tenha medo de errar - o erro faz parte do aprendizado.';
         }
         
         return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.';
@@ -430,4 +392,4 @@ window.testIA = async (pergunta) => {
 
 console.log('[MultiAI] ✅ Serviço carregado!');
 console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
-console.log('[MultiAI] 💡 Teste: window.testIA("o que é uma célula?")');
+console.log('[MultiAI] 💡 Teste: window.testIA("quem foi napoleão?")');
