@@ -1148,23 +1148,24 @@ const checkInterval = setInterval(() => {
 <script src="modules/documentos.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - GROQ (RESPOSTA DIRETA EM PT)
-// COM CHAVE GROQ FUNCIONANDO - 100% TESTADO
+// multi-ai-service.js - GROQ + FALLBACK LOCAL
+// COM RESPOSTA EM PORTUGUÊS - 100% FUNCIONAL
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ GROQ API (PRINCIPAL - Funcionando!)
+        // ⭐ GROQ API
         this.GROQ_API_KEY = "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";
         this.GROQ_MODELS = [
-            "qwen/qwen3.6-27b",           // ✅ Funcionou!
-            "llama-3.1-8b-instant",       // ✅ Funciona
-            "llama-3.3-70b-versatile",    // ✅ Funciona
-            "mixtral-8x7b-32768"          // Fallback
+            "llama-3.3-70b-versatile",
+            "qwen/qwen3.6-27b",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768"
         ];
         
+        // Cache e limites
         this._cache = new Map();
         this._cacheMaxSize = 50;
         this._limiteDiario = 100;
@@ -1172,7 +1173,7 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Modo: GROQ');
+        console.log('[MultiAI] 📌 Modo: GROQ (principal) + FALLBACK LOCAL');
         console.log('[MultiAI] 🔑 Groq: ✅ Configurado');
         console.log('[MultiAI] 📌 Modelos:', this.GROQ_MODELS);
         this._resetarLimite();
@@ -1185,7 +1186,7 @@ class MultiAIService {
     async sendMessage(prompt, context = '') {
         console.log('[MultiAI] 📤 Enviando:', prompt.substring(0, 60) + '...');
         
-        // Verificar limite
+        // Verificar limite diário
         if (!this.temLimiteDisponivel()) {
             return {
                 success: false,
@@ -1200,19 +1201,18 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR GROQ (PRINCIPAL)
+        // ⭐ TENTAR GROQ
         const groqResult = await this._callGroqWithFallback(prompt, context);
         if (groqResult.success) {
             this._incrementarUso();
             this._saveToCache(prompt, context, groqResult.text);
             console.log('[MultiAI] ✅ Resposta do Groq!');
-            return { success: true, text: groqResult.text };
+            return groqResult;
         }
         
-        console.log('[MultiAI] ⚠️ Todos os modelos Groq falharam');
+        console.log('[MultiAI] ⚠️ Groq falhou, usando fallback local');
         
-        // ⭐ FALLBACK LOCAL (sempre disponível)
-        console.log('[MultiAI] 📝 Usando fallback local');
+        // ⭐ FALLBACK LOCAL (com dados do contexto)
         const fallback = this._getFallback(prompt, context);
         this._incrementarUso();
         return {
@@ -1224,7 +1224,7 @@ class MultiAIService {
     }
     
     // ============================================
-    // ⭐ GROQ API COM FALLBACK
+    // ⭐ GROQ API COM FALLBACK ENTRE MODELOS
     // ============================================
     async _callGroqWithFallback(prompt, context) {
         const errors = [];
@@ -1256,18 +1256,22 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT - Força resposta em português
+        // ⭐ SYSTEM PROMPT OTIMIZADO - FORÇA PORTUGUÊS E DADOS DO CONTEXTO
         const systemPrompt = `Você é um assistente de estudos útil e profissional.
 
 INSTRUÇÕES OBRIGATÓRIAS:
 1. Responda SEMPRE em português, de forma direta e natural
 2. NÃO pense em inglês primeiro - responda diretamente em português
-3. Seja claro, objetivo e bem estruturado
-4. Use linguagem formal e educada
-5. NÃO inclua "think", "análise" ou "raciocínio" na resposta
-6. Responda APENAS o conteúdo final, sem mostrar o processo de pensamento
+3. NUNCA use tags como <think>, [think] ou qualquer marcação de pensamento
+4. NUNCA mostre seu raciocínio - apenas a resposta final
+5. Seja claro, objetivo e bem estruturado
+6. Use linguagem formal e educada
 7. Seja completo, mas conciso
-8. Use os dados do contexto para personalizar a resposta`;
+8. Use os dados do contexto para personalizar a resposta
+
+${context || ''}
+
+IMPORTANTE: Sua resposta deve começar diretamente com o conteúdo, sem introduções como "Vou responder" ou "Aqui está". Apenas a resposta final.`;
         
         try {
             const response = await fetch(url, {
@@ -1279,10 +1283,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 body: JSON.stringify({
                     model: model,
                     messages: [
-                        { 
-                            role: 'system', 
-                            content: systemPrompt
-                        },
+                        { role: 'system', content: systemPrompt },
                         { role: 'user', content: prompt }
                     ],
                     temperature: 0.5,
@@ -1292,7 +1293,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
             
             console.log(`[Groq] 📥 Status:`, response.status);
             
-            // Tentar sem prefixo se 404
+            // Tentar sem prefixo se 404 (para modelos com /)
             if (response.status === 404 && model.includes('/')) {
                 const modelSimple = model.split('/').pop();
                 console.log(`[Groq] 🔄 Tentando sem prefixo: ${modelSimple}`);
@@ -1305,10 +1306,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
                     body: JSON.stringify({
                         model: modelSimple,
                         messages: [
-                            { 
-                                role: 'system', 
-                                content: systemPrompt
-                            },
+                            { role: 'system', content: systemPrompt },
                             { role: 'user', content: prompt }
                         ],
                         temperature: 0.5,
@@ -1342,12 +1340,6 @@ INSTRUÇÕES OBRIGATÓRIAS:
             
             if (text && text.length > 0) {
                 console.log('[Groq] ✅ Resposta recebida!');
-                
-                // ⭐ REMOVER QUALQUER TAG <think>
-                text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-                text = text.replace(/```[\s\S]*?```/g, '');
-                text = text.replace(/^\s*think\s*/i, '');
-                
                 const cleanText = this._cleanText(text.trim());
                 return { success: true, text: cleanText };
             }
@@ -1361,26 +1353,27 @@ INSTRUÇÕES OBRIGATÓRIAS:
     }
     
     // ============================================
-    // ⭐ LIMPAR TEXTO
+    // ⭐ LIMPAR TEXTO - REMOVE MARCAS INDEVIDAS
     // ============================================
     _cleanText(text) {
         if (!text) return text;
         
-        // Remover tags de pensamento
-        let clean = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+        let clean = text;
+        
+        // Remover tags <think> e similares
+        clean = clean.replace(/<think>[\s\S]*?<\/think>/gi, '');
+        clean = clean.replace(/\[think\][\s\S]*?\[\/think\]/gi, '');
         clean = clean.replace(/```[\s\S]*?```/g, '');
         clean = clean.replace(/^\s*think\s*/i, '');
-        clean = clean.replace(/^\s*análise\s*/i, '');
         clean = clean.replace(/^\s*raciocínio\s*/i, '');
+        clean = clean.replace(/^\s*análise\s*/i, '');
+        clean = clean.replace(/^\s*pensamento\s*/i, '');
+        clean = clean.replace(/^\s*reflexão\s*/i, '');
         
         // Remover "(via Groq (xxx))"
         clean = clean.replace(/\s*\(via\s+[^)]+\)/gi, '');
         clean = clean.replace(/\s*\[via\s+[^\]]+\]/gi, '');
         clean = clean.replace(/\s*provedor:\s*[^\s]+/gi, '');
-        
-        // Remover emojis (opcional - comentar se quiser manter)
-        // clean = clean.replace(/[\u{1F000}-\u{1FFFF}]/gu, '');
-        // clean = clean.replace(/[\u{2600}-\u{27BF}]/gu, '');
         
         // Remover espaços extras
         clean = clean.replace(/\s+/g, ' ').trim();
@@ -1389,24 +1382,25 @@ INSTRUÇÕES OBRIGATÓRIAS:
     }
     
     // ============================================
-    // ⭐ FALLBACK LOCAL
+    // ⭐ FALLBACK LOCAL INTELIGENTE
     // ============================================
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         const isGiria = context && context.includes('MODO GÍRIA ATIVO');
         
+        // Detectar tópicos com palavras-chave
         const topicos = {
-            saudacao: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'e aí'],
-            estudo: ['estud', 'aula', 'prova', 'matéria', 'aprender', 'revisar'],
-            tarefa: ['tarefa', 'dever', 'trabalho', 'entrega', 'prazo', 'pendente'],
-            matematica: ['matemática', 'matematica', 'cálculo', 'equação', 'fórmula', 'número'],
-            fisica: ['física', 'fisica', 'movimento', 'energia', 'força'],
-            historia: ['história', 'historia', 'passado', 'acontecimento', 'época'],
-            programacao: ['programação', 'programacao', 'código', 'javascript', 'python'],
-            motivacao: ['motivação', 'motivacao', 'ânimo', 'animar', 'força', 'foco'],
-            geografia: ['capital', 'país', 'cidade', 'estado', 'países', 'continente'],
-            anotacao: ['anotação', 'nota', 'anotacoes', 'notas'],
-            disciplina: ['disciplina', 'matéria', 'disciplinas', 'matérias']
+            saudacao: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'e aí', 'qual é', 'tudo bem'],
+            estudo: ['estud', 'aula', 'prova', 'matéria', 'aprender', 'revisar', 'conteúdo'],
+            tarefa: ['tarefa', 'dever', 'trabalho', 'entrega', 'prazo', 'pendente', 'atividade'],
+            matematica: ['matemática', 'matematica', 'cálculo', 'equação', 'fórmula', 'número', 'álgebra'],
+            fisica: ['física', 'fisica', 'movimento', 'energia', 'força', 'física'],
+            historia: ['história', 'historia', 'passado', 'acontecimento', 'época', 'evento'],
+            programacao: ['programação', 'programacao', 'código', 'javascript', 'python', 'java', 'html'],
+            motivacao: ['motivação', 'motivacao', 'ânimo', 'animar', 'força', 'foco', 'fé'],
+            geografia: ['capital', 'país', 'cidade', 'estado', 'países', 'continente', 'mapa'],
+            anotacao: ['anotação', 'anotacoes', 'nota', 'notas', 'resumo'],
+            disciplina: ['disciplina', 'matéria', 'disciplinas', 'matérias', 'matérias']
         };
         
         let topicoPrincipal = 'padrao';
@@ -1419,6 +1413,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
             }
         }
         
+        // Respostas por tópico
         const respostas = {
             saudacao: isGiria 
                 ? 'Eai broo! Tá fixe? Como posso ajudar hoje? Tamos juntos!'
@@ -1426,23 +1421,22 @@ INSTRUÇÕES OBRIGATÓRIAS:
             
             estudo: isGiria
                 ? 'Bora estudar, magaia! A chave é consistência. Faz um plano, segue firme e tamos juntos!'
-                : 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25min foco, 5min pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.',
+                : 'Para estudar de forma eficiente, recomendo: 1) Criar um cronograma realista 2) Usar técnicas como Pomodoro (25min foco, 5min pausa) 3) Revisar o conteúdo regularmente 4) Fazer resumos e mapas mentais.',
             
             geografia: isGiria
                 ? `Sobre geografia: ${this._respostaGeografia(texto)}`
                 : `Sobre geografia: ${this._respostaGeografia(texto)}`,
             
             anotacao: isGiria
-                ? `Tu tens anotações guardadas, broo! Quer ver alguma específica?`
+                ? `Tu tens anotações guardadas, broo! Quer que veja alguma específica?`
                 : `Você tem anotações salvas. Posso ajudar a revisar ou organizar alguma delas.`,
             
             disciplina: isGiria
-                ? `Tuas disciplinas estão registradas. Quer saber de alguma em específico?`
+                ? `Tuas disciplinas estão registradas. Quer ajuda com alguma em específico?`
                 : `Suas disciplinas estão registradas. Posso ajudar com alguma matéria específica.`,
             
             tarefa: isGiria
-                ? 'As tarefas tão aí, mas tu consegues! Vai devagar, uma de cada vez. Faz uma lista e prioriza!'
-                : 'Para gerenciar suas tarefas: priorize as mais urgentes, divida em pequenas etapas, defina prazos realistas e use a técnica Pomodoro para manter o foco.',
+                : 'Para gerenciar suas tarefas: 1) Priorize as mais urgentes 2) Divida em pequenas etapas 3) Defina prazos realistas 4) Use a técnica Pomodoro para manter o foco.',
             
             matematica: isGiria
                 ? 'Matemática é treino, broo! Resolve exercícios todo dia que melhora! Tamos juntos!'
@@ -1502,7 +1496,7 @@ INSTRUÇÕES OBRIGATÓRIAS:
     }
     
     // ============================================
-    // ⭐ MÉTODOS DE LIMITE E CACHE
+    // ⭐ MÉTODOS DE LIMITE DIÁRIO
     // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
@@ -1534,6 +1528,9 @@ INSTRUÇÕES OBRIGATÓRIAS:
         return Math.max(0, this._limiteDiario - this.getUsoHoje());
     }
     
+    // ============================================
+    // ⭐ CACHE
+    // ============================================
     _getCacheKey(prompt, context) {
         return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
     }
@@ -1566,13 +1563,16 @@ INSTRUÇÕES OBRIGATÓRIAS:
         }
     }
     
+    // ============================================
+    // ⭐ STATUS E CONFIGURAÇÃO
+    // ============================================
     getStatus() {
         return {
             usoTotal: this.getUsoHoje(),
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
             cacheSize: this._cache.size,
-            modo: 'GROQ',
+            modo: 'GROQ + FALLBACK LOCAL',
             groqConfigurado: !!this.GROQ_API_KEY,
             modelos: this.GROQ_MODELS
         };
@@ -1585,6 +1585,12 @@ INSTRUÇÕES OBRIGATÓRIAS:
         console.log('[MultiAI] Limite resetado');
         return this.getStatus();
     }
+    
+    configurarGroq(apiKey) {
+        this.GROQ_API_KEY = apiKey;
+        console.log(`[MultiAI] ${apiKey ? '✅' : '❌'} Groq ${apiKey ? 'configurado' : 'removido'}`);
+        return this.getStatus();
+    }
 }
 
 // ============================================
@@ -1593,6 +1599,9 @@ INSTRUÇÕES OBRIGATÓRIAS:
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 
+// ============================================
+// ⭐ FUNÇÕES GLOBAIS
+// ============================================
 window.getLimiteIA = () => {
     const status = multiAI.getStatus();
     return {
@@ -1612,6 +1621,13 @@ window.testIA = async (pergunta) => {
     return result;
 };
 
+window.configurarGroq = (apiKey) => {
+    return multiAI.configurarGroq(apiKey);
+};
+
+// ============================================
+// ⭐ LOG DE INICIALIZAÇÃO
+// ============================================
 console.log('[MultiAI] ✅ Serviço carregado!');
 console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
 console.log('[MultiAI] 🔑 Groq: CONFIGURADO');
