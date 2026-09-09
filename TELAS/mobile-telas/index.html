@@ -1148,20 +1148,21 @@ const checkInterval = setInterval(() => {
 <script src="modules/documentos.js"></script>
 
 <script>// ============================================
-// multi-ai-service.js - POLLINATIONS.AI + GEMINI + FALLBACK
-// COM CHAVE GEMINI CONFIGURADA - 100% FUNCIONAL
+// multi-ai-service.js - LLAMA + GROK
+// COM CHAVES CONFIGURADAS
 // ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO MULTI-API...');
+console.log('🔥 [MultiAI] CARREGANDO SERVIÇO LLAMA + GROK...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ POLLINATIONS - MODO ANÔNIMO (SEM CHAVE)
-        this.POLLINATIONS_API_KEY = null;
+        // ⭐ LLAMA API (via OpenRouter)
+        this.LLAMA_API_KEY = "sk-ZF7pWxT4FEWvzmwFLiANNkXVhYgHHRGnR6uGqLkunbaV8y8U";
+        this.LLAMA_MODEL = "meta-llama/llama-3.2-3b-instruct:free";
         
-        // ⭐ GEMINI - CHAVE CONFIGURADA (GRATUITA)
-        this.GEMINI_API_KEY = "AQ.Ab8RN6IYNCNTvS8vcBqvI56TT6QH7iMSIOC7H8rHMeIEhcOOFA";
-        this.USE_GEMINI = true; // ATIVADO!
+        // ⭐ GROK API (via xAI)
+        this.GROK_API_KEY = "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";
+        this.GROK_MODEL = "grok-2-1212";
         
         // Cache para reduzir chamadas
         this._cache = new Map();
@@ -1171,8 +1172,9 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Modo: ANÔNIMO (Pollinations) + GEMINI (fallback)');
-        console.log('[MultiAI] 🔑 Gemini: ✅ Configurado e ATIVO!');
+        console.log('[MultiAI] 📌 Modo: LLAMA (principal) + GROK (fallback)');
+        console.log('[MultiAI] 🔑 Llama: ✅ Configurado');
+        console.log('[MultiAI] 🔑 Grok: ✅ Configurado');
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
@@ -1198,37 +1200,36 @@ class MultiAIService {
             return { success: true, text: cached, fromCache: true };
         }
         
-        // ⭐ TENTAR GEMINI PRIMEIRO (MAIS CONFIÁVEL)
-        if (this.USE_GEMINI && this.GEMINI_API_KEY) {
+        // ⭐ TENTAR LLAMA PRIMEIRO (via OpenRouter)
+        if (this.LLAMA_API_KEY) {
             try {
-                const result = await this._callGeminiAPI(prompt, context);
+                const result = await this._callLlamaAPI(prompt, context);
                 if (result.success) {
                     this._incrementarUso();
                     this._saveToCache(prompt, context, result.text);
-                    console.log('[MultiAI] ✅ Resposta do Gemini!');
+                    console.log('[MultiAI] ✅ Resposta do Llama!');
                     return result;
                 }
-                console.log('[MultiAI] ⚠️ Gemini falhou:', result.error);
+                console.log('[MultiAI] ⚠️ Llama falhou:', result.error);
             } catch (error) {
-                console.error('[MultiAI] ❌ Erro no Gemini:', error.message);
+                console.error('[MultiAI] ❌ Erro no Llama:', error.message);
             }
         }
         
-        // ⭐ TENTAR POLLINATIONS (MODO ANÔNIMO)
-        try {
-            const result = await this._callPollinationsAPI(prompt, context);
-            
-            if (result.success) {
-                this._incrementarUso();
-                this._saveToCache(prompt, context, result.text);
-                console.log('[MultiAI] ✅ Resposta do Pollinations!');
-                return result;
+        // ⭐ TENTAR GROK (xAI)
+        if (this.GROK_API_KEY) {
+            try {
+                const result = await this._callGrokAPI(prompt, context);
+                if (result.success) {
+                    this._incrementarUso();
+                    this._saveToCache(prompt, context, result.text);
+                    console.log('[MultiAI] ✅ Resposta do Grok!');
+                    return result;
+                }
+                console.log('[MultiAI] ⚠️ Grok falhou:', result.error);
+            } catch (error) {
+                console.error('[MultiAI] ❌ Erro no Grok:', error.message);
             }
-            
-            console.log('[MultiAI] ⚠️ Pollinations falhou:', result.error);
-            
-        } catch (error) {
-            console.error('[MultiAI] ❌ Erro no Pollinations:', error.message);
         }
         
         // ⭐ FALLBACK LOCAL (sempre disponível)
@@ -1244,45 +1245,50 @@ class MultiAIService {
     }
     
     // ============================================
-    // ⭐ GEMINI API (PRINCIPAL - GRATUITA)
+    // ⭐ LLAMA API (via OpenRouter)
     // ============================================
-    async _callGeminiAPI(prompt, context) {
-        if (!this.GEMINI_API_KEY) {
-            return { success: false, error: 'Gemini não configurado' };
+    async _callLlamaAPI(prompt, context) {
+        if (!this.LLAMA_API_KEY) {
+            return { success: false, error: 'Llama não configurado' };
         }
         
-        // URL CORRETA para a API Gemini
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.GEMINI_API_KEY}`;
+        const url = 'https://openrouter.ai/api/v1/chat/completions';
         
-        console.log('[Gemini] 📡 Enviando para Gemini...');
-        console.log('[Gemini] 🔑 Chave:', this.GEMINI_API_KEY.substring(0, 15) + '...');
+        console.log('[Llama] 📡 Enviando para OpenRouter...');
+        console.log('[Llama] 🔑 Chave:', this.LLAMA_API_KEY.substring(0, 15) + '...');
+        console.log('[Llama] 📌 Modelo:', this.LLAMA_MODEL);
         
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${this.LLAMA_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://zero-satus.app',
+                    'X-Title': 'Zero Satus'
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 500,
-                        topK: 40,
-                        topP: 0.95
-                    }
+                    model: this.LLAMA_MODEL,
+                    messages: [
+                        { 
+                            role: 'system', 
+                            content: context || 'Você é um assistente de estudos útil e amigável.'
+                        },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500,
+                    top_p: 0.9
                 })
             });
             
-            console.log('[Gemini] 📥 Status:', response.status);
+            console.log('[Llama] 📥 Status:', response.status);
             
             if (!response.ok) {
                 let errorMessage = `Erro ${response.status}`;
                 try {
                     const errorData = await response.json();
-                    console.error('[Gemini] ❌ Detalhes:', errorData);
+                    console.error('[Llama] ❌ Detalhes:', errorData);
                     errorMessage = errorData.error?.message || errorMessage;
                 } catch (e) {
                     // Ignorar erro ao parsear JSON
@@ -1291,78 +1297,83 @@ class MultiAIService {
             }
             
             const data = await response.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            const text = data.choices?.[0]?.message?.content;
             
             if (text && text.length > 0) {
-                console.log('[Gemini] ✅ Resposta recebida!');
-                return { success: true, text: text.trim(), provider: 'Gemini' };
+                console.log('[Llama] ✅ Resposta recebida!');
+                return { success: true, text: text.trim(), provider: 'Llama' };
             }
             
             return { success: false, error: 'Resposta vazia' };
             
         } catch (error) {
-            console.error('[Gemini] ❌ Erro de rede:', error.message);
+            console.error('[Llama] ❌ Erro de rede:', error.message);
             return { success: false, error: error.message };
         }
     }
     
     // ============================================
-    // ⭐ POLLINATIONS API - MODO ANÔNIMO (SEM CHAVE)
+    // ⭐ GROK API (via xAI)
     // ============================================
-    async _callPollinationsAPI(prompt, context) {
-        const seed = Math.floor(Date.now() / 1000) % 2147483647;
+    async _callGrokAPI(prompt, context) {
+        if (!this.GROK_API_KEY) {
+            return { success: false, error: 'Grok não configurado' };
+        }
         
-        // ⭐ URL CORRIGIDA: SEM model=openai (causa erro 402)
-        const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?seed=${seed}`;
+        const url = 'https://api.x.ai/v1/chat/completions';
         
-        console.log('[Pollinations] 📡 URL:', url);
-        console.log('[Pollinations] 📡 Modo: ANÔNIMO (sem chave)');
+        console.log('[Grok] 📡 Enviando para xAI...');
+        console.log('[Grok] 🔑 Chave:', this.GROK_API_KEY.substring(0, 15) + '...');
+        console.log('[Grok] 📌 Modelo:', this.GROK_MODEL);
         
         try {
             const response = await fetch(url, {
-                method: 'GET',
+                method: 'POST',
                 headers: {
-                    'Accept': 'text/plain'
-                    // ⭐ NÃO ENVIAR Authorization - modo anônimo puro!
-                }
+                    'Authorization': `Bearer ${this.GROK_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: this.GROK_MODEL,
+                    messages: [
+                        { 
+                            role: 'system', 
+                            content: context || 'Você é um assistente de estudos útil e amigável.'
+                        },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500,
+                    top_p: 0.9
+                })
             });
             
-            console.log('[Pollinations] 📥 Status:', response.status);
+            console.log('[Grok] 📥 Status:', response.status);
             
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('[Pollinations] ❌ Erro:', response.status, errorText);
-                
-                // Se for 402, tentar sem seed
-                if (response.status === 402) {
-                    console.log('[Pollinations] 🔄 Tentando sem seed...');
-                    const url2 = `https://text.pollinations.ai/${encodeURIComponent(prompt)}`;
-                    const response2 = await fetch(url2, {
-                        method: 'GET',
-                        headers: { 'Accept': 'text/plain' }
-                    });
-                    if (response2.ok) {
-                        const text2 = await response2.text();
-                        if (text2 && text2.length > 0) {
-                            return { success: true, text: text2.trim() };
-                        }
-                    }
+                let errorMessage = `Erro ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    console.error('[Grok] ❌ Detalhes:', errorData);
+                    errorMessage = errorData.error?.message || errorMessage;
+                } catch (e) {
+                    // Ignorar erro ao parsear JSON
                 }
-                
-                return { success: false, error: `Erro ${response.status}` };
+                return { success: false, error: errorMessage };
             }
             
-            const text = await response.text();
-            console.log('[Pollinations] ✅ Resposta recebida!');
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content;
             
             if (text && text.length > 0) {
-                return { success: true, text: text.trim(), provider: 'Pollinations' };
+                console.log('[Grok] ✅ Resposta recebida!');
+                return { success: true, text: text.trim(), provider: 'Grok' };
             }
             
             return { success: false, error: 'Resposta vazia' };
             
         } catch (error) {
-            console.error('[Pollinations] ❌ Erro na requisição:', error.message);
+            console.error('[Grok] ❌ Erro de rede:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -1514,9 +1525,9 @@ class MultiAIService {
             limiteTotal: this._limiteDiario,
             restante: this.getLimiteRestante(),
             cacheSize: this._cache.size,
-            modo: 'ANÔNIMO + GEMINI (fallback)',
-            geminiConfigurado: !!this.GEMINI_API_KEY,
-            geminiAtivo: this.USE_GEMINI
+            modo: 'LLAMA (principal) + GROK (fallback)',
+            llamaConfigurado: !!this.LLAMA_API_KEY,
+            grokConfigurado: !!this.GROK_API_KEY
         };
     }
     
@@ -1528,11 +1539,16 @@ class MultiAIService {
         return this.getStatus();
     }
     
-    // ⭐ CONFIGURAR GEMINI (dinamicamente)
-    configurarGemini(apiKey, ativar = true) {
-        this.GEMINI_API_KEY = apiKey;
-        this.USE_GEMINI = ativar && !!apiKey;
-        console.log(`[MultiAI] ${this.USE_GEMINI ? '✅' : '❌'} Gemini ${this.USE_GEMINI ? 'ativado' : 'desativado'}`);
+    // ⭐ CONFIGURAR CHAVES (dinamicamente)
+    configurarLlama(apiKey) {
+        this.LLAMA_API_KEY = apiKey;
+        console.log(`[MultiAI] ${apiKey ? '✅' : '❌'} Llama ${apiKey ? 'configurado' : 'removido'}`);
+        return this.getStatus();
+    }
+    
+    configurarGrok(apiKey) {
+        this.GROK_API_KEY = apiKey;
+        console.log(`[MultiAI] ${apiKey ? '✅' : '❌'} Grok ${apiKey ? 'configurado' : 'removido'}`);
         return this.getStatus();
     }
 }
@@ -1542,8 +1558,8 @@ class MultiAIService {
 // ============================================
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
-window.GeminiService = multiAI;
-window.OpenRouterService = multiAI;
+window.LlamaService = multiAI;
+window.GrokService = multiAI;
 
 // ============================================
 // ⭐ FUNÇÕES GLOBAIS DE UTILIDADE
@@ -1555,29 +1571,35 @@ window.getLimiteIA = () => {
         maximo: status.limiteTotal,
         restante: status.restante,
         modo: status.modo,
-        gemini: status.geminiConfigurado,
+        llama: status.llamaConfigurado,
+        grok: status.grokConfigurado,
         reset: () => multiAI.resetLimite()
     };
 };
 
-window.testPollinations = async (pergunta) => {
-    console.log('🧪 Testando Pollinations...');
+window.testIA = async (pergunta) => {
+    console.log('🧪 Testando IA...');
     const result = await multiAI.sendMessage(pergunta);
     console.log('🤖 Resposta:', result);
     return result;
 };
 
-window.configurarGemini = (apiKey) => {
-    return multiAI.configurarGemini(apiKey, true);
+window.configurarLlama = (apiKey) => {
+    return multiAI.configurarLlama(apiKey);
+};
+
+window.configurarGrok = (apiKey) => {
+    return multiAI.configurarGrok(apiKey);
 };
 
 // ============================================
 // ⭐ LOG DE INICIALIZAÇÃO
 // ============================================
 console.log('[MultiAI] ✅ Serviço carregado com sucesso!');
-console.log('[MultiAI] 📌 Modo: GEMINI (principal) + POLLINATIONS (fallback) + LOCAL (último recurso)');
-console.log('[MultiAI] 🔑 Gemini: CONFIGURADO e ATIVO!');
-console.log('[MultiAI] 💡 Teste: window.testPollinations("Qual é a capital de Moçambique?")');</script>
+console.log('[MultiAI] 📌 Modo: LLAMA (principal) + GROK (fallback) + LOCAL (último recurso)');
+console.log('[MultiAI] 🔑 Llama: CONFIGURADO');
+console.log('[MultiAI] 🔑 Grok: CONFIGURADO');
+console.log('[MultiAI] 💡 Teste: window.testIA("Qual é a capital de Moçambique?")');</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
