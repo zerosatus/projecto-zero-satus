@@ -1,11 +1,11 @@
 // ============================================
-// modules/ia.js - MÓDULO DA IA COM ACESSO COMPLETO AOS DADOS
+// modules/ia.js - MÓDULO DA IA (PC - CORRIGIDO)
 // ⭐ + ACESSO TOTAL A TAREFAS, ANOTAÇÕES, HORÁRIO E DISCIPLINAS
 // ⭐ + LIMITE DIÁRIO DE 15 MENSAGENS
-// ⭐ + PAINEL LATERAL, HISTÓRICO E FAB SPARKLES
+// ⭐ + PAINEL LATERAL, HISTÓRICO E FAB
 // ============================================
 
-// ⭐ NOSSOS ÍCONES SVG
+// ⭐ ÍCONES SVG
 const IA_SPARKLES_SVG = `
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
         <path d="M12 9.5q.9 4.6 5.5 5.5-4.6.9-5.5 5.5-.9-4.6-5.5-5.5 4.6-.9 5.5-5.5z"/>
@@ -21,26 +21,27 @@ const IA_ICONS = {
     trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`
 };
 
-class IAModule {
+class IaModule {
     constructor(app) {
         this.app = app;
         this.name = 'ia';
         this.messages = [];
-        this._previousView = 'dashboard';
+        this._previousView = 'inicio';
         this._isProcessing = false;
         this._modoGiria = false;
         this._ultimaMensagem = '';
+        this._firstRender = true;
         
-        // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+        // LIMITE DIÁRIO
         this.LIMITE_DIARIO = 15;
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        // ⭐ HISTÓRICO
+        // HISTÓRICO
         this.history = [];
         this.currentHistoryId = null;
         
-        // ⭐ DADOS DO USUÁRIO (serão atualizados no render)
+        // DADOS DO USUÁRIO
         this.tasks = [];
         this.notes = [];
         this.weeklySchedule = {};
@@ -48,13 +49,12 @@ class IAModule {
         this.disciplinas = [];
         this.notifications = [];
         
-        console.log('[IA] 🤖 Inicializado com acesso completo aos dados do usuário');
-        console.log('[IA] 📊 Limite diário:', this.LIMITE_DIARIO, 'mensagens');
+        console.log('[IA PC] 🤖 Inicializado');
         this._resetarLimite();
     }
 
     // ============================================
-    // ⭐ RESETAR LIMITE DIÁRIO
+    // RESETAR LIMITE DIÁRIO
     // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
@@ -87,10 +87,11 @@ class IAModule {
     }
 
     // ============================================
-    // RENDER PRINCIPAL - CARREGA TODOS OS DADOS
+    // RENDER PRINCIPAL
     // ============================================
     render(data) {
-        // ⭐ CARREGAR TODOS OS DADOS DO USUÁRIO
+        console.log('[IA PC] 📊 Renderizando...');
+        
         this.notifications = data.notifications || [];
         this.tasks = data.tasks || [];
         this.notes = data.notes || [];
@@ -98,29 +99,30 @@ class IAModule {
         this.timeSlots = data.timeSlots || [];
         this.disciplinas = data.disciplinas || [];
         
-        // ⭐ ATUALIZAR ESTATÍSTICAS NO CHAT
+        // Inicializar UI
         this.carregarHistorico();
-        this.upgradeHeader();
-        this.garantirFab();
-        this.criarPainel();
         this.renderHistoryList();
         this.renderChat();
         this.updateBadge();
-        this.setupEvents();
         this._atualizarStatusGiria();
         this._atualizarStatusLimite();
         
-        console.log('[IA] 📊 Dados carregados:', {
+        // Configurar eventos (apenas na primeira vez)
+        if (this._firstRender) {
+            this.setupEvents();
+            this._firstRender = false;
+        }
+        
+        console.log('[IA PC] 📊 Dados carregados:', {
             tasks: this.tasks.length,
             pendentes: this.tasks.filter(t => !t.completed).length,
             notes: this.notes.length,
-            disciplinas: this.disciplinas.length,
-            schedule: Object.keys(this.weeklySchedule).length
+            disciplinas: this.disciplinas.length
         });
     }
 
     // ============================================
-    // RENDER CHAT COM ESTATÍSTICAS
+    // RENDER CHAT
     // ============================================
     renderChat() {
         const container = document.getElementById('ia-messages-container');
@@ -136,39 +138,39 @@ class IAModule {
             const concluidas = this.tasks.filter(t => t.completed);
             
             container.innerHTML = `
-                <div class="ia-empty-state">
-                    <div class="ia-empty-orb">${IA_SPARKLES_SVG}</div>
-                    <h3>${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
-                    <p style="font-size:0.9rem;color:var(--text-secondary);">Como posso te ajudar hoje?</p>
+                <div class="ia-empty-state" style="text-align:center;padding:40px 20px;max-width:600px;margin:0 auto;">
+                    <div class="ia-empty-orb" style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#8b5cf6,#6366f1);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 0 40px rgba(139,92,246,0.3);">
+                        ${IA_SPARKLES_SVG}
+                    </div>
+                    <h3 style="font-size:1.3rem;font-weight:700;margin-bottom:6px;">${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
+                    <p style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:16px;">Como posso te ajudar hoje?</p>
                     
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0;padding:12px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border-color);width:100%;">
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-purple);">${pendentes.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Pendentes</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;padding:14px;background:var(--card-bg);border-radius:14px;border:1px solid var(--border-color);margin-bottom:16px;">
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 14px;">
+                            <span style="font-weight:700;color:var(--accent-purple);font-size:1.1rem;">${pendentes.length}</span>
+                            <span style="font-size:0.65rem;color:var(--text-secondary);">Pendentes</span>
                         </div>
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-green);">${concluidas.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Concluídas</span>
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 14px;">
+                            <span style="font-weight:700;color:var(--accent-green);font-size:1.1rem;">${concluidas.length}</span>
+                            <span style="font-size:0.65rem;color:var(--text-secondary);">Concluídas</span>
                         </div>
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-orange);">${this.notes.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Anotações</span>
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 14px;">
+                            <span style="font-weight:700;color:var(--accent-orange);font-size:1.1rem;">${this.notes.length}</span>
+                            <span style="font-size:0.65rem;color:var(--text-secondary);">Anotações</span>
                         </div>
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-blue, #60a5fa);">${this.disciplinas.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Disciplinas</span>
+                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 14px;">
+                            <span style="font-weight:700;color:#60a5fa;font-size:1.1rem;">${this.disciplinas.length}</span>
+                            <span style="font-size:0.65rem;color:var(--text-secondary);">Disciplinas</span>
                         </div>
                     </div>
                     
-                    <p class="ia-empty-hint">💬 Digite <strong>"fala com gíria"</strong> para ativar ou 
-                        <strong>"fala normal"</strong> para desativar</p>
-                    <p class="ia-empty-limite" id="ia-limite-status">
-                        💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje
-                    </p>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);">💬 Digite <strong>"fala com gíria"</strong> para ativar ou <strong>"fala normal"</strong> para desativar</p>
+                    <p style="font-size:0.7rem;color:var(--text-secondary);margin-top:4px;" id="ia-limite-status">💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje</p>
                 </div>
             `;
+            
             const actions = document.getElementById('ia-quick-actions');
-            if (actions) actions.style.display = 'grid';
+            if (actions) actions.style.display = 'flex';
             return;
         }
         
@@ -186,13 +188,13 @@ class IAModule {
                 ? new Date(msg.timestamp).toLocaleTimeString()
                 : new Date().toLocaleTimeString());
             html += `
-                <div class="ia-message ${isUser ? 'ia-message-user' : 'ia-message-ai'}">
-                    <div class="ia-message-avatar">${isUser ? '👤' : '🤖'}</div>
-                    <div class="ia-message-content" ${isAI ? 'style="user-select:text;-webkit-user-select:text;"' : ''}>
+                <div class="ia-message ${isUser ? 'ia-message-user' : 'ia-message-ai'}" style="display:flex;align-items:flex-start;gap:12px;max-width:85%;${isUser ? 'align-self:flex-end;flex-direction:row-reverse;' : 'align-self:flex-start;'}">
+                    <div class="ia-message-avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;background:${isUser ? 'var(--accent-purple)' : 'var(--card-bg)'};border:${isUser ? 'none' : '1px solid var(--border-color)'};flex-shrink:0;">${isUser ? '👤' : '🤖'}</div>
+                    <div class="ia-message-content" style="padding:12px 18px;border-radius:16px;font-size:0.9rem;line-height:1.6;word-wrap:break-word;max-width:100%;background:${isUser ? 'var(--accent-purple)' : 'var(--card-bg)'};color:${isUser ? 'white' : 'var(--text-primary)'};border:${isUser ? 'none' : '1px solid var(--border-color)'};border-bottom-${isUser ? 'right' : 'left'}-radius:4px;" ${isAI ? 'style="user-select:text;-webkit-user-select:text;"' : ''}>
                         ${content}
-                        ${isAI ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)">📋 Copiar</span>` : ''}
+                        ${isAI ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)" style="font-size:0.6rem;color:var(--text-secondary);opacity:0.5;display:block;margin-top:6px;cursor:pointer;">📋 Copiar</span>` : ''}
                     </div>
-                    <div class="ia-message-time">${time}</div>
+                    <div class="ia-message-time" style="font-size:0.6rem;color:var(--text-secondary);margin-top:4px;${isUser ? 'text-align:right;' : ''}">${time}</div>
                 </div>
             `;
         });
@@ -201,12 +203,11 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ BUILD USER CONTEXT - ACESSO COMPLETO AOS DADOS
+    // BUILD USER CONTEXT
     // ============================================
     buildUserContext(textoUsuario) {
         const user = this.app.user || {};
         
-        // ⭐ EXTRAIR DADOS ATUALIZADOS
         const tasks = this.tasks || [];
         const pendentes = tasks.filter(t => !t.completed);
         const concluidas = tasks.filter(t => t.completed);
@@ -215,29 +216,26 @@ class IAModule {
         const slots = this.timeSlots || [];
         const disciplinas = this.disciplinas || [];
         
-        // ⭐ DETECTAR COMANDOS DE GÍRIA
+        // DETECTAR COMANDOS DE GÍRIA
         const pediuGiria = this._usuarioPediuGiria(textoUsuario);
         const querNormal = this._usuarioQuerNormal(textoUsuario);
         
         if (pediuGiria) {
             this._modoGiria = true;
-            this._mostrarToast('🇲🇿 Modo Gíria ativado! Fala como magaia!');
+            this._mostrarToast('🇲🇿 Modo Gíria ativado!');
         } else if (querNormal) {
             this._modoGiria = false;
-            this._mostrarToast('📚 Modo Normal ativado! Fala formal.');
+            this._mostrarToast('📚 Modo Normal ativado!');
         }
         
-        const isPerguntaSobreModo = this._usuarioPediuGiria(textoUsuario) ||
-                                    this._usuarioQuerNormal(textoUsuario);
+        const isPerguntaSobreModo = pediuGiria || querNormal;
         
-        // ⭐ CONSTRUIR CONTEXTO COMPLETO
         let contexto = `
 📚 CONTEXTO COMPLETO DO ESTUDANTE - ${new Date().toLocaleString('pt-BR')}
 
 👤 PERFIL:
 Nome: ${user.nome || 'Estudante'}
 Email: ${user.email || 'Não informado'}
-ID: ${user.id || 'N/A'}
 
 📋 TAREFAS:
 Total: ${tasks.length}
@@ -246,11 +244,7 @@ Concluídas: ${concluidas.length}
 
 ${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) => 
     `   ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
-).join('\n') : '✅ Todas as tarefas foram concluídas! Parabéns! 🎉'}
-
-${concluidas.length > 0 ? '\n✅ TAREFAS CONCLUÍDAS:\n' + concluidas.slice(0, 5).map((t, i) => 
-    `   ${i+1}. ${t.title || t.nome || 'Sem título'}`
-).join('\n') + (concluidas.length > 5 ? `\n   ... e mais ${concluidas.length - 5} concluídas` : '') : ''}
+).join('\n') : '✅ Todas as tarefas foram concluídas! 🎉'}
 
 📝 ANOTAÇÕES:
 Total: ${notes.length}
@@ -259,48 +253,31 @@ ${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, 
 ).join('\n') + (notes.length > 5 ? `\n   ... e mais ${notes.length - 5} anotações` : '') : 'Nenhuma anotação ainda'}
 
 📚 DISCIPLINAS:
-${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}${d.cor ? ` (${d.cor})` : ''}`).join('\n') : 'Nenhuma disciplina cadastrada'}
+${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}`).join('\n') : 'Nenhuma disciplina cadastrada'}
 
 📅 HORÁRIO SEMANAL:
 ${Object.entries(schedule).map(([dia, aulas]) => {
     if (aulas && aulas.length > 0) {
-        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})${a.professor ? ` - ${a.professor}` : ''}`).join(', ')}`;
+        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ')}`;
     }
     return `${dia}: Sem aulas`;
 }).join('\n')}
 
-⏰ HORÁRIOS DISPONÍVEIS: ${slots.join(', ') || 'Nenhum horário cadastrado'}
-
-🎯 LIMITE DIÁRIO DE MENSAGENS:
-Usadas hoje: ${this.getUsoHoje()}/${this.LIMITE_DIARIO}
-Restantes: ${this.getLimiteRestante()}
-
-INSTRUÇÕES DE ESTILO:
+🎯 LIMITE DIÁRIO: ${this.getUsoHoje()}/${this.LIMITE_DIARIO} usadas, ${this.getLimiteRestante()} restantes
 `;
-        
+
         if (this._modoGiria) {
             contexto += `
-✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
+✅ MODO GÍRIA ATIVO! Use gírias moçambicanas: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
 ✅ Seja descontraído, amigável e divertido.
 ✅ Use emojis frequentemente 🇲🇿
-✅ Responda com entusiasmo e calor humano.
-✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ Se perguntarem sobre tarefas, liste as pendentes.
-✅ Se perguntarem sobre anotações, mostre as últimas.
-✅ Se perguntarem sobre horário, mostre as aulas do dia.
 ${isPerguntaSobreModo ? '⚠️ O usuário acabou de ativar o modo gíria. Responda comemorando!' : ''}
 `;
         } else {
             contexto += `
 ✅ MODO NORMAL ATIVO! Fale em português formal e claro.
 ✅ Seja profissional, direto e objetivo.
-✅ Use linguagem neutra, sem gírias.
 ✅ Dê respostas completas e bem estruturadas.
-✅ Seja educado e respeitoso.
-✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ Se perguntarem sobre tarefas, liste as pendentes com prioridade.
-✅ Se perguntarem sobre anotações, sugira organizá-las.
-✅ Se perguntarem sobre horário, mostre a grade completa.
 ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Responda confirmando de forma educada.' : ''}
 `;
         }
@@ -308,37 +285,16 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         return contexto;
     }
 
-    // ============================================
-    // ⭐ DETECTAR COMANDOS
-    // ============================================
     _usuarioPediuGiria(texto) {
-        const palavrasChave = [
-            'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
-            'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
-            'fala moçambicano', 'fala com gíria', 'fala que nem eu',
-            'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
-            'fala moçambicano', 'modo gíria', 'modo giria'
-        ];
-        return palavrasChave.some(palavra =>
-            texto.toLowerCase().includes(palavra.toLowerCase())
-        );
+        const palavras = ['gíria', 'giria', 'moçambique', 'moçambicana', 'magaia', 'broo', 'txuna', 'maning', 'tamos juntos', 'fala com gíria', 'modo gíria'];
+        return palavras.some(p => texto.toLowerCase().includes(p));
     }
     
     _usuarioQuerNormal(texto) {
-        const palavrasChave = [
-            'sem gíria', 'normal', 'formal', 'sem gírias',
-            'fala normal', 'sério', 'direto', 'sem brincadeira',
-            'desativa gíria', 'desativar gíria', 'fala formal',
-            'volta ao normal', 'modo normal'
-        ];
-        return palavrasChave.some(palavra =>
-            texto.toLowerCase().includes(palavra.toLowerCase())
-        );
+        const palavras = ['sem gíria', 'normal', 'formal', 'fala normal', 'desativa gíria', 'modo normal'];
+        return palavras.some(p => texto.toLowerCase().includes(p));
     }
 
-    // ============================================
-    // ⭐ MOSTRAR TOAST
-    // ============================================
     _mostrarToast(mensagem) {
         if (typeof showToast === 'function') {
             showToast(mensagem, 'info');
@@ -349,9 +305,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         this._atualizarStatusLimite();
     }
 
-    // ============================================
-    // ⭐ ATUALIZAR STATUS
-    // ============================================
     _atualizarStatusGiria() {
         const statusEl = document.getElementById('giria-status');
         if (statusEl) {
@@ -361,35 +314,30 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         const btn = document.getElementById('btn-toggle-giria');
         if (btn) {
             btn.style.borderColor = this._modoGiria ? 'var(--accent-purple)' : 'var(--border-color)';
-            btn.style.background = this._modoGiria ? 'rgba(139, 92, 246, 0.15)' : 'var(--card-bg)';
+            btn.style.background = this._modoGiria ? 'rgba(139,92,246,0.15)' : 'var(--card-bg)';
         }
     }
     
     _atualizarStatusLimite() {
         const limiteEl = document.getElementById('ia-limite-status');
         if (!limiteEl) return;
-        
         const restante = this.getLimiteRestante();
-        const usado = this.getUsoHoje();
         limiteEl.textContent = `💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje`;
         limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
     }
 
-    // ============================================
-    // ⭐ ALTERNAR MODO
-    // ============================================
     toggleModoGiria() {
         this._modoGiria = !this._modoGiria;
         const mensagem = this._modoGiria
-            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
-            : '📚 Modo Normal ativado! Fala formal.';
+            ? '🇲🇿 Modo Gíria ativado!'
+            : '📚 Modo Normal ativado!';
         this._mostrarToast(mensagem);
         this._atualizarStatusGiria();
         this.messages.push({
             role: 'assistant',
             content: this._modoGiria
                 ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
-                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
+                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional.',
             time: new Date().toLocaleTimeString(),
             isSystem: true
         });
@@ -397,25 +345,36 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ ENVIAR MENSAGEM
+    // ⭐ ENVIAR MENSAGEM (CORRIGIDO)
     // ============================================
     async sendMessage(text) {
+        // ⭐ PEGAR TEXTO DO INPUT
         if (!text) {
             const input = document.getElementById('ia-input');
-            if (!input) return;
+            if (!input) {
+                console.warn('[IA PC] ❌ Input não encontrado');
+                return;
+            }
             text = input.value.trim();
-            if (!text) return;
+            if (!text) {
+                console.log('[IA PC] ℹ️ Mensagem vazia');
+                return;
+            }
             input.value = '';
+            console.log('[IA PC] 📤 Mensagem do input:', text.substring(0, 50) + '...');
         }
         
-        if (this._isProcessing) return;
+        if (this._isProcessing) {
+            console.log('[IA PC] ⏳ Já processando...');
+            return;
+        }
         
-        // ⭐ VERIFICAR LIMITE DIÁRIO
+        // ⭐ VERIFICAR LIMITE
         if (!this.temLimiteDisponivel()) {
             this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
             this.messages.push({
                 role: 'assistant',
-                content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
+                content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã!`,
                 time: new Date().toLocaleTimeString()
             });
             this.renderChat();
@@ -435,11 +394,16 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         const container = document.getElementById('ia-messages-container');
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'ia-message ia-message-ai ia-loading';
+        loadingDiv.style.cssText = 'display:flex;align-items:flex-start;gap:12px;max-width:85%;align-self:flex-start;';
         loadingDiv.innerHTML = `
-            <div class="ia-message-avatar">🤖</div>
-            <div class="ia-message-content">
-                <span class="ia-dots"><span>.</span><span>.</span><span>.</span></span>
-                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">
+            <div class="ia-message-avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;background:var(--card-bg);border:1px solid var(--border-color);flex-shrink:0;">🤖</div>
+            <div class="ia-message-content" style="padding:12px 18px;border-radius:16px;font-size:0.9rem;line-height:1.6;background:var(--card-bg);border:1px solid var(--border-color);border-bottom-left-radius:4px;display:flex;align-items:center;gap:10px;">
+                <span class="ia-dots" style="display:inline-flex;gap:4px;">
+                    <span style="display:inline-block;width:8px;height:8px;background:var(--accent-purple);border-radius:50%;animation:dotBounce 1.2s ease-in-out infinite;"></span>
+                    <span style="display:inline-block;width:8px;height:8px;background:var(--accent-purple);border-radius:50%;animation:dotBounce 1.2s ease-in-out infinite 0.2s;"></span>
+                    <span style="display:inline-block;width:8px;height:8px;background:var(--accent-purple);border-radius:50%;animation:dotBounce 1.2s ease-in-out infinite 0.4s;"></span>
+                </span>
+                <span style="font-size:0.75rem;color:var(--text-secondary);">
                     ${this._modoGiria ? 'To a pensar, broo...' : 'Processando...'}
                 </span>
             </div>
@@ -448,19 +412,12 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         container.scrollTop = container.scrollHeight;
         
         try {
-            // ⭐ CONTEXTO COMPLETO COM TODOS OS DADOS
             const context = this.buildUserContext(text);
             let response;
-            const service = window.MultiAIService || window.GeminiService || window.OpenRouterService;
+            const service = window.MultiAIService;
             
             if (service) {
-                console.log('[IA] 📤 Enviando para Multi-API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
-                console.log('[IA] 📊 Dados no contexto:', {
-                    tasks: this.tasks.length,
-                    pendentes: this.tasks.filter(t => !t.completed).length,
-                    notes: this.notes.length,
-                    disciplinas: this.disciplinas.length
-                });
+                console.log('[IA PC] 📤 Enviando para API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
                 const result = await service.sendMessage(text, context);
                 if (result.success) {
                     response = result.text;
@@ -474,7 +431,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             
             loadingDiv.remove();
             
-            // ⭐ INCREMENTAR USO
             this._incrementarUso();
             
             this.messages.push({
@@ -488,13 +444,12 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             this.renderChat();
             this._atualizarStatusLimite();
             
-            // ⭐ VERIFICAR SE CHEGOU AO LIMITE
             if (this.getLimiteRestante() === 0) {
-                this._mostrarToast(`⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens!`);
+                this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
             }
             
         } catch (error) {
-            console.error('[IA] ❌ Erro:', error);
+            console.error('[IA PC] ❌ Erro:', error);
             loadingDiv.remove();
             this.messages.push({
                 role: 'assistant',
@@ -508,50 +463,46 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ FALLBACK (COM DADOS REAIS DO USUÁRIO)
+    // FALLBACK
     // ============================================
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
         const pendentes = this.tasks.filter(t => !t.completed);
-        const concluidas = this.tasks.filter(t => t.completed);
         const notasCount = this.notes.length;
         
-        // ⭐ PERGUNTAS SOBRE TAREFAS
-        if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente') || perguntas.includes('tenho que fazer')) {
+        if (perguntas.includes('tarefa') || perguntas.includes('pendente')) {
             if (pendentes.length === 0) {
                 return this._modoGiria 
                     ? '🇲🇿 Não tens tarefas pendentes, broo! Tás em dia! 🎉'
-                    : 'Você não tem tarefas pendentes. Parabéns, está em dia! 🎉';
+                    : 'Você não tem tarefas pendentes. Parabéns! 🎉';
             }
             const lista = pendentes.map((t, i) => 
-                `${i+1}. ${t.title || t.nome}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
+                `${i+1}. ${t.title || t.nome}${t.subject ? ` (${t.subject})` : ''}`
             ).join('\n');
             return this._modoGiria
-                ? `🇲🇿 Tens ${pendentes.length} tarefas pendentes, magaia!\n\n${lista}\n\nVai devagar, uma de cada vez. Tamos juntos! 💪`
-                : `Você tem ${pendentes.length} tarefas pendentes:\n\n${lista}\n\nRecomendo priorizar as mais urgentes.`;
+                ? `🇲🇿 Tens ${pendentes.length} tarefas pendentes!\n\n${lista}\n\nVai devagar, tamos juntos! 💪`
+                : `Você tem ${pendentes.length} tarefas pendentes:\n\n${lista}`;
         }
         
-        // ⭐ PERGUNTAS SOBRE ANOTAÇÕES
-        if (perguntas.includes('anotação') || perguntas.includes('nota') || perguntas.includes('anotacoes') || perguntas.includes('notas')) {
+        if (perguntas.includes('anotação') || perguntas.includes('nota')) {
             if (notasCount === 0) {
                 return this._modoGiria
-                    ? '🇲🇿 Não tens anotações guardadas, broo! Quer criar uma? 📝'
-                    : 'Você não tem anotações salvas. Que tal criar uma? 📝';
+                    ? '🇲🇿 Não tens anotações, broo! Quer criar uma? 📝'
+                    : 'Você não tem anotações. Que tal criar uma? 📝';
             }
             const lista = this.notes.slice(0, 5).map((n, i) => 
                 `${i+1}. ${n.title || 'Sem título'}`
             ).join('\n');
             return this._modoGiria
-                ? `🇲🇿 Tens ${notasCount} anotações guardadas, broo!\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5} anotações` : ''}\n\nQuer ver alguma em específico? 📝`
-                : `Você tem ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5} anotações` : ''}\n\nPosso ajudar a revisar alguma delas.`;
+                ? `🇲🇿 Tens ${notasCount} anotações!\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}`
+                : `Você tem ${notasCount} anotações:\n\n${lista}`;
         }
         
-        // ⭐ PERGUNTAS SOBRE DISCIPLINAS
-        if (perguntas.includes('disciplina') || perguntas.includes('matéria') || perguntas.includes('matérias')) {
+        if (perguntas.includes('disciplina') || perguntas.includes('matéria')) {
             if (this.disciplinas.length === 0) {
                 return this._modoGiria
-                    ? '🇲🇿 Nenhuma disciplina cadastrada ainda, maning! Vai no dashboard e adiciona. 📚'
-                    : 'Nenhuma disciplina cadastrada ainda. Vá ao dashboard e adicione suas matérias. 📚';
+                    ? '🇲🇿 Nenhuma disciplina cadastrada, maning!'
+                    : 'Nenhuma disciplina cadastrada.';
             }
             const lista = this.disciplinas.map(d => `- ${d.nome}`).join('\n');
             return this._modoGiria
@@ -559,50 +510,38 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
                 : `Suas disciplinas:\n\n${lista}`;
         }
         
-        // ⭐ PERGUNTAS SOBRE HORÁRIO
         if (perguntas.includes('horário') || perguntas.includes('aula') || perguntas.includes('hoje')) {
-            const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short' });
-            const diaSemana = hoje.charAt(0).toUpperCase() + hoje.slice(1);
-            const aulasHoje = this.weeklySchedule[diaSemana] || [];
+            const diaSemana = new Date().toLocaleDateString('pt-BR', { weekday: 'short' });
+            const dia = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+            const aulasHoje = this.weeklySchedule[dia] || [];
             
             if (aulasHoje.length === 0) {
                 return this._modoGiria
-                    ? `🇲🇿 Hoje (${diaSemana}) não tens aulas agendadas, broo! Aproveita para estudar por conta! 💪`
-                    : `Hoje (${diaSemana}) você não tem aulas agendadas. Aproveite para estudar por conta própria.`;
+                    ? `🇲🇿 Hoje (${dia}) não tens aulas, broo!`
+                    : `Hoje (${dia}) você não tem aulas.`;
             }
-            const lista = aulasHoje.map(a => 
-                `${a.materia} às ${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''}${a.professor ? ` (${a.professor})` : ''}`
-            ).join('\n');
+            const lista = aulasHoje.map(a => `${a.materia} às ${a.horaInicio}`).join('\n');
             return this._modoGiria
-                ? `🇲🇿 Hoje (${diaSemana}) tens:\n\n${lista}\n\n📚 Bora estudar, magaia!`
-                : `Hoje (${diaSemana}) você tem:\n\n${lista}`;
+                ? `🇲🇿 Hoje (${dia}) tens:\n\n${lista}\n\n📚 Bora estudar, magaia!`
+                : `Hoje (${dia}) você tem:\n\n${lista}`;
         }
         
-        // ⭐ PERGUNTAS SOBRE ESTATÍSTICAS
-        if (perguntas.includes('estatística') || perguntas.includes('resumo') || perguntas.includes('status')) {
+        if (perguntas.includes('oi') || perguntas.includes('olá') || perguntas.includes('eai')) {
             return this._modoGiria
-                ? `🇲🇿 Teu resumo, broo!\n\n📋 Tarefas: ${this.tasks.length} (${pendentes.length} pendentes, ${concluidas.length} concluídas)\n📝 Anotações: ${notasCount}\n📚 Disciplinas: ${this.disciplinas.length}\n📅 Aulas hoje: ${(this.weeklySchedule[new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)] || []).length}\n\nTamos juntos! 💪`
-                : `Seu resumo:\n\n📋 Tarefas: ${this.tasks.length} (${pendentes.length} pendentes, ${concluidas.length} concluídas)\n📝 Anotações: ${notasCount}\n📚 Disciplinas: ${this.disciplinas.length}\n📅 Aulas hoje: ${(this.weeklySchedule[new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)] || []).length}`;
+                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar? 😎'
+                : 'Olá! Como posso ajudar você hoje?';
         }
         
-        // ⭐ SAUDAÇÕES
-        if (perguntas.includes('oi') || perguntas.includes('olá') || perguntas.includes('eai') || perguntas.includes('bom dia') || perguntas.includes('boa tarde') || perguntas.includes('boa noite')) {
-            return this._modoGiria
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar hoje? Tamos juntos! 😎'
-                : 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
-        }
-        
-        // ⭐ FALLBACK PADRÃO
         return this._modoGiria
-            ? '🇲🇿 Boa pergunta, magaia! Tenta reformular ou me conta mais detalhes. Tamos juntos! 🤝'
-            : 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos!';
+            ? '🇲🇿 Boa pergunta, magaia! Tenta reformular. Tamos juntos! 🤝'
+            : 'Desculpe, não entendi. Poderia reformular?';
     }
 
     // ============================================
-    // ⭐ UPDATE BADGE
+    // UPDATE BADGE
     // ============================================
     updateBadge() {
-        const badge = document.getElementById('notification-badge');
+        const badge = document.getElementById('notificationBadgeIA');
         if (!badge) return;
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
         badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
@@ -610,167 +549,117 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ SETUP EVENTS
+    // ⭐ SETUP EVENTS (CORRIGIDO)
     // ============================================
     setupEvents() {
         const input = document.getElementById('ia-input');
         const sendBtn = document.getElementById('ia-send-btn');
-        const fabBtn = document.getElementById('btn-open-ia');
-        const backBtn = document.getElementById('btn-back-ia');
+        const fabBtn = document.getElementById('btnOpenIA');
+        const backBtn = document.getElementById('navBackBtn');
         const toggleBtn = document.getElementById('btn-toggle-giria');
 
-        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
-        if (input) {
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            };
-        }
-        if (fabBtn) {
-            fabBtn.onclick = () => {
-                this._previousView = this.app.currentView;
-                this.app.showView('ia');
-                setTimeout(() => this._atualizarStatusLimite(), 500);
-            };
-        }
-        if (backBtn) {
-            backBtn.onclick = () => {
-                this.app.showView(this._previousView || 'dashboard');
-            };
-        }
-        if (toggleBtn) {
-            toggleBtn.onclick = () => {
-                this.toggleModoGiria();
-            };
+        console.log('[IA PC] 🔧 Configurando eventos...');
+
+        // ⭐ BOTÃO ENVIAR
+        if (sendBtn) {
+            const newSendBtn = sendBtn.cloneNode(true);
+            sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+            
+            newSendBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[IA PC] 📤 Botão enviar clicado');
+                this.sendMessage();
+            });
         }
         
-        document.querySelectorAll('.ia-action-card').forEach(card => {
-            card.onclick = () => {
-                const prompt = card.dataset.prompt;
+        // ⭐ INPUT
+        if (input) {
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            
+            newInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[IA PC] 📤 Enter pressionado');
+                    this.sendMessage();
+                }
+            });
+            
+            setTimeout(() => newInput.focus(), 300);
+        }
+        
+        // ⭐ FAB
+        if (fabBtn) {
+            const newFab = fabBtn.cloneNode(true);
+            fabBtn.parentNode.replaceChild(newFab, fabBtn);
+            
+            newFab.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[IA PC] 🚀 Abrindo IA via FAB');
+                this._previousView = this.app.currentView;
+                this.app.showView('ia');
+                setTimeout(() => {
+                    const inputEl = document.getElementById('ia-input');
+                    if (inputEl) inputEl.focus();
+                    this._atualizarStatusLimite();
+                }, 500);
+            });
+        }
+        
+        // ⭐ BACK
+        if (backBtn) {
+            const newBack = backBtn.cloneNode(true);
+            backBtn.parentNode.replaceChild(newBack, backBtn);
+            
+            newBack.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[IA PC] 🔙 Voltando para:', this._previousView || 'inicio');
+                this.app.showView(this._previousView || 'inicio');
+            });
+        }
+        
+        // ⭐ TOGGLE GÍRIA
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleModoGiria();
+            });
+        }
+        
+        // ⭐ CARDS DE AÇÃO
+        document.querySelectorAll('.chip').forEach(card => {
+            const newCard = card.cloneNode(true);
+            card.parentNode.replaceChild(newCard, card);
+            
+            newCard.addEventListener('click', (e) => {
+                const prompt = newCard.dataset.prompt;
                 if (prompt) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[IA PC] 🎯 Card clicado:', prompt);
                     const textoFinal = this._modoGiria
                         ? `${prompt} (fala com gíria moçambicana)`
                         : prompt;
                     this.sendMessage(textoFinal);
                 }
-            };
+            });
         });
         
+        // ⭐ LIMITE PERIODICAMENTE
         setInterval(() => {
             this._atualizarStatusLimite();
         }, 30000);
         
-        console.log('[IA] ✅ Eventos configurados! Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+        setTimeout(() => this._atualizarStatusLimite(), 500);
+        
+        console.log('[IA PC] ✅ Eventos configurados!');
     }
 
     // ============================================
-    // ⭐ HEADER COM ☰
-    // ============================================
-    upgradeHeader() {
-        const header = document.querySelector('#view-ia .ia-header');
-        if (!header || header.classList.contains('upgraded')) return;
-        header.classList.add('upgraded');
-
-        const backBtn = document.getElementById('btn-back-ia');
-
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'ia-menu-btn';
-        menuBtn.innerHTML = IA_ICONS.menu;
-        menuBtn.title = 'Abrir conversas';
-        menuBtn.addEventListener('click', () => this.abrirPainel());
-
-        header.insertBefore(menuBtn, header.firstChild);
-
-        if (backBtn) {
-            backBtn.style.marginLeft = 'auto';
-            header.appendChild(backBtn);
-        }
-
-        header.querySelectorAll('.ia-avatar').forEach(a => a.remove());
-    }
-
-    // ============================================
-    // ⭐ FAB
-    // ============================================
-    garantirFab() {
-        let fab = document.getElementById('btn-open-ia');
-        if (!fab) {
-            fab = document.createElement('button');
-            fab.id = 'btn-open-ia';
-            fab.className = 'fab-ia';
-            document.body.appendChild(fab);
-        }
-        if (!fab.querySelector('svg')) {
-            fab.innerHTML = `<span class="pulse"></span>${IA_SPARKLES_SVG}`;
-        }
-        fab.title = 'Assistente IA';
-        return fab;
-    }
-
-    // ============================================
-    // ⭐ PAINEL LATERAL
-    // ============================================
-    criarPainel() {
-        if (document.getElementById('iaPainel')) return;
-
-        const nome = this.app?.user?.nome || 'Usuário';
-        const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-
-        const overlay = document.createElement('div');
-        overlay.className = 'ia-painel-overlay';
-        overlay.id = 'iaPainelOverlay';
-        overlay.addEventListener('click', () => this.fecharPainel());
-
-        const painel = document.createElement('aside');
-        painel.className = 'ia-painel';
-        painel.id = 'iaPainel';
-        painel.innerHTML = `
-            <div class="ia-painel-header">
-                <div class="ia-painel-brand">
-                    <div class="ia-painel-logo">${IA_SPARKLES_SVG}</div>
-                    <div class="ia-painel-brand-text"><strong>Satus IA</strong><small>Zero Satus</small></div>
-                </div>
-                <button class="ia-painel-close" id="iaPainelClose">${IA_ICONS.close}</button>
-            </div>
-            <button class="ia-painel-new" id="iaPainelNew">${IA_ICONS.plus} Nova conversa</button>
-            <div class="ia-painel-list" id="iaPainelList"></div>
-            <div class="ia-painel-footer">
-                <div class="ia-painel-user">
-                    <div class="ia-painel-user-avatar">${this.app.escapeHtml(iniciais)}</div>
-                    <div class="ia-painel-user-info">
-                        <span>${this.app.escapeHtml(nome)}</span>
-                        <small>Aluno • Zero Satus</small>
-                    </div>
-                </div>
-            </div>`;
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(painel);
-
-        document.getElementById('iaPainelClose').addEventListener('click', () => this.fecharPainel());
-        document.getElementById('iaPainelNew').addEventListener('click', () => this.novaConversa());
-        painel.querySelector('.ia-painel-list').addEventListener('click', (e) => {
-            const del = e.target.closest('[data-del]');
-            if (del) { this.excluirConversa(del.dataset.del); return; }
-            const item = e.target.closest('.ia-painel-item');
-            if (item) this.selecionarConversa(item.dataset.id);
-        });
-    }
-
-    abrirPainel() {
-        this.renderHistoryList();
-        document.getElementById('iaPainel')?.classList.add('open');
-        document.getElementById('iaPainelOverlay')?.classList.add('show');
-    }
-    fecharPainel() {
-        document.getElementById('iaPainel')?.classList.remove('open');
-        document.getElementById('iaPainelOverlay')?.classList.remove('show');
-    }
-
-    // ============================================
-    // ⭐ HISTÓRICO
+    // HISTÓRICO
     // ============================================
     carregarHistorico() {
         const userId = this.app?.user?.id;
@@ -805,17 +694,17 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     renderHistoryList() {
-        const list = document.getElementById('iaPainelList');
+        const list = document.getElementById('historyList');
         if (!list) return;
         if (this.history.length === 0) {
-            list.innerHTML = `<div class="ia-painel-empty">Nenhuma conversa ainda.<br>Comece uma nova! ✨</div>`;
+            list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:0.8rem;">Nenhuma conversa ainda.<br>Comece uma nova! ✨</div>`;
             return;
         }
         list.innerHTML = this.history.map(h => `
-            <div class="ia-painel-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
-                ${IA_ICONS.chat}
-                <span class="ia-painel-item-title">${this.app.escapeHtml(h.title)}</span>
-                <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
+            <div class="history-item ${h.id === this.currentHistoryId ? 'active' : ''}" onclick="app.modules.ia?.selecionarConversa('${h.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;${h.id === this.currentHistoryId ? 'background:rgba(139,92,246,0.15);' : ''}">
+                <span style="font-size:0.8rem;">💬</span>
+                <span style="flex:1;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${this.app.escapeHtml(h.title)}</span>
+                <button onclick="event.stopPropagation();app.modules.ia?.excluirConversa('${h.id}')" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:0.7rem;">✕</button>
             </div>`).join('');
     }
 
@@ -830,7 +719,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         }
         this.renderChat();
         this.renderHistoryList();
-        this.fecharPainel();
     }
 
     selecionarConversa(id) {
@@ -846,7 +734,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         }
         this.renderChat();
         this.renderHistoryList();
-        this.fecharPainel();
     }
 
     excluirConversa(id) {
@@ -865,7 +752,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
 }
 
 // ============================================
-// ⭐ FUNÇÃO GLOBAL PARA COPIAR
+// FUNÇÃO GLOBAL PARA COPIAR
 // ============================================
 window.copyMessage = function(element) {
     try {
@@ -910,26 +797,4 @@ function fallbackCopy(text, element) {
     }
 }
 
-// ============================================
-// ⭐ FAB ESCONDE NA TELA DE IA
-// ============================================
-(function () {
-    function atualizarFab() {
-        const fab = document.getElementById('btn-open-ia');
-        const iaAtiva = document.getElementById('view-ia')?.classList.contains('active');
-        if (fab) fab.style.display = iaAtiva ? 'none' : '';
-    }
-    const view = document.getElementById('view-ia');
-    if (view) {
-        new MutationObserver(atualizarFab).observe(view, {
-            attributes: true,
-            attributeFilter: ['class']
-        });
-    }
-    atualizarFab();
-})();
-
-console.log('[IA] ✅ Módulo carregado com acesso COMPLETO aos dados do usuário!');
-console.log('[IA] 📊 Limite diário: 15 mensagens');
-console.log('[IA] 📋 Acesso a: Tarefas, Anotações, Horário e Disciplinas');
-console.log('[IA] 💡 Pergunte: "quantas tarefas tenho?" ou "me mostre minhas anotações"');
+console.log('[IA PC] ✅ Módulo carregado!');
