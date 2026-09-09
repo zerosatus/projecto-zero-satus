@@ -1720,7 +1720,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 
-
 -- ⭐ PERMITIR QUE USUÁRIOS INSIRAM NOTIFICAÇÕES PARA SI MESMOS
 CREATE POLICY "Users can insert own notifications"
 ON public.notifications FOR INSERT
@@ -1757,3 +1756,71 @@ CREATE POLICY "Admin can delete all notifications"
 ON public.notifications FOR DELETE
 TO authenticated
 USING (is_admin());
+
+
+
+
+
+-- VERIFICAR BUCKETS
+SELECT * FROM storage.buckets;
+
+-- CRIAR BUCKET (se não existir)
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('user-content', 'user-content', true, 5242880)
+ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 5242880;
+
+-- VERIFICAR POLÍTICAS
+SELECT * FROM pg_policies WHERE schemaname = 'storage';
+-- ============================================
+-- VERSÃO ALTERNATIVA - USANDO pg_policies   stroages
+-- ============================================
+
+-- VERIFICAR POLÍTICAS EXISTENTES
+SELECT 
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd,
+    qual,
+    with_check
+FROM pg_policies 
+WHERE schemaname = 'storage' 
+AND tablename = 'objects';
+
+-- REMOVER POLÍTICAS EXISTENTES (USANDO NOME CORRETO)
+DROP POLICY IF EXISTS "give_users_access_to_own_folder" ON storage.objects;
+DROP POLICY IF EXISTS "Give users access to own folder" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access for user-content" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload to user-content" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own files" ON storage.objects;
+
+-- CRIAR POLÍTICAS
+CREATE POLICY "Public read access for user-content"
+ON storage.objects FOR SELECT 
+TO public 
+USING (bucket_id = 'user-content');
+
+CREATE POLICY "Authenticated users can upload to user-content"
+ON storage.objects FOR INSERT 
+TO authenticated 
+WITH CHECK (bucket_id = 'user-content');
+
+CREATE POLICY "Users can delete own files"
+ON storage.objects FOR DELETE 
+TO authenticated 
+USING (bucket_id = 'user-content');
+
+-- ============================================
+-- VERIFICAR BUCKET
+-- ============================================
+SELECT 
+    id,
+    name,
+    public,
+    file_size_limit,
+    created_at,
+    updated_at
+FROM storage.buckets 
+WHERE name = 'user-content';

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termos de Uso e Condições | Zero Satus</title>
     <meta name="description" content="Termos de Uso e Condições da plataforma Zero Satus. Conheça seus direitos e deveres ao utilizar nossa plataforma acadêmica em Moçambique.">
-    <meta name="keywords" content="termos de uso, condições, Zero Satus, Moçambique, privacidade, dados pessoais, constituição">
     <meta name="robots" content="index, follow">
     <meta name="author" content="Zero Satus">
     
@@ -19,6 +18,362 @@
     <link rel="icon" href="imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    
+    <style>
+        :root {
+            --bg-color: #0a0b12;
+            --card-bg: #13161f;
+            --text-primary: #f0f0f5;
+            --text-secondary: #a0a5b5;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --accent-light: rgba(139, 92, 246, 0.08);
+            --border-color: #2a2d3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* HEADER */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 11, 18, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            padding: 14px 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .logo-text {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .desktop-menu ul {
+            display: flex;
+            list-style: none;
+            gap: 28px;
+            align-items: center;
+        }
+
+        .desktop-menu a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .desktop-menu a:hover {
+            color: var(--text-primary);
+        }
+
+        .desktop-menu a[style*="color: var(--accent);"] {
+            color: var(--accent) !important;
+        }
+
+        .desktop-menu .btn-login {
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white !important;
+            padding: 8px 24px;
+            border-radius: 24px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .desktop-menu .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        /* MAIN CONTENT */
+        article.container {
+            padding-top: 110px;
+            padding-bottom: 60px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: clamp(28px, 5vw, 40px);
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .meta-info {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 0.9rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .meta-info i {
+            margin-right: 6px;
+            color: var(--accent);
+        }
+
+        .legal-content {
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .legal-content p {
+            margin-bottom: 16px;
+        }
+
+        .legal-content h2 {
+            color: var(--accent);
+            margin: 40px 0 20px;
+            font-size: 1.8rem;
+        }
+
+        .legal-content h3 {
+            color: var(--text-primary);
+            margin: 24px 0 12px;
+            font-size: 1.3rem;
+        }
+
+        .legal-content ul {
+            margin: 20px 0;
+            padding-left: 30px;
+        }
+
+        .legal-content li {
+            margin-bottom: 10px;
+        }
+
+        .legal-content li strong {
+            color: var(--text-primary);
+        }
+
+        .highlight-box {
+            background: var(--accent-light);
+            padding: 24px 28px;
+            border-radius: 16px;
+            border-left: 4px solid var(--accent);
+            margin: 30px 0;
+        }
+
+        .highlight-box h3 {
+            margin-top: 0;
+            color: var(--accent);
+            font-size: 1.1rem;
+        }
+
+        .highlight-box p {
+            margin-bottom: 0;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 30px rgba(139, 92, 246, 0.5);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.9rem;
+        }
+
+        .data-table th {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table tr:hover td {
+            background: rgba(139, 92, 246, 0.04);
+        }
+
+        .data-table .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-required {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .badge-optional {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .badge-sensitive {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        /* FOOTER */
+        footer {
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 40px 0 20px;
+            margin-top: 40px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+
+        .footer-col h4 {
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            font-size: 1rem;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col ul li {
+            margin-bottom: 10px;
+        }
+
+        .footer-col ul a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-col ul a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .desktop-menu ul {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 14px;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+            }
+
+            article.container {
+                padding-top: 150px;
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .data-table {
+                font-size: 0.75rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 8px 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .meta-info {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
     
     <script type="application/ld+json">
     {
@@ -50,14 +405,14 @@
                     <li><a href="index.html#features">Funcionalidades</a></li>
                     <li><a href="blog.html">Blog</a></li>
                     <li><a href="termos.html" style="color: var(--accent);">Termos</a></li>
-                    <li><a href="TELAS/login/index.html">Entrar</a></li>
+                    <li><a href="TELAS/login/index.html" class="btn-login">Entrar</a></li>
                 </ul>
             </nav>
         </div>
     </header>
 
     <!-- CONTEÚDO PRINCIPAL -->
-    <article class="container" style="padding-top: 100px; padding-bottom: 60px; max-width: 900px; margin: 0 auto;">
+    <article class="container">
         
         <div style="margin-bottom: 30px;">
             <a href="index.html" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;">
@@ -65,114 +420,354 @@
             </a>
         </div>
 
-        <h1 style="font-size: clamp(28px, 5vw, 40px); margin-bottom: 16px; color: var(--text-primary); line-height: 1.3;">
-            Termos de Uso e Condições
-        </h1>
+        <h1>Termos de Uso e Condições</h1>
         
-        <div style="color: var(--text-secondary); margin-bottom: 40px; font-size: 0.9rem;">
-            <i class="fas fa-calendar"></i> Última atualização: 5 de julho de 2026 • 
-            <i class="fas fa-gavel"></i> Legislação: República de Moçambique
+        <div class="meta-info">
+            <span><i class="fas fa-calendar"></i> Última atualização: 5 de julho de 2026</span>
+            <span><i class="fas fa-gavel"></i> Legislação: República de Moçambique</span>
+            <span><i class="fas fa-flag"></i> Jurisdição: Chimoio, Manica</span>
         </div>
 
-        <div style="line-height: 1.8; color: var(--text-secondary);">
+        <div class="legal-content">
             
-            <p style="font-size: 1.1rem; margin-bottom: 30px; background: var(--accent-light); padding: 20px; border-radius: 12px; border-left: 4px solid var(--accent);">
-                <strong>Bem-vindo ao Zero Satus!</strong> Ao utilizar nossa plataforma, você concorda integralmente com os termos descritos neste documento, elaborado em conformidade com a <strong>Constituição da República de Moçambique</strong> e a <strong>Lei n.º 22/2019</strong> (Lei de Proteção de Dados Pessoais).
-            </p>
+            <div class="highlight-box">
+                <h3><i class="fas fa-gavel" style="margin-right: 8px;"></i> Bem-vindo ao Zero Satus!</h3>
+                <p>Ao utilizar nossa plataforma, você concorda integralmente com os termos descritos neste documento, elaborado em conformidade com a <strong>Constituição da República de Moçambique</strong>, a <strong>Lei n.º 22/2019</strong> (Lei de Proteção de Dados Pessoais) e a <strong>Lei n.º 5/2023</strong> (Lei de Governação Electrónica).</p>
+            </div>
 
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">1. Aceitação dos Termos</h2>
-            <p>Ao aceder, criar conta ou utilizar a plataforma Zero Satus ("Plataforma"), o Utilizador declara ter lido, compreendido e aceitado estes Termos de Uso e Condições ("Termos"). Caso não concorde com qualquer parte destes Termos, deverá abster-se de utilizar a Plataforma.</p>
+            <!-- ============================================ -->
+            <!-- 1. ACEITAÇÃO DOS TERMOS                        -->
+            <!-- ============================================ -->
+            <h2>1. Aceitação dos Termos</h2>
+            <p>Ao aceder, criar conta ou utilizar a plataforma Zero Satus ("Plataforma"), o Utilizador declara ter lido, compreendido e aceitado estes Termos de Uso e Condições ("Termos").</p>
+            <p>O Utilizador reconhece que a utilização da Plataforma constitui uma aceitação expressa e inequívoca de todos os termos e condições aqui previstos, nos termos do <strong>artigo 31.º da Lei n.º 5/2023</strong> (Lei de Governação Electrónica), que estabelece o valor jurídico dos contratos celebrados por meios electrónicos.</p>
+            <p>Caso não concorde com qualquer parte destes Termos, deverá abster-se de utilizar a Plataforma e, se for o caso, solicitar a eliminação da sua conta através das configurações disponíveis na aplicação.</p>
 
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">2. Objeto da Plataforma</h2>
+            <!-- ============================================ -->
+            <!-- 2. OBJETO DA PLATAFORMA                       -->
+            <!-- ============================================ -->
+            <h2>2. Objeto da Plataforma</h2>
             <p>O Zero Satus é uma plataforma acadêmica digital que oferece ferramentas para organização de estudos, incluindo:</p>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;">Gerenciamento de tarefas e prazos acadêmicos</li>
-                <li style="margin-bottom: 10px;">Editor de anotações e notas de estudo</li>
-                <li style="margin-bottom: 10px;">Calendário acadêmico e horário de aulas</li>
-                <li style="margin-bottom: 10px;">Dashboard de progresso e estatísticas</li>
+            <ul>
+                <li><strong>Gerenciamento de tarefas:</strong> Criação, edição e conclusão de tarefas acadêmicas com prazos e prioridades</li>
+                <li><strong>Editor de anotações:</strong> Criação e edição de notas de estudo com formatação rica</li>
+                <li><strong>Calendário acadêmico:</strong> Gestão de eventos, provas, trabalhos e aulas</li>
+                <li><strong>Horário semanal:</strong> Organização de aulas por dia e horário</li>
+                <li><strong>Dashboard:</strong> Estatísticas de progresso, métricas e visão geral do desempenho</li>
+                <li><strong>Assistente IA:</strong> Ferramenta de apoio com múltiplas APIs (Grok, SambaNova, DeepSeek, OpenRouter)</li>
+                <li><strong>Gestão de documentos:</strong> Upload, armazenamento e download de documentos acadêmicos</li>
+                <li><strong>Gestão de disciplinas:</strong> Cadastro e organização de disciplinas com cores e ícones</li>
+                <li><strong>Notificações em tempo real:</strong> Alertas sobre tarefas, aulas e eventos acadêmicos</li>
             </ul>
-            <p>A Plataforma destina-se exclusivamente a fins educacionais e de organização pessoal.</p>
+            <p>A Plataforma destina-se exclusivamente a fins educacionais e de organização pessoal, não substituindo o aconselhamento académico profissional.</p>
 
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">3. Direitos e Deveres do Utilizador</h2>
+            <!-- ============================================ -->
+            <!-- 3. DIREITOS E DEVERES DO UTILIZADOR          -->
+            <!-- ============================================ -->
+            <h2>3. Direitos e Deveres do Utilizador</h2>
             <p>Em conformidade com a <strong>Constituição da República de Moçambique</strong>, especialmente os artigos 35.º (Direito à Informação), 37.º (Liberdade de Expressão e Informação) e 47.º (Direito à Privacidade), o Utilizador tem:</p>
 
-            <h3 style="color: var(--text-primary); margin: 24px 0 12px; font-size: 1.3rem;">3.1. Direitos</h3>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;"><strong>Direito à privacidade:</strong> Seus dados pessoais são protegidos conforme a Lei n.º 22/2019</li>
-                <li style="margin-bottom: 10px;"><strong>Direito à informação:</strong> Acesso claro sobre como seus dados são utilizados</li>
-                <li style="margin-bottom: 10px;"><strong>Direito de acesso e retificação:</strong> Pode solicitar correção ou exclusão dos seus dados a qualquer momento</li>
-                <li style="margin-bottom: 10px;"><strong>Direito à portabilidade:</strong> Pode exportar seus dados da Plataforma</li>
-                <li style="margin-bottom: 10px;"><strong>Direito à educação:</strong> Conforme o artigo 71.º da Constituição, a Plataforma apoia o direito à educação</li>
+            <h3>3.1. Direitos Fundamentais</h3>
+            <ul>
+                <li><strong>Direito à privacidade:</strong> Seus dados pessoais são protegidos conforme a <strong>Lei n.º 22/2019</strong>, de 24 de dezembro (Lei de Proteção de Dados Pessoais)</li>
+                <li><strong>Direito à informação:</strong> Acesso claro e transparente sobre como seus dados são recolhidos, processados e armazenados</li>
+                <li><strong>Direito de acesso e retificação:</strong> Pode solicitar correção, atualização ou exclusão dos seus dados a qualquer momento</li>
+                <li><strong>Direito à portabilidade:</strong> Pode exportar todos os seus dados da Plataforma (tarefas, anotações, eventos, documentos) em formato JSON</li>
+                <li><strong>Direito à educação:</strong> Conforme o <strong>artigo 71.º da Constituição</strong>, a Plataforma apoia o direito à educação e ao acesso ao conhecimento</li>
+                <li><strong>Direito ao esquecimento:</strong> Pode solicitar a eliminação completa da sua conta e todos os dados associados</li>
+                <li><strong>Direito à não discriminação:</strong> A Plataforma não discrimina com base em raça, género, religião, orientação sexual ou qualquer outra condição</li>
             </ul>
 
-            <h3 style="color: var(--text-primary); margin: 24px 0 12px; font-size: 1.3rem;">3.2. Deveres</h3>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;">Utilizar a Plataforma de forma ética e responsável</li>
-                <li style="margin-bottom: 10px;">Não utilizar a Plataforma para fins ilícitos ou que violem a legislação moçambicana</li>
-                <li style="margin-bottom: 10px;">Não compartilhar credenciais de acesso com terceiros</li>
-                <li style="margin-bottom: 10px;">Respeitar os direitos de propriedade intelectual de terceiros</li>
-                <li style="margin-bottom: 10px;">Não utilizar a Plataforma para assédio, discriminação ou difamação</li>
+            <h3>3.2. Deveres do Utilizador</h3>
+            <ul>
+                <li>Utilizar a Plataforma de forma ética, responsável e em conformidade com a legislação moçambicana</li>
+                <li>Não utilizar a Plataforma para fins ilícitos ou que violem a <strong>Constituição da República</strong></li>
+                <li>Não compartilhar credenciais de acesso com terceiros, sendo o Utilizador o único responsável pela segurança da sua conta</li>
+                <li>Respeitar os direitos de propriedade intelectual de terceiros, incluindo os <strong>artigos 28.º a 30.º da Lei n.º 22/2019</strong></li>
+                <li>Não utilizar a Plataforma para assédio, discriminação, difamação ou qualquer forma de violência psicológica</li>
+                <li>Não tentar aceder a contas de outros Utilizadores ou interferir na operação da Plataforma</li>
+                <li>Não distribuir vírus, malware ou qualquer código malicioso</li>
+                <li>Não fazer engenharia reversa, descompilação ou desmontagem do software da Plataforma</li>
             </ul>
 
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">4. Proteção de Dados Pessoais</h2>
-            <p>Em conformidade com a <strong>Lei n.º 22/2019, de 24 de dezembro</strong> (Lei de Proteção de Dados Pessoais da República de Moçambique) e o <strong>artigo 47.º da Constituição</strong>:</p>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;">Os dados recolhidos são utilizados exclusivamente para funcionamento da Plataforma</li>
-                <li style="margin-bottom: 10px;">Não vendemos nem compartilhamos dados pessoais com terceiros para fins comerciais</li>
-                <li style="margin-bottom: 10px;">O Utilizador pode solicitar a eliminação da sua conta e dados a qualquer momento</li>
-                <li style="margin-bottom: 10px;">Utilizamos medidas técnicas e organizativas adequadas para proteger os dados</li>
+            <!-- ============================================ -->
+            <!-- 4. DADOS COLETADOS E FINALIDADE              -->
+            <!-- ============================================ -->
+            <h2>4. Dados Coletados e Finalidade</h2>
+            <p>Em conformidade com a <strong>Lei n.º 22/2019</strong> (Lei de Proteção de Dados Pessoais) e os <strong>artigos 8.º a 10.º</strong> da mesma lei, a Plataforma coleta os seguintes dados do Utilizador:</p>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Dado</th>
+                        <th>Finalidade</th>
+                        <th>Base Legal</th>
+                        <th>Obrigatoriedade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Nome completo</strong></td>
+                        <td>Identificação pessoal e personalização</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-required">Obrigatório</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>E-mail</strong></td>
+                        <td>Autenticação, comunicação e recuperação de conta</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-required">Obrigatório</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Senha (hash)</strong></td>
+                        <td>Autenticação segura</td>
+                        <td>Art. 17.º (segurança de dados)</td>
+                        <td><span class="badge badge-required">Obrigatório</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Foto de perfil</strong></td>
+                        <td>Identificação visual (armazenada no Storage do Supabase)</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tarefas criadas</strong></td>
+                        <td>Gerenciamento acadêmico e organização</td>
+                        <td>Art. 10.º, n.º 2 (execução de contrato)</td>
+                        <td><span class="badge badge-required">Obrigatório</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Anotações</strong></td>
+                        <td>Armazenamento de notas de estudo</td>
+                        <td>Art. 10.º, n.º 2 (execução de contrato)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Eventos de calendário</strong></td>
+                        <td>Organização acadêmica</td>
+                        <td>Art. 10.º, n.º 2 (execução de contrato)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Horário semanal</strong></td>
+                        <td>Organização de aulas</td>
+                        <td>Art. 10.º, n.º 2 (execução de contrato)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Disciplinas</strong></td>
+                        <td>Organização por matéria</td>
+                        <td>Art. 10.º, n.º 2 (execução de contrato)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Documentos (.pdf, .docx, etc)</strong></td>
+                        <td>Armazenamento de material acadêmico</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Histórico de conversas com IA</strong></td>
+                        <td>Melhoria da experiência e continuidade</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>FCM Token (Firebase)</strong></td>
+                        <td>Notificações push</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Dispositivo (tipo e sistema)</strong></td>
+                        <td>Otimização da experiência</td>
+                        <td>Art. 10.º, n.º 1 (consentimento)</td>
+                        <td><span class="badge badge-optional">Opcional</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="highlight-box">
+                <h3><i class="fas fa-shield-alt" style="margin-right: 8px;"></i> Base Legal para o Tratamento</h3>
+                <p>O tratamento de dados pessoais no Zero Satus baseia-se nas seguintes hipóteses legais da <strong>Lei n.º 22/2019</strong>:</p>
+                <ul style="margin-top: 10px;">
+                    <li><strong>Art. 10.º, n.º 1:</strong> Consentimento do titular dos dados (para dados como foto, histórico IA, documentos)</li>
+                    <li><strong>Art. 10.º, n.º 2:</strong> Execução de contrato ou diligências pré-contratuais (para dados essenciais como tarefas, anotações)</li>
+                    <li><strong>Art. 10.º, n.º 5:</strong> Interesse legítimo do responsável pelo tratamento (para melhorias da plataforma)</li>
+                </ul>
+                <p style="margin-top: 10px;">O Utilizador pode retirar seu consentimento a qualquer momento, sem prejuízo da licitude do tratamento efetuado com base no consentimento previamente dado.</p>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- 5. PROPRIEDADE INTELECTUAL                   -->
+            <!-- ============================================ -->
+            <h2>5. Propriedade Intelectual</h2>
+            <p>Todo o conteúdo da Plataforma, incluindo mas não se limitando a textos, gráficos, logotipos, ícones, imagens, clips de áudio, downloads digitais, compilações de dados e software, é propriedade do Zero Satus ou dos seus fornecedores de conteúdo e está protegido pelas leis de propriedade intelectual de Moçambique e tratados internacionais, incluindo a <strong>Lei n.º 22/2019</strong>, de 13 de maio (Lei de Direitos de Autor).</p>
+            
+            <h3>5.1. Conteúdo do Utilizador</h3>
+            <p>O Utilizador mantém a propriedade do conteúdo que cria na Plataforma (anotações, tarefas, documentos, etc.), concedendo ao Zero Satus apenas uma licença limitada, não exclusiva e revogável para:</p>
+            <ul>
+                <li>Armazenar e exibir o conteúdo dentro da Plataforma</li>
+                <li>Processar o conteúdo para fins de funcionamento da Plataforma</li>
+                <li>Manter cópias de segurança do conteúdo</li>
+            </ul>
+            <p>Ao enviar documentos para a Plataforma (via Storage do Supabase), o Utilizador concede ao Zero Satus o direito de armazenar, processar e disponibilizar esses documentos para acesso pelo próprio Utilizador.</p>
+
+            <h3>5.2. Restrições</h3>
+            <p>O Utilizador não pode, sob nenhuma circunstância:</p>
+            <ul>
+                <li>Reproduzir, distribuir ou criar obras derivadas do código ou interface da Plataforma</li>
+                <li>Utilizar o nome ou logotipo "Zero Satus" sem autorização expressa</li>
+                <li>Claimar propriedade intelectual sobre a Plataforma ou seus componentes</li>
+                <li>Remover ou ocultar avisos de direitos autorais ou propriedade intelectual</li>
             </ul>
 
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">5. Propriedade Intelectual</h2>
-            <p>Todo o conteúdo da Plataforma, incluindo mas não se limitando a textos, gráficos, logotipos, ícones, imagens, clips de áudio, downloads digitais, compilações de dados e software, é propriedade do Zero Satus ou dos seus fornecedores de conteúdo e está protegido pelas leis de propriedade intelectual de Moçambique e tratados internacionais.</p>
-            <p>O Utilizador mantém a propriedade do conteúdo que cria na Plataforma (anotações, tarefas, etc.), concedendo ao Zero Satus apenas uma licença limitada para armazenar e exibir esse conteúdo.</p>
-
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">6. Limitação de Responsabilidade</h2>
-            <p>O Zero Satus é fornecido "como está" e "conforme disponível". Não garantimos que:</p>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;">A Plataforma estará sempre disponível, ininterrupta ou sem erros</li>
-                <li style="margin-bottom: 10px;">Os resultados obtidos com o uso da Plataforma serão precisos ou confiáveis</li>
-                <li style="margin-bottom: 10px;">A Plataforma substitui o aconselhamento académico profissional</li>
+            <!-- ============================================ -->
+            <!-- 6. LIMITAÇÃO DE RESPONSABILIDADE             -->
+            <!-- ============================================ -->
+            <h2>6. Limitação de Responsabilidade</h2>
+            <p>O Zero Satus é fornecido "como está" e "conforme disponível", nos termos do <strong>artigo 52.º da Constituição da República</strong> (direito à informação) e da <strong>Lei n.º 5/2023</strong> (Governação Electrónica). Não garantimos que:</p>
+            <ul>
+                <li>A Plataforma estará sempre disponível, ininterrupta ou sem erros</li>
+                <li>Os resultados obtidos com o uso da Plataforma serão precisos ou confiáveis</li>
+                <li>A Plataforma substitui o aconselhamento académico profissional</li>
+                <li>Os documentos armazenados estarão sempre disponíveis (recomenda-se cópias de segurança locais)</li>
             </ul>
-            <p>O Zero Satus não se responsabiliza por decisões académicas tomadas com base nas informações da Plataforma.</p>
-
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">7. Conduta Proibida</h2>
-            <p>É estritamente proibido ao Utilizador:</p>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;">Utilizar a Plataforma para plagiar trabalhos académicos</li>
-                <li style="margin-bottom: 10px;">Tentar aceder a contas de outros Utilizadores</li>
-                <li style="margin-bottom: 10px;">Distribuir vírus, malware ou qualquer código malicioso</li>
-                <li style="margin-bottom: 10px;">Fazer engenharia reversa do software</li>
-                <li style="margin-bottom: 10px;">Utilizar a Plataforma para fins comerciais não autorizados</li>
-                <li style="margin-bottom: 10px;">Violar qualquer lei aplicável da República de Moçambique</li>
+            <p>O Zero Satus não se responsabiliza por:</p>
+            <ul>
+                <li>Decisões académicas tomadas com base nas informações da Plataforma</li>
+                <li>Perda de dados resultante de falhas técnicas, desde que não decorrentes de dolo ou negligência grave</li>
+                <li>Danos indiretos ou consequenciais decorrentes do uso da Plataforma</li>
+                <li>Interrupções temporárias para manutenção ou atualizações</li>
             </ul>
 
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">8. Modificações dos Termos</h2>
-            <p>O Zero Satus reserva-se o direito de modificar estes Termos a qualquer momento. As alterações entrarão em vigor imediatamente após a sua publicação na Plataforma. O uso continuado da Plataforma após as alterações constitui aceitação dos novos Termos.</p>
-
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">9. Rescisão</h2>
-            <p>O Zero Satus pode suspender ou encerrar a conta do Utilizador que violar estes Termos, sem prejuízo de outras medidas legais cabíveis. O Utilizador pode encerrar sua conta a qualquer momento através das configurações da Plataforma.</p>
-
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">10. Legislação Aplicável e Foro</h2>
-            <p>Estes Termos são regidos pelas leis da <strong>República de Moçambique</strong>. Qualquer litígio decorrente destes Termos será submetido aos tribunais competentes da cidade de <strong>Chimoio, Província de Manica</strong>, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
-
-            <h2 style="color: var(--accent); margin: 40px 0 20px; font-size: 1.8rem;">11. Contacto</h2>
-            <p>Para questões sobre estes Termos, exercício de direitos ou solicitações relacionadas com dados pessoais, entre em contacto:</p>
-            <ul style="margin: 20px 0; padding-left: 30px;">
-                <li style="margin-bottom: 10px;"><i class="fas fa-envelope" style="margin-right: 10px; color: var(--accent);"></i> ########@gmail.com</li>
-                <li style="margin-bottom: 10px;"><i class="fas fa-map-marker-alt" style="margin-right: 10px; color: var(--accent);"></i> Chimoio, Província de Manica, Moçambique</li>
+            <!-- ============================================ -->
+            <!-- 7. CONDUÇÃO PROIBIDA                         -->
+            <!-- ============================================ -->
+            <h2>7. Conduta Proibida</h2>
+            <p>É estritamente proibido ao Utilizador, sob pena de suspensão ou encerramento da conta:</p>
+            <ul>
+                <li>Utilizar a Plataforma para plagiar trabalhos académicos ou violar direitos de autor</li>
+                <li>Tentar aceder a contas de outros Utilizadores ou a áreas não autorizadas da Plataforma</li>
+                <li>Distribuir vírus, malware, ransomware ou qualquer código malicioso</li>
+                <li>Fazer engenharia reversa, descompilação ou desmontagem do software</li>
+                <li>Utilizar a Plataforma para fins comerciais não autorizados</li>
+                <li>Violar qualquer lei aplicável da República de Moçambique</li>
+                <li>Utilizar a Plataforma para assédio, discriminação, difamação ou incitação à violência</li>
+                <li>Carregar conteúdo ilegal, obsceno, ou que viole a <strong>Lei n.º 22/2019</strong></li>
+                <li>Interferir com a operação da Plataforma ou sobrecarregar a infraestrutura</li>
             </ul>
 
-            <div style="background: var(--accent-light); padding: 30px; border-radius: 16px; margin-top: 40px; border: 1px solid rgba(147, 51, 234, 0.3);">
-                <h3 style="margin-bottom: 16px; color: var(--accent);"><i class="fas fa-info-circle"></i> Nota Importante</h3>
-                <p style="margin-bottom: 0;">Este documento foi elaborado com base na legislação moçambicana vigente. Em caso de dúvida sobre os seus direitos, consulte um advogado ou a Provedoria de Justiça da República de Moçambique.</p>
+            <!-- ============================================ -->
+            <!-- 8. ARMAZENAMENTO E SEGURANÇA                -->
+            <!-- ============================================ -->
+            <h2>8. Armazenamento e Segurança</h2>
+            <p>O Zero Satus adota as seguintes medidas para garantir a segurança dos dados do Utilizador:</p>
+            <ul>
+                <li><strong>Armazenamento:</strong> Dados armazenados no <strong>Supabase</strong> com redundância e backups diários</li>
+                <li><strong>Documentos:</strong> Armazenados no <strong>Storage do Supabase</strong> (user-content bucket) com controlo de acesso por Utilizador</li>
+                <li><strong>Criptografia:</strong> Senhas armazenadas com hash via <strong>bcrypt</strong></li>
+                <li><strong>Autenticação:</strong> Login via <strong>JWT</strong> (JSON Web Tokens) com expiração</li>
+                <li><strong>Cache local:</strong> Dados armazenados localmente em <strong>SharedPreferences</strong> com prefixo por Utilizador</li>
+                <li><strong>FCM:</strong> Notificações push via <strong>Firebase Cloud Messaging</strong></li>
+                <li><strong>Politicas RLS:</strong> Row Level Security no Supabase para garantir que cada Utilizador veja apenas seus dados</li>
+            </ul>
+            <p>Em conformidade com o <strong>artigo 17.º da Lei n.º 22/2019</strong>, o Zero Satus implementa medidas técnicas e organizativas adequadas para proteger os dados pessoais contra destruição acidental ou ilícita, perda, alteração, divulgação ou acesso não autorizado.</p>
+
+            <div class="highlight-box">
+                <h3><i class="fas fa-cloud-upload-alt" style="margin-right: 8px;"></i> Documentos e Storage</h3>
+                <p>Os documentos enviados pelo Utilizador são armazenados no Storage do Supabase, na pasta <code>documentos/{userId}/</code>. Cada Utilizador só tem acesso aos seus próprios documentos, garantindo a confidencialidade dos dados acadêmicos.</p>
+                <p>O Utilizador pode baixar, visualizar e excluir seus documentos a qualquer momento através da interface da Plataforma.</p>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- 9. MODIFICAÇÕES DOS TERMOS                   -->
+            <!-- ============================================ -->
+            <h2>9. Modificações dos Termos</h2>
+            <p>O Zero Satus reserva-se o direito de modificar estes Termos a qualquer momento. As alterações entrarão em vigor imediatamente após a sua publicação na Plataforma.</p>
+            <p>O Utilizador será notificado sobre alterações significativas através de:</p>
+            <ul>
+                <li>Notificação na aplicação (ao iniciar sessão)</li>
+                <li>E-mail (em caso de alterações relevantes)</li>
+                <li>Comunicação na página inicial da Plataforma</li>
+            </ul>
+            <p>O uso continuado da Plataforma após as alterações constitui aceitação dos novos Termos. Se o Utilizador não concordar com as alterações, deverá cessar o uso da Plataforma e, se desejar, solicitar a eliminação da conta.</p>
+
+            <!-- ============================================ -->
+            <!-- 10. RESCISÃO                                 -->
+            <!-- ============================================ -->
+            <h2>10. Rescisão</h2>
+            <p>O Zero Satus pode suspender ou encerrar a conta do Utilizador que violar estes Termos, sem prejuízo de outras medidas legais cabíveis, nos termos do <strong>artigo 39.º da Lei n.º 5/2023</strong> (Lei de Governação Electrónica).</p>
+            <p>O Utilizador pode encerrar sua conta a qualquer momento através das configurações da Plataforma. A eliminação da conta implicará:</p>
+            <ul>
+                <li>Remoção de todos os dados pessoais do Utilizador</li>
+                <li>Eliminação de tarefas, anotações, eventos e documentos</li>
+                <li>Exclusão do histórico de conversas com IA</li>
+                <li>Inativação do perfil e acesso à Plataforma</li>
+            </ul>
+            <p>O Zero Satus poderá manter dados anonimizados para fins estatísticos, em conformidade com o <strong>artigo 10.º, n.º 5 da Lei n.º 22/2019</strong> (interesse legítimo).</p>
+
+            <!-- ============================================ -->
+            <!-- 11. LEGISLAÇÃO APLICÁVEL E FORO              -->
+            <!-- ============================================ -->
+            <h2>11. Legislação Aplicável e Foro</h2>
+            <p>Estes Termos são regidos pelas leis da <strong>República de Moçambique</strong>, em especial:</p>
+            <ul>
+                <li><strong>Constituição da República de Moçambique</strong> (2004, com revisões)</li>
+                <li><strong>Lei n.º 22/2019</strong>, de 24 de dezembro (Lei de Proteção de Dados Pessoais)</li>
+                <li><strong>Lei n.º 5/2023</strong>, de 15 de maio (Lei de Governação Electrónica)</li>
+                <li><strong>Lei n.º 22/2019</strong>, de 13 de maio (Lei de Direitos de Autor e Conexos)</li>
+                <li><strong>Decreto n.º 44/2020</strong>, de 15 de julho (Regulamento da Lei de Proteção de Dados)</li>
+            </ul>
+            <p>Qualquer litígio decorrente destes Termos será submetido aos tribunais competentes da cidade de <strong>Chimoio, Província de Manica</strong>, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+
+            <!-- ============================================ -->
+            <!-- 12. CONTACTO                                 -->
+            <!-- ============================================ -->
+            <h2>12. Contacto</h2>
+            <p>Para questões sobre estes Termos, exercício de direitos (acesso, retificação, oposição, eliminação), pedidos de portabilidade de dados ou qualquer assunto relacionado com a proteção de dados, entre em contacto:</p>
+            <ul>
+                <li><i class="fas fa-envelope" style="margin-right: 10px; color: var(--accent);"></i> <strong>projetozerosatus@gmail.com</strong></li>
+                <li><i class="fas fa-map-marker-alt" style="margin-right: 10px; color: var(--accent);"></i> Chimoio, Província de Manica, Moçambique</li>
+            </ul>
+            <p>O Utilizador também pode contactar a <strong>Comissão Nacional de Protecção de Dados Pessoais (CNPDP)</strong> para esclarecimentos sobre a Lei n.º 22/2019.</p>
+
+            <!-- ============================================ -->
+            <!-- 13. DISPOSIÇÕES FINAIS                       -->
+            <!-- ============================================ -->
+            <h2>13. Disposições Finais</h2>
+            <h3>13.1. Integridade</h3>
+            <p>Se qualquer disposição destes Termos for considerada inválida ou inexequível, tal disposição será interpretada de forma a refletir o máximo possível a intenção original, e as restantes disposições permanecerão em pleno vigor e efeito, em conformidade com o <strong>artigo 42.º da Lei n.º 5/2023</strong>.</p>
+
+            <h3>13.2. Tolerância</h3>
+            <p>O facto de o Zero Satus não exercer ou fazer cumprir qualquer direito ou disposição destes Termos não constitui uma renúncia a tal direito ou disposição.</p>
+
+            <h3>13.3. Concordância Integral</h3>
+            <p>Estes Termos constituem a concordância integral entre o Utilizador e o Zero Satus, substituindo quaisquer acordos anteriores, escritos ou orais, relacionados com o objeto destes Termos.</p>
+
+            <h3>13.4. Idioma</h3>
+            <p>Estes Termos são redigidos em <strong>português</strong>, sendo esta a versão oficial. Qualquer tradução para outros idiomas é fornecida apenas para conveniência e não prevalece sobre a versão em português.</p>
+
+            <!-- ============================================ -->
+            <!-- 14. DECLARAÇÃO FINAL                         -->
+            <!-- ============================================ -->
+            <div class="highlight-box" style="background: rgba(16, 185, 129, 0.08); border-left-color: #10b981;">
+                <h3><i class="fas fa-check-circle" style="margin-right: 8px; color: #10b981;"></i> Declaração do Utilizador</h3>
+                <p>Ao utilizar o Zero Satus, o Utilizador declara expressamente que:</p>
+                <ul style="margin-top: 10px;">
+                    <li>✓ Leu, compreendeu e aceita integralmente estes Termos</li>
+                    <li>✓ Confirma que é maior de idade ou está sob supervisão de um responsável legal</li>
+                    <li>✓ Concede consentimento livre, informado e inequívoco para o tratamento dos seus dados pessoais</li>
+                    <li>✓ Reconhece que pode retirar seu consentimento a qualquer momento</li>
+                    <li>✓ Assumirá a responsabilidade pelo uso da Plataforma com as suas credenciais</li>
+                </ul>
             </div>
 
         </div>
 
         <!-- Voltar ao topo -->
         <div style="text-align: center; margin-top: 60px;">
-            <a href="index.html" class="btn-primary" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: white; text-decoration: none; border-radius: 10px; font-weight: 600;">
+            <a href="index.html" class="btn-primary">
                 <i class="fas fa-home"></i> Voltar para o Início
             </a>
         </div>
@@ -190,7 +785,7 @@
                         </div>
                         <span class="logo-text">Zero Satus</span>
                     </div>
-                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Plataforma acadêmica completa para estudantes organizarem sua rotina de estudos.</p>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Plataforma acadêmica completa para estudantes organizarem sua rotina de estudos em Moçambique.</p>
                 </div>
                 <div class="footer-col">
                     <h4>Navegação</h4>
@@ -212,8 +807,8 @@
                 <div class="footer-col">
                     <h4>Contato</h4>
                     <ul>
-                        <li><i class="fas fa-envelope" style="margin-right: 10px;"></i> ########@gmail.com</li>
-                        <li><i class="fas fa-map-marker-alt" style="margin-right: 10px;"></i> Chimoio, MZ</li>
+                        <li><i class="fas fa-envelope" style="margin-right: 10px;"></i> projetozerosatus@gmail.com</li>
+                        <li><i class="fas fa-map-marker-alt" style="margin-right: 10px;"></i> Chimoio, Manica, MZ</li>
                     </ul>
                 </div>
             </div>
@@ -223,6 +818,17 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+    <script>
+        // Smooth scroll para âncoras
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
