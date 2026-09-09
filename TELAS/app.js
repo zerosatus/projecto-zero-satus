@@ -1,5 +1,6 @@
 // ============================================
 // app.js - SPA DO PAINEL PC (COMPLETO CORRIGIDO)
+// COM DELETE EM CASCATA E SINCRONIZAÇÃO TOTAL
 // ============================================
 
 class App {
@@ -24,6 +25,7 @@ class App {
         this._isInitializing = false;
         this._syncRetryCount = 0;
         this._maxSyncRetries = 3;
+        this.isSaving = false;
         
         this.cssModules = {
             'inicio': 'css/inicio.css',
@@ -563,10 +565,14 @@ class App {
     // ⭐ SALVAR DADOS
     // ============================================
     async saveAllData() {
+        if (this.isSaving) return;
+        this.isSaving = true;
+        
         if (window.CacheManager) {
             const userId = this.user?.id;
             if (!userId) {
                 console.warn('[App PC] ⚠️ Usuário não logado para salvar');
+                this.isSaving = false;
                 return;
             }
             
@@ -605,6 +611,52 @@ class App {
             }
         } else {
             console.error('[App PC] ❌ CacheManager não disponível');
+        }
+        
+        setTimeout(() => { this.isSaving = false; }, 500);
+    }
+    
+    // ============================================
+    // ⭐ DELETAR ITEM (COM SYNC EM CASCATA)
+    // ============================================
+    async deleteItem(type, id) {
+        if (!window.CacheManager) {
+            console.error('[App PC] ❌ CacheManager não disponível para delete');
+            return false;
+        }
+
+        const userId = this.user?.id;
+        if (!userId) {
+            console.error('[App PC] ❌ Usuário não logado para delete');
+            return false;
+        }
+
+        try {
+            // Deletar localmente e na nuvem via CacheManager
+            const deleted = window.CacheManager.delete(type, id, true);
+            
+            if (deleted) {
+                // Atualizar dados locais
+                this.data[type] = window.CacheManager.get(type, []);
+                
+                // Forçar sync imediato
+                await window.CacheManager.forceSync();
+                
+                console.log(`[App PC] ✅ ${type} item ${id} deletado e sincronizado`);
+                
+                // Disparar evento para atualizar a UI
+                window.dispatchEvent(new CustomEvent(`${type}Updated`, { 
+                    detail: this.data[type] 
+                }));
+                window.dispatchEvent(new CustomEvent('forceRefresh'));
+                
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error(`[App PC] ❌ Erro ao deletar ${type}:`, error);
+            return false;
         }
     }
     
@@ -1225,4 +1277,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-console.log('[App PC] ✅ app.js carregado (corrigido)!');
+console.log('[App PC] ✅ app.js carregado com DELETE em cascata e sincronização total!');
