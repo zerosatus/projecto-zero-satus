@@ -1,7 +1,7 @@
 // ============================================
-// multi-ai-service.js - GROQ (RESPOSTA EM PT NO FINAL)
-// ⭐ MODELOS REORDENADOS CONFORME IMAGENS
-// ⭐ openai/gpt-oss-120b PRIMEIRO, qwen POR ÚLTIMO
+// multi-ai-service.js - GROQ (CORRIGIDO)
+// ⭐ LLAMA-3.3-70B PRIMEIRO (rápido e confiável)
+// ⭐ QWEN POR ÚLTIMO (evita pensamentos em inglês)
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
@@ -10,18 +10,15 @@ class MultiAIService {
     constructor() {
         this.GROQ_API_KEY = "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";
         
-        // ⭐ MODELOS REORDENADOS CONFORME AS IMAGENS
-        // 1º - openai/gpt-oss-120b (da primeira imagem)
-        // 2º - llama-3.3-70b-versatile (da segunda imagem)
-        // 3º - llama-3.1-8b-instant (rápido e confiável)
-        // 4º - mixtral-8x7b-32768 (fallback)
-        // 5º - qwen/qwen3.6-27b (ÚLTIMO - conforme terceira imagem)
+        // ⭐ ORDEM CORRIGIDA - LLAMA PRIMEIRO, QWEN POR ÚLTIMO
+        // O qwen tem "pensamentos internos" em inglês que vazam no output
+        // Por isso ele deve ser o ÚLTIMO recurso
         this.GROQ_MODELS = [
-            "openai/gpt-oss-120b",
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-            "qwen/qwen3.6-27b"
+            "llama-3.3-70b-versatile",    // 1º - Melhor custo-benefício
+            "llama-3.1-8b-instant",       // 2º - Rápido e confiável
+            "mixtral-8x7b-32768",         // 3º - Fallback bom
+            "openai/gpt-oss-120b",        // 4º - Pode não existir na API
+            "qwen/qwen3.6-27b"            // 5º - ÚLTIMO (pensamentos em inglês)
         ];
         
         this._cache = new Map();
@@ -31,7 +28,8 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Ordem dos modelos:', this.GROQ_MODELS.join(' → '));
+        console.log('[MultiAI] 📌 Ordem dos modelos:');
+        this.GROQ_MODELS.forEach((m, i) => console.log(`   ${i+1}º - ${m}`));
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
@@ -80,6 +78,7 @@ class MultiAIService {
             try {
                 const result = await this._callGroqAPI(prompt, context, model);
                 if (result.success) {
+                    console.log(`[Groq] ✅ SUCESSO com modelo: ${model}`);
                     return { success: true, text: result.text };
                 }
                 errors.push(`[${model}] ${result.error}`);
@@ -100,22 +99,21 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT OTIMIZADO PARA PT-BR SEM PENSAMENTOS
-        const systemPrompt = `Você é um assistente de estudos chamado Zero IA. Responda SEMPRE em português do Brasil.
+        // ⭐ SYSTEM PROMPT MUITO MAIS AGRESSIVO CONTRA PENSAMENTOS
+        const systemPrompt = `Você é um assistente de estudos chamado Zero IA.
 
-REGRAS OBRIGATÓRIAS:
-1. NUNCA use inglês na resposta final.
-2. NUNCA mostre seu raciocínio, pensamentos, tags  ou análises.
-3. Responda DIRETAMENTE ao usuário, sem etapas intermediárias.
-4. Comece sua resposta com o conteúdo final em português.
-5. Seja claro, objetivo e útil.
-6. Use o contexto fornecido para personalizar a resposta.
-7. Mantenha a continuidade da conversa quando houver histórico.
+⚠️ REGRAS ABSOLUTAS - VIOLAR É PROIBIDO:
+1. Responda APENAS em português do Brasil. NUNCA use inglês.
+2. NUNCA mostre seu raciocínio, pensamentos ou análises.
+3. NUNCA escreva "Okay", "Let me", "First", "Now", "I need", "I should", "Another possibility", "Draft", "Analysis" ou qualquer texto em inglês.
+4. Comece sua resposta DIRETAMENTE com o conteúdo final em português.
+5. NÃO use tags como <thought>, <thinking> ou similares.
+6. Se não souber algo, diga "Desculpe, não tenho essa informação" em português.
+7. Seja claro, objetivo e útil.
 
 ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
 
         try {
-            // ⭐ REQUISIÇÃO PRINCIPAL
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -125,10 +123,7 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
                 body: JSON.stringify({
                     model: model,
                     messages: [
-                        { 
-                            role: 'system', 
-                            content: systemPrompt
-                        },
+                        { role: 'system', content: systemPrompt },
                         { role: 'user', content: prompt }
                     ],
                     temperature: 0.0,
@@ -166,7 +161,6 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
                     const data2 = await response2.json();
                     const text2 = data2.choices?.[0]?.message?.content;
                     if (text2 && text2.length > 0) {
-                        console.log('[Groq] ✅ Resposta recebida (sem prefixo)!');
                         const cleanText = this._extractPortugueseResponse(text2.trim());
                         return { success: true, text: cleanText };
                     }
@@ -178,7 +172,6 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
                 let errorMessage = `Erro ${response.status}`;
                 try {
                     const errorData = await response.json();
-                    console.error('[Groq] ❌ Detalhes:', errorData);
                     errorMessage = errorData.error?.message || errorData.error || errorMessage;
                 } catch (e) {}
                 return { success: false, error: errorMessage };
@@ -189,13 +182,9 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
             let text = data.choices?.[0]?.message?.content;
             
             if (text && text.length > 0) {
-                console.log('[Groq] ✅ Resposta recebida!');
                 console.log('[Groq] 📝 Tamanho original:', text.length);
-                
-                // ⭐ EXTRAIR APENAS A PARTE EM PORTUGUÊS
                 const cleanText = this._extractPortugueseResponse(text.trim());
                 console.log('[Groq] 🧹 Tamanho limpo:', cleanText.length);
-                
                 return { success: true, text: cleanText };
             }
             
@@ -207,64 +196,95 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
         }
     }
     
-    // ⭐ FUNÇÃO QUE EXTRAI APENAS A RESPOSTA EM PORTUGUÊS
+    // ============================================
+    // ⭐ EXTRAIR APENAS A RESPOSTA EM PORTUGUÊS (MUITO AGRESSIVO)
+    // ============================================
     _extractPortugueseResponse(text) {
         if (!text) return text;
         
-        // ⭐ REMOVER TAGS DE PENSAMENTO COMUNS
+        console.log('[Extract] 🔍 Texto original:', text.substring(0, 200));
+        
+        // ⭐ PASSO 1: REMOVER TAGS E BLOCOS DE PENSAMENTO
         let cleaned = text
             .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
             .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
             .replace(/\[thinking\][\s\S]*?\[\/thinking\]/gi, '')
             .replace(/```[\s\S]*?```/g, '')
-            .replace(/^(Okay|Ok|Let me|I need|First|Now|So|Well|Hmm|Alright)[^\n]*\n/gim, '')
             .trim();
         
-        // ⭐ PROCURAR POR PADRÕES DE RESPOSTA EM PORTUGUÊS NO FINAL
-        const portuguesePatterns = [
-            /(A célula é[^]*?)(?=\s*$)/i,
-            /(Um mouse é[^]*?)(?=\s*$)/i,
-            /(A internet é[^]*?)(?=\s*$)/i,
-            /(Napoleão[^]*?)(?=\s*$)/i,
-            /(Saturno é[^]*?)(?=\s*$)/i,
-            /(Olá![^]*?)(?=\s*$)/i,
-            /(Para estudar[^]*?)(?=\s*$)/i,
-            /(Para gerenciar[^]*?)(?=\s*$)/i,
-            /(Matemática[^]*?)(?=\s*$)/i,
-            /(Desculpe[^]*?)(?=\s*$)/i,
-            /(Claro![^]*?)(?=\s*$)/i,
-            /(Com certeza[^]*?)(?=\s*$)/i,
-            /(Entendi[^]*?)(?=\s*$)/i,
-            /(Vamos[^]*?)(?=\s*$)/i,
-            /(Você[^]*?)(?=\s*$)/i,
-            /(Isso[^]*?)(?=\s*$)/i,
-            /(Sim[^]*?)(?=\s*$)/i,
-            /(Não[^]*?)(?=\s*$)/i
-        ];
+        // ⭐ PASSO 2: DIVIDIR EM LINHAS E FILTRAR PENSAMENTOS EM INGLÊS
+        const lines = cleaned.split('\n');
+        const cleanedLines = [];
         
-        // Tentar encontrar uma resposta em português
-        for (const pattern of portuguesePatterns) {
-            const match = cleaned.match(pattern);
-            if (match && match[1].length > 10) {
-                return match[1].trim();
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            
+            // ⭐ DETECTAR SE A LINHA É UM PENSAMENTO EM INGLÊS
+            const isEnglishThought = 
+                // Palavras típicas de pensamento
+                /^(Okay|Ok|Let me|I need|I should|First|Now|So|Well|Hmm|Alright|Draft|Analysis|Step|Wait|Actually|Hmm|Another|Possibility|Maybe|Perhaps|Note|Important|Considering|However|But|Also|Then|Next|Finally)/i.test(trimmed) ||
+                // Padrões de pensamento em inglês
+                /(I need to|I should|Let me|I'll|I will|I can|I could|I think|I believe|I'm going|It seems|It appears|Another possibility|I should respond|I should address|I should mention|Let me think|Let me consider|Draft:|Analysis:)/i.test(trimmed) ||
+                // Palavras técnicas em inglês
+                /^(think|analysis|process|user|input|draft|output|response|answer|step|constraint|verify|check|internal|reasoning|but|however|also|first|second|third)/i.test(trimmed) ||
+                // Linhas com apenas palavras em inglês
+                /^[a-zA-Z\s,.:;!?'"()\[\]{}<>\-=+*&^%$#@!~`|\\\/]{15,}$/.test(trimmed);
+            
+            if (!isEnglishThought) {
+                cleanedLines.push(trimmed);
+            } else {
+                console.log('[Extract] 🗑️ Linha removida:', trimmed.substring(0, 60));
             }
         }
         
-        // ⭐ SE NÃO ENCONTROU, TENTAR PEGAR O ÚLTIMO PARÁGRAFO EM PORTUGUÊS
-        const lines = cleaned.split('\n');
-        const portugueseLines = lines.filter(line => {
-            // Verificar se a linha tem caracteres portugueses e não é pensamento
-            const hasPortuguese = /[áéíóúãõâêîôûçà]/i.test(line) || 
-                                  /\b(é|são|está|você|para|como|que|não|sim|uma|um|dos|das)\b/i.test(line);
-            const isNotThought = !/think|analysis|process|user|input|draft|output|response|answer|step|constraint|verify|check|internal|reasoning/i.test(line);
-            return hasPortuguese && isNotThought && line.trim().length > 15;
-        });
+        cleaned = cleanedLines.join('\n').trim();
         
-        if (portugueseLines.length > 0) {
-            return portugueseLines.join('\n').trim();
+        // ⭐ PASSO 3: SE AINDA TIVER TEXTO EM INGLÊS NO COMEÇO, TENTAR ENCONTRAR O INÍCIO EM PORTUGUÊS
+        const portugueseStartPatterns = [
+            /(A [a-záéíóúãõâêîôûç]+)/i,
+            /(O [a-záéíóúãõâêîôûç]+)/i,
+            /(Um [a-záéíóúãõâêîôûç]+)/i,
+            /(Uma [a-záéíóúãõâêîôûç]+)/i,
+            /(Não [a-záéíóúãõâêîôûç]+)/i,
+            /(Sim[,\s])/i,
+            /(Desculpe[,\s])/i,
+            /(Olá[,\s])/i,
+            /(Claro[,\s])/i,
+            /(Com certeza[,\s])/i,
+            /(Entendi[,\s])/i,
+            /(Vamos[,\s])/i,
+            /(Você[,\s])/i,
+            /(Isso[,\s])/i,
+            /(Aqui[,\s])/i,
+            /(Para[,\s])/i,
+            /(Quando[,\s])/i,
+            /(Como[,\s])/i,
+            /(Porque[,\s])/i,
+            /(Daniel[,\s])/i,
+            /(Anamibia[,\s])/i,
+            /(Namíbia[,\s])/i,
+            /(Sobre[,\s])/i,
+            /(Existem[,\s])/i,
+            /(É[,\s])/i,
+            /(São[,\s])/i,
+        ];
+        
+        // Tentar encontrar o início em português
+        for (const pattern of portugueseStartPatterns) {
+            const match = cleaned.match(pattern);
+            if (match && match.index > 0) {
+                // Se encontrou um padrão português que não está no início, cortar até lá
+                const portugueseText = cleaned.substring(match.index);
+                if (portugueseText.length > 20) {
+                    console.log('[Extract] ✂️ Cortando até início em português:', portugueseText.substring(0, 100));
+                    cleaned = portugueseText;
+                    break;
+                }
+            }
         }
         
-        // ⭐ ÚLTIMO RECURSO: PEGAR O TEXTO APÓS SEPARADORES
+        // ⭐ PASSO 4: ÚLTIMA TENTATIVA - PEGAR APÓS SEPARADORES
         const separators = ['---', 'Output:', 'Resposta:', 'Answer:', 'Resposta final:', 'Final:'];
         for (const sep of separators) {
             if (cleaned.includes(sep)) {
@@ -272,46 +292,56 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
                 if (parts.length > 1) {
                     const lastPart = parts[parts.length - 1].trim();
                     if (lastPart.length > 10) {
-                        return lastPart;
+                        console.log('[Extract] ✂️ Cortando após separador:', sep);
+                        cleaned = lastPart;
+                        break;
                     }
                 }
             }
         }
         
-        // ⭐ SE TUDO FALHAR, PEGAR O ÚLTIMO TERÇO DO TEXTO
-        const words = cleaned.split(' ');
-        if (words.length > 30) {
-            const startIndex = Math.floor(words.length * 0.6);
-            return words.slice(startIndex).join(' ').trim();
+        // ⭐ PASSO 5: SE O RESULTADO ESTIVER VAZIO, RETORNAR MENSAGEM PADRÃO
+        if (!cleaned || cleaned.length < 5) {
+            console.log('[Extract] ⚠️ Resultado vazio, usando fallback');
+            return 'Desculpe, não consegui processar sua pergunta. Poderia reformular?';
         }
         
+        console.log('[Extract] ✅ Texto final:', cleaned.substring(0, 200));
         return cleaned.trim();
     }
     
     // ============================================
-    // ⭐ FALLBACK LOCAL (RESPOSTAS EM PORTUGUÊS)
+    // ⭐ FALLBACK LOCAL
     // ============================================
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         
+        if (texto.includes('daniel chapo')) {
+            return 'Daniel Chapo é um político moçambicano, membro do partido FRELIMO. Ele foi governador da província de Inhambane e, em 2024, foi eleito Presidente da República de Moçambique. Antes disso, também atuou como Ministro da Administração Estatal e Função Pública.';
+        }
+        
+        if (texto.includes('anamibia') || texto.includes('anamíbia')) {
+            return 'Anamibia é um gênero de mariposas da família Noctuidae. O termo também pode ser uma confusão com "Namíbia", que é um país localizado no sudoeste da África. Se você quis dizer Namíbia, posso falar sobre o país.';
+        }
+        
         if (texto.includes('napoleao') || texto.includes('napoleão')) {
-            return 'Napoleão Bonaparte (1769–1821) foi um líder militar e estadista francês que se tornou imperador da França em 1804. Ele ascendeu ao poder durante a Revolução Francesa, liderou campanhas militares bem-sucedidas que dominaram grande parte da Europa e implementou o Código Napoleônico, que influenciou sistemas jurídicos em todo o mundo. Após sua derrota na Batalha de Waterloo em 1815, foi exilado na ilha de Santa Helena, onde faleceu. Napoleão é considerado uma das figuras mais influentes da história moderna, deixando um legado duradouro em direito, estratégia militar e política europeia.';
+            return 'Napoleão Bonaparte (1769–1821) foi um líder militar e estadista francês que se tornou imperador da França em 1804. Ele ascendeu ao poder durante a Revolução Francesa, liderou campanhas militares bem-sucedidas que dominaram grande parte da Europa e implementou o Código Napoleônico. Após sua derrota na Batalha de Waterloo em 1815, foi exilado na ilha de Santa Helena, onde faleceu.';
         }
         
         if (texto.includes('celula') || texto.includes('célula')) {
-            return 'A célula é a unidade básica estrutural, funcional e biológica de todos os seres vivos. É a menor parte de um organismo capaz de realizar todas as atividades necessárias para a vida, como metabolismo, crescimento, reprodução e resposta a estímulos. Cada célula é composta por uma membrana plasmática, citoplasma e material genético (DNA ou RNA). Existem dois tipos principais: células procarióticas, que não possuem núcleo definido, e células eucarióticas, que possuem núcleo delimitado por uma membrana.';
+            return 'A célula é a unidade básica estrutural, funcional e biológica de todos os seres vivos. É a menor parte de um organismo capaz de realizar todas as atividades necessárias para a vida, como metabolismo, crescimento, reprodução e resposta a estímulos. Existem dois tipos principais: células procarióticas e eucarióticas.';
         }
         
         if (texto.includes('internet')) {
-            return 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web. É a infraestrutura tecnológica que sustenta e-mails, streaming, redes sociais, jogos online e inúmeras outras aplicações.';
+            return 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web.';
         }
         
         if (texto.includes('saturno')) {
-            return 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso com uma densidade menor que a da água. Na mitologia romana, Saturno era o deus da agricultura e do tempo, equivalente ao deus grego Cronos.';
+            return 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso.';
         }
         
         if (texto.includes('mouse')) {
-            return 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos. É essencial para a interação com sistemas operacionais e aplicativos.';
+            return 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos.';
         }
         
         if (texto.includes('oi') || texto.includes('olá') || texto.includes('eai')) {
@@ -322,19 +352,11 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
             return 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.';
         }
         
-        if (texto.includes('tarefa') || texto.includes('dever')) {
-            return 'Para organizar suas tarefas, recomendo priorizar as mais urgentes, usar lembretes e dividir tarefas grandes em partes menores. Você pode usar o módulo de Tarefas do app para gerenciá-las!';
-        }
-        
-        if (texto.includes('anota') || texto.includes('nota')) {
-            return 'Suas anotações são importantes para revisar o conteúdo. Recomendo organizá-las por disciplina e revisá-las periodicamente. Você pode usar o módulo de Notas do app!';
-        }
-        
         return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.';
     }
     
     // ============================================
-    // ⭐ MÉTODOS DE LIMITE E CACHE
+    // MÉTODOS DE LIMITE E CACHE
     // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
