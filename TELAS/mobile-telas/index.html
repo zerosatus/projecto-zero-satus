@@ -1149,7 +1149,8 @@ const checkInterval = setInterval(() => {
 
 <script>// ============================================
 // multi-ai-service.js - GROQ (CORRIGIDO)
-// ⭐ LLAMA-3.3-70B PRIMEIRO (rápido e confiável)
+// ⭐ LLAMA-3.1-8B PRIMEIRO (mais rápido)
+// ⭐ LLAMA-3.3-70B SEGUNDO (melhor qualidade)
 // ⭐ QWEN POR ÚLTIMO (evita pensamentos em inglês)
 // ============================================
 
@@ -1159,14 +1160,17 @@ class MultiAIService {
     constructor() {
         this.GROQ_API_KEY = "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";
         
-        // ⭐ ORDEM CORRIGIDA - LLAMA PRIMEIRO, QWEN POR ÚLTIMO
-        // O qwen tem "pensamentos internos" em inglês que vazam no output
-        // Por isso ele deve ser o ÚLTIMO recurso
+        // ⭐ ORDEM CORRIGIDA - CONFORME IMAGENS
+        // 1º - llama-3.1-8b-instant (RÁPIDO - primeira imagem)
+        // 2º - llama-3.3-70b-versatile (QUALIDADE - segunda imagem)
+        // 3º - mixtral-8x7b-32768 (fallback)
+        // 4º - openai/gpt-oss-120b (pode não existir)
+        // 5º - qwen/qwen3.6-27b (ÚLTIMO - pensamentos em inglês)
         this.GROQ_MODELS = [
-            "llama-3.3-70b-versatile",    // 1º - Melhor custo-benefício
-            "llama-3.1-8b-instant",       // 2º - Rápido e confiável
-            "mixtral-8x7b-32768",         // 3º - Fallback bom
-            "openai/gpt-oss-120b",        // 4º - Pode não existir na API
+            "llama-3.1-8b-instant",       // 1º - RÁPIDO
+            "llama-3.3-70b-versatile",    // 2º - QUALIDADE
+            "mixtral-8x7b-32768",         // 3º - Fallback
+            "openai/gpt-oss-120b",        // 4º - Pode não existir
             "qwen/qwen3.6-27b"            // 5º - ÚLTIMO (pensamentos em inglês)
         ];
         
@@ -1248,7 +1252,7 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT MUITO MAIS AGRESSIVO CONTRA PENSAMENTOS
+        // ⭐ SYSTEM PROMPT MUITO AGRESSIVO CONTRA PENSAMENTOS
         const systemPrompt = `Você é um assistente de estudos chamado Zero IA.
 
 ⚠️ REGRAS ABSOLUTAS - VIOLAR É PROIBIDO:
