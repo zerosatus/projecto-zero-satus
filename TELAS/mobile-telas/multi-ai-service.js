@@ -1,6 +1,7 @@
 // ============================================
 // multi-ai-service.js - GROQ (RESPOSTA EM PT NO FINAL)
-// ⭐ EXTRAI APENAS A RESPOSTA EM PORTUGUÊS DO FINAL
+// ⭐ MODELOS REORDENADOS CONFORME IMAGENS
+// ⭐ openai/gpt-oss-120b PRIMEIRO, qwen POR ÚLTIMO
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
@@ -8,11 +9,19 @@ console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
 class MultiAIService {
     constructor() {
         this.GROQ_API_KEY = "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";
+        
+        // ⭐ MODELOS REORDENADOS CONFORME AS IMAGENS
+        // 1º - openai/gpt-oss-120b (da primeira imagem)
+        // 2º - llama-3.3-70b-versatile (da segunda imagem)
+        // 3º - llama-3.1-8b-instant (rápido e confiável)
+        // 4º - mixtral-8x7b-32768 (fallback)
+        // 5º - qwen/qwen3.6-27b (ÚLTIMO - conforme terceira imagem)
         this.GROQ_MODELS = [
-            "qwen/qwen3.6-27b",
-            "llama-3.1-8b-instant",
+            "openai/gpt-oss-120b",
             "llama-3.3-70b-versatile",
-            "mixtral-8x7b-32768"
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+            "qwen/qwen3.6-27b"
         ];
         
         this._cache = new Map();
@@ -22,6 +31,7 @@ class MultiAIService {
         this._dataReset = new Date().toDateString();
         
         console.log('[MultiAI] 🚀 Inicializando...');
+        console.log('[MultiAI] 📌 Ordem dos modelos:', this.GROQ_MODELS.join(' → '));
         this._resetarLimite();
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
@@ -90,14 +100,22 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        const systemPrompt = `Responda APENAS em português. NUNCA use inglês. NUNCA inclua pensamentos, tags ou análise.
+        // ⭐ SYSTEM PROMPT OTIMIZADO PARA PT-BR SEM PENSAMENTOS
+        const systemPrompt = `Você é um assistente de estudos chamado Zero IA. Responda SEMPRE em português do Brasil.
 
-REGRAS:
-- Sua resposta deve ser APENAS o conteúdo final em português
-- NÃO mostre etapas de pensamento - responda diretamente
-- Comece SEMPRE com a resposta direta em português`;
-        
+REGRAS OBRIGATÓRIAS:
+1. NUNCA use inglês na resposta final.
+2. NUNCA mostre seu raciocínio, pensamentos, tags  ou análises.
+3. Responda DIRETAMENTE ao usuário, sem etapas intermediárias.
+4. Comece sua resposta com o conteúdo final em português.
+5. Seja claro, objetivo e útil.
+6. Use o contexto fornecido para personalizar a resposta.
+7. Mantenha a continuidade da conversa quando houver histórico.
+
+${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
+
         try {
+            // ⭐ REQUISIÇÃO PRINCIPAL
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -114,15 +132,19 @@ REGRAS:
                         { role: 'user', content: prompt }
                     ],
                     temperature: 0.0,
-                    max_tokens: 500
+                    max_tokens: 800,
+                    top_p: 0.9,
+                    stream: false
                 })
             });
             
-            console.log(`[Groq] 📥 Status:`, response.status);
+            console.log(`[Groq] 📥 Status (${model}):`, response.status);
             
+            // ⭐ TRATAR MODELOS COM PREFIXO (ex: openai/gpt-oss-120b)
             if (response.status === 404 && model.includes('/')) {
                 const modelSimple = model.split('/').pop();
                 console.log(`[Groq] 🔄 Tentando sem prefixo: ${modelSimple}`);
+                
                 const response2 = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -132,14 +154,11 @@ REGRAS:
                     body: JSON.stringify({
                         model: modelSimple,
                         messages: [
-                            { 
-                                role: 'system', 
-                                content: systemPrompt
-                            },
+                            { role: 'system', content: systemPrompt },
                             { role: 'user', content: prompt }
                         ],
                         temperature: 0.0,
-                        max_tokens: 500
+                        max_tokens: 800
                     })
                 });
                 
@@ -147,13 +166,14 @@ REGRAS:
                     const data2 = await response2.json();
                     const text2 = data2.choices?.[0]?.message?.content;
                     if (text2 && text2.length > 0) {
-                        console.log('[Groq] ✅ Resposta recebida!');
+                        console.log('[Groq] ✅ Resposta recebida (sem prefixo)!');
                         const cleanText = this._extractPortugueseResponse(text2.trim());
                         return { success: true, text: cleanText };
                     }
                 }
             }
             
+            // ⭐ TRATAR ERROS
             if (!response.ok) {
                 let errorMessage = `Erro ${response.status}`;
                 try {
@@ -164,14 +184,18 @@ REGRAS:
                 return { success: false, error: errorMessage };
             }
             
+            // ⭐ PROCESSAR RESPOSTA
             const data = await response.json();
             let text = data.choices?.[0]?.message?.content;
             
             if (text && text.length > 0) {
                 console.log('[Groq] ✅ Resposta recebida!');
+                console.log('[Groq] 📝 Tamanho original:', text.length);
                 
-                // ⭐ EXTRAIR APENAS A PARTE EM PORTUGUÊS DO FINAL
+                // ⭐ EXTRAIR APENAS A PARTE EM PORTUGUÊS
                 const cleanText = this._extractPortugueseResponse(text.trim());
+                console.log('[Groq] 🧹 Tamanho limpo:', cleanText.length);
+                
                 return { success: true, text: cleanText };
             }
             
@@ -183,11 +207,20 @@ REGRAS:
         }
     }
     
-    // ⭐ FUNÇÃO QUE EXTRAI APENAS A RESPOSTA EM PORTUGUÊS DO FINAL
+    // ⭐ FUNÇÃO QUE EXTRAI APENAS A RESPOSTA EM PORTUGUÊS
     _extractPortugueseResponse(text) {
         if (!text) return text;
         
-        // Procurar por padrões de resposta em português no final
+        // ⭐ REMOVER TAGS DE PENSAMENTO COMUNS
+        let cleaned = text
+            .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+            .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+            .replace(/\[thinking\][\s\S]*?\[\/thinking\]/gi, '')
+            .replace(/```[\s\S]*?```/g, '')
+            .replace(/^(Okay|Ok|Let me|I need|First|Now|So|Well|Hmm|Alright)[^\n]*\n/gim, '')
+            .trim();
+        
+        // ⭐ PROCURAR POR PADRÕES DE RESPOSTA EM PORTUGUÊS NO FINAL
         const portuguesePatterns = [
             /(A célula é[^]*?)(?=\s*$)/i,
             /(Um mouse é[^]*?)(?=\s*$)/i,
@@ -198,52 +231,65 @@ REGRAS:
             /(Para estudar[^]*?)(?=\s*$)/i,
             /(Para gerenciar[^]*?)(?=\s*$)/i,
             /(Matemática[^]*?)(?=\s*$)/i,
-            /(Desculpe[^]*?)(?=\s*$)/i
+            /(Desculpe[^]*?)(?=\s*$)/i,
+            /(Claro![^]*?)(?=\s*$)/i,
+            /(Com certeza[^]*?)(?=\s*$)/i,
+            /(Entendi[^]*?)(?=\s*$)/i,
+            /(Vamos[^]*?)(?=\s*$)/i,
+            /(Você[^]*?)(?=\s*$)/i,
+            /(Isso[^]*?)(?=\s*$)/i,
+            /(Sim[^]*?)(?=\s*$)/i,
+            /(Não[^]*?)(?=\s*$)/i
         ];
         
         // Tentar encontrar uma resposta em português
         for (const pattern of portuguesePatterns) {
-            const match = text.match(pattern);
-            if (match) {
+            const match = cleaned.match(pattern);
+            if (match && match[1].length > 10) {
                 return match[1].trim();
             }
         }
         
-        // Se não encontrou, tentar pegar o último parágrafo
-        const lines = text.split('\n');
+        // ⭐ SE NÃO ENCONTROU, TENTAR PEGAR O ÚLTIMO PARÁGRAFO EM PORTUGUÊS
+        const lines = cleaned.split('\n');
         const portugueseLines = lines.filter(line => {
-            // Verificar se a linha tem caracteres portugueses
-            return /[áéíóúãõâêîôûç]/i.test(line) && 
-                   !/think|analysis|process|user|input|draft|output|response|answer|step|constraint|verify|check/i.test(line);
+            // Verificar se a linha tem caracteres portugueses e não é pensamento
+            const hasPortuguese = /[áéíóúãõâêîôûçà]/i.test(line) || 
+                                  /\b(é|são|está|você|para|como|que|não|sim|uma|um|dos|das)\b/i.test(line);
+            const isNotThought = !/think|analysis|process|user|input|draft|output|response|answer|step|constraint|verify|check|internal|reasoning/i.test(line);
+            return hasPortuguese && isNotThought && line.trim().length > 15;
         });
         
         if (portugueseLines.length > 0) {
             return portugueseLines.join('\n').trim();
         }
         
-        // Último recurso: pegar o texto após "---" ou "Output:" ou similar
-        const separators = ['---', 'Output:', 'Resposta:', 'Answer:', '---'];
+        // ⭐ ÚLTIMO RECURSO: PEGAR O TEXTO APÓS SEPARADORES
+        const separators = ['---', 'Output:', 'Resposta:', 'Answer:', 'Resposta final:', 'Final:'];
         for (const sep of separators) {
-            if (text.includes(sep)) {
-                const parts = text.split(sep);
+            if (cleaned.includes(sep)) {
+                const parts = cleaned.split(sep);
                 if (parts.length > 1) {
-                    return parts[parts.length - 1].trim();
+                    const lastPart = parts[parts.length - 1].trim();
+                    if (lastPart.length > 10) {
+                        return lastPart;
+                    }
                 }
             }
         }
         
-        // Se tudo falhar, pegar o último terço do texto
-        const words = text.split(' ');
-        if (words.length > 20) {
-            const startIndex = Math.floor(words.length * 0.7);
-            return words.slice(startIndex).join(' ');
+        // ⭐ SE TUDO FALHAR, PEGAR O ÚLTIMO TERÇO DO TEXTO
+        const words = cleaned.split(' ');
+        if (words.length > 30) {
+            const startIndex = Math.floor(words.length * 0.6);
+            return words.slice(startIndex).join(' ').trim();
         }
         
-        return text;
+        return cleaned.trim();
     }
     
     // ============================================
-    // ⭐ FALLBACK LOCAL
+    // ⭐ FALLBACK LOCAL (RESPOSTAS EM PORTUGUÊS)
     // ============================================
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
@@ -268,12 +314,20 @@ REGRAS:
             return 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos. É essencial para a interação com sistemas operacionais e aplicativos.';
         }
         
-        if (texto.includes('oi') || texto.includes('olá')) {
-            return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos.';
+        if (texto.includes('oi') || texto.includes('olá') || texto.includes('eai')) {
+            return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
         }
         
         if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
             return 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.';
+        }
+        
+        if (texto.includes('tarefa') || texto.includes('dever')) {
+            return 'Para organizar suas tarefas, recomendo priorizar as mais urgentes, usar lembretes e dividir tarefas grandes em partes menores. Você pode usar o módulo de Tarefas do app para gerenciá-las!';
+        }
+        
+        if (texto.includes('anota') || texto.includes('nota')) {
+            return 'Suas anotações são importantes para revisar o conteúdo. Recomendo organizá-las por disciplina e revisá-las periodicamente. Você pode usar o módulo de Notas do app!';
         }
         
         return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.';
@@ -352,7 +406,8 @@ REGRAS:
             cacheSize: this._cache.size,
             modo: 'GROQ',
             groqConfigurado: !!this.GROQ_API_KEY,
-            modelos: this.GROQ_MODELS
+            modelos: this.GROQ_MODELS,
+            ordem: this.GROQ_MODELS.join(' → ')
         };
     }
     
@@ -379,6 +434,7 @@ window.getLimiteIA = () => {
         restante: status.restante,
         modo: status.modo,
         modelos: status.modelos,
+        ordem: status.ordem,
         reset: () => multiAI.resetLimite()
     };
 };
@@ -390,6 +446,18 @@ window.testIA = async (pergunta) => {
     return result;
 };
 
+window.verModelos = () => {
+    console.log('📌 MODELOS NA ORDEM DE TENTATIVA:');
+    multiAI.GROQ_MODELS.forEach((model, index) => {
+        console.log(`   ${index + 1}º - ${model}`);
+    });
+    return multiAI.GROQ_MODELS;
+};
+
 console.log('[MultiAI] ✅ Serviço carregado!');
-console.log('[MultiAI] 📌 Modelos:', multiAI.GROQ_MODELS);
+console.log('[MultiAI] 📌 Ordem dos modelos:');
+multiAI.GROQ_MODELS.forEach((model, index) => {
+    console.log(`   ${index + 1}º - ${model}`);
+});
 console.log('[MultiAI] 💡 Teste: window.testIA("quem foi napoleão?")');
+console.log('[MultiAI] 📋 Ver modelos: window.verModelos()');
