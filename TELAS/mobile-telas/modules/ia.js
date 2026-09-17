@@ -1,8 +1,9 @@
 // ============================================
-// modules/ia.js - MÓDULO DA IA COM HISTÓRICO CONTÍNUO
-// ⭐ CONVERSAS CONTÍNUAS + HISTÓRICO PERSISTENTE
-// ⭐ ACESSO TOTAL A TAREFAS, ANOTAÇÕES, HORÁRIO E DISCIPLINAS
+// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE)
+// ⭐ HISTÓRICO CONTÍNUO
+// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
 // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+// ⭐ MODO GÍRIA MOÇAMBICANA
 // ============================================
 
 const IA_SPARKLES_SVG = `
@@ -30,15 +31,16 @@ class IAModule {
         this._modoGiria = false;
         this._ultimaMensagem = '';
         
+        // LIMITE DIÁRIO
         this.LIMITE_DIARIO = 15;
         this._usosHoje = 0;
         this._dataReset = new Date().toDateString();
         
-        // ⭐ HISTÓRICO DE CONVERSAS
+        // HISTÓRICO DE CONVERSAS
         this.history = [];
         this.currentHistoryId = null;
         
-        // ⭐ DADOS DO USUÁRIO
+        // DADOS DO USUÁRIO
         this.tasks = [];
         this.notes = [];
         this.weeklySchedule = {};
@@ -46,10 +48,13 @@ class IAModule {
         this.disciplinas = [];
         this.notifications = [];
         
-        console.log('[IA] 🤖 Inicializado com histórico contínuo');
+        console.log('[IA Mobile] 🤖 Inicializado');
         this._resetarLimite();
     }
 
+    // ============================================
+    // RESETAR LIMITE DIÁRIO
+    // ============================================
     _resetarLimite() {
         const hoje = new Date().toDateString();
         const dataSalva = localStorage.getItem('ia_limite_data');
@@ -81,9 +86,11 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ RENDER PRINCIPAL
+    // RENDER PRINCIPAL
     // ============================================
     render(data) {
+        console.log('[IA Mobile] 📊 Renderizando...');
+        
         this.notifications = data.notifications || [];
         this.tasks = data.tasks || [];
         this.notes = data.notes || [];
@@ -91,9 +98,10 @@ class IAModule {
         this.timeSlots = data.timeSlots || [];
         this.disciplinas = data.disciplinas || [];
         
-        // ⭐ CARREGAR HISTÓRICO
+        // Carregar histórico
         this.carregarHistorico();
         
+        // Atualizar UI
         this.upgradeHeader();
         this.garantirFab();
         this.criarPainel();
@@ -104,7 +112,7 @@ class IAModule {
         this._atualizarStatusGiria();
         this._atualizarStatusLimite();
         
-        console.log('[IA] 📊 Dados carregados:', {
+        console.log('[IA Mobile] 📊 Dados carregados:', {
             tasks: this.tasks.length,
             pendentes: this.tasks.filter(t => !t.completed).length,
             notes: this.notes.length,
@@ -115,12 +123,12 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ CARREGAR HISTÓRICO (COM CONVERSA ATUAL)
+    // CARREGAR HISTÓRICO
     // ============================================
     carregarHistorico() {
         const userId = this.app?.user?.id;
         if (!userId) {
-            console.log('[IA] ⚠️ Sem userId, não é possível carregar histórico');
+            console.log('[IA Mobile] ⚠️ Sem userId, não é possível carregar histórico');
             return;
         }
         
@@ -138,12 +146,12 @@ class IAModule {
         
         this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
         
-        // ⭐ SE NÃO TEM CONVERSA ATUAL MAS TEM MENSAGENS, CRIAR UMA
+        // Se não tem conversa atual mas tem mensagens, criar uma
         if (!this.currentHistoryId && this.messages.length > 0) {
             this.salvarConversaAtual();
         }
         
-        // ⭐ SE TEM CONVERSA ATUAL MAS NÃO TEM MENSAGENS, CARREGAR DO HISTÓRICO
+        // Se tem conversa atual mas não tem mensagens, carregar do histórico
         if (this.currentHistoryId && this.messages.length === 0) {
             const conv = this.history.find(h => h.id === this.currentHistoryId);
             if (conv && conv.messages) {
@@ -151,7 +159,7 @@ class IAModule {
             }
         }
         
-        console.log('[IA] 📚 Histórico carregado:', {
+        console.log('[IA Mobile] 📚 Histórico carregado:', {
             conversas: this.history.length,
             conversaAtual: this.currentHistoryId,
             mensagens: this.messages.length
@@ -159,7 +167,7 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ SALVAR CONVERSA ATUAL (HISTÓRICO COMPLETO)
+    // SALVAR CONVERSA ATUAL
     // ============================================
     salvarConversaAtual() {
         const userId = this.app?.user?.id;
@@ -167,11 +175,11 @@ class IAModule {
         
         const agora = new Date().toISOString();
         
-        // ⭐ TÍTULO BASEADO NA PRIMEIRA MENSAGEM DO USUÁRIO
+        // Título baseado na primeira mensagem do usuário
         const primeira = this.messages.find(m => m.role === 'user')?.content || 'Nova conversa';
         const titulo = primeira.length > 32 ? primeira.substring(0, 32) + '…' : primeira;
         
-        // ⭐ SE JÁ EXISTE UMA CONVERSA ATUAL, ATUALIZAR
+        // Se já existe uma conversa atual, atualizar
         if (this.currentHistoryId) {
             const i = this.history.findIndex(h => h.id === this.currentHistoryId);
             if (i !== -1) {
@@ -186,7 +194,7 @@ class IAModule {
             }
         }
         
-        // ⭐ SE NÃO TEM CONVERSA ATUAL, CRIAR NOVA
+        // Se não tem conversa atual, criar nova
         if (!this.currentHistoryId) {
             this.currentHistoryId = Date.now().toString();
             this.history.push({
@@ -198,18 +206,18 @@ class IAModule {
             });
         }
         
-        // ⭐ ORDENAR POR MAIS RECENTE
+        // Ordenar por mais recente
         this.history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         
-        // ⭐ SALVAR NO LOCALSTORAGE
+        // Salvar no localStorage
         localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
         localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
         localStorage.setItem(`${userId}_ia_current`, this.currentHistoryId);
         
-        // ⭐ ATUALIZAR LISTA NO PAINEL
+        // Atualizar lista no painel
         this.renderHistoryList();
         
-        console.log('[IA] 💾 Conversa salva:', {
+        console.log('[IA Mobile] 💾 Conversa salva:', {
             id: this.currentHistoryId,
             title: titulo,
             messages: this.messages.length
@@ -217,7 +225,7 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ RENDER CHAT
+    // RENDER CHAT
     // ============================================
     renderChat() {
         const container = document.getElementById('ia-messages-container');
@@ -252,7 +260,7 @@ class IAModule {
                             <span style="font-size:0.6rem;color:var(--text-secondary);">Anotações</span>
                         </div>
                         <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-blue, #60a5fa);">${this.disciplinas.length}</span>
+                            <span style="font-weight:700;color:#60a5fa;">${this.disciplinas.length}</span>
                             <span style="font-size:0.6rem;color:var(--text-secondary);">Disciplinas</span>
                         </div>
                     </div>
@@ -298,7 +306,7 @@ class IAModule {
     }
 
     // ============================================
-    // ⭐ BUILD USER CONTEXT - COM HISTÓRICO CONTÍNUO
+    // BUILD USER CONTEXT
     // ============================================
     buildUserContext(textoUsuario) {
         const user = this.app.user || {};
@@ -311,18 +319,19 @@ class IAModule {
         const slots = this.timeSlots || [];
         const disciplinas = this.disciplinas || [];
         
+        // Detectar comandos de gíria
         const pediuGiria = this._usuarioPediuGiria(textoUsuario);
         const querNormal = this._usuarioQuerNormal(textoUsuario);
         
         if (pediuGiria) {
             this._modoGiria = true;
-            this._mostrarToast('🇲🇿 Modo Gíria ativado! Fala como magaia!');
+            this._mostrarToast('🇲🇿 Modo Gíria ativado!');
         } else if (querNormal) {
             this._modoGiria = false;
-            this._mostrarToast('📚 Modo Normal ativado! Fala formal.');
+            this._mostrarToast('📚 Modo Normal ativado!');
         }
         
-        // ⭐ HISTÓRICO DA CONVERSA ATUAL (últimas 10 mensagens)
+        // Histórico da conversa atual
         let historicoConversa = '';
         if (this.messages && this.messages.length > 0) {
             const ultimasMensagens = this.messages.slice(-10);
@@ -340,7 +349,6 @@ class IAModule {
 👤 PERFIL:
 Nome: ${user.nome || 'Estudante'}
 Email: ${user.email || 'Não informado'}
-ID: ${user.id || 'N/A'}
 
 ${historicoConversa}
 
@@ -351,30 +359,24 @@ Concluídas: ${concluidas.length}
 
 ${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) => 
     `   ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
-).join('\n') : '✅ Todas as tarefas foram concluídas! Parabéns! 🎉'}
-
-${concluidas.length > 0 ? '\n✅ TAREFAS CONCLUÍDAS:\n' + concluidas.slice(0, 5).map((t, i) => 
-    `   ${i+1}. ${t.title || t.nome || 'Sem título'}`
-).join('\n') + (concluidas.length > 5 ? `\n   ... e mais ${concluidas.length - 5} concluídas` : '') : ''}
+).join('\n') : '✅ Todas as tarefas foram concluídas! 🎉'}
 
 📝 ANOTAÇÕES:
 Total: ${notes.length}
 ${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, i) => 
-    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}${n.content.length > 60 ? '...' : ''}` : ''}`
-).join('\n') + (notes.length > 5 ? `\n   ... e mais ${notes.length - 5} anotações` : '') : 'Nenhuma anotação ainda'}
+    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
+).join('\n') : 'Nenhuma anotação ainda'}
 
 📚 DISCIPLINAS:
-${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}${d.cor ? ` (${d.cor})` : ''}`).join('\n') : 'Nenhuma disciplina cadastrada'}
+${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}`).join('\n') : 'Nenhuma disciplina cadastrada'}
 
 📅 HORÁRIO SEMANAL:
 ${Object.entries(schedule).map(([dia, aulas]) => {
     if (aulas && aulas.length > 0) {
-        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})${a.professor ? ` - ${a.professor}` : ''}`).join(', ')}`;
+        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ')}`;
     }
     return `${dia}: Sem aulas`;
 }).join('\n')}
-
-⏰ HORÁRIOS DISPONÍVEIS: ${slots.join(', ') || 'Nenhum horário cadastrado'}
 
 🎯 LIMITE DIÁRIO DE MENSAGENS:
 Usadas hoje: ${this.getUsoHoje()}/${this.LIMITE_DIARIO}
@@ -388,21 +390,16 @@ INSTRUÇÕES DE ESTILO:
 ✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
 ✅ Seja descontraído, amigável e divertido.
 ✅ Use emojis frequentemente 🇲🇿
-✅ Responda com entusiasmo e calor humano.
 ✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ MANTENHA A CONTINUIDADE DA CONVERSA - lembre-se do que foi dito antes.
-✅ Se o usuário fez uma pergunta de acompanhamento, responda no contexto anterior.
+✅ MANTENHA A CONTINUIDADE DA CONVERSA.
 `;
         } else {
             contexto += `
 ✅ MODO NORMAL ATIVO! Fale em português formal e claro.
 ✅ Seja profissional, direto e objetivo.
-✅ Use linguagem neutra, sem gírias.
 ✅ Dê respostas completas e bem estruturadas.
-✅ Seja educado e respeitoso.
 ✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ MANTENHA A CONTINUIDADE DA CONVERSA - lembre-se do que foi dito antes.
-✅ Se o usuário fez uma pergunta de acompanhamento, responda no contexto anterior.
+✅ MANTENHA A CONTINUIDADE DA CONVERSA.
 `;
         }
         
@@ -415,7 +412,7 @@ INSTRUÇÕES DE ESTILO:
             'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
             'fala moçambicano', 'fala com gíria', 'fala que nem eu',
             'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
-            'fala moçambicano', 'modo gíria', 'modo giria'
+            'modo gíria', 'modo giria'
         ];
         return palavrasChave.some(palavra =>
             texto.toLowerCase().includes(palavra.toLowerCase())
@@ -438,7 +435,7 @@ INSTRUÇÕES DE ESTILO:
         if (typeof showToast === 'function') {
             showToast(mensagem, 'info');
         } else {
-            console.log('[IA] 📢', mensagem);
+            console.log('[IA Mobile] 📢', mensagem);
         }
         this._atualizarStatusGiria();
         this._atualizarStatusLimite();
@@ -486,7 +483,7 @@ INSTRUÇÕES DE ESTILO:
     }
 
     // ============================================
-    // ⭐ ENVIAR MENSAGEM (COM HISTÓRICO CONTÍNUO)
+    // ENVIAR MENSAGEM
     // ============================================
     async sendMessage(text) {
         if (!text) {
@@ -513,7 +510,7 @@ INSTRUÇÕES DE ESTILO:
         
         this._ultimaMensagem = text;
         
-        // ⭐ ADICIONAR MENSAGEM DO USUÁRIO
+        // Adicionar mensagem do usuário
         this.messages.push({
             role: 'user',
             content: text,
@@ -521,7 +518,7 @@ INSTRUÇÕES DE ESTILO:
             timestamp: new Date().toISOString()
         });
         
-        // ⭐ SALVAR IMEDIATAMENTE (GARANTE CONTINUIDADE)
+        // Salvar imediatamente
         this.salvarConversaAtual();
         
         this.renderChat();
@@ -545,12 +542,14 @@ INSTRUÇÕES DE ESTILO:
         try {
             const context = this.buildUserContext(text);
             let response;
-            const service = window.MultiAIService || window.GeminiService || window.OpenRouterService;
+            const service = window.MultiAIService;
             
             if (service) {
-                console.log('[IA] 📤 Enviando... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
-                console.log('[IA] 📊 Mensagens no histórico:', this.messages.length);
+                console.log('[IA Mobile] 📤 Enviando... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+                console.log('[IA Mobile] 📊 Mensagens no histórico:', this.messages.length);
+                
                 const result = await service.sendMessage(text, context);
+                
                 if (result.success) {
                     response = result.text;
                     if (result.fromCache) response += '\n\n*(Resposta do cache)*';
@@ -564,7 +563,7 @@ INSTRUÇÕES DE ESTILO:
             loadingDiv.remove();
             this._incrementarUso();
             
-            // ⭐ ADICIONAR RESPOSTA DA IA
+            // Adicionar resposta da IA
             this.messages.push({
                 role: 'assistant',
                 content: response,
@@ -572,7 +571,7 @@ INSTRUÇÕES DE ESTILO:
                 timestamp: new Date().toISOString()
             });
             
-            // ⭐ SALVAR CONVERSA COMPLETA
+            // Salvar conversa
             this.salvarConversaAtual();
             this.renderChat();
             this._atualizarStatusLimite();
@@ -582,7 +581,7 @@ INSTRUÇÕES DE ESTILO:
             }
             
         } catch (error) {
-            console.error('[IA] ❌ Erro:', error);
+            console.error('[IA Mobile] ❌ Erro:', error);
             loadingDiv.remove();
             this.messages.push({
                 role: 'assistant',
@@ -597,7 +596,7 @@ INSTRUÇÕES DE ESTILO:
     }
 
     // ============================================
-    // ⭐ FALLBACK LOCAL
+    // FALLBACK LOCAL
     // ============================================
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
@@ -683,7 +682,7 @@ INSTRUÇÕES DE ESTILO:
     }
 
     // ============================================
-    // ⭐ SETUP EVENTS
+    // SETUP EVENTS
     // ============================================
     setupEvents() {
         const input = document.getElementById('ia-input');
@@ -847,11 +846,9 @@ INSTRUÇÕES DE ESTILO:
             </div>`).join('');
     }
 
-    // ⭐ NOVA CONVERSA (RESET COMPLETO)
     novaConversa() {
         if (this._isProcessing) return;
         
-        // ⭐ SALVAR CONVERSA ATUAL ANTES DE CRIAR NOVA
         if (this.messages.length > 0) {
             this.salvarConversaAtual();
         }
@@ -869,17 +866,15 @@ INSTRUÇÕES DE ESTILO:
         this.renderHistoryList();
         this.fecharPainel();
         
-        console.log('[IA] 🆕 Nova conversa iniciada');
+        console.log('[IA Mobile] 🆕 Nova conversa iniciada');
     }
 
-    // ⭐ SELECIONAR CONVERSA (CARREGAR HISTÓRICO COMPLETO)
     selecionarConversa(id) {
         if (this._isProcessing) return;
         
         const conv = this.history.find(h => h.id === id);
         if (!conv) return;
         
-        // ⭐ SALVAR CONVERSA ATUAL ANTES DE MUDAR
         if (this.messages.length > 0 && this.currentHistoryId !== id) {
             this.salvarConversaAtual();
         }
@@ -897,7 +892,7 @@ INSTRUÇÕES DE ESTILO:
         this.renderHistoryList();
         this.fecharPainel();
         
-        console.log('[IA] 📂 Conversa carregada:', {
+        console.log('[IA Mobile] 📂 Conversa carregada:', {
             id: id,
             title: conv.title,
             messages: this.messages.length
@@ -927,7 +922,7 @@ INSTRUÇÕES DE ESTILO:
 }
 
 // ============================================
-// ⭐ FUNÇÃO GLOBAL PARA COPIAR
+// FUNÇÃO GLOBAL PARA COPIAR
 // ============================================
 window.copyMessage = function(element) {
     try {
@@ -946,7 +941,7 @@ window.copyMessage = function(element) {
             fallbackCopy(text, element);
         }
     } catch (error) {
-        console.error('[IA] Erro ao copiar:', error);
+        console.error('[IA Mobile] Erro ao copiar:', error);
     }
 };
 
@@ -965,12 +960,12 @@ function fallbackCopy(text, element) {
         element.textContent = '✅ Copiado!';
         setTimeout(() => { element.textContent = originalText; }, 2000);
     } catch (err) {
-        console.error('[IA] Fallback copy falhou:', err);
+        console.error('[IA Mobile] Fallback copy falhou:', err);
     }
 }
 
 // ============================================
-// ⭐ FAB ESCONDE NA TELA DE IA
+// FAB ESCONDE NA TELA DE IA
 // ============================================
 (function () {
     function atualizarFab() {
@@ -988,5 +983,5 @@ function fallbackCopy(text, element) {
     atualizarFab();
 })();
 
-console.log('[IA] ✅ Módulo carregado com HISTÓRICO CONTÍNUO!');
-console.log('[IA] 💡 Conversas são salvas automaticamente e mantêm contexto');
+console.log('[IA Mobile] ✅ Módulo carregado com HISTÓRICO CONTÍNUO!');
+console.log('[IA Mobile] 💡 Conversas são salvas automaticamente e mantêm contexto');
