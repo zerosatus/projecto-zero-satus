@@ -1,8 +1,10 @@
 // ============================================
-// modules/ia.js - MÓDULO DA IA (PC - CORRIGIDO)
-// ⭐ + ACESSO TOTAL A TAREFAS, ANOTAÇÕES, HORÁRIO E DISCIPLINAS
-// ⭐ + LIMITE DIÁRIO DE 15 MENSAGENS
-// ⭐ + PAINEL LATERAL, HISTÓRICO E FAB
+// modules/ia.js - MÓDULO DA IA (PC)
+// ⭐ HISTÓRICO CONTÍNUO
+// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
+// ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+// ⭐ MODO GÍRIA MOÇAMBICANA
+// ⭐ PAINEL LATERAL, HISTÓRICO E FAB
 // ============================================
 
 // ⭐ ÍCONES SVG
@@ -117,7 +119,9 @@ class IaModule {
             tasks: this.tasks.length,
             pendentes: this.tasks.filter(t => !t.completed).length,
             notes: this.notes.length,
-            disciplinas: this.disciplinas.length
+            disciplinas: this.disciplinas.length,
+            conversas: this.history.length,
+            mensagensAtuais: this.messages.length
         });
     }
 
@@ -216,7 +220,7 @@ class IaModule {
         const slots = this.timeSlots || [];
         const disciplinas = this.disciplinas || [];
         
-        // DETECTAR COMANDOS DE GÍRIA
+        // Detectar comandos de gíria
         const pediuGiria = this._usuarioPediuGiria(textoUsuario);
         const querNormal = this._usuarioQuerNormal(textoUsuario);
         
@@ -249,8 +253,8 @@ ${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) =>
 📝 ANOTAÇÕES:
 Total: ${notes.length}
 ${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, i) => 
-    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}${n.content.length > 60 ? '...' : ''}` : ''}`
-).join('\n') + (notes.length > 5 ? `\n   ... e mais ${notes.length - 5} anotações` : '') : 'Nenhuma anotação ainda'}
+    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
+).join('\n') : 'Nenhuma anotação ainda'}
 
 📚 DISCIPLINAS:
 ${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}`).join('\n') : 'Nenhuma disciplina cadastrada'}
@@ -299,7 +303,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
         if (typeof showToast === 'function') {
             showToast(mensagem, 'info');
         } else {
-            console.log('[IA] 📢', mensagem);
+            console.log('[IA PC] 📢', mensagem);
         }
         this._atualizarStatusGiria();
         this._atualizarStatusLimite();
@@ -341,14 +345,15 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             time: new Date().toLocaleTimeString(),
             isSystem: true
         });
+        this.salvarConversaAtual();
         this.renderChat();
     }
 
     // ============================================
-    // ⭐ ENVIAR MENSAGEM (CORRIGIDO)
+    // ENVIAR MENSAGEM
     // ============================================
     async sendMessage(text) {
-        // ⭐ PEGAR TEXTO DO INPUT
+        // Pegar texto do input
         if (!text) {
             const input = document.getElementById('ia-input');
             if (!input) {
@@ -369,7 +374,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             return;
         }
         
-        // ⭐ VERIFICAR LIMITE
+        // Verificar limite
         if (!this.temLimiteDisponivel()) {
             this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
             this.messages.push({
@@ -418,7 +423,10 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             
             if (service) {
                 console.log('[IA PC] 📤 Enviando para API... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
+                console.log('[IA PC] 📊 Mensagens no histórico:', this.messages.length);
+                
                 const result = await service.sendMessage(text, context);
+                
                 if (result.success) {
                     response = result.text;
                     if (result.fromCache) response += '\n\n*(Resposta do cache)*';
@@ -430,7 +438,6 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             }
             
             loadingDiv.remove();
-            
             this._incrementarUso();
             
             this.messages.push({
@@ -456,6 +463,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
                 content: '❌ Ocorreu um erro. Tenta novamente!',
                 time: new Date().toLocaleTimeString()
             });
+            this.salvarConversaAtual();
             this.renderChat();
         } finally {
             this._isProcessing = false;
@@ -549,7 +557,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
     }
 
     // ============================================
-    // ⭐ SETUP EVENTS (CORRIGIDO)
+    // SETUP EVENTS
     // ============================================
     setupEvents() {
         const input = document.getElementById('ia-input');
@@ -560,7 +568,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
 
         console.log('[IA PC] 🔧 Configurando eventos...');
 
-        // ⭐ BOTÃO ENVIAR
+        // Botão enviar
         if (sendBtn) {
             const newSendBtn = sendBtn.cloneNode(true);
             sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
@@ -573,7 +581,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             });
         }
         
-        // ⭐ INPUT
+        // Input
         if (input) {
             const newInput = input.cloneNode(true);
             input.parentNode.replaceChild(newInput, input);
@@ -590,7 +598,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             setTimeout(() => newInput.focus(), 300);
         }
         
-        // ⭐ FAB
+        // FAB
         if (fabBtn) {
             const newFab = fabBtn.cloneNode(true);
             fabBtn.parentNode.replaceChild(newFab, fabBtn);
@@ -609,7 +617,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             });
         }
         
-        // ⭐ BACK
+        // Back
         if (backBtn) {
             const newBack = backBtn.cloneNode(true);
             backBtn.parentNode.replaceChild(newBack, backBtn);
@@ -622,14 +630,14 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             });
         }
         
-        // ⭐ TOGGLE GÍRIA
+        // Toggle Gíria
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
                 this.toggleModoGiria();
             });
         }
         
-        // ⭐ CARDS DE AÇÃO
+        // Cards de ação
         document.querySelectorAll('.chip').forEach(card => {
             const newCard = card.cloneNode(true);
             card.parentNode.replaceChild(newCard, card);
@@ -648,7 +656,7 @@ ${isPerguntaSobreModo ? '⚠️ O usuário acabou de desativar o modo gíria. Re
             });
         });
         
-        // ⭐ LIMITE PERIODICAMENTE
+        // Limite periodicamente
         setInterval(() => {
             this._atualizarStatusLimite();
         }, 30000);
@@ -771,7 +779,7 @@ window.copyMessage = function(element) {
             fallbackCopy(text, element);
         }
     } catch (error) {
-        console.error('[IA] Erro ao copiar:', error);
+        console.error('[IA PC] Erro ao copiar:', error);
     }
 };
 
@@ -790,11 +798,12 @@ function fallbackCopy(text, element) {
         element.textContent = '✅ Copiado!';
         setTimeout(() => { element.textContent = originalText; }, 2000);
     } catch (err) {
-        console.error('[IA] Fallback copy falhou:', err);
+        console.error('[IA PC] Fallback copy falhou:', err);
         const originalText = element.textContent;
         element.textContent = '❌ Erro ao copiar';
         setTimeout(() => { element.textContent = originalText; }, 2000);
     }
 }
 
-console.log('[IA PC] ✅ Módulo carregado!');
+console.log('[IA PC] ✅ Módulo carregado com HISTÓRICO CONTÍNUO!');
+console.log('[IA PC] 💡 Conversas são salvas automaticamente e mantêm contexto');
