@@ -1225,32 +1225,28 @@
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 <script src="modules/documentos.js"></script>
-<script>
-// ============================================
-// multi-ai-service.js - GROQ (CORRIGIDO)
-// ⭐ LLAMA-3.1-8B PRIMEIRO (mais rápido)
-// ⭐ LLAMA-3.3-70B SEGUNDO (melhor qualidade)
-// ⭐ QWEN POR ÚLTIMO (evita pensamentos em inglês)
+<script>// ============================================
+// multi-ai-service.js - GROQ (ATUALIZADO)
+// ⭐ NOVA API KEY
+// ⭐ MODELOS GPT-OSS ADICIONADOS
+// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
+// ⭐ HISTÓRICO DE CONVERSAS CONTÍNUO
 // ============================================
 
 console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
 
 class MultiAIService {
     constructor() {
-        this.GROQ_API_KEY = "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";
+        // ⭐ NOVA API KEY
+        this.GROQ_API_KEY = "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";
         
-        // ⭐ ORDEM CORRIGIDA - CONFORME IMAGENS
-        // 1º - llama-3.1-8b-instant (RÁPIDO)
-        // 2º - llama-3.3-70b-versatile (QUALIDADE)
-        // 3º - mixtral-8x7b-32768 (fallback)
-        // 4º - openai/gpt-oss-120b (pode não existir)
-        // 5º - qwen/qwen3.6-27b (ÚLTIMO - pensamentos em inglês)
         this.GROQ_MODELS = [
-            "llama-3.1-8b-instant",
-            "llama-3.3-70b-versatile",
-            "mixtral-8x7b-32768",
-            "openai/gpt-oss-120b",
-            "qwen/qwen3.6-27b"
+            "llama-3.1-8b-instant",       // 1º - RÁPIDO
+            "llama-3.3-70b-versatile",    // 2º - QUALIDADE
+            "openai/gpt-oss-20b",         // 3º - NOVO
+            "openai/gpt-oss-120b",        // 4º - NOVO
+            "mixtral-8x7b-32768",         // 5º - Fallback
+            "qwen/qwen3.6-27b"            // 6º - ÚLTIMO
         ];
         
         this._cache = new Map();
@@ -1266,6 +1262,129 @@ class MultiAIService {
         console.log('[MultiAI] ✅ Serviço pronto!');
     }
     
+    // ⭐ MÉTODO PARA ACESSAR DADOS DO USUÁRIO (APENAS LEITURA)
+    _getUserDataContext() {
+        try {
+            // Tentar obter dados do app global
+            if (window.app && window.app.data) {
+                const data = window.app.data;
+                const user = window.app.user || {};
+                
+                return {
+                    nome: user.nome || user.displayName || 'Estudante',
+                    email: user.email || '',
+                    tarefas: data.tasks || [],
+                    anotacoes: data.notes || [],
+                    eventos: data.calendarEvents || [],
+                    disciplinas: data.disciplinas || [],
+                    horario: data.weeklySchedule || {},
+                    timeSlots: data.timeSlots || [],
+                    documentos: data.documentos || []
+                };
+            }
+            
+            // Fallback: tentar do CacheManager
+            if (window.CacheManager) {
+                return {
+                    nome: 'Estudante',
+                    email: '',
+                    tarefas: window.CacheManager.get('tasks', []),
+                    anotacoes: window.CacheManager.get('notes', []),
+                    eventos: window.CacheManager.get('calendarEvents', []),
+                    disciplinas: window.CacheManager.get('disciplinas', []),
+                    horario: window.CacheManager.get('weeklySchedule', {}),
+                    timeSlots: window.CacheManager.get('timeSlots', []),
+                    documentos: window.CacheManager.get('documentos', [])
+                };
+            }
+        } catch (e) {
+            console.warn('[MultiAI] ⚠️ Erro ao obter dados do usuário:', e);
+        }
+        return null;
+    }
+    
+    // ⭐ CONSTRUIR CONTEXTO COMPLETO COM DADOS DO USUÁRIO
+    _buildFullContext(userMessage, extraContext = '') {
+        const userData = this._getUserDataContext();
+        
+        let context = '';
+        
+        // ⭐ HISTÓRICO DA CONVERSA (últimas 10 mensagens)
+        if (window.app?.modules?.ia?.messages) {
+            const messages = window.app.modules.ia.messages;
+            if (messages.length > 0) {
+                const ultimas = messages.slice(-10);
+                context += '\n📜 HISTÓRICO DA CONVERSA ATUAL:\n';
+                ultimas.forEach(msg => {
+                    const role = msg.role === 'user' ? '👤 Usuário' : '🤖 Assistente';
+                    const content = (msg.content || '').substring(0, 200);
+                    context += `${role}: ${content}${(msg.content || '').length > 200 ? '...' : ''}\n`;
+                });
+            }
+        }
+        
+        // ⭐ DADOS DO USUÁRIO (APENAS LEITURA)
+        if (userData) {
+            context += `\n\n📚 DADOS DO ESTUDANTE (APENAS LEITURA - NÃO MODIFIQUE):\n`;
+            context += `👤 Nome: ${userData.nome}\n`;
+            context += `📧 Email: ${userData.email}\n`;
+            
+            // Tarefas
+            const tarefas = userData.tarefas || [];
+            const pendentes = tarefas.filter(t => !t.completed);
+            const concluidas = tarefas.filter(t => t.completed);
+            context += `\n📋 TAREFAS:\n`;
+            context += `   Total: ${tarefas.length}\n`;
+            context += `   Pendentes: ${pendentes.length}\n`;
+            context += `   Concluídas: ${concluidas.length}\n`;
+            if (pendentes.length > 0) {
+                context += `   📌 Pendentes:\n`;
+                pendentes.slice(0, 5).forEach((t, i) => {
+                    context += `      ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}\n`;
+                });
+            }
+            
+            // Anotações
+            const anotacoes = userData.anotacoes || [];
+            context += `\n📝 ANOTAÇÕES: ${anotacoes.length}\n`;
+            if (anotacoes.length > 0) {
+                anotacoes.slice(0, 3).forEach((n, i) => {
+                    context += `   ${i+1}. ${n.title || 'Sem título'}\n`;
+                });
+            }
+            
+            // Disciplinas
+            const disciplinas = userData.disciplinas || [];
+            context += `\n📚 DISCIPLINAS: ${disciplinas.length}\n`;
+            if (disciplinas.length > 0) {
+                disciplinas.slice(0, 8).forEach(d => {
+                    context += `   - ${d.nome}\n`;
+                });
+            }
+            
+            // Horário
+            const horario = userData.horario || {};
+            context += `\n📅 HORÁRIO SEMANAL:\n`;
+            Object.entries(horario).forEach(([dia, aulas]) => {
+                if (aulas && aulas.length > 0) {
+                    const lista = aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ');
+                    context += `   ${dia}: ${lista}\n`;
+                }
+            });
+            
+            // Documentos
+            const documentos = userData.documentos || [];
+            context += `\n📁 DOCUMENTOS: ${documentos.length}\n`;
+        }
+        
+        // Contexto extra passado
+        if (extraContext) {
+            context += `\n\n${extraContext}`;
+        }
+        
+        return context;
+    }
+    
     async sendMessage(prompt, context = '') {
         console.log('[MultiAI] 📤 Enviando:', prompt.substring(0, 60) + '...');
         
@@ -1276,22 +1395,25 @@ class MultiAIService {
             };
         }
         
-        const cached = this._getFromCache(prompt, context);
+        // ⭐ CONSTRUIR CONTEXTO COMPLETO
+        const fullContext = this._buildFullContext(prompt, context);
+        
+        const cached = this._getFromCache(prompt, fullContext);
         if (cached) {
             console.log('[MultiAI] 📦 Resposta do cache!');
             return { success: true, text: cached, fromCache: true };
         }
         
-        const groqResult = await this._callGroqWithFallback(prompt, context);
+        const groqResult = await this._callGroqWithFallback(prompt, fullContext);
         if (groqResult.success) {
             this._incrementarUso();
-            this._saveToCache(prompt, context, groqResult.text);
+            this._saveToCache(prompt, fullContext, groqResult.text);
             console.log('[MultiAI] ✅ Resposta do Groq!');
             return { success: true, text: groqResult.text };
         }
         
         console.log('[MultiAI] 📝 Usando fallback local');
-        const fallback = this._getFallback(prompt, context);
+        const fallback = this._getFallback(prompt, fullContext);
         this._incrementarUso();
         return {
             success: true,
@@ -1331,8 +1453,8 @@ class MultiAIService {
         
         const url = 'https://api.groq.com/openai/v1/chat/completions';
         
-        // ⭐ SYSTEM PROMPT AGRESSIVO CONTRA PENSAMENTOS
-        const systemPrompt = `Você é um assistente de estudos chamado Zero IA.
+        // ⭐ SYSTEM PROMPT ATUALIZADO COM ACESSO A DADOS
+        const systemPrompt = `Você é um assistente de estudos chamado Zero IA, integrado ao sistema Zero Satus.
 
 ⚠️ REGRAS ABSOLUTAS - VIOLAR É PROIBIDO:
 1. Responda APENAS em português do Brasil. NUNCA use inglês.
@@ -1343,7 +1465,18 @@ class MultiAIService {
 6. Se não souber algo, diga "Desculpe, não tenho essa informação" em português.
 7. Seja claro, objetivo e útil.
 
-${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
+📊 ACESSO A DADOS DO USUÁRIO (APENAS LEITURA):
+- Você tem acesso aos dados do estudante (tarefas, anotações, disciplinas, horário, documentos)
+- USE esses dados para dar respostas personalizadas
+- NUNCA modifique, crie ou delete dados do usuário
+- Apenas LEIA e use as informações para ajudar
+
+💬 HISTÓRICO DE CONVERSA:
+- Você tem acesso ao histórico da conversa atual
+- Mantenha a CONTINUIDADE e CONTEXTO das mensagens anteriores
+- Se o usuário fizer uma pergunta de acompanhamento, responda no contexto
+
+${context ? `\nCONTEXTO COMPLETO:\n${context}` : ''}`;
 
         try {
             const response = await fetch(url, {
@@ -1428,13 +1561,10 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
         }
     }
     
-    // ⭐ EXTRAIR APENAS A RESPOSTA EM PORTUGUÊS (AGRESSIVO)
+    // ⭐ EXTRAIR APENAS A RESPOSTA EM PORTUGUÊS
     _extractPortugueseResponse(text) {
         if (!text) return text;
         
-        console.log('[Extract] 🔍 Texto original:', text.substring(0, 200));
-        
-        // PASSO 1: REMOVER TAGS E BLOCOS DE PENSAMENTO
         let cleaned = text
             .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
             .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
@@ -1442,7 +1572,6 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
             .replace(/```[\s\S]*?```/g, '')
             .trim();
         
-        // PASSO 2: DIVIDIR EM LINHAS E FILTRAR PENSAMENTOS EM INGLÊS
         const lines = cleaned.split('\n');
         const cleanedLines = [];
         
@@ -1451,85 +1580,20 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
             if (!trimmed) continue;
             
             const isEnglishThought = 
-                /^(Okay|Ok|Let me|I need|I should|First|Now|So|Well|Hmm|Alright|Draft|Analysis|Step|Wait|Actually|Hmm|Another|Possibility|Maybe|Perhaps|Note|Important|Considering|However|But|Also|Then|Next|Finally)/i.test(trimmed) ||
-                /(I need to|I should|Let me|I'll|I will|I can|I could|I think|I believe|I'm going|It seems|It appears|Another possibility|I should respond|I should address|I should mention|Let me think|Let me consider|Draft:|Analysis:)/i.test(trimmed) ||
-                /^(think|analysis|process|user|input|draft|output|response|answer|step|constraint|verify|check|internal|reasoning|but|however|also|first|second|third)/i.test(trimmed) ||
-                /^[a-zA-Z\s,.:;!?'"()\[\]{}<>\-=+*&^%$#@!~`|\\\/]{15,}$/.test(trimmed);
+                /^(Okay|Ok|Let me|I need|I should|First|Now|So|Well|Hmm|Alright|Draft|Analysis|Step|Wait|Actually|Another|Possibility|Maybe|Perhaps|Note|Important|Considering|However|But|Also|Then|Next|Finally)/i.test(trimmed) ||
+                /(I need to|I should|Let me|I'll|I will|I can|I could|I think|I believe|I'm going|It seems|It appears|Another possibility)/i.test(trimmed);
             
             if (!isEnglishThought) {
                 cleanedLines.push(trimmed);
-            } else {
-                console.log('[Extract] 🗑️ Linha removida:', trimmed.substring(0, 60));
             }
         }
         
         cleaned = cleanedLines.join('\n').trim();
         
-        // PASSO 3: ENCONTRAR INÍCIO EM PORTUGUÊS
-        const portugueseStartPatterns = [
-            /(A [a-záéíóúãõâêîôûç]+)/i,
-            /(O [a-záéíóúãõâêîôûç]+)/i,
-            /(Um [a-záéíóúãõâêîôûç]+)/i,
-            /(Uma [a-záéíóúãõâêîôûç]+)/i,
-            /(Não [a-záéíóúãõâêîôûç]+)/i,
-            /(Sim[,\s])/i,
-            /(Desculpe[,\s])/i,
-            /(Olá[,\s])/i,
-            /(Claro[,\s])/i,
-            /(Com certeza[,\s])/i,
-            /(Entendi[,\s])/i,
-            /(Vamos[,\s])/i,
-            /(Você[,\s])/i,
-            /(Isso[,\s])/i,
-            /(Aqui[,\s])/i,
-            /(Para[,\s])/i,
-            /(Quando[,\s])/i,
-            /(Como[,\s])/i,
-            /(Porque[,\s])/i,
-            /(Daniel[,\s])/i,
-            /(Anamibia[,\s])/i,
-            /(Namíbia[,\s])/i,
-            /(Sobre[,\s])/i,
-            /(Existem[,\s])/i,
-            /(É[,\s])/i,
-            /(São[,\s])/i,
-        ];
-        
-        for (const pattern of portugueseStartPatterns) {
-            const match = cleaned.match(pattern);
-            if (match && match.index > 0) {
-                const portugueseText = cleaned.substring(match.index);
-                if (portugueseText.length > 20) {
-                    console.log('[Extract] ✂️ Cortando até início em português:', portugueseText.substring(0, 100));
-                    cleaned = portugueseText;
-                    break;
-                }
-            }
-        }
-        
-        // PASSO 4: ÚLTIMA TENTATIVA - SEPARADORES
-        const separators = ['---', 'Output:', 'Resposta:', 'Answer:', 'Resposta final:', 'Final:'];
-        for (const sep of separators) {
-            if (cleaned.includes(sep)) {
-                const parts = cleaned.split(sep);
-                if (parts.length > 1) {
-                    const lastPart = parts[parts.length - 1].trim();
-                    if (lastPart.length > 10) {
-                        console.log('[Extract] ✂️ Cortando após separador:', sep);
-                        cleaned = lastPart;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // PASSO 5: RESULTADO VAZIO
         if (!cleaned || cleaned.length < 5) {
-            console.log('[Extract] ⚠️ Resultado vazio, usando fallback');
             return 'Desculpe, não consegui processar sua pergunta. Poderia reformular?';
         }
         
-        console.log('[Extract] ✅ Texto final:', cleaned.substring(0, 200));
         return cleaned.trim();
     }
     
@@ -1537,43 +1601,33 @@ ${context ? `\nCONTEXTO DO USUÁRIO:\n${context}` : ''}`;
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
         
-        if (texto.includes('daniel chapo')) {
-            return 'Daniel Chapo é um político moçambicano, membro do partido FRELIMO. Ele foi governador da província de Inhambane e, em 2024, foi eleito Presidente da República de Moçambique. Antes disso, também atuou como Ministro da Administração Estatal e Função Pública.';
+        if (texto.includes('tarefa') || texto.includes('pendente')) {
+            const tarefas = window.app?.data?.tasks || [];
+            const pendentes = tarefas.filter(t => !t.completed);
+            if (pendentes.length === 0) {
+                return 'Você não tem tarefas pendentes. Parabéns! 🎉';
+            }
+            return `Você tem ${pendentes.length} tarefas pendentes. Acesse a aba Tarefas para vê-las.`;
         }
         
-        if (texto.includes('anamibia') || texto.includes('anamíbia')) {
-            return 'Anamibia é um gênero de mariposas da família Noctuidae. O termo também pode ser uma confusão com "Namíbia", que é um país localizado no sudoeste da África. Se você quis dizer Namíbia, posso falar sobre o país.';
+        if (texto.includes('anota') || texto.includes('nota')) {
+            const notas = window.app?.data?.notes || [];
+            return `Você tem ${notas.length} anotações salvas.`;
         }
         
-        if (texto.includes('napoleao') || texto.includes('napoleão')) {
-            return 'Napoleão Bonaparte (1769–1821) foi um líder militar e estadista francês que se tornou imperador da França em 1804. Ele ascendeu ao poder durante a Revolução Francesa, liderou campanhas militares bem-sucedidas que dominaram grande parte da Europa e implementou o Código Napoleônico. Após sua derrota na Batalha de Waterloo em 1815, foi exilado na ilha de Santa Helena, onde faleceu.';
-        }
-        
-        if (texto.includes('celula') || texto.includes('célula')) {
-            return 'A célula é a unidade básica estrutural, funcional e biológica de todos os seres vivos. É a menor parte de um organismo capaz de realizar todas as atividades necessárias para a vida, como metabolismo, crescimento, reprodução e resposta a estímulos. Existem dois tipos principais: células procarióticas e eucarióticas.';
-        }
-        
-        if (texto.includes('internet')) {
-            return 'A internet é uma rede global de computadores interconectados que se comunicam entre si por meio de protocolos padronizados. Ela permite o compartilhamento de informações, a comunicação em tempo real, o acesso a serviços online e a navegação na web.';
-        }
-        
-        if (texto.includes('saturno')) {
-            return 'Saturno é o sexto planeta do Sistema Solar, conhecido por seus anéis proeminentes compostos principalmente por gelo e poeira. É o segundo maior planeta do sistema, sendo um gigante gasoso.';
-        }
-        
-        if (texto.includes('mouse')) {
-            return 'Um mouse é um dispositivo periférico de entrada para computadores. Sua função principal é controlar o cursor na tela, permitindo navegar, selecionar, clicar e arrastar objetos.';
+        if (texto.includes('disciplina')) {
+            const disciplinas = window.app?.data?.disciplinas || [];
+            if (disciplinas.length === 0) {
+                return 'Nenhuma disciplina cadastrada.';
+            }
+            return `Suas disciplinas: ${disciplinas.map(d => d.nome).join(', ')}`;
         }
         
         if (texto.includes('oi') || texto.includes('olá') || texto.includes('eai')) {
             return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
         }
         
-        if (texto.includes('estud') || texto.includes('aula') || texto.includes('prova')) {
-            return 'Para estudar de forma eficiente, recomendo: criar um cronograma realista, usar técnicas como Pomodoro (25 minutos de foco, 5 minutos de pausa), revisar o conteúdo regularmente e fazer resumos e mapas mentais.';
-        }
-        
-        return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes? Estou aqui para ajudar com seus estudos.';
+        return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes?';
     }
     
     // MÉTODOS DE LIMITE E CACHE
@@ -1700,9 +1754,7 @@ console.log('[MultiAI] 📌 Ordem dos modelos:');
 multiAI.GROQ_MODELS.forEach((model, index) => {
     console.log(`   ${index + 1}º - ${model}`);
 });
-console.log('[MultiAI] 💡 Teste: window.testIA("quem foi napoleão?")');
-console.log('[MultiAI] 📋 Ver modelos: window.verModelos()');
-</script>
+console.log('[MultiAI] 💡 Teste: window.testIA("quais são minhas tarefas?")');</script>
 <!-- App Principal -->
 <script src="app.js"></script>
 
