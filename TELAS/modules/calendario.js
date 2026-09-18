@@ -1,5 +1,5 @@
 // ============================================
-// modules/calendario.js - CALENDÁRIO SPA
+// modules/calendario.js - CALENDÁRIO SPA (PC CORRIGIDO)
 // ============================================
 
 class CalendarioModule {
@@ -12,6 +12,12 @@ class CalendarioModule {
         this.events = [];
         this.editingEventId = null;
         this.selectedEventType = 'aula';
+        
+        // ⭐ Guardar referências dos manipuladores de eventos para remover duplicados
+        this._eventHandlers = {
+            prev: null,
+            next: null
+        };
         
         this.monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -57,7 +63,7 @@ class CalendarioModule {
     }
     
     // ============================================
-    // RENDER CALENDÁRIO
+    // RENDER CALENDÁRIO (COM REMOÇÃO DE LISTENERS DUPLICADOS)
     // ============================================
     renderCalendar() {
         const calendarDays = document.getElementById('calendarDays');
@@ -69,6 +75,48 @@ class CalendarioModule {
         if (this.currentView === 'month') this.renderMonthView(calendarDays, currentMonthEl);
         else if (this.currentView === 'week') this.renderWeekView(calendarDays, currentMonthEl);
         else if (this.currentView === 'day') this.renderDayView(calendarDays, currentMonthEl);
+
+        // ⭐ GERENCIAMENTO DE LISTENERS DOS BOTÕES DE NAVEGAÇÃO
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        if (prevBtn) {
+            if (this._eventHandlers.prev) {
+                prevBtn.removeEventListener('click', this._eventHandlers.prev);
+            }
+            this._eventHandlers.prev = () => {
+                if (this.currentView === 'month') {
+                    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                } else if (this.currentView === 'week') {
+                    this.currentDate.setDate(this.currentDate.getDate() - 7);
+                } else {
+                    this.selectedDate.setDate(this.selectedDate.getDate() - 1);
+                    this.currentDate = new Date(this.selectedDate);
+                }
+                this.renderCalendar();
+                this.renderEventsForSelectedDay();
+            };
+            prevBtn.addEventListener('click', this._eventHandlers.prev);
+        }
+
+        if (nextBtn) {
+            if (this._eventHandlers.next) {
+                nextBtn.removeEventListener('click', this._eventHandlers.next);
+            }
+            this._eventHandlers.next = () => {
+                if (this.currentView === 'month') {
+                    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                } else if (this.currentView === 'week') {
+                    this.currentDate.setDate(this.currentDate.getDate() + 7);
+                } else {
+                    this.selectedDate.setDate(this.selectedDate.getDate() + 1);
+                    this.currentDate = new Date(this.selectedDate);
+                }
+                this.renderCalendar();
+                this.renderEventsForSelectedDay();
+            };
+            nextBtn.addEventListener('click', this._eventHandlers.next);
+        }
     }
     
     // ============================================
@@ -560,33 +608,6 @@ class CalendarioModule {
     // EVENTOS DA UI
     // ============================================
     setupEvents() {
-        // Navegação
-        document.getElementById('prevBtn')?.addEventListener('click', () => {
-            if (this.currentView === 'month') {
-                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-            } else if (this.currentView === 'week') {
-                this.currentDate.setDate(this.currentDate.getDate() - 7);
-            } else {
-                this.selectedDate.setDate(this.selectedDate.getDate() - 1);
-                this.currentDate = new Date(this.selectedDate);
-            }
-            this.renderCalendar();
-            this.renderEventsForSelectedDay();
-        });
-        
-        document.getElementById('nextBtn')?.addEventListener('click', () => {
-            if (this.currentView === 'month') {
-                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-            } else if (this.currentView === 'week') {
-                this.currentDate.setDate(this.currentDate.getDate() + 7);
-            } else {
-                this.selectedDate.setDate(this.selectedDate.getDate() + 1);
-                this.currentDate = new Date(this.selectedDate);
-            }
-            this.renderCalendar();
-            this.renderEventsForSelectedDay();
-        });
-        
         // View toggle
         document.querySelectorAll('.toggle-btn').forEach(btn => {
             btn.addEventListener('click', () => {
