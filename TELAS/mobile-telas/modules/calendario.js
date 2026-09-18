@@ -253,7 +253,7 @@ class CalendarioModule {
     }
     
     // ============================================
-    // SALVAR EVENTO (PREVINE DUPLICAÇÃO)
+    // SALVAR EVENTO (PREVINE DUPLICAÇÃO E TOAST INCORRETO)
     // ============================================
     async saveEvent() {
         if (this._isSubmitting) {
@@ -274,6 +274,7 @@ class CalendarioModule {
         }
         
         this._isSubmitting = true;
+        const isEditing = !!this.editingEventId; // ⭐ Guardado antes de fechar o modal
         
         try {
             if (this.editingEventId) {
@@ -326,7 +327,7 @@ class CalendarioModule {
             this.updateBadge();
             
             if (typeof showToast === 'function') {
-                showToast(this.editingEventId ? '✅ Evento atualizado!' : '✅ Evento criado!', 'success');
+                showToast(isEditing ? '✅ Evento atualizado!' : '✅ Evento criado!', 'success');
             }
             
         } catch (error) {
