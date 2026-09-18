@@ -1824,3 +1824,72 @@ SELECT
     updated_at
 FROM storage.buckets 
 WHERE name = 'user-content';
+
+
+
+
+Sem isto, TODO upload de documento vai falhar com new row violates row-level security policy. iss de baixo ate a linha 1895
+
+-- ⭐ POLÍTICAS PARA DOCUMENTOS
+DO $$ 
+BEGIN
+    -- Upload de documentos
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'storage' AND tablename = 'objects' 
+        AND policyname = 'Authenticated users can upload documentos'
+    ) THEN
+        CREATE POLICY "Authenticated users can upload documentos"
+        ON storage.objects FOR INSERT 
+        TO authenticated 
+        WITH CHECK (
+            bucket_id = 'user-content' 
+            AND (storage.foldername(name))[1] = 'documentos'
+            AND (storage.foldername(name))[2] = auth.uid()::text
+        );
+    END IF;
+    
+    -- Leitura pública de documentos
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'storage' AND tablename = 'objects' 
+        AND policyname = 'Public read access for documentos'
+    ) THEN
+        CREATE POLICY "Public read access for documentos"
+        ON storage.objects FOR SELECT 
+        TO public 
+        USING (bucket_id = 'user-content');
+    END IF;
+    
+    -- Update de documentos próprios
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'storage' AND tablename = 'objects' 
+        AND policyname = 'Users can update own documentos'
+    ) THEN
+        CREATE POLICY "Users can update own documentos"
+        ON storage.objects FOR UPDATE 
+        TO authenticated 
+        USING (
+            bucket_id = 'user-content' 
+            AND (storage.foldername(name))[1] = 'documentos'
+            AND (storage.foldername(name))[2] = auth.uid()::text
+        );
+    END IF;
+    
+    -- Delete de documentos próprios
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'storage' AND tablename = 'objects' 
+        AND policyname = 'Users can delete own documentos'
+    ) THEN
+        CREATE POLICY "Users can delete own documentos"
+        ON storage.objects FOR DELETE 
+        TO authenticated 
+        USING (
+            bucket_id = 'user-content' 
+            AND (storage.foldername(name))[1] = 'documentos'
+            AND (storage.foldername(name))[2] = auth.uid()::text
+        );
+    END IF;
+END $$;
