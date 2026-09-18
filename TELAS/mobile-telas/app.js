@@ -7,6 +7,18 @@ class App {
     constructor() {
         this.user = null;
         this.currentView = 'dashboard';
+        
+        // Mapeamento de views para módulos
+        this.viewToModuleMap = {
+            'dashboard': 'dashboard',
+            'calendario': 'calendario',
+            'tarefas': 'tarefas',
+            'notas': 'notas',
+            'perfil': 'perfil',
+            'ia': 'ia',
+            'documentos': 'documentos'  // ⭐ ADICIONADO
+        };
+
         this.data = {
             tasks: [],
             notes: [],

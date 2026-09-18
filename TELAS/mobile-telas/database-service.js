@@ -13,7 +13,7 @@ if (window.DatabaseService) {
         function init() {
             if (!supabase && window.supabase) {
                 const SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
-                const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
+                const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRfnjpoitbmtcxjdIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 console.log('[DatabaseService] Supabase inicializado');
             }
@@ -353,24 +353,16 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando tasks antigas...');
-                const { error: deleteError } = await client
-                    .from('tasks')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[Database] ❌ Erro ao deletar tasks:', deleteError);
-                    return false;
-                }
-
                 if (!tasks || tasks.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma task para salvar');
+                    // Se não há tasks, apaga todas do usuário
+                    console.log('[Database] ℹ️ Nenhuma task enviada, limpando todas para userId:', userId);
+                    await client.from('tasks').delete().eq('user_id', userId);
                     return true;
                 }
 
-                const tasksToInsert = tasks.map(task => ({
-                    id: generateId(),
+                // ⭐ UPSERT em vez de DELETE + INSERT
+                const tasksToUpsert = tasks.map(task => ({
+                    id: task.id || generateId(), // ⭐ MANTER O ID ORIGINAL
                     user_id: userId,
                     title: task.nome || task.title || 'Sem título',
                     description: task.descricao || '',
@@ -384,16 +376,30 @@ if (window.DatabaseService) {
                     updated_at: new Date().toISOString()
                 }));
 
-                console.log(`[Database] 📡 Inserindo ${tasksToInsert.length} tasks...`);
+                // UPSERT (onConflict: 'id')
+                console.log(`[Database] 📡 Executando UPSERT de ${tasksToUpsert.length} tasks...`);
                 const batchSize = 100;
-                for (let i = 0; i < tasksToInsert.length; i += batchSize) {
-                    const batch = tasksToInsert.slice(i, i + batchSize);
-                    const { error } = await client.from('tasks').insert(batch);
+                for (let i = 0; i < tasksToUpsert.length; i += batchSize) {
+                    const batch = tasksToUpsert.slice(i, i + batchSize);
+                    const { error } = await client
+                        .from('tasks')
+                        .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                    console.log(`[Database] ✅ Batch ${Math.floor(i/batchSize) + 1} salvo`);
+                    console.log(`[Database] ✅ Batch ${Math.floor(i/batchSize) + 1} processado`);
                 }
 
-                console.log(`[Database] ✅ ${tasks.length} tarefas salvas com sucesso`);
+                // ⭐ Apagar tasks que foram removidas localmente
+                const idsLocais = tasks.map(t => t.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    console.log('[Database] 📡 Limpando tarefas removidas localmente...');
+                    await client
+                        .from('tasks')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+                }
+
+                console.log(`[Database] ✅ ${tasks.length} tarefas sincronizadas com sucesso`);
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar tasks:', error);
