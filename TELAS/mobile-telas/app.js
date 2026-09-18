@@ -966,7 +966,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS (COM VALIDAÇÃO DE DOCUMENTOS)
+    // ⭐ SALVAR DADOS (COM VALIDAÇÃO DE DOCUMENTOS & CORREÇÃO 5)
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
@@ -1024,7 +1024,7 @@ class App {
                 }
             }
             
-            // ⭐ SALVAR NO CACHEMANAGER
+            // ⭐ SALVAR NO CACHEMANAGER COM CORREÇÃO 5 (DEBOUNCE DE SYNC)
             if (window.CacheManager) {
                 console.log('[SPA] 💾 Salvando no CacheManager...');
                 let savedCount = 0;
@@ -1044,31 +1044,14 @@ class App {
                 
                 console.log(`[SPA] 📊 ${savedCount} tipos salvos, ${failedCount} falhas`);
                 
-                if (savedCount > 0) {
-                    try {
-                        console.log('[SPA] 🔄 Forçando sincronização imediata...');
-                        const result = await window.CacheManager.forceSync();
-                        console.log('[SPA] ✅ Sync concluído:', result ? 'Sucesso' : 'Sem alterações');
-                        
-                        window.dispatchEvent(new CustomEvent('syncCompleted', {
-                            detail: { success: result, source: 'saveAllData' }
-                        }));
-                    } catch (error) {
-                        console.error('[SPA] ❌ Erro no sync imediato:', error);
-                        
-                        if (this._saveTimeout) {
-                            clearTimeout(this._saveTimeout);
-                        }
-                        this._saveTimeout = setTimeout(async () => {
-                            try {
-                                console.log('[SPA] 🔄 Tentando sync novamente (delay)...');
-                                await window.CacheManager.forceSync();
-                            } catch(e) {
-                                console.error('[SPA] ❌ Erro no sync delay:', e);
-                            }
-                        }, 3000);
-                    }
+                // ❌ NÃO FAZER forceSync imediato (O sync-helper.js já trata ciclicamente)
+                // ✅ Em vez disso, agendar um sync com Debounce de 2s para evitar duplicações
+                if (window.CacheManager._syncTimeout) {
+                    clearTimeout(window.CacheManager._syncTimeout);
                 }
+                window.CacheManager._syncTimeout = setTimeout(() => {
+                    window.CacheManager.forceSync().catch(() => {});
+                }, 2000);  // ⭐ Debounce de 2s
             } else {
                 console.error('[SPA] ❌ CacheManager não disponível!');
             }
