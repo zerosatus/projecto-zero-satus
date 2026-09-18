@@ -1,6 +1,6 @@
 // ============================================
-// app.js - SPA DO PAINEL PC (COMPLETO CORRIGIDO)
-// COM DELETE EM CASCATA E SINCRONIZAÇÃO TOTAL
+// app.js - SPA DO PAINEL PC (COMPLETO CORRIGIDO v2)
+// COM DELETE EM CASCATA, DEBOUNCE SYNC E SINCRONIZAÇÃO TOTAL
 // ============================================
 
 class App {
@@ -82,7 +82,6 @@ class App {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         `;
         
-        // Logo
         const logo = document.createElement('div');
         logo.className = 'loading-logo';
         logo.style.cssText = `
@@ -93,7 +92,6 @@ class App {
         `;
         logo.innerHTML = `<img src="https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png" alt="Zero Satus" style="width:100%;height:100%;object-fit:contain;">`;
         
-        // Spinner
         const spinner = document.createElement('div');
         spinner.className = 'loading-spinner';
         spinner.style.cssText = `
@@ -106,7 +104,6 @@ class App {
             margin-bottom: 20px;
         `;
         
-        // Título
         const title = document.createElement('h2');
         title.className = 'loading-title';
         title.style.cssText = `
@@ -118,7 +115,6 @@ class App {
         `;
         title.textContent = 'Carregando...';
         
-        // Subtítulo
         const subtitle = document.createElement('p');
         subtitle.className = 'loading-subtitle';
         subtitle.id = 'loading-status';
@@ -130,7 +126,6 @@ class App {
         `;
         subtitle.textContent = 'Preparando seus dados...';
         
-        // Barra de progresso
         const progressContainer = document.createElement('div');
         progressContainer.className = 'loading-progress-container';
         progressContainer.style.cssText = `
@@ -155,7 +150,6 @@ class App {
         `;
         progressContainer.appendChild(progressBar);
         
-        // Status
         const status = document.createElement('p');
         status.className = 'loading-status';
         status.id = 'loading-status-text';
@@ -168,7 +162,6 @@ class App {
         `;
         status.textContent = 'Inicializando...';
         
-        // Estilos de animação
         const style = document.createElement('style');
         style.textContent = `
             @keyframes loadingPulse {
@@ -316,7 +309,6 @@ class App {
             document.head.appendChild(script);
         }
         
-        // Inicializar CacheManager (garantia)
         this.updateLoadingStatus('Inicializando cache...', 20);
         if (window.CacheManager) {
             window.CacheManager.init();
@@ -575,20 +567,27 @@ class App {
     }
     
     // ============================================
-    // ⭐ SALVAR DADOS (COM VALIDAÇÃO DE DOCUMENTOS)
+    // ⭐ SALVAR DADOS (CORRIGIDO COM DEBOUNCE DE 2s)
+    // ⭐ APLICADA A MESMA CORREÇÃO DO MOBILE
     // ============================================
     async saveAllData() {
         if (this.isSaving) return;
         this.isSaving = true;
         
-        if (window.CacheManager) {
-            const userId = this.user?.id;
-            if (!userId) {
-                console.warn('[App PC] ⚠️ Usuário não logado para salvar');
-                this.isSaving = false;
-                return;
-            }
-            
+        if (!window.CacheManager) {
+            console.error('[App PC] ❌ CacheManager não disponível');
+            this.isSaving = false;
+            return;
+        }
+        
+        const userId = this.user?.id;
+        if (!userId) {
+            console.warn('[App PC] ⚠️ Usuário não logado para salvar');
+            this.isSaving = false;
+            return;
+        }
+        
+        try {
             // ⭐ FILTRAR NOTAS FANTASMAS
             if (Array.isArray(this.data.notes)) {
                 const antes = this.data.notes.length;
@@ -623,6 +622,7 @@ class App {
             console.log('[App PC] 💾 Salvando dados...');
             let savedCount = 0;
             
+            // Salvar cada tipo no CacheManager (local + fila de sync)
             for (const key of Object.keys(this.data)) {
                 if (this.data[key] !== undefined && this.data[key] !== null) {
                     const result = window.CacheManager.set(key, this.data[key], true);
@@ -632,14 +632,23 @@ class App {
             
             console.log(`[App PC] ✅ ${savedCount} tipos salvos no CacheManager`);
             
-            try {
-                const result = await window.CacheManager.forceSync();
-                console.log('[App PC] ✅ Sync concluído:', result ? 'com alterações' : 'sem alterações');
-            } catch (error) {
-                console.error('[App PC] ❌ Erro no sync:', error);
+            // ⭐ DEBOUNCE DE 2s - NÃO FAZER forceSync IMEDIATO
+            // ⭐ O sync-helper.js já faz sync periódico a cada 30s
+            // ⭐ Isto evita sobrescrever dados recentes com dados antigos da nuvem
+            if (window.CacheManager._syncTimeout) {
+                clearTimeout(window.CacheManager._syncTimeout);
             }
-        } else {
-            console.error('[App PC] ❌ CacheManager não disponível');
+            window.CacheManager._syncTimeout = setTimeout(() => {
+                console.log('[App PC] 🔄 Executando sync (debounce 2s)...');
+                window.CacheManager.forceSync().catch((err) => {
+                    console.warn('[App PC] ⚠️ Sync falhou (silencioso):', err.message);
+                });
+            }, 2000);  // ⭐ Debounce de 2s
+            
+            console.log('[App PC] ✅ Dados salvos (sync agendado em 2s)');
+            
+        } catch (error) {
+            console.error('[App PC] ❌ Erro ao salvar dados:', error);
         }
         
         setTimeout(() => { this.isSaving = false; }, 500);
@@ -665,9 +674,16 @@ class App {
             
             if (deleted) {
                 this.data[type] = window.CacheManager.get(type, []);
-                await window.CacheManager.forceSync();
                 
-                console.log(`[App PC] ✅ ${type} item ${id} deletado e sincronizado`);
+                // ⭐ DEBOUNCE NO DELETE TAMBÉM
+                if (window.CacheManager._syncTimeout) {
+                    clearTimeout(window.CacheManager._syncTimeout);
+                }
+                window.CacheManager._syncTimeout = setTimeout(() => {
+                    window.CacheManager.forceSync().catch(() => {});
+                }, 1000);
+                
+                console.log(`[App PC] ✅ ${type} item ${id} deletado (sync agendado)`);
                 
                 window.dispatchEvent(new CustomEvent(`${type}Updated`, { 
                     detail: this.data[type] 
@@ -936,7 +952,6 @@ class App {
     showView(viewName) {
         console.log('[App PC] 📄 Mostrando:', viewName);
         
-        // GERENCIAR SIDEBAR E SCROLL PARA IA
         const sidebar = document.querySelector('.sidebar');
         const mainContent = document.querySelector('.main-content');
         const viewIA = document.getElementById('view-ia');
@@ -1301,4 +1316,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-console.log('[App PC] ✅ app.js carregado com DELETE em cascata e sincronização total!');
+console.log('[App PC] ✅ app.js carregado com DEBOUNCE SYNC e sincronização total!');
