@@ -546,21 +546,28 @@ class SimpleCacheManager {
                     result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
                 case 'documentos':
-                    // ⭐ VERIFICAR SE O MÉTODO EXISTE
-                    if (typeof window.DatabaseService.saveDocumentos !== 'function') {
-                        console.warn('[CacheManager] ⚠️ saveDocumentos não é uma função, tentando recarregar...');
-                        if (window.SupabaseClient?.initSupabase) {
-                            await window.SupabaseClient.initSupabase();
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                        if (typeof window.DatabaseService.saveDocumentos === 'function') {
-                            result = await window.DatabaseService.saveDocumentos(userId, value);
-                        } else {
-                            console.error('[CacheManager] ❌ saveDocumentos ainda não disponível');
-                            return false;
-                        }
-                    } else {
+                    if (typeof window.DatabaseService.saveDocumentos === 'function') {
                         result = await window.DatabaseService.saveDocumentos(userId, value);
+                    } else {
+                        console.warn('[CacheManager] ⚠️ saveDocumentos não disponível, tentando via upsert...');
+                        // Tentar salvar direto
+                        if (window.supabaseClient) {
+                            const { error } = await window.supabaseClient
+                                .from('documentos')
+                                .upsert(value.map(d => ({
+                                    id: String(d.id),
+                                    user_id: userId,
+                                    nome: d.nome,
+                                    categoria: d.categoria,
+                                    arquivo: d.arquivo,
+                                    storage_path: d.storagePath,
+                                    tipo: d.tipo,
+                                    nome_arquivo: d.nomeArquivo,
+                                    tamanho: d.tamanho,
+                                    data_upload: d.dataUpload
+                                })), { onConflict: 'id' });
+                            result = !error;
+                        }
                     }
                     break;
                 case 'usuarioLogado':
