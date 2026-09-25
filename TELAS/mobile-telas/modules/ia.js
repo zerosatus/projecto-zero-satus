@@ -1,6 +1,6 @@
 // ============================================
-// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE)
-// ⭐ HISTÓRICO CONTÍNUO
+// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE / WEB)
+// ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)
 // ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
 // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
 // ⭐ MODO GÍRIA MOÇAMBICANA
@@ -88,7 +88,7 @@ class IAModule {
     // ============================================
     // RENDER PRINCIPAL
     // ============================================
-    render(data) {
+    async render(data) {
         console.log('[IA Mobile] 📊 Renderizando...');
         
         this.notifications = data.notifications || [];
@@ -99,7 +99,7 @@ class IAModule {
         this.disciplinas = data.disciplinas || [];
         
         // Carregar histórico
-        this.carregarHistorico();
+        await this.carregarHistorico();
         
         // Atualizar UI
         this.upgradeHeader();
@@ -123,105 +123,207 @@ class IAModule {
     }
 
     // ============================================
-    // CARREGAR HISTÓRICO
+    // CARREGAR HISTÓRICO (DA NUVEM)
     // ============================================
-    carregarHistorico() {
+    async carregarHistorico() {
         const userId = this.app?.user?.id;
-        if (!userId) {
-            console.log('[IA Mobile] ⚠️ Sem userId, não é possível carregar histórico');
-            return;
-        }
+        if (!userId) { this.history = []; this.messages = []; return; }
         
         try {
-            this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]');
+            if (window.DatabaseService) {
+                // ⭐ BUSCAR DA NUVEM
+                const convs = await window.DatabaseService.getAIConversations(userId);
+                this.history = convs.map(c => ({
+                    id: c.id,
+                    title: c.title,
+                    createdAt: c.created_at,
+                    updatedAt: c.updated_at
+                }));
+                
+                // Conversa atual: a mais recente
+                if (this.history.length > 0) {
+                    this.currentHistoryId = this.history[0].id;
+                    const msgs = await window.DatabaseService.getAIMessages(userId, this.currentHistoryId);
+                    this.messages = msgs.map(m => ({
+                        role: m.role,
+                        content: m.content,
+                        time: new Date(m.created_at).toLocaleTimeString(),
+                        timestamp: m.created_at,
+                        _saved: true
+                    }));
+                } else {
+                    this.currentHistoryId = null;
+                    this.messages = [];
+                }
+                
+                // ⭐ MIGRAR histórico local antigo (se existir)
+                await this._migrarHistoricoLocal(userId);
+            }
         } catch (e) {
-            this.history = [];
-        }
-        
-        try {
-            this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]');
-        } catch (e) {
-            this.messages = [];
-        }
-        
-        this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
-        
-        // Se não tem conversa atual mas tem mensagens, criar uma
-        if (!this.currentHistoryId && this.messages.length > 0) {
-            this.salvarConversaAtual();
-        }
-        
-        // Se tem conversa atual mas não tem mensagens, carregar do histórico
-        if (this.currentHistoryId && this.messages.length === 0) {
-            const conv = this.history.find(h => h.id === this.currentHistoryId);
-            if (conv && conv.messages) {
-                this.messages = [...conv.messages];
+            console.warn('[IA] Erro ao carregar histórico da nuvem:', e);
+            // Fallback para local
+            try {
+                this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]');
+                this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]');
+                this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
+            } catch (err) {
+                this.history = []; this.messages = []; this.currentHistoryId = null;
             }
         }
-        
-        console.log('[IA Mobile] 📚 Histórico carregado:', {
-            conversas: this.history.length,
-            conversaAtual: this.currentHistoryId,
-            mensagens: this.messages.length
-        });
+    }
+
+    // ⭐ Migrar histórico local para a nuvem (só uma vez)
+    async _migrarHistoricoLocal(userId) {
+        try {
+            const localHistory = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]');
+            if (localHistory.length === 0) return;
+            
+            if (this.history.length > 0) {
+                // Já tem na nuvem, limpar local
+                localStorage.removeItem(`${userId}_ia_history`);
+                localStorage.removeItem(`${userId}_ia_messages`);
+                localStorage.removeItem(`${userId}_ia_current`);
+                return;
+            }
+            
+            console.log('[IA] 🔄 Migrando histórico local para nuvem...');
+            for (const conv of localHistory) {
+                await window.DatabaseService.saveAIConversation(userId, {
+                    id: conv.id, title: conv.title
+                });
+                for (const msg of (conv.messages || [])) {
+                    await window.DatabaseService.saveAIMessage(userId, {
+                        conversationId: conv.id,
+                        role: msg.role,
+                        content: msg.content,
+                        createdAt: msg.timestamp
+                    });
+                }
+            }
+            localStorage.removeItem(`${userId}_ia_history`);
+            localStorage.removeItem(`${userId}_ia_messages`);
+            localStorage.removeItem(`${userId}_ia_current`);
+            console.log('[IA] ✅ Histórico migrado');
+            await this.carregarHistorico();
+        } catch (e) {
+            console.warn('[IA] Erro na migração:', e);
+        }
     }
 
     // ============================================
-    // SALVAR CONVERSA ATUAL
+    // SALVAR CONVERSA ATUAL (NA NUVEM)
     // ============================================
-    salvarConversaAtual() {
+    async salvarConversaAtual() {
         const userId = this.app?.user?.id;
         if (!userId || this.messages.length === 0) return;
         
-        const agora = new Date().toISOString();
-        
-        // Título baseado na primeira mensagem do usuário
         const primeira = this.messages.find(m => m.role === 'user')?.content || 'Nova conversa';
         const titulo = primeira.length > 32 ? primeira.substring(0, 32) + '…' : primeira;
         
-        // Se já existe uma conversa atual, atualizar
-        if (this.currentHistoryId) {
-            const i = this.history.findIndex(h => h.id === this.currentHistoryId);
-            if (i !== -1) {
-                this.history[i] = {
-                    ...this.history[i],
-                    title: titulo,
-                    messages: [...this.messages],
-                    updatedAt: agora
-                };
-            } else {
-                this.currentHistoryId = null;
+        // Criar ID se não existir
+        if (!this.currentHistoryId) {
+            this.currentHistoryId = Date.now().toString();
+        }
+        
+        // Guardar conversa
+        await window.DatabaseService.saveAIConversation(userId, {
+            id: this.currentHistoryId,
+            title: titulo
+        });
+        
+        // Guardar as últimas mensagens ainda não gravadas
+        // (simples: regravar as últimas 2, que é o par user+assistant mais recente)
+        const ultimas = this.messages.slice(-2);
+        for (const msg of ultimas) {
+            if (!msg._saved) {
+                await window.DatabaseService.saveAIMessage(userId, {
+                    id: `${this.currentHistoryId}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                    conversationId: this.currentHistoryId,
+                    role: msg.role,
+                    content: msg.content,
+                    createdAt: msg.timestamp || new Date().toISOString()
+                });
+                msg._saved = true;
             }
         }
         
-        // Se não tem conversa atual, criar nova
-        if (!this.currentHistoryId) {
-            this.currentHistoryId = Date.now().toString();
-            this.history.push({
+        // Atualizar lista local
+        const idx = this.history.findIndex(h => h.id === this.currentHistoryId);
+        if (idx !== -1) {
+            this.history[idx].title = titulo;
+            this.history[idx].updatedAt = new Date().toISOString();
+        } else {
+            this.history.unshift({
                 id: this.currentHistoryId,
                 title: titulo,
-                messages: [...this.messages],
-                createdAt: agora,
-                updatedAt: agora
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             });
         }
-        
-        // Ordenar por mais recente
-        this.history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        
-        // Salvar no localStorage
-        localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
-        localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
-        localStorage.setItem(`${userId}_ia_current`, this.currentHistoryId);
-        
-        // Atualizar lista no painel
         this.renderHistoryList();
+    }
+
+    // ============================================
+    // NOVA CONVERSA
+    // ============================================
+    async novaConversa() {
+        if (this._isProcessing) return;
+        if (this.messages.length > 0) {
+            await this.salvarConversaAtual();
+        }
+        this.messages = [];
+        this.currentHistoryId = null;
+        this.renderChat();
+        this.renderHistoryList();
+        this.fecharPainel();
+    }
+
+    // ============================================
+    // SELECIONAR CONVERSA (DA NUVEM)
+    // ============================================
+    async selecionarConversa(id) {
+        if (this._isProcessing) return;
+        if (this.messages.length > 0 && this.currentHistoryId !== id) {
+            await this.salvarConversaAtual();
+        }
+        const userId = this.app?.user?.id;
+        if (!userId) return;
         
-        console.log('[IA Mobile] 💾 Conversa salva:', {
-            id: this.currentHistoryId,
-            title: titulo,
-            messages: this.messages.length
-        });
+        try {
+            const msgs = await window.DatabaseService.getAIMessages(userId, id);
+            this.currentHistoryId = id;
+            this.messages = msgs.map(m => ({
+                role: m.role,
+                content: m.content,
+                time: new Date(m.created_at).toLocaleTimeString(),
+                timestamp: m.created_at,
+                _saved: true
+            }));
+            this.renderChat();
+            this.renderHistoryList();
+            this.fecharPainel();
+        } catch (e) {
+            console.error('[IA] Erro ao selecionar conversa:', e);
+        }
+    }
+
+    // ============================================
+    // EXCLUIR CONVERSA (DA NUVEM)
+    // ============================================
+    async excluirConversa(id) {
+        const conv = this.history.find(h => h.id === id);
+        if (!confirm(`Excluir "${conv?.title || 'esta conversa'}"?`)) return;
+        const userId = this.app?.user?.id;
+        if (!userId) return;
+        
+        await window.DatabaseService.deleteAIConversation(userId, id);
+        this.history = this.history.filter(h => h.id !== id);
+        if (this.currentHistoryId === id) {
+            this.currentHistoryId = null;
+            this.messages = [];
+            this.renderChat();
+        }
+        this.renderHistoryList();
     }
 
     // ============================================
@@ -358,13 +460,13 @@ Pendentes: ${pendentes.length}
 Concluídas: ${concluidas.length}
 
 ${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) => 
-    `   ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
+    `   ${i+1}. ${t.title \vert{}\vert{} t.nome \vert{}\vert{} 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
 ).join('\n') : '✅ Todas as tarefas foram concluídas! 🎉'}
 
 📝 ANOTAÇÕES:
 Total: ${notes.length}
 ${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, i) => 
-    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
+    `   ${i+1}. ${n.title \vert{}\vert{} 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
 ).join('\n') : 'Nenhuma anotação ainda'}
 
 📚 DISCIPLINAS:
@@ -373,7 +475,7 @@ ${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}`).join('\n') : '
 📅 HORÁRIO SEMANAL:
 ${Object.entries(schedule).map(([dia, aulas]) => {
     if (aulas && aulas.length > 0) {
-        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ')}`;
+        return `${dia}:${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ')}`;
     }
     return `${dia}: Sem aulas`;
 }).join('\n')}
@@ -463,7 +565,7 @@ INSTRUÇÕES DE ESTILO:
         limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
     }
 
-    toggleModoGiria() {
+    async toggleModoGiria() {
         this._modoGiria = !this._modoGiria;
         const mensagem = this._modoGiria
             ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
@@ -476,9 +578,10 @@ INSTRUÇÕES DE ESTILO:
                 ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
                 : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
             time: new Date().toLocaleTimeString(),
-            isSystem: true
+            isSystem: true,
+            _saved: false // ⭐ MARCAR _saved: false
         });
-        this.salvarConversaAtual();
+        await this.salvarConversaAtual();
         this.renderChat();
     }
 
@@ -501,9 +604,10 @@ INSTRUÇÕES DE ESTILO:
             this.messages.push({
                 role: 'assistant',
                 content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
-                time: new Date().toLocaleTimeString()
+                time: new Date().toLocaleTimeString(),
+                _saved: false // ⭐ MARCAR _saved: false
             });
-            this.salvarConversaAtual();
+            await this.salvarConversaAtual();
             this.renderChat();
             return;
         }
@@ -515,11 +619,12 @@ INSTRUÇÕES DE ESTILO:
             role: 'user',
             content: text,
             time: new Date().toLocaleTimeString(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            _saved: false // ⭐ ADICIONADO AQUI
         });
         
         // Salvar imediatamente
-        this.salvarConversaAtual();
+        await this.salvarConversaAtual();
         
         this.renderChat();
         this._isProcessing = true;
@@ -568,11 +673,12 @@ INSTRUÇÕES DE ESTILO:
                 role: 'assistant',
                 content: response,
                 time: new Date().toLocaleTimeString(),
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                _saved: false // ⭐ ADICIONADO AQUI
             });
             
             // Salvar conversa
-            this.salvarConversaAtual();
+            await this.salvarConversaAtual();
             this.renderChat();
             this._atualizarStatusLimite();
             
@@ -586,9 +692,10 @@ INSTRUÇÕES DE ESTILO:
             this.messages.push({
                 role: 'assistant',
                 content: '❌ Ocorreu um erro. Tenta novamente!',
-                time: new Date().toLocaleTimeString()
+                time: new Date().toLocaleTimeString(),
+                _saved: false // ⭐ MARCAR _saved: false
             });
-            this.salvarConversaAtual();
+            await this.salvarConversaAtual();
             this.renderChat();
         } finally {
             this._isProcessing = false;
@@ -845,80 +952,6 @@ INSTRUÇÕES DE ESTILO:
                 <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
             </div>`).join('');
     }
-
-    novaConversa() {
-        if (this._isProcessing) return;
-        
-        if (this.messages.length > 0) {
-            this.salvarConversaAtual();
-        }
-        
-        this.messages = [];
-        this.currentHistoryId = null;
-        
-        const userId = this.app?.user?.id;
-        if (userId) {
-            localStorage.setItem(`${userId}_ia_messages`, '[]');
-            localStorage.removeItem(`${userId}_ia_current`);
-        }
-        
-        this.renderChat();
-        this.renderHistoryList();
-        this.fecharPainel();
-        
-        console.log('[IA Mobile] 🆕 Nova conversa iniciada');
-    }
-
-    selecionarConversa(id) {
-        if (this._isProcessing) return;
-        
-        const conv = this.history.find(h => h.id === id);
-        if (!conv) return;
-        
-        if (this.messages.length > 0 && this.currentHistoryId !== id) {
-            this.salvarConversaAtual();
-        }
-        
-        this.currentHistoryId = id;
-        this.messages = [...(conv.messages || [])];
-        
-        const userId = this.app?.user?.id;
-        if (userId) {
-            localStorage.setItem(`${userId}_ia_messages`, JSON.stringify(this.messages));
-            localStorage.setItem(`${userId}_ia_current`, id);
-        }
-        
-        this.renderChat();
-        this.renderHistoryList();
-        this.fecharPainel();
-        
-        console.log('[IA Mobile] 📂 Conversa carregada:', {
-            id: id,
-            title: conv.title,
-            messages: this.messages.length
-        });
-    }
-
-    excluirConversa(id) {
-        const conv = this.history.find(h => h.id === id);
-        if (!confirm(`Excluir "${conv?.title || 'esta conversa'}"?`)) return;
-        
-        this.history = this.history.filter(h => h.id !== id);
-        
-        if (this.currentHistoryId === id) {
-            this.currentHistoryId = null;
-            this.messages = [];
-            this.renderChat();
-        }
-        
-        const userId = this.app?.user?.id;
-        if (userId) {
-            localStorage.setItem(`${userId}_ia_history`, JSON.stringify(this.history));
-            localStorage.removeItem(`${userId}_ia_current`);
-        }
-        
-        this.renderHistoryList();
-    }
 }
 
 // ============================================
@@ -983,5 +1016,4 @@ function fallbackCopy(text, element) {
     atualizarFab();
 })();
 
-console.log('[IA Mobile] ✅ Módulo carregado com HISTÓRICO CONTÍNUO!');
-console.log('[IA Mobile] 💡 Conversas são salvas automaticamente e mantêm contexto');
+console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');
