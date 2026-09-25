@@ -714,7 +714,7 @@ class DocumentosModule {
     // ============================================
     // BAIXAR DOCUMENTO
     // ============================================
-    downloadDocumento(id) {
+    async downloadDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
         if (!doc || !doc.arquivo) {
             if (typeof showToast === 'function') {
@@ -722,23 +722,68 @@ class DocumentosModule {
             }
             return;
         }
-        
+
+        const nomeFicheiro = doc.nomeArquivo || doc.nome || 'documento';
+
         try {
-            const link = document.createElement('a');
-            link.href = doc.arquivo;
-            link.download = doc.nomeArquivo || doc.nome;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            if (typeof showToast === 'function') {
-                showToast('📥 Download iniciado!', 'success');
+            // ⭐ CASO 1: URL do Supabase Storage (http/https)
+            if (doc.arquivo.startsWith('http')) {
+                console.log('[Documentos] 📥 Baixando da nuvem:', doc.arquivo);
+                const response = await fetch(doc.arquivo, { mode: 'cors' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = nomeFicheiro;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Libertar memória após 1s
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                
+                if (typeof showToast === 'function') {
+                    showToast('📥 Download iniciado!', 'success');
+                }
+                return;
             }
-            
+
+            // ⭐ CASO 2: Base64 ou Blob URL (local)
+            if (doc.arquivo.startsWith('blob:') || doc.arquivo.startsWith('data:')) {
+                const link = document.createElement('a');
+                link.href = doc.arquivo;
+                link.download = nomeFicheiro;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                if (typeof showToast === 'function') {
+                    showToast('📥 Download iniciado!', 'success');
+                }
+                return;
+            }
+
+            // ⭐ CASO 3: Fallback - abrir em nova aba
+            window.open(doc.arquivo, '_blank');
+            if (typeof showToast === 'function') {
+                showToast('📂 Documento aberto em nova aba', 'info');
+            }
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao baixar:', error);
-            if (typeof showToast === 'function') {
-                showToast('❌ Erro ao baixar documento', 'error');
+            // ⭐ Fallback final: tentar abrir directo
+            try {
+                const link = document.createElement('a');
+                link.href = doc.arquivo;
+                link.download = nomeFicheiro;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro ao baixar documento', 'error');
+                }
             }
         }
     }
