@@ -220,6 +220,14 @@ class RealtimeSyncManager {
 
         this._updateBadge();
 
+        // ⭐ MOSTRAR NOTIFICAÇÃO NATIVA DO BROWSER
+        if (!notification.read && window.showLocalNotification) {
+            window.showLocalNotification(
+                notification.title || 'Nova notificação',
+                notification.message || ''
+            );
+        }
+
         window.dispatchEvent(new CustomEvent('newNotification', {
             detail: { notification }
         }));

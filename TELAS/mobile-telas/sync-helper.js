@@ -523,3 +523,29 @@
 })();
 
 console.log('[Sync] ✅ Integração com Realtime configurada');
+// ⭐ NOTIFICAÇÕES LOCAIS NO BROWSER
+window.requestNotificationPermission = async function() {
+    if (!('Notification' in window)) {
+        console.log('[Web] Notificações não suportadas');
+        return false;
+    }
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    const perm = await Notification.requestPermission();
+    return perm === 'granted';
+};
+
+window.showLocalNotification = function(title, body, icon) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    try {
+        new Notification(title, {
+            body: body,
+            icon: icon || '/assets/logo.png',
+            badge: '/assets/logo.png',
+            tag: 'zero-satus-' + Date.now()
+        });
+    } catch (e) {
+        console.warn('[Web] Erro ao mostrar notificação:', e);
+    }
+};

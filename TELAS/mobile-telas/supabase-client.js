@@ -8,14 +8,13 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabaseClient = null;
 let isInitializing = false;
 let initAttempts = 0;
-const MAX_INIT_ATTEMPTS = 10; // AUMENTADO PARA MAIS TENTATIVAS
+const MAX_INIT_ATTEMPTS = 10;
 
 // ============================================
 // 🔥 FUNÇÃO PARA ESPERAR O SUPABASE CARREGAR
 // ============================================
 function waitForSupabaseLibrary() {
     return new Promise((resolve) => {
-        // Se já existe, resolve imediatamente
         if (typeof supabase !== 'undefined') {
             resolve();
             return;
@@ -23,9 +22,8 @@ function waitForSupabaseLibrary() {
         
         console.log('[Supabase] ⏳ Aguardando biblioteca Supabase carregar...');
         
-        // Verificar a cada 100ms
         let attempts = 0;
-        const maxAttempts = 50; // 5 segundos
+        const maxAttempts = 50;
         
         const checkInterval = setInterval(() => {
             attempts++;
@@ -38,17 +36,15 @@ function waitForSupabaseLibrary() {
                 console.warn('[Supabase] ⚠️ Timeout aguardando biblioteca Supabase');
                 clearInterval(checkInterval);
                 
-                // Tentar carregar manualmente via CDN
                 carregarSupabaseManual();
                 
-                // Verificar novamente após carregamento manual
                 setTimeout(() => {
                     if (typeof supabase !== 'undefined') {
                         console.log('[Supabase] ✅ Biblioteca carregada manualmente!');
                         resolve();
                     } else {
                         console.error('[Supabase] ❌ Falha ao carregar biblioteca Supabase');
-                        resolve(); // Resolve mesmo assim para não travar
+                        resolve();
                     }
                 }, 1000);
             }
@@ -62,13 +58,11 @@ function waitForSupabaseLibrary() {
 function carregarSupabaseManual() {
     console.log('[Supabase] 🔄 Tentando carregar Supabase manualmente...');
     
-    // Verificar se já existe no window
     if (window.supabase) {
         console.log('[Supabase] ✅ Supabase encontrado no window');
         return;
     }
     
-    // Tentar carregar via CDN
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
     script.async = true;
@@ -85,7 +79,7 @@ function carregarSupabaseManual() {
 }
 
 // ============================================
-// INICIALIZAR SUPABASE (VERSÃO CORRIGIDA)
+// INICIALIZAR SUPABASE
 // ============================================
 async function initSupabase() {
     if (supabaseClient) {
@@ -102,10 +96,8 @@ async function initSupabase() {
     console.log(`[Supabase] 🚀 Inicializando cliente (tentativa ${initAttempts})...`);
     
     try {
-        // 🔥 ESPERAR A BIBLIOTECA CARREGAR
         await waitForSupabaseLibrary();
         
-        // Verificar novamente após esperar
         const supabaseLib = typeof supabase !== 'undefined' ? supabase : window.supabase;
         
         if (!supabaseLib) {
@@ -142,7 +134,6 @@ async function initSupabase() {
             getClient: () => supabaseClient
         };
         
-        // Criar serviços
         criarAuthService(supabaseClient);
         criarDatabaseService(supabaseClient);
         criarStorageService();
@@ -236,7 +227,6 @@ function criarAuthService(client) {
     
     const AuthService = {
         async loginWithEmail(email, password) {
-            // 🔥 GARANTIR QUE O CLIENTE ESTÁ INICIALIZADO
             const finalClient = window.supabaseClient || initSupabase();
             if (!finalClient) {
                 console.error('[Auth] ❌ Cliente não disponível');
@@ -822,45 +812,293 @@ function criarDatabaseService(client) {
             if (!client) return false;
 
             try {
-                const { error: deleteError } = await client
-                    .from('tasks')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[DB] ❌ Erro:', deleteError);
-                    return false;
+                if (!tasks || tasks.length === 0) {
+                    await client.from('tasks').delete().eq('user_id', userId);
+                    return true;
                 }
 
-                if (!tasks || tasks.length === 0) return true;
+                const tasksToUpsert = tasks.map(task => {
+                    const title = task.nome || task.title || 'Sem título';
+                    return {
+                        id: task.id || generateId(),
+                        user_id: userId,
+                        title: title,
+                        slug: task.slug || title.toLowerCase()
+                            .replace(/[^\w\s]/g, '').replace(/\s+/g, '-'),
+                        content: task.content || task.descricao || '',
+                        description: task.descricao || task.description || '',
+                        subject: task.disciplina || task.subject || 'geral',
+                        priority: task.prioridade || task.priority || 'media',
+                        date: task.prazo || task.date || null,
+                        completed: task.completed || false,
+                        favorita: task.favorita || false,
+                        subtasks: task.subtasks || [],
+                        created_at: task.dataCriacao || task.created_at || new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+                });
 
-                const tasksToInsert = tasks.map(task => ({
-                    id: generateId(),
-                    user_id: userId,
-                    title: task.nome || task.title || 'Sem título',
-                    description: task.descricao || '',
-                    subject: task.disciplina || task.subject || 'geral',
-                    priority: task.prioridade || 'media',
-                    date: task.prazo || null,
-                    completed: task.completed || false,
-                    favorita: task.favorita || false,
-                    subtasks: task.subtasks || [],
-                    created_at: task.dataCriacao || new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }));
-
-                const batchSize = 100;
-                for (let i = 0; i < tasksToInsert.length; i += batchSize) {
-                    const batch = tasksToInsert.slice(i, i + batchSize);
-                    const { error } = await client.from('tasks').insert(batch);
+                for (let i = 0; i < tasksToUpsert.length; i += 100) {
+                    const batch = tasksToUpsert.slice(i, i + 100);
+                    const { error } = await client.from('tasks').upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = tasks.map(t => t.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    await client.from('tasks').delete().eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
             } catch (error) {
-                console.error('[DB] ❌ Erro:', error);
+                console.error('[DB] ❌ Erro saveTasks:', error);
                 return false;
             }
+        },
+
+        // ============================================
+        // MÉTODOS DE IA
+        // ============================================
+        async getAIConversations(userId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client.from('ai_conversations')
+                    .select('*').eq('user_id', userId).order('updated_at', { ascending: false });
+                if (error) { console.error('[DB] ❌', error); return []; }
+                return data || [];
+            } catch (e) { console.error('[DB] ❌', e); return []; }
+        },
+
+        async saveAIConversation(userId, conversation) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+
+            try {
+                const { error } = await client.from('ai_conversations').upsert({
+                    id: conversation.id, user_id: userId,
+                    title: conversation.title || 'Nova conversa',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'id' });
+                if (error) throw error;
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
+        },
+
+        async deleteAIConversation(userId, conversationId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+
+            try {
+                await client.from('ai_messages').delete().eq('conversation_id', conversationId);
+                const { error } = await client.from('ai_conversations').delete()
+                    .eq('id', conversationId).eq('user_id', userId);
+                if (error) throw error;
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
+        },
+
+        async getAIMessages(userId, conversationId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client.from('ai_messages')
+                    .select('*').eq('user_id', userId)
+                    .eq('conversation_id', conversationId)
+                    .order('created_at', { ascending: true });
+                if (error) { console.error('[DB] ❌', error); return []; }
+                return data || [];
+            } catch (e) { console.error('[DB] ❌', e); return []; }
+        },
+
+        async saveAIMessage(userId, message) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+
+            try {
+                const { error } = await client.from('ai_messages').insert({
+                    id: message.id || (Date.now().toString() + Math.random().toString(36).substr(2, 6)),
+                    conversation_id: message.conversationId,
+                    user_id: userId,
+                    role: message.role,
+                    content: message.content,
+                    created_at: message.createdAt || new Date().toISOString()
+                });
+                if (error) throw error;
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
+        },
+
+        // ============================================
+        // PROFILE PHOTO
+        // ============================================
+        async uploadProfilePhoto(userId, file) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return null;
+
+            try {
+                const fileExt = file.name.split('.').pop() || 'png';
+                const fileName = `avatars/${userId}_${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await client.storage
+                    .from('user-content')
+                    .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+                if (uploadError) { console.error('[DB] ❌', uploadError); return null; }
+
+                const { data: { publicUrl } } = client.storage.from('user-content').getPublicUrl(fileName);
+
+                if (publicUrl) {
+                    await this.updateUserProfile(userId, { avatar_url: publicUrl });
+                    return publicUrl;
+                }
+
+                return null;
+            } catch (e) { console.error('[DB] ❌', e); return null; }
+        },
+
+        async deleteProfilePhoto(userId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+
+            try {
+                const profile = await this.getUserProfile(userId);
+                if (profile?.avatar_url) {
+                    const filePath = profile.avatar_url.split('/').pop();
+                    await client.storage.from('user-content').remove([`avatars/${filePath}`]);
+                }
+
+                await this.updateUserProfile(userId, { avatar_url: null });
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
+        },
+
+        // ============================================
+        // DOCUMENTOS
+        // ============================================
+        async getDocumentos(userId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client
+                    .from('documentos')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('data_upload', { ascending: false });
+
+                if (error) { console.error('[DB] ❌', error); return []; }
+
+                return (data || []).map(doc => ({
+                    id: doc.id,
+                    nome: doc.nome,
+                    categoria: doc.categoria || 'Outros',
+                    descricao: doc.descricao || '',
+                    arquivo: doc.arquivo || '',
+                    tipo: doc.tipo || 'application/octet-stream',
+                    nomeArquivo: doc.nome_arquivo || doc.nome,
+                    tamanho: doc.tamanho || 0,
+                    dataUpload: doc.data_upload || doc.created_at,
+                    storagePath: doc.storage_path || null
+                }));
+            } catch (e) { console.error('[DB] ❌', e); return []; }
+        },
+
+        async saveDocumentos(userId, documentos) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+
+            try {
+                if (!documentos || documentos.length === 0) {
+                    await client.from('documentos').delete().eq('user_id', userId);
+                    return true;
+                }
+
+                const docsToUpsert = documentos
+                    .filter(doc => !(doc.arquivo?.startsWith('data:') && doc.arquivo.length > 500 * 1024))
+                    .map(doc => ({
+                        id: doc.id ? String(doc.id) : generateId(),
+                        user_id: userId,
+                        nome: doc.nome || 'Documento',
+                        categoria: doc.categoria || 'Outros',
+                        descricao: doc.descricao || '',
+                        arquivo: doc.arquivo || '',
+                        tipo: doc.tipo || 'application/octet-stream',
+                        nome_arquivo: doc.nomeArquivo || doc.nome,
+                        tamanho: doc.tamanho || 0,
+                        storage_path: doc.storagePath || null,
+                        data_upload: doc.dataUpload || new Date().toISOString(),
+                        created_at: doc.dataUpload || new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    }));
+
+                for (let i = 0; i < docsToUpsert.length; i += 50) {
+                    const batch = docsToUpsert.slice(i, i + 50);
+                    const { error } = await client.from('documentos').upsert(batch, { onConflict: 'id' });
+                    if (error) throw error;
+                }
+
+                const idsLocais = docsToUpsert.map(d => d.id);
+                if (idsLocais.length > 0) {
+                    await client.from('documentos').delete().eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+                }
+
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
+        },
+
+        async deleteDocumento(userId, documentoId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+
+            try {
+                const { data: doc } = await client.from('documentos')
+                    .select('storage_path').eq('user_id', userId).eq('id', documentoId).single();
+
+                if (doc?.storage_path) {
+                    await client.storage.from('user-content').remove([doc.storage_path]);
+                }
+
+                const { error } = await client.from('documentos').delete()
+                    .eq('user_id', userId).eq('id', documentoId);
+
+                if (error) throw error;
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
+        },
+
+        async uploadDocumentoStorage(userId, file, nome) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return null;
+
+            try {
+                const fileExt = file.name.split('.').pop() || 'pdf';
+                const safeName = nome.replace(/\s/g, '_').substring(0, 50);
+                const filePath = `documentos/${userId}/${Date.now()}_${safeName}.${fileExt}`;
+
+                const { error } = await client.storage.from('user-content')
+                    .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+                if (error) { console.error('[DB] ❌', error); return null; }
+
+                const { data: { publicUrl } } = client.storage.from('user-content').getPublicUrl(filePath);
+                return { publicUrl, storagePath: filePath };
+            } catch (e) { console.error('[DB] ❌', e); return null; }
+        },
+
+        async deleteDocumentoStorage(storagePath) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+            if (!storagePath) return true;
+
+            try {
+                await client.storage.from('user-content').remove([storagePath]);
+                return true;
+            } catch (e) { console.error('[DB] ❌', e); return false; }
         },
 
         // ============================================
@@ -1286,7 +1524,8 @@ function criarDatabaseService(client) {
     };
 
     window.DatabaseService = DatabaseService;
-    console.log('[Supabase] ✅ DatabaseService criado e exportado');
+    window.DatabaseService.__version = 'v1-basic';
+    console.log('[Supabase] ✅ DatabaseService criado e exportado (v1-basic)');
 }
 
 // ============================================
@@ -1321,11 +1560,9 @@ function criarStorageService() {
 // 🔥 INICIALIZAR AUTOMATICAMENTE
 // ============================================
 
-// Iniciar imediatamente
 console.log('[Supabase] 🔥 Iniciando inicialização...');
 initSupabase();
 
-// Tentar novamente após 1s
 setTimeout(() => {
     if (!window.AuthService) {
         console.log('[Supabase] 🔄 Segunda tentativa...');
@@ -1333,7 +1570,6 @@ setTimeout(() => {
     }
 }, 1000);
 
-// Tentar novamente após 3s
 setTimeout(() => {
     if (!window.AuthService) {
         console.log('[Supabase] 🔄 Terceira tentativa...');
@@ -1341,7 +1577,6 @@ setTimeout(() => {
     }
 }, 3000);
 
-// Tentar novamente após 5s
 setTimeout(() => {
     if (!window.AuthService) {
         console.log('[Supabase] 🔄 Quarta tentativa...');

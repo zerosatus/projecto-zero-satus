@@ -2,10 +2,10 @@
 // ============================================
 // VERIFICAR SE JÁ FOI CARREGADO
 // ============================================
-if (window.DatabaseService) {
-    console.log('[DatabaseService] ⚠️ Módulo já carregado, ignorando...');
+if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
+    console.log('[DatabaseService] ⚠️ Módulo já carregado na versão mais recente, ignorando...');
 } else {
-    console.log('[DatabaseService] 🚀 Inicializando módulo...');
+    console.log('[DatabaseService] 🚀 Inicializando módulo (v2-full)...');
 
     const DatabaseService = (function() {
         let supabase = null;
@@ -347,7 +347,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ ALTERADO: saveTasks atualizado
         async function saveTasks(userId, tasks) {
             console.log(`[Database] 💾 Salvando ${tasks?.length || 0} tasks para userId:`, userId);
             const client = window.supabaseClient || init();
@@ -366,11 +365,9 @@ if (window.DatabaseService) {
                         id: task.id || generateId(),
                         user_id: userId,
                         title: title,
-                        // ⭐ ADICIONADO: slug (usado pelo Flutter)
                         slug: task.slug || title.toLowerCase()
                             .replace(/[^\w\s]/g, '')
                             .replace(/\s+/g, '-'),
-                        // ⭐ ADICIONADO: content (usado pelo Flutter)
                         content: task.content || task.descricao || '',
                         description: task.descricao || task.description || '',
                         subject: task.disciplina || task.subject || 'geral',
@@ -1044,7 +1041,7 @@ if (window.DatabaseService) {
                 }
 
                 const docsToUpsert = documentosFiltrados.map(doc => ({
-                    id: doc.id ? String(doc.id) : generateId(), // ⭐ MANTER ID ORIGINAL
+                    id: doc.id ? String(doc.id) : generateId(),
                     user_id: userId,
                     nome: doc.nome || 'Documento',
                     categoria: doc.categoria || 'Outros',
@@ -1059,7 +1056,6 @@ if (window.DatabaseService) {
                     updated_at: new Date().toISOString()
                 }));
 
-                // ⭐ UPSERT em batches
                 const batchSize = 50;
                 for (let i = 0; i < docsToUpsert.length; i += batchSize) {
                     const batch = docsToUpsert.slice(i, i + batchSize);
@@ -1069,7 +1065,6 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                // ⭐ Remover documentos apagados localmente
                 const idsLocais = docsToUpsert.map(d => d.id);
                 if (idsLocais.length > 0) {
                     await client
@@ -1496,7 +1491,8 @@ if (window.DatabaseService) {
         };
     })();
 
-    // Exportar para uso global
+    // Exportar para uso global e atribuir flag de versão
     window.DatabaseService = DatabaseService;
-    console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (COM SUPORTE A IA E STORAGE)');
+    window.DatabaseService.__version = 'v2-full';
+    console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (v2-full)');
 }
