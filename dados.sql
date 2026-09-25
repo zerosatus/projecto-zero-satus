@@ -1966,3 +1966,9 @@ WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "User delete own ai_messages"
 ON public.ai_messages FOR DELETE TO authenticated
 USING (auth.uid() = user_id);
+
+//base de dadps 
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('user-content', 'user-content', true, 5242880)
+ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 5242880;
