@@ -310,13 +310,7 @@ class App {
         }
         
         this.updateLoadingStatus('Inicializando cache...', 20);
-        if (window.CacheManager) {
-            window.CacheManager.init();
-            window.CacheManager.currentUserId = this.user.id;
-            console.log('[App PC] ✅ CacheManager inicializado');
-        } else {
-            console.warn('[App PC] ⚠️ CacheManager não disponível');
-        }
+        console.log('[App PC] ✅ CacheManager inicializado');
         
         // Aguardar Supabase
         this.updateLoadingStatus('Conectando ao servidor...', 25);
@@ -534,17 +528,20 @@ class App {
                 }
             }
             
-            // ⭐ FILTRAR DOCUMENTOS GRANDES
+            // ⭐ LIMPEZA DE DOCUMENTOS VAZIOS (URLs de Storage são curtas, não ocupam espaço)
             if (Array.isArray(this.data.documentos)) {
                 const filtrados = this.data.documentos.filter(doc => {
-                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                        console.warn('[App PC] ⚠️ Documento grande removido:', doc.nome);
-                        return false;
+                    // Só remove se faltar o nome ou o arquivo
+                    if (!doc.nome || doc.nome.trim() === '') return false;
+                    if (!doc.arquivo || doc.arquivo.trim() === '') return false;
+                    // Aviso (não remove) se ainda houver Base64 antigo grande
+                    if (doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[App PC] ⚠️ Documento Base64 antigo grande (recomenda-se reenviar):', doc.nome);
                     }
                     return true;
                 });
                 if (filtrados.length !== this.data.documentos.length) {
-                    console.log(`[App PC] 🧹 Removidos ${this.data.documentos.length - filtrados.length} documentos grandes`);
+                    console.log(`[App PC] 🧹 Removidos ${this.data.documentos.length - filtrados.length} documentos vazios`);
                     this.data.documentos = filtrados;
                     window.CacheManager.set('documentos', filtrados, true);
                 }
@@ -604,18 +601,19 @@ class App {
                 }
             }
             
-            // ⭐ FILTRAR DOCUMENTOS GRANDES
+            // ⭐ LIMPEZA DE DOCUMENTOS VAZIOS AO SALVAR
             if (Array.isArray(this.data.documentos)) {
                 const antes = this.data.documentos.length;
                 this.data.documentos = this.data.documentos.filter(doc => {
-                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                        console.warn('[App PC] ⚠️ Documento grande removido ao salvar:', doc.nome);
-                        return false;
+                    if (!doc.nome || doc.nome.trim() === '') return false;
+                    if (!doc.arquivo || doc.arquivo.trim() === '') return false;
+                    if (doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[App PC] ⚠️ Documento Base64 antigo grande (recomenda-se reenviar):', doc.nome);
                     }
                     return true;
                 });
                 if (this.data.documentos.length !== antes) {
-                    console.log(`[App PC] 🧹 Removidos ${antes - this.data.documentos.length} documentos grandes ao salvar`);
+                    console.log(`[App PC] 🧹 Removidos ${antes - this.data.documentos.length} documentos vazios ao salvar`);
                 }
             }
             
