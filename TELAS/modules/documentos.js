@@ -1,5 +1,6 @@
 // ============================================
-// modules/documentos.js - MEUS DOCUMENTOS (PC) COM STORAGE
+// modules/documentos.js - GERENCIADOR DE DOCUMENTOS (CORRIGIDO v4)
+// COM SUPORTE A STORAGE, URL FALLBACK PARA IMAGENS E SYNC COMPLETO
 // ============================================
 
 class DocumentosModule {
@@ -12,8 +13,180 @@ class DocumentosModule {
         this.isSaving = false;
         this._isSubmitting = false;
         this._selectedFile = null;
+        this._cacheManagerReady = false;
+        this._isLoading = false;
         
-        console.log('[Documentos] 📁 Módulo inicializado (PC com Storage)');
+        console.log('[Documentos] 📁 Módulo inicializado');
+    }
+
+    // ============================================
+    // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ PRONTO
+    // ============================================
+    async _ensureCacheManager() {
+        if (this._cacheManagerReady && window.CacheManager) {
+            return true;
+        }
+
+        console.log('[Documentos] 🔄 Verificando CacheManager...');
+
+        let attempts = 0;
+        const maxAttempts = 20;
+
+        while (attempts < maxAttempts) {
+            if (window.CacheManager) {
+                console.log('[Documentos] ✅ CacheManager encontrado!');
+                
+                if (!window.CacheManager.isInitialized) {
+                    console.log('[Documentos] 🔄 Inicializando CacheManager...');
+                    window.CacheManager.init();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                if (this.app?.user?.id && !window.CacheManager.currentUserId) {
+                    window.CacheManager.currentUserId = this.app.user.id;
+                }
+
+                this._cacheManagerReady = true;
+                return true;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+        }
+
+        console.warn('[Documentos] ⚠️ CacheManager não disponível após timeout');
+        this._cacheManagerReady = false;
+        return false;
+    }
+
+    // ============================================
+    // ⭐ CARREGAR DA NUVEM (Sync completo)
+    // ============================================
+    async carregarDaNuvem() {
+        if (this._isLoading) {
+            console.log('[Documentos] ⏳ Já carregando...');
+            return false;
+        }
+
+        this._isLoading = true;
+        console.log('[Documentos] ☁️ Carregando documentos da nuvem...');
+
+        try {
+            await this._ensureCacheManager();
+
+            if (!window.DatabaseService) {
+                console.warn('[Documentos] ⚠️ DatabaseService não disponível');
+                return false;
+            }
+
+            const userId = this.app?.user?.id;
+            if (!userId) {
+                console.warn('[Documentos] ⚠️ Usuário não logado');
+                return false;
+            }
+
+            // ⭐ BUSCAR DO BANCO DE DADOS
+            const docs = await window.DatabaseService.getDocumentos(userId);
+            
+            if (docs && Array.isArray(docs) && docs.length > 0) {
+                console.log(`[Documentos] ✅ ${docs.length} documentos carregados da nuvem`);
+                
+                // ⭐ ATUALIZAR DADOS LOCAIS
+                this.documentos = docs;
+                this.app.data.documentos = docs;
+                
+                // ⭐ SALVAR NO CACHE
+                if (window.CacheManager && this._cacheManagerReady) {
+                    window.CacheManager.set('documentos', docs, true);
+                }
+                
+                // ⭐ SALVAR NO LOCALSTORAGE (fallback)
+                if (this.app.user?.id) {
+                    localStorage.setItem(`${this.app.user.id}_documentos`, JSON.stringify(docs));
+                }
+                
+                // ⭐ ATUALIZAR UI
+                this.renderCategorias();
+                this.renderDocumentos();
+                
+                if (typeof showToast === 'function') {
+                    showToast(`☁️ ${docs.length} documentos sincronizados da nuvem`, 'success');
+                }
+                
+                return true;
+            } else {
+                console.log('[Documentos] ℹ️ Nenhum documento encontrado na nuvem');
+                
+                // ⭐ TENTAR CARREGAR DO CACHE MANAGER
+                if (window.CacheManager && this._cacheManagerReady) {
+                    const cached = window.CacheManager.get('documentos', null);
+                    if (cached && Array.isArray(cached) && cached.length > 0) {
+                        this.documentos = cached;
+                        this.app.data.documentos = cached;
+                        this.renderCategorias();
+                        this.renderDocumentos();
+                        console.log('[Documentos] 📦 Carregado do CacheManager:', cached.length);
+                        return true;
+                    }
+                }
+                
+                // ⭐ FALLBACK: localStorage
+                if (this.app.user?.id) {
+                    const saved = localStorage.getItem(`${this.app.user.id}_documentos`);
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                this.documentos = parsed;
+                                this.app.data.documentos = parsed;
+                                this.renderCategorias();
+                                this.renderDocumentos();
+                                console.log('[Documentos] 📦 Carregado do localStorage:', parsed.length);
+                                return true;
+                            }
+                        } catch(e) {}
+                    }
+                }
+                
+                return false;
+            }
+        } catch (error) {
+            console.error('[Documentos] ❌ Erro ao carregar da nuvem:', error);
+            return false;
+        } finally {
+            this._isLoading = false;
+        }
+    }
+
+    // ============================================
+    // ⭐ FORÇAR SYNC (enviar para nuvem + baixar)
+    // ============================================
+    async forcarSync() {
+        console.log('[Documentos] 🔄 Forçando sincronização...');
+        
+        if (typeof showToast === 'function') {
+            showToast('🔄 Sincronizando documentos...', 'info');
+        }
+        
+        try {
+            // ⭐ PRIMEIRO: SALVAR LOCAIS NA NUVEM
+            await this.salvarDados();
+            
+            // ⭐ SEGUNDO: CARREGAR DA NUVEM (sobrescreve local)
+            await this.carregarDaNuvem();
+            
+            if (typeof showToast === 'function') {
+                showToast('✅ Documentos sincronizados!', 'success');
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('[Documentos] ❌ Erro no sync:', error);
+            if (typeof showToast === 'function') {
+                showToast('❌ Erro ao sincronizar: ' + error.message, 'error');
+            }
+            return false;
+        }
     }
 
     // ============================================
@@ -25,6 +198,14 @@ class DocumentosModule {
         this.documentos = data.documentos || [];
         this.notifications = data.notifications || [];
         this.profile = data.profile || {};
+        
+        this._ensureCacheManager().then(ready => {
+            if (ready) {
+                console.log('[Documentos] ✅ CacheManager pronto para uso');
+                // ⭐ TENTAR CARREGAR DA NUVEM AUTOMATICAMENTE
+                this.carregarDaNuvem();
+            }
+        });
         
         this.atualizarNomeUsuario();
         this.renderCategorias();
@@ -40,62 +221,14 @@ class DocumentosModule {
         const profile = this.profile || this.app.user || {};
         const nome = profile.nome || profile.displayName || 'Usuário';
         
-        const userNameDocs = document.getElementById('userNameDocs');
-        if (userNameDocs) userNameDocs.textContent = nome;
+        const userName = document.getElementById('userNameDocs');
+        if (userName) userName.textContent = nome;
         
-        const userAvatarDocs = document.getElementById('userAvatarDocs');
-        if (userAvatarDocs) {
+        const userAvatar = document.getElementById('userAvatarDocs');
+        if (userAvatar) {
             const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-            userAvatarDocs.textContent = iniciais || 'U';
+            userAvatar.textContent = iniciais || 'U';
         }
-    }
-
-    // ============================================
-    // SALVAR DADOS (COM VERIFICAÇÃO DO CACHE)
-    // ============================================
-    async salvarDados() {
-        if (this.isSaving || !this.app) return;
-        this.isSaving = true;
-        
-        try {
-            this.app.data.documentos = this.documentos;
-            
-            // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
-            if (window.CacheManager) {
-                if (!window.CacheManager.isInitialized) {
-                    console.log('[Documentos] 🔄 Inicializando CacheManager...');
-                    window.CacheManager.init();
-                }
-                // Salvar no CacheManager
-                const result = window.CacheManager.set('documentos', this.documentos, true);
-                if (result) {
-                    console.log('[Documentos] ✅ Dados salvos no CacheManager:', this.documentos.length);
-                } else {
-                    console.warn('[Documentos] ⚠️ Falha ao salvar no CacheManager');
-                }
-            } else {
-                console.warn('[Documentos] ⚠️ CacheManager não disponível, salvando apenas no app');
-            }
-            
-            // Salvar via app (fallback)
-            await this.app.saveAllData();
-            console.log('[Documentos] ✅ Dados salvos:', this.documentos.length);
-            
-            if (window.CacheManager && window.CacheManager.forceSync) {
-                setTimeout(() => {
-                    window.CacheManager.forceSync().catch(() => {});
-                }, 500);
-            }
-            
-            window.dispatchEvent(new CustomEvent('documentosUpdated', {
-                detail: this.documentos
-            }));
-            
-        } catch (error) {
-            console.error('[Documentos] ❌ Erro ao salvar:', error);
-        }
-        
-        setTimeout(() => { this.isSaving = false; }, 500);
     }
 
     // ============================================
@@ -156,10 +289,10 @@ class DocumentosModule {
         if (filtered.length === 0) {
             container.innerHTML = `
                 <div class="empty-documentos">
-                    <i class="fas fa-file-alt" style="font-size: 3.5rem; opacity: 0.4; display: block; margin-bottom: 16px;"></i>
+                    <ion-icon name="document-outline" style="font-size: 3rem; opacity: 0.4; display: block; margin-bottom: 16px;"></ion-icon>
                     <p>${this.selectedCategory !== 'Todos' ? 'Nenhum documento nesta categoria' : 'Nenhum documento enviado'}</p>
-                    <button class="btn-add-documento-empty" onclick="app.modules.documentos.openUploadModal()">
-                        <i class="fas fa-cloud-upload-alt"></i> Enviar Documento
+                    <button class="btn-add-documento" onclick="app.modules.documentos.openUploadModal()">
+                        <ion-icon name="cloud-upload-outline"></ion-icon> Enviar Documento
                     </button>
                 </div>
             `;
@@ -169,35 +302,35 @@ class DocumentosModule {
         let html = '';
         filtered.forEach(doc => {
             const iconMap = {
-                'pdf': 'fa-file-pdf',
-                'doc': 'fa-file-word',
-                'docx': 'fa-file-word',
-                'xls': 'fa-file-excel',
-                'xlsx': 'fa-file-excel',
-                'ppt': 'fa-file-powerpoint',
-                'pptx': 'fa-file-powerpoint',
-                'jpg': 'fa-file-image',
-                'jpeg': 'fa-file-image',
-                'png': 'fa-file-image',
-                'gif': 'fa-file-image',
-                'mp4': 'fa-file-video',
-                'mp3': 'fa-file-audio',
-                'zip': 'fa-file-archive',
-                'rar': 'fa-file-archive'
+                'pdf': 'document',
+                'doc': 'document',
+                'docx': 'document',
+                'xls': 'document',
+                'xlsx': 'document',
+                'ppt': 'document',
+                'pptx': 'document',
+                'jpg': 'image',
+                'jpeg': 'image',
+                'png': 'image',
+                'gif': 'image',
+                'mp4': 'videocam',
+                'mp3': 'musical-notes',
+                'zip': 'archive',
+                'rar': 'archive'
             };
             
             const ext = doc.nome?.split('.').pop()?.toLowerCase() || 'file';
-            const icon = iconMap[ext] || 'fa-file';
+            const icon = iconMap[ext] || 'document';
             const sizeFormatted = this.formatFileSize(doc.tamanho || 0);
             
+            const isStorage = doc.storagePath && doc.storagePath.length > 0;
             const isStorageUrl = doc.arquivo && doc.arquivo.startsWith('http');
-            const previewIcon = isStorageUrl ? 'fa-cloud' : 'fa-database';
-            const previewTitle = isStorageUrl ? 'Armazenado na nuvem' : 'Armazenado localmente';
+            const storageLabel = isStorage || isStorageUrl ? '☁️ Nuvem' : '📦 Local';
             
             html += `
                 <div class="documento-item" data-id="${doc.id}">
                     <div class="documento-icon ${doc.categoria?.toLowerCase() || 'outros'}">
-                        <i class="fas ${icon}"></i>
+                        <ion-icon name="${icon}-outline"></ion-icon>
                     </div>
                     <div class="documento-info">
                         <div class="documento-nome">${this.app.escapeHtml(doc.nome)}</div>
@@ -206,16 +339,16 @@ class DocumentosModule {
                             <span class="documento-tamanho">${sizeFormatted}</span>
                             <span class="documento-data">${this.formatDate(doc.dataUpload)}</span>
                             <span class="documento-storage" style="font-size: 0.6rem; color: var(--text-secondary);">
-                                <i class="fas ${previewIcon}"></i> ${previewTitle}
+                                ${storageLabel}
                             </span>
                         </div>
                     </div>
                     <div class="documento-actions">
                         <button class="btn-download" onclick="app.modules.documentos.downloadDocumento('${doc.id}')" title="Baixar">
-                            <i class="fas fa-download"></i>
+                            <ion-icon name="download-outline"></ion-icon>
                         </button>
                         <button class="btn-delete-doc" onclick="app.modules.documentos.deleteDocumento('${doc.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
+                            <ion-icon name="trash-outline"></ion-icon>
                         </button>
                     </div>
                 </div>
@@ -259,7 +392,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ABRIR MODAL DE UPLOAD
+    // ⭐ ABRIR MODAL DE UPLOAD
     // ============================================
     openUploadModal() {
         const modal = document.getElementById('documento-modal');
@@ -272,6 +405,7 @@ class DocumentosModule {
         document.getElementById('doc-file-preview').textContent = 'Nenhum arquivo selecionado';
         document.getElementById('doc-file-preview').style.color = 'var(--text-secondary)';
         this._selectedFile = null;
+        this._isSubmitting = false;
         
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -281,7 +415,11 @@ class DocumentosModule {
         }, 300);
     }
 
+    // ============================================
+    // ⭐ FECHAR MODAL (OBRIGATÓRIO)
+    // ============================================
     closeUploadModal() {
+        console.log('[Documentos] 🔚 Fechando modal de upload...');
         const modal = document.getElementById('documento-modal');
         if (modal) {
             modal.classList.remove('active');
@@ -299,10 +437,16 @@ class DocumentosModule {
         if (input) input.click();
     }
 
-    handleFileSelect(event) {
+    // ============================================
+    // MANIPULAR SELEÇÃO DE ARQUIVO
+    // ============================================
+    async handleFileSelect(event) {
         const file = event.target.files?.[0];
         if (!file) return;
         
+        console.log('[Documentos] 📄 Arquivo selecionado:', file.name, file.size, file.type);
+        
+        // ⭐ VERIFICAR TAMANHO - LIMITE MAIOR PARA STORAGE (20MB)
         if (file.size > 20 * 1024 * 1024) {
             if (typeof showToast === 'function') {
                 showToast('⚠️ Arquivo muito grande! Máximo 20MB.', 'error');
@@ -319,25 +463,32 @@ class DocumentosModule {
         
         const preview = document.getElementById('doc-file-preview');
         if (preview) {
-            preview.textContent = `${file.name} (${this.formatFileSize(file.size)})`;
+            const sizeKB = (file.size / 1024).toFixed(1);
+            preview.textContent = `${file.name} (${sizeKB}KB)`;
             preview.style.color = 'var(--text-primary)';
         }
     }
 
     // ============================================
-    // CONVERTER FILE PARA BASE64 (FALLBACK)
+    // ⭐ CONVERTER IMAGEM PARA URL (NÃO BASE64)
     // ============================================
-    fileToBase64(file) {
-        return new Promise((resolve, reject) => {
+    fileToUrl(file) {
+        return new Promise((resolve) => {
+            if (file.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                resolve(url);
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = (e) => reject(e);
+            reader.onerror = (e) => resolve(null);
             reader.readAsDataURL(file);
         });
     }
 
     // ============================================
-    // SALVAR DOCUMENTO (UPLOAD PARA STORAGE)
+    // ⭐ SALVAR DOCUMENTO (COM UPLOAD PARA STORAGE)
     // ============================================
     async saveDocumento() {
         if (this._isSubmitting) {
@@ -369,13 +520,12 @@ class DocumentosModule {
         
         this._isSubmitting = true;
         
-        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
-        if (window.CacheManager && !window.CacheManager.isInitialized) {
-            console.log('[Documentos] 🔄 Inicializando CacheManager...');
-            window.CacheManager.init();
+        if (typeof showToast === 'function') {
+            showToast('📤 Enviando documento...', 'info');
         }
         
-        // ⭐ GARANTIR QUE O DATABASE SERVICE ESTÁ DISPONÍVEL
+        await this._ensureCacheManager();
+        
         if (!window.DatabaseService) {
             console.warn('[Documentos] ⚠️ DatabaseService não disponível, tentando inicializar...');
             if (window.SupabaseClient?.initSupabase) {
@@ -391,12 +541,9 @@ class DocumentosModule {
             let tamanho = this._selectedFile.size;
             let nomeArquivo = this._selectedFile.name;
             
-            // ⭐ TENTAR UPLOAD PARA STORAGE PRIMEIRO
+            // ⭐ TENTAR UPLOAD PARA STORAGE
             if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
                 console.log('[Documentos] 📤 Tentando upload para Storage...');
-                console.log('[Documentos] 📊 userId:', this.app.user?.id);
-                console.log('[Documentos] 📊 file.name:', this._selectedFile.name);
-                console.log('[Documentos] 📊 file.size:', this._selectedFile.size);
                 
                 try {
                     const result = await window.DatabaseService.uploadDocumentoStorage(
@@ -409,23 +556,30 @@ class DocumentosModule {
                         arquivo = result.publicUrl;
                         storagePath = result.storagePath;
                         console.log('[Documentos] ✅ Upload para Storage concluído!');
-                        console.log('[Documentos] 📎 URL:', arquivo);
-                        console.log('[Documentos] 📁 Path:', storagePath);
-                    } else {
-                        console.log('[Documentos] ⚠️ Falha no Storage, usando Base64 fallback');
                     }
                 } catch (storageError) {
                     console.error('[Documentos] ❌ Erro no Storage:', storageError);
-                    console.log('[Documentos] 📦 Usando Base64 fallback');
                 }
-            } else {
-                console.warn('[Documentos] ⚠️ DatabaseService.uploadDocumentoStorage não disponível');
             }
             
-            // ⭐ FALLBACK: Se Storage falhou, usar Base64
+            // ⭐ FALLBACK: URL (para imagens) ou Base64 (para outros)
             if (!arquivo) {
-                console.log('[Documentos] 📦 Usando Base64 fallback...');
-                arquivo = await this.fileToBase64(this._selectedFile);
+                console.log('[Documentos] 📦 Usando fallback local...');
+                
+                if (this._selectedFile.type.startsWith('image/')) {
+                    arquivo = URL.createObjectURL(this._selectedFile);
+                    console.log('[Documentos] ✅ URL criada para imagem (não ocupa localStorage)');
+                } else {
+                    try {
+                        arquivo = await this.fileToBase64(this._selectedFile);
+                        if (arquivo && arquivo.length > 500 * 1024) {
+                            console.warn('[Documentos] ⚠️ Base64 grande:', (arquivo.length / 1024).toFixed(1), 'KB');
+                        }
+                    } catch (e) {
+                        console.error('[Documentos] ❌ Erro ao gerar Base64:', e);
+                        throw new Error('Falha ao processar arquivo');
+                    }
+                }
             }
             
             const novoDoc = {
@@ -442,7 +596,10 @@ class DocumentosModule {
             };
             
             this.documentos.unshift(novoDoc);
+            
+            // ⭐ SALVAR DADOS (com compressão se necessário)
             await this.salvarDados();
+            
             this.closeUploadModal();
             this.renderDocumentos();
             this.renderCategorias();
@@ -450,6 +607,8 @@ class DocumentosModule {
             if (typeof showToast === 'function') {
                 if (storagePath) {
                     showToast('✅ Documento enviado para a nuvem!', 'success');
+                } else if (this._selectedFile.type.startsWith('image/')) {
+                    showToast('✅ Imagem salva localmente', 'success');
                 } else {
                     showToast('✅ Documento salvo localmente!', 'success');
                 }
@@ -457,8 +616,9 @@ class DocumentosModule {
             
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao salvar:', error);
+            this.closeUploadModal();
             if (typeof showToast === 'function') {
-                showToast('❌ Erro ao enviar documento', 'error');
+                showToast('❌ Erro ao enviar documento: ' + error.message, 'error');
             }
         } finally {
             this._isSubmitting = false;
@@ -466,9 +626,95 @@ class DocumentosModule {
     }
 
     // ============================================
+    // fileToBase64 (apenas para arquivos não-imagem)
+    // ============================================
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ============================================
+    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO DE TAMANHO)
+    // ============================================
+    async salvarDados() {
+        if (this.isSaving || !this.app) return;
+        this.isSaving = true;
+        
+        try {
+            await this._ensureCacheManager();
+            
+            // ⭐ VERIFICAR TAMANHO DOS DOCUMENTOS
+            let totalSize = 0;
+            let documentosLimpos = [];
+            
+            for (const doc of this.documentos) {
+                if (doc.arquivo && doc.arquivo.startsWith('blob:')) {
+                    documentosLimpos.push(doc);
+                    continue;
+                }
+                
+                if (doc.arquivo && doc.arquivo.startsWith('data:')) {
+                    const sizeKB = doc.arquivo.length / 1024;
+                    if (sizeKB > 500) {
+                        console.warn('[Documentos] ⚠️ Documento grande removido:', doc.nome);
+                        continue;
+                    }
+                    totalSize += doc.arquivo.length;
+                    documentosLimpos.push(doc);
+                } else {
+                    documentosLimpos.push(doc);
+                }
+            }
+            
+            this.documentos = documentosLimpos;
+            this.app.data.documentos = documentosLimpos;
+            
+            // ⭐ SALVAR NO CACHE MANAGER
+            if (window.CacheManager && this._cacheManagerReady) {
+                try {
+                    window.CacheManager.set('documentos', documentosLimpos, true);
+                } catch (cacheError) {
+                    console.warn('[Documentos] ⚠️ Erro no CacheManager:', cacheError.message);
+                }
+            }
+            
+            // ⭐ SALVAR VIA APP (localStorage)
+            await this.app.saveAllData();
+            console.log('[Documentos] ✅ Dados salvos:', documentosLimpos.length);
+            
+            // ⭐ FORÇAR SYNC PARA NUVEM
+            if (window.CacheManager && this._cacheManagerReady && window.CacheManager.forceSync) {
+                setTimeout(() => {
+                    window.CacheManager.forceSync().catch(() => {
+                        console.warn('[Documentos] ⚠️ Sync assíncrono falhou');
+                    });
+                }, 500);
+            }
+            
+            window.dispatchEvent(new CustomEvent('documentosUpdated', {
+                detail: documentosLimpos
+            }));
+            
+        } catch (error) {
+            console.error('[Documentos] ❌ Erro ao salvar:', error);
+            if (error.name === 'QuotaExceededError') {
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ Espaço de armazenamento cheio! Limpe documentos antigos.', 'error');
+                }
+            }
+        } finally {
+            setTimeout(() => { this.isSaving = false; }, 500);
+        }
+    }
+
+    // ============================================
     // BAIXAR DOCUMENTO
     // ============================================
-    downloadDocumento(id) {
+    async downloadDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
         if (!doc || !doc.arquivo) {
             if (typeof showToast === 'function') {
@@ -476,29 +722,74 @@ class DocumentosModule {
             }
             return;
         }
-        
+
+        const nomeFicheiro = doc.nomeArquivo || doc.nome || 'documento';
+
         try {
-            const link = document.createElement('a');
-            link.href = doc.arquivo;
-            link.download = doc.nomeArquivo || doc.nome;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            if (typeof showToast === 'function') {
-                showToast('📥 Download iniciado!', 'success');
+            // ⭐ CASO 1: URL do Supabase Storage (http/https)
+            if (doc.arquivo.startsWith('http')) {
+                console.log('[Documentos] 📥 Baixando da nuvem:', doc.arquivo);
+                const response = await fetch(doc.arquivo, { mode: 'cors' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = nomeFicheiro;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Libertar memória após 1s
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                
+                if (typeof showToast === 'function') {
+                    showToast('📥 Download iniciado!', 'success');
+                }
+                return;
             }
-            
+
+            // ⭐ CASO 2: Base64 ou Blob URL (local)
+            if (doc.arquivo.startsWith('blob:') || doc.arquivo.startsWith('data:')) {
+                const link = document.createElement('a');
+                link.href = doc.arquivo;
+                link.download = nomeFicheiro;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                if (typeof showToast === 'function') {
+                    showToast('📥 Download iniciado!', 'success');
+                }
+                return;
+            }
+
+            // ⭐ CASO 3: Fallback - abrir em nova aba
+            window.open(doc.arquivo, '_blank');
+            if (typeof showToast === 'function') {
+                showToast('📂 Documento aberto em nova aba', 'info');
+            }
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao baixar:', error);
-            if (typeof showToast === 'function') {
-                showToast('❌ Erro ao baixar documento', 'error');
+            // ⭐ Fallback final: tentar abrir directo
+            try {
+                const link = document.createElement('a');
+                link.href = doc.arquivo;
+                link.download = nomeFicheiro;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro ao baixar documento', 'error');
+                }
             }
         }
     }
 
     // ============================================
-    // DELETAR DOCUMENTO (COM STORAGE)
+    // DELETAR DOCUMENTO (com Storage)
     // ============================================
     async deleteDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
@@ -508,9 +799,14 @@ class DocumentosModule {
         
         try {
             // ⭐ DELETAR DO STORAGE SE EXISTIR
-            if (doc.storagePath && window.DatabaseService && window.DatabaseService.deleteDocumentoStorage) {
+            if (doc.storagePath && window.DatabaseService?.deleteDocumentoStorage) {
                 console.log('[Documentos] 🗑️ Deletando do Storage:', doc.storagePath);
                 await window.DatabaseService.deleteDocumentoStorage(doc.storagePath);
+            }
+            
+            // ⭐ REVOGAR URL DE OBJETO (blob)
+            if (doc.arquivo && doc.arquivo.startsWith('blob:')) {
+                URL.revokeObjectURL(doc.arquivo);
             }
             
             this.documentos = this.documentos.filter(d => d.id != id);
@@ -525,7 +821,7 @@ class DocumentosModule {
         } catch (error) {
             console.error('[Documentos] ❌ Erro ao deletar:', error);
             
-            // Mesmo com erro, remover do banco
+            // ⭐ MESMO COM ERRO, REMOVER LOCALMENTE
             this.documentos = this.documentos.filter(d => d.id != id);
             await this.salvarDados();
             this.renderDocumentos();
@@ -541,39 +837,34 @@ class DocumentosModule {
     // NOTIFICAÇÕES
     // ============================================
     updateBadge() {
-        const badge = document.getElementById('notificationBadgeDocs');
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
+        
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
-        if (badge) {
-            badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-        }
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
 
     // ============================================
-    // EVENTOS DA UI
+    // ⭐ EVENTOS DA UI
     // ============================================
     setupEvents() {
-        // Botão abrir modal
         document.getElementById('btn-add-documento')?.addEventListener('click', () => {
             this.openUploadModal();
         });
         
-        // Área de upload (clique)
         document.getElementById('file-upload-area')?.addEventListener('click', () => {
             this.selectFile();
         });
         
-        // Input file
         document.getElementById('doc-file-input')?.addEventListener('change', (e) => {
             this.handleFileSelect(e);
         });
         
-        // Botão salvar
         document.getElementById('btn-save-documento')?.addEventListener('click', () => {
             this.saveDocumento();
         });
         
-        // Enter para salvar
         document.getElementById('doc-nome')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -581,46 +872,56 @@ class DocumentosModule {
             }
         });
         
-        // Fechar modal - clique fora
         document.getElementById('documento-modal')?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
                 this.closeUploadModal();
             }
         });
         
-        // Fechar modal - botões
         document.querySelectorAll('#documento-modal .btn-back-modal, #documento-modal .btn-close-modal-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.closeUploadModal();
             });
         });
         
-        // Tecla ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeUploadModal();
             }
         });
         
-        // ⭐ ESCUTAR ATUALIZAÇÕES DA NUVEM
+        // ⭐ ESCUTAR EVENTOS DE NUVEM
         window.addEventListener('cloudDataLoaded', () => {
             console.log('[Documentos] 📡 Dados da nuvem atualizados');
             this.documentos = this.app.data.documentos || [];
-            this.notifications = this.app.data.notifications || [];
-            this.profile = this.app.data.profile || {};
-            this.atualizarNomeUsuario();
             this.renderCategorias();
             this.renderDocumentos();
-            this.updateBadge();
         });
         
-        // ⭐ ESCUTAR ATUALIZAÇÕES DE DOCUMENTOS
         window.addEventListener('documentosUpdated', () => {
             this.documentos = this.app.data.documentos || [];
             this.renderCategorias();
             this.renderDocumentos();
         });
+        
+        window.addEventListener('syncCompleted', (e) => {
+            console.log('[Documentos] 📡 Sync concluído:', e.detail);
+            if (e.detail && e.detail.success) {
+                this.carregarDaNuvem();
+            }
+        });
+        
+        window.addEventListener('cacheReady', () => {
+            console.log('[Documentos] 📡 Cache pronto, carregando da nuvem...');
+            this._cacheManagerReady = true;
+            this.carregarDaNuvem();
+        });
+        
+        // ⭐ BOTÃO DE SYNC MANUAL (se existir)
+        document.getElementById('btn-sync-documentos')?.addEventListener('click', () => {
+            this.forcarSync();
+        });
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado (PC com Storage)!');
+console.log('[Documentos] ✅ Módulo carregado com Storage + URL fallback + Sync completo!');
