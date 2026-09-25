@@ -347,36 +347,43 @@ if (window.DatabaseService) {
             }
         }
 
+        // ⭐ ALTERADO: saveTasks atualizado
         async function saveTasks(userId, tasks) {
             console.log(`[Database] 💾 Salvando ${tasks?.length || 0} tasks para userId:`, userId);
-            const client = init();
+            const client = window.supabaseClient || init();
             if (!client) return false;
 
             try {
                 if (!tasks || tasks.length === 0) {
-                    // Se não há tasks, apaga todas do usuário
                     console.log('[Database] ℹ️ Nenhuma task enviada, limpando todas para userId:', userId);
                     await client.from('tasks').delete().eq('user_id', userId);
                     return true;
                 }
 
-                // ⭐ UPSERT em vez de DELETE + INSERT
-                const tasksToUpsert = tasks.map(task => ({
-                    id: task.id || generateId(), // ⭐ MANTER O ID ORIGINAL
-                    user_id: userId,
-                    title: task.nome || task.title || 'Sem título',
-                    description: task.descricao || '',
-                    subject: task.disciplina || task.subject || 'geral',
-                    priority: task.prioridade || 'media',
-                    date: task.prazo || null,
-                    completed: task.completed || false,
-                    favorita: task.favorita || false,
-                    subtasks: task.subtasks || [],
-                    created_at: task.dataCriacao || new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }));
+                const tasksToUpsert = tasks.map(task => {
+                    const title = task.nome || task.title || 'Sem título';
+                    return {
+                        id: task.id || generateId(),
+                        user_id: userId,
+                        title: title,
+                        // ⭐ ADICIONADO: slug (usado pelo Flutter)
+                        slug: task.slug || title.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .replace(/\s+/g, '-'),
+                        // ⭐ ADICIONADO: content (usado pelo Flutter)
+                        content: task.content || task.descricao || '',
+                        description: task.descricao || task.description || '',
+                        subject: task.disciplina || task.subject || 'geral',
+                        priority: task.prioridade || task.priority || 'media',
+                        date: task.prazo || task.date || null,
+                        completed: task.completed || false,
+                        favorita: task.favorita || false,
+                        subtasks: task.subtasks || [],
+                        created_at: task.dataCriacao || task.created_at || new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+                });
 
-                // UPSERT (onConflict: 'id')
                 console.log(`[Database] 📡 Executando UPSERT de ${tasksToUpsert.length} tasks...`);
                 const batchSize = 100;
                 for (let i = 0; i < tasksToUpsert.length; i += batchSize) {
@@ -385,13 +392,10 @@ if (window.DatabaseService) {
                         .from('tasks')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                    console.log(`[Database] ✅ Batch ${Math.floor(i/batchSize) + 1} processado`);
                 }
 
-                // ⭐ Apagar tasks que foram removidas localmente
                 const idsLocais = tasks.map(t => t.id).filter(Boolean);
                 if (idsLocais.length > 0) {
-                    console.log('[Database] 📡 Limpando tarefas removidas localmente...');
                     await client
                         .from('tasks')
                         .delete()
@@ -407,7 +411,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ DELETE TASK
         async function deleteTask(userId, taskId) {
             console.log(`[Database] 🗑️ Deletando task ${taskId} para userId:`, userId);
             const client = init();
@@ -510,7 +513,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ DELETE NOTE
         async function deleteNote(userId, noteId) {
             console.log(`[Database] 🗑️ Deletando note ${noteId} para userId:`, userId);
             const client = init();
@@ -625,7 +627,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ DELETE CALENDAR EVENT
         async function deleteCalendarEvent(userId, eventId) {
             console.log(`[Database] 🗑️ Deletando evento ${eventId} para userId:`, userId);
             const client = init();
@@ -952,7 +953,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ DELETE DISCIPLINA
         async function deleteDisciplina(userId, disciplinaId) {
             console.log(`[Database] 🗑️ Deletando disciplina ${disciplinaId} para userId:`, userId);
             const client = init();
@@ -979,7 +979,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DOCUMENTOS - COM STORAGE (COMPLETO)
+        // ⭐ DOCUMENTOS - COM STORAGE (COMPLETO & UPSERT)
         // ============================================
         async function getDocumentos(userId) {
             console.log('[Database] 🔍 Buscando documentos para userId:', userId);
@@ -1023,62 +1023,63 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando documentos antigos...');
-                const { error: deleteError } = await client
-                    .from('documentos')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[Database] ❌ Erro ao deletar documentos:', deleteError);
-                    return false;
-                }
-
                 if (!documentos || documentos.length === 0) {
-                    console.log('[Database] ℹ️ Nenhum documento para salvar');
+                    console.log('[Database] ℹ️ Nenhum documento enviado, limpando todos');
+                    await client.from('documentos').delete().eq('user_id', userId);
                     return true;
                 }
 
-                // Filtrar documentos para evitar estouro de quota
-                const docsToInsert = documentos
-                    .filter(doc => {
-                        if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                            console.warn('[Database] ⚠️ Documento grande ignorado:', doc.nome);
-                            return false;
-                        }
-                        return true;
-                    })
-                    .map(doc => ({
-                        id: doc.id || generateId(),
-                        user_id: userId,
-                        nome: doc.nome || 'Documento',
-                        categoria: doc.categoria || 'Outros',
-                        descricao: doc.descricao || '',
-                        arquivo: doc.arquivo || '',
-                        tipo: doc.tipo || 'application/octet-stream',
-                        nome_arquivo: doc.nomeArquivo || doc.nome,
-                        tamanho: doc.tamanho || 0,
-                        storage_path: doc.storagePath || null,
-                        data_upload: doc.dataUpload || new Date().toISOString(),
-                        created_at: doc.dataUpload || new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    }));
+                // Filtrar documentos com Base64 muito grande
+                const documentosFiltrados = documentos.filter(doc => {
+                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[Database] ⚠️ Documento grande ignorado:', doc.nome);
+                        return false;
+                    }
+                    return true;
+                });
 
-                if (docsToInsert.length === 0) {
+                if (documentosFiltrados.length === 0) {
                     console.log('[Database] ℹ️ Nenhum documento válido para salvar');
                     return true;
                 }
 
-                console.log(`[Database] 📡 Inserindo ${docsToInsert.length} documentos...`);
+                const docsToUpsert = documentosFiltrados.map(doc => ({
+                    id: doc.id ? String(doc.id) : generateId(), // ⭐ MANTER ID ORIGINAL
+                    user_id: userId,
+                    nome: doc.nome || 'Documento',
+                    categoria: doc.categoria || 'Outros',
+                    descricao: doc.descricao || '',
+                    arquivo: doc.arquivo || '',
+                    tipo: doc.tipo || 'application/octet-stream',
+                    nome_arquivo: doc.nomeArquivo || doc.nome,
+                    tamanho: doc.tamanho || 0,
+                    storage_path: doc.storagePath || null,
+                    data_upload: doc.dataUpload || new Date().toISOString(),
+                    created_at: doc.dataUpload || new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }));
+
+                // ⭐ UPSERT em batches
                 const batchSize = 50;
-                for (let i = 0; i < docsToInsert.length; i += batchSize) {
-                    const batch = docsToInsert.slice(i, i + batchSize);
-                    const { error } = await client.from('documentos').insert(batch);
+                for (let i = 0; i < docsToUpsert.length; i += batchSize) {
+                    const batch = docsToUpsert.slice(i, i + batchSize);
+                    const { error } = await client
+                        .from('documentos')
+                        .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                    console.log(`[Database] ✅ Batch ${Math.floor(i/batchSize) + 1} salvo`);
                 }
 
-                console.log(`[Database] ✅ ${documentos.length} documentos salvos com sucesso`);
+                // ⭐ Remover documentos apagados localmente
+                const idsLocais = docsToUpsert.map(d => d.id);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('documentos')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+                }
+
+                console.log(`[Database] ✅ ${docsToUpsert.length} documentos sincronizados via UPSERT`);
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar documentos:', error);
@@ -1086,14 +1087,12 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ DELETE DOCUMENTO (COM STORAGE)
         async function deleteDocumento(userId, documentoId) {
             console.log(`[Database] 🗑️ Deletando documento ${documentoId} para userId:`, userId);
             const client = init();
             if (!client) return false;
 
             try {
-                // Buscar documento para pegar storage_path
                 const { data: doc, error: findError } = await client
                     .from('documentos')
                     .select('storage_path')
@@ -1105,7 +1104,6 @@ if (window.DatabaseService) {
                     console.error('[Database] ❌ Erro ao buscar documento para deletar:', findError);
                 }
 
-                // Deletar do storage se existir
                 if (doc?.storage_path) {
                     try {
                         const { error: storageError } = await client.storage
@@ -1122,7 +1120,6 @@ if (window.DatabaseService) {
                     }
                 }
 
-                // Deletar do banco
                 const { error } = await client
                     .from('documentos')
                     .delete()
@@ -1142,7 +1139,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ UPLOAD PARA STORAGE
         async function uploadDocumentoStorage(userId, file, nome) {
             console.log('[Database] 📤 Upload de documento para Storage:', nome);
             const client = init();
@@ -1184,7 +1180,6 @@ if (window.DatabaseService) {
             }
         }
 
-        // ⭐ DELETAR DO STORAGE
         async function deleteDocumentoStorage(storagePath) {
             console.log('[Database] 🗑️ Deletando documento do Storage:', storagePath);
             const client = init();
@@ -1344,6 +1339,119 @@ if (window.DatabaseService) {
         }
 
         // ============================================
+        // ⭐ IA - CONVERSAS E MENSAGENS
+        // ============================================
+        async function getAIConversations(userId) {
+            console.log('[Database] 🔍 Buscando conversas da IA para userId:', userId);
+            const client = init();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client
+                    .from('ai_conversations')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('updated_at', { ascending: false });
+
+                if (error) { 
+                    console.error('[Database] ❌ Erro ao buscar conversas da IA:', error); 
+                    return []; 
+                }
+                return data || [];
+            } catch (error) { 
+                console.error('[Database] ❌ Erro ao buscar conversas da IA:', error); 
+                return []; 
+            }
+        }
+
+        async function saveAIConversation(userId, conversation) {
+            console.log('[Database] 💾 Salvando conversa da IA para userId:', userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client.from('ai_conversations').upsert({
+                    id: conversation.id,
+                    user_id: userId,
+                    title: conversation.title || 'Nova conversa',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'id' });
+
+                if (error) throw error;
+                return true;
+            } catch (error) { 
+                console.error('[Database] ❌ Erro ao salvar conversa da IA:', error); 
+                return false; 
+            }
+        }
+
+        async function deleteAIConversation(userId, conversationId) {
+            console.log(`[Database] 🗑️ Deletando conversa da IA ${conversationId} para userId:`, userId);
+            const client = init();
+            if (!client) return false;
+
+            try {
+                await client.from('ai_messages').delete().eq('conversation_id', conversationId);
+                const { error } = await client.from('ai_conversations').delete()
+                    .eq('id', conversationId)
+                    .eq('user_id', userId);
+
+                if (error) throw error;
+                return true;
+            } catch (error) { 
+                console.error('[Database] ❌ Erro ao deletar conversa da IA:', error); 
+                return false; 
+            }
+        }
+
+        async function getAIMessages(userId, conversationId) {
+            console.log(`[Database] 🔍 Buscando mensagens da IA para conversa ${conversationId}`);
+            const client = init();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client
+                    .from('ai_messages')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('conversation_id', conversationId)
+                    .order('created_at', { ascending: true });
+
+                if (error) { 
+                    console.error('[Database] ❌ Erro ao buscar mensagens da IA:', error); 
+                    return []; 
+                }
+                return data || [];
+            } catch (error) { 
+                console.error('[Database] ❌ Erro ao buscar mensagens da IA:', error); 
+                return []; 
+            }
+        }
+
+        async function saveAIMessage(userId, message) {
+            console.log('[Database] 💾 Salvando mensagem da IA...');
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client.from('ai_messages').insert({
+                    id: message.id || (Date.now().toString() + Math.random().toString(36).substr(2, 6)),
+                    conversation_id: message.conversationId,
+                    user_id: userId,
+                    role: message.role,
+                    content: message.content,
+                    created_at: message.createdAt || new Date().toISOString()
+                });
+
+                if (error) throw error;
+                return true;
+            } catch (error) { 
+                console.error('[Database] ❌ Erro ao salvar mensagem da IA:', error); 
+                return false; 
+            }
+        }
+
+        // ============================================
         // API PÚBLICA
         // ============================================
         return {
@@ -1371,7 +1479,6 @@ if (window.DatabaseService) {
             getDisciplinas,
             saveDisciplinas,
             deleteDisciplina,
-            // ⭐ NOVOS MÉTODOS PARA DOCUMENTOS
             getDocumentos,
             saveDocumentos,
             deleteDocumento,
@@ -1380,11 +1487,16 @@ if (window.DatabaseService) {
             getUserSettings,
             saveUserSettings,
             uploadProfilePhoto,
-            deleteProfilePhoto
+            deleteProfilePhoto,
+            getAIConversations,
+            saveAIConversation,
+            deleteAIConversation,
+            getAIMessages,
+            saveAIMessage
         };
     })();
 
     // Exportar para uso global
     window.DatabaseService = DatabaseService;
-    console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (COM STORAGE PARA DOCUMENTOS)');
+    console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (COM SUPORTE A IA E STORAGE)');
 }
