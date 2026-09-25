@@ -991,18 +991,22 @@ class App {
                 }
             }
             
-            // ⭐ FILTRAR DOCUMENTOS GRANDES
+            // ⭐ LIMPEZA DE DOCUMENTOS VAZIOS (URLs curtas já não ocupam espaço)
             if (Array.isArray(this.data.documentos)) {
                 const antes = this.data.documentos.length;
                 this.data.documentos = this.data.documentos.filter(doc => {
-                    if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                        console.warn('[SPA] ⚠️ Documento grande removido ao salvar:', doc.nome);
-                        return false;
+                    // Só remove se faltar o nome ou o arquivo
+                    if (!doc.nome || doc.nome.trim() === '') return false;
+                    if (!doc.arquivo || doc.arquivo.trim() === '') return false;
+                    
+                    // Aviso (não remove) se ainda houver Base64 antigo grande
+                    if (doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
+                        console.warn('[SPA] ⚠️ Documento Base64 antigo grande (recomenda-se reenviar):', doc.nome);
                     }
                     return true;
                 });
                 if (this.data.documentos.length !== antes) {
-                    console.log(`[SPA] 🧹 Removidos ${antes - this.data.documentos.length} documentos grandes ao salvar`);
+                    console.log(`[SPA] 🧹 Removidos ${antes - this.data.documentos.length} documentos vazios`);
                 }
             }
             
