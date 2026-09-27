@@ -1132,9 +1132,9 @@ class App {
     }
     
     // ============================================
-    // SHOW VIEW
+    // SHOW VIEW (CORRIGIDO)
     // ============================================
-    showView(viewName) {
+    async showView(viewName) {
         console.log(`[SPA] 📄 Mostrando: ${viewName}`);
         
         this.loadCSS(viewName);
@@ -1145,53 +1145,57 @@ class App {
         });
         
         const view = document.getElementById(`view-${viewName}`);
-        if (view) {
-            view.classList.remove('hidden');
-            view.classList.add('active');
-            
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.view === viewName);
-            });
-            
-            const subtitles = {
-                dashboard: 'Bem-vindo de volta 👋',
-                calendario: 'Meu Calendário 📅',
-                tarefas: 'Gerenciador de Tarefas 📋',
-                notas: 'Minhas Anotações 📝',
-                perfil: 'Configurações da Conta 👤',
-                ia: 'Assistente IA 🤖',
-                documentos: 'Meus Documentos 📁'
-            };
-            const subtitleEl = document.getElementById('header-subtitle');
-            if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
-            
-            if (viewName === 'perfil') {
-                console.log('[SPA] 🔍 Atualizando perfil via showView...');
-                this._profileUpdateRetries = 0;
-                this.updateProfileUI();
-                this.updateProfileStats();
-            }
-            
-            const fabIa = document.getElementById('btn-open-ia');
-            if (fabIa) {
-                if (viewName === 'ia') {
-                    fabIa.style.display = 'none';
-                } else {
-                    fabIa.style.display = 'flex';
-                }
-            }
-            
-            const navBar = document.querySelector('.bottom-nav');
-            if (navBar) {
-                navBar.style.display = (viewName === 'ia') ? 'none' : 'flex';
-            }
-            
-            if (this.modules[viewName]) {
-                this.modules[viewName].render(this.data);
-            }
-            
-            this.currentView = viewName;
+        if (!view) {
+            console.warn(`[SPA] ⚠️ View ${viewName} não encontrada`);
+            return;
         }
+        
+        view.classList.remove('hidden');
+        view.classList.add('active');
+        
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.view === viewName);
+        });
+        
+        const subtitles = {
+            dashboard: 'Bem-vindo de volta 👋',
+            calendario: 'Meu Calendário 📅',
+            tarefas: 'Gerenciador de Tarefas 📋',
+            notas: 'Minhas Anotações 📝',
+            perfil: 'Configurações da Conta 👤',
+            ia: 'Assistente IA 🤖',
+            documentos: 'Meus Documentos 📁'
+        };
+        const subtitleEl = document.getElementById('header-subtitle');
+        if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
+        
+        if (viewName === 'perfil') {
+            this._profileUpdateRetries = 0;
+            this.updateProfileUI();
+            this.updateProfileStats();
+        }
+        
+        // ⭐ FAB da IA
+        const fabIa = document.getElementById('btn-open-ia');
+        if (fabIa) {
+            fabIa.style.display = (viewName === 'ia') ? 'none' : 'flex';
+        }
+        
+        const navBar = document.querySelector('.bottom-nav');
+        if (navBar) {
+            navBar.style.display = (viewName === 'ia') ? 'none' : 'flex';
+        }
+        
+        // ⭐ RENDER ASSÍNCRONO
+        if (this.modules[viewName]) {
+            try {
+                await this.modules[viewName].render(this.data);
+            } catch (e) {
+                console.error(`[SPA] ❌ Erro ao renderizar ${viewName}:`, e);
+            }
+        }
+        
+        this.currentView = viewName;
     }
     
     // ============================================
