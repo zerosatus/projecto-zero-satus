@@ -1,9 +1,9 @@
 // ============================================
-// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE / WEB)
-// ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)
-// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
-// ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
-// ⭐ MODO GÍRIA MOÇAMBICANA
+// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE / WEB)[cite: 4]
+// ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)[cite: 4]
+// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)[cite: 4]
+// ⭐ LIMITE DIÁRIO DE 15 MENSAGENS[cite: 4]
+// ⭐ MODO GÍRIA MOÇAMBICANA[cite: 4]
 // ============================================
 
 const IA_SPARKLES_SVG = `
@@ -86,6 +86,19 @@ class IAModule {
     }
 
     // ============================================
+    // ESCAPE HTML HELPER
+    // ============================================
+    _escapeHtml(text) {
+        if (!text) return '';
+        if (this.app && typeof this.app.escapeHtml === 'function') {
+            return this.app.escapeHtml(text);
+        }
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ============================================
     // RENDER PRINCIPAL
     // ============================================
     async render(data) {
@@ -98,13 +111,20 @@ class IAModule {
         this.timeSlots = data.timeSlots || [];
         this.disciplinas = data.disciplinas || [];
         
-        // Carregar histórico
-        await this.carregarHistorico();
-        
-        // Atualizar UI
-        this.upgradeHeader();
+        // ⭐ GARANTIR FAB E HEADER PRIMEIRO
         this.garantirFab();
+        this.upgradeHeader();
         this.criarPainel();
+        
+        // ⭐ CARREGAR HISTÓRICO COM TRY/CATCH
+        try {
+            await this.carregarHistorico();
+        } catch (e) {
+            console.warn('[IA Mobile] ⚠️ Erro no histórico:', e);
+            this.history = [];
+            this.messages = [];
+        }
+        
         this.renderHistoryList();
         this.renderChat();
         this.updateBadge();
@@ -112,14 +132,7 @@ class IAModule {
         this._atualizarStatusGiria();
         this._atualizarStatusLimite();
         
-        console.log('[IA Mobile] 📊 Dados carregados:', {
-            tasks: this.tasks.length,
-            pendentes: this.tasks.filter(t => !t.completed).length,
-            notes: this.notes.length,
-            disciplinas: this.disciplinas.length,
-            conversas: this.history.length,
-            mensagensAtuais: this.messages.length
-        });
+        console.log('[IA Mobile] ✅ Renderizado!');
     }
 
     // ============================================
@@ -232,7 +245,6 @@ class IAModule {
         });
         
         // Guardar as últimas mensagens ainda não gravadas
-        // (simples: regravar as últimas 2, que é o par user+assistant mais recente)
         const ultimas = this.messages.slice(-2);
         for (const msg of ultimas) {
             if (!msg._saved) {
@@ -345,7 +357,7 @@ class IAModule {
             container.innerHTML = `
                 <div class="ia-empty-state">
                     <div class="ia-empty-orb">${IA_SPARKLES_SVG}</div>
-                    <h3>${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
+                    <h3>${saud}, ${this._escapeHtml(nome)}! 👋</h3>
                     <p style="font-size:0.9rem;color:var(--text-secondary);">Como posso te ajudar hoje?</p>
                     
                     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0;padding:12px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border-color);width:100%;">
@@ -386,7 +398,7 @@ class IAModule {
         this.messages.forEach((msg) => {
             const isUser = msg.role === 'user';
             const isAI = !isUser;
-            const content = this.app.escapeHtml(msg.content)
+            const content = this._escapeHtml(msg.content)
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             const time = msg.time || (msg.timestamp
@@ -418,7 +430,6 @@ class IAModule {
         const concluidas = tasks.filter(t => t.completed);
         const notes = this.notes || [];
         const schedule = this.weeklySchedule || {};
-        const slots = this.timeSlots || [];
         const disciplinas = this.disciplinas || [];
         
         // Detectar comandos de gíria
@@ -579,7 +590,7 @@ INSTRUÇÕES DE ESTILO:
                 : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
             time: new Date().toLocaleTimeString(),
             isSystem: true,
-            _saved: false // ⭐ MARCAR _saved: false
+            _saved: false
         });
         await this.salvarConversaAtual();
         this.renderChat();
@@ -605,7 +616,7 @@ INSTRUÇÕES DE ESTILO:
                 role: 'assistant',
                 content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
                 time: new Date().toLocaleTimeString(),
-                _saved: false // ⭐ MARCAR _saved: false
+                _saved: false
             });
             await this.salvarConversaAtual();
             this.renderChat();
@@ -620,7 +631,7 @@ INSTRUÇÕES DE ESTILO:
             content: text,
             time: new Date().toLocaleTimeString(),
             timestamp: new Date().toISOString(),
-            _saved: false // ⭐ ADICIONADO AQUI
+            _saved: false
         });
         
         // Salvar imediatamente
@@ -674,7 +685,7 @@ INSTRUÇÕES DE ESTILO:
                 content: response,
                 time: new Date().toLocaleTimeString(),
                 timestamp: new Date().toISOString(),
-                _saved: false // ⭐ ADICIONADO AQUI
+                _saved: false
             });
             
             // Salvar conversa
@@ -693,7 +704,7 @@ INSTRUÇÕES DE ESTILO:
                 role: 'assistant',
                 content: '❌ Ocorreu um erro. Tenta novamente!',
                 time: new Date().toLocaleTimeString(),
-                _saved: false // ⭐ MARCAR _saved: false
+                _saved: false
             });
             await this.salvarConversaAtual();
             this.renderChat();
@@ -708,7 +719,6 @@ INSTRUÇÕES DE ESTILO:
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
         const pendentes = this.tasks.filter(t => !t.completed);
-        const concluidas = this.tasks.filter(t => t.completed);
         const notasCount = this.notes.length;
         
         if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente')) {
@@ -906,9 +916,9 @@ INSTRUÇÕES DE ESTILO:
             <div class="ia-painel-list" id="iaPainelList"></div>
             <div class="ia-painel-footer">
                 <div class="ia-painel-user">
-                    <div class="ia-painel-user-avatar">${this.app.escapeHtml(iniciais)}</div>
+                    <div class="ia-painel-user-avatar">${this._escapeHtml(iniciais)}</div>
                     <div class="ia-painel-user-info">
-                        <span>${this.app.escapeHtml(nome)}</span>
+                        <span>${this._escapeHtml(nome)}</span>
                         <small>Aluno • Zero Satus</small>
                     </div>
                 </div>
@@ -948,7 +958,7 @@ INSTRUÇÕES DE ESTILO:
         list.innerHTML = this.history.map(h => `
             <div class="ia-painel-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
                 ${IA_ICONS.chat}
-                <span class="ia-painel-item-title">${this.app.escapeHtml(h.title)}</span>
+                <span class="ia-painel-item-title">${this._escapeHtml(h.title)}</span>
                 <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
             </div>`).join('');
     }
@@ -1016,4 +1026,4 @@ function fallbackCopy(text, element) {
     atualizarFab();
 })();
 
-console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');
+console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');[cite: 4]
