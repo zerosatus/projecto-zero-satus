@@ -1,5 +1,7 @@
 // ============================================
 // modules/tarefas.js - TAREFAS SPA (CORRIGIDO)
+// ⭐ GUARDA NOME DA DISCIPLINA (NÃO ID)
+// ⭐ COMPATÍVEL COM TAREFAS ANTIGAS (IDs)
 // ============================================
 
 class TarefasModule {
@@ -13,6 +15,7 @@ class TarefasModule {
         this.searchTerm = '';
         this.disciplinaAtual = null;
         this.weeklySchedule = {};
+        this._isSavingTask = false;
         
         console.log('[Tarefas] 📋 Módulo inicializado');
     }
@@ -27,15 +30,12 @@ class TarefasModule {
         this.weeklySchedule = data.weeklySchedule || {};
         this.profile = data.profile || {};
         
-        // Garantir estrutura do horário
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(day => {
             if (!this.weeklySchedule[day]) this.weeklySchedule[day] = [];
         });
         
-        // Atualizar nome do usuário
         this.atualizarNomeUsuario();
-        
         this.renderStats();
         this.renderTasks();
         this.renderSubjects();
@@ -44,21 +44,35 @@ class TarefasModule {
     }
     
     // ============================================
-    // ATUALIZAR NOME DO USUÁRIO
+    // ATALHOS
     // ============================================
+    getDisciplinas() {
+        if (this.app?.modules?.disciplinas?.getTodas) {
+            return this.app.modules.disciplinas.getTodas();
+        }
+        return this.disciplinas || [];
+    }
+
+    // ⭐ Converte o que estiver na tarefa (ID ou Nome) para o Nome real
+    obterNomeDisciplina(valor) {
+        if (!valor) return '';
+        const disciplinas = this.getDisciplinas();
+        const disc = disciplinas.find(d => 
+            d.id === valor || 
+            d.nome.toLowerCase() === valor.toLowerCase()
+        );
+        return disc ? disc.nome : valor;
+    }
+    
     atualizarNomeUsuario() {
         const profile = this.profile || this.app.user || {};
         const nome = profile.nome || profile.displayName || 'Usuário';
         
         const userNameDisplay = document.getElementById('userNameDisplay');
-        if (userNameDisplay) {
-            userNameDisplay.textContent = nome;
-        }
+        if (userNameDisplay) userNameDisplay.textContent = nome;
         
         const userName = document.getElementById('userName');
-        if (userName) {
-            userName.textContent = nome;
-        }
+        if (userName) userName.textContent = nome;
         
         const userAvatar = document.getElementById('userAvatar');
         if (userAvatar) {
@@ -67,9 +81,6 @@ class TarefasModule {
         }
     }
     
-    // ============================================
-    // STATS
-    // ============================================
     renderStats() {
         const pendentes = this.tasks.filter(t => !t.completed).length;
         const concluidasHoje = this.tasks.filter(t => 
@@ -83,18 +94,23 @@ class TarefasModule {
         const total = this.tasks.length;
         const concluidas = this.tasks.filter(t => t.completed).length;
         
-        document.getElementById('pendingCount').textContent = pendentes;
-        document.getElementById('completedTodayCount').textContent = concluidasHoje;
-        document.getElementById('overdueCount').textContent = atrasadas;
-        document.getElementById('totalBadge').textContent = total;
-        document.getElementById('pendingBadge').textContent = pendentes;
-        document.getElementById('completedBadge').textContent = concluidas;
-        document.getElementById('favoriteBadge').textContent = favoritas;
+        const pendingEl = document.getElementById('pendingCount');
+        const completedEl = document.getElementById('completedTodayCount');
+        const overdueEl = document.getElementById('overdueCount');
+        const totalBadge = document.getElementById('totalBadge');
+        const pendingBadge = document.getElementById('pendingBadge');
+        const completedBadge = document.getElementById('completedBadge');
+        const favoriteBadge = document.getElementById('favoriteBadge');
+        
+        if (pendingEl) pendingEl.textContent = pendentes;
+        if (completedEl) completedEl.textContent = concluidasHoje;
+        if (overdueEl) overdueEl.textContent = atrasadas;
+        if (totalBadge) totalBadge.textContent = total;
+        if (pendingBadge) pendingBadge.textContent = pendentes;
+        if (completedBadge) completedBadge.textContent = concluidas;
+        if (favoriteBadge) favoriteBadge.textContent = favoritas;
     }
     
-    // ============================================
-    // RENDER TASKS
-    // ============================================
     renderTasks() {
         const taskList = document.getElementById('taskList');
         if (!taskList) return;
@@ -114,8 +130,6 @@ class TarefasModule {
         }
         
         taskList.innerHTML = filtered.map(task => this.createTaskHTML(task)).join('');
-        
-        // Eventos das tarefas
         this.setupTaskEvents();
     }
     
@@ -131,7 +145,10 @@ class TarefasModule {
         }
         
         if (this.disciplinaAtual) {
-            filtered = filtered.filter(t => (t.disciplina || t.subject) === this.disciplinaAtual);
+            filtered = filtered.filter(t => {
+                const discNome = this.obterNomeDisciplina(t.disciplina || t.subject || '');
+                return discNome.toLowerCase() === this.disciplinaAtual.toLowerCase();
+            });
         }
         
         switch(this.currentFilter) {
@@ -156,9 +173,11 @@ class TarefasModule {
                     return new Date(a.prazo) - new Date(b.prazo);
                 });
             case 'disciplina':
-                return tasks.sort((a, b) => 
-                    (a.disciplina || a.subject || '').localeCompare(b.disciplina || b.subject || '')
-                );
+                return tasks.sort((a, b) => {
+                    const discA = this.obterNomeDisciplina(a.disciplina || a.subject || '');
+                    const discB = this.obterNomeDisciplina(b.disciplina || b.subject || '');
+                    return discA.localeCompare(discB);
+                });
             case 'prioridade':
                 return tasks.sort((a, b) => 
                     (prioridadeOrder[a.prioridade] || 4) - (prioridadeOrder[b.prioridade] || 4)
@@ -171,12 +190,15 @@ class TarefasModule {
     createTaskHTML(task) {
         const isCompleted = task.completed || false;
         const isFavorita = task.favorita || false;
-        const disciplina = task.disciplina || task.subject || 'Geral';
+        const disciplinaRaw = task.disciplina || task.subject || '';
+        const disciplina = this.obterNomeDisciplina(disciplinaRaw); // ⭐ Converte ID antigo para Nome
         const prioridade = task.prioridade || 'media';
         const prazo = task.prazo ? this.formatarData(task.prazo) : 'Sem data';
         
-        const corDisciplina = this.getCorDisciplina(disciplina);
-        const textoDisciplina = this.getTextoDisciplina(disciplina);
+        const cor = disciplina ? (this.app?.modules?.disciplinas?.getCor(disciplina) || '#9ca3af') : '#9ca3af';
+        const icone = disciplina ? (this.app?.modules?.disciplinas?.getIcone(disciplina) || 'fa-book') : 'fa-book';
+        const nomeDisciplina = disciplina || 'Sem disciplina';
+        
         const classePrioridade = this.getClassePrioridade(prioridade);
         const textoPrioridade = this.getTextoPrioridade(prioridade);
         
@@ -201,8 +223,8 @@ class TarefasModule {
                     </h4>
                     <p>${this.app.escapeHtml(task.descricao || 'Sem descrição')}</p>
                     <div class="task-meta">
-                        <span class="task-subject" style="color: ${corDisciplina}">
-                            <i class="fas fa-circle"></i> ${textoDisciplina}
+                        <span class="task-subject" style="color: ${cor}">
+                            <i class="fas ${icone}"></i> ${this.app.escapeHtml(nomeDisciplina)}
                         </span>
                         <span class="task-date"><i class="fas fa-calendar"></i> ${prazo}</span>
                         <span class="task-priority ${classePrioridade}">
@@ -224,7 +246,6 @@ class TarefasModule {
     }
     
     setupTaskEvents() {
-        // Checkbox
         document.querySelectorAll('.task-checkbox').forEach(cb => {
             cb.addEventListener('change', (e) => {
                 const id = cb.closest('.task-item').dataset.id;
@@ -232,7 +253,6 @@ class TarefasModule {
             });
         });
         
-        // Favorito
         document.querySelectorAll('.task-btn.favorite').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -241,7 +261,6 @@ class TarefasModule {
             });
         });
         
-        // Editar
         document.querySelectorAll('.task-btn.edit').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -250,7 +269,6 @@ class TarefasModule {
             });
         });
         
-        // Deletar
         document.querySelectorAll('.task-btn.delete').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -260,9 +278,6 @@ class TarefasModule {
         });
     }
     
-    // ============================================
-    // CRUD TAREFAS
-    // ============================================
     toggleTask(id, completed) {
         const task = this.tasks.find(t => t.id == id);
         if (task) {
@@ -298,9 +313,6 @@ class TarefasModule {
         }
     }
     
-    // ============================================
-    // MÉTODO SAVE TASKS (CORRIGIDO)
-    // ============================================
     saveTasks() {
         this.app.data.tasks = this.tasks;
         this.app.saveAllData();
@@ -310,9 +322,6 @@ class TarefasModule {
         return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
     
-    // ============================================
-    // MODAL DE TAREFA
-    // ============================================
     openTaskModal(id = null) {
         const task = id ? this.tasks.find(t => t.id == id) : null;
         this.editingTaskId = task ? task.id : null;
@@ -322,17 +331,89 @@ class TarefasModule {
         const modal = document.getElementById('taskModal');
         if (!modal) return;
         
-        document.getElementById('modalTitle').textContent = task ? 'Editar Tarefa' : 'Nova Tarefa';
-        document.getElementById('nomeTarefa').value = task ? (task.nome || task.title || '') : '';
-        document.getElementById('descricaoTarefa').value = task ? (task.descricao || '') : '';
-        document.getElementById('prazoTarefa').value = task ? (task.prazo || '') : '';
-        document.getElementById('disciplinaTarefa').value = task ? (task.disciplina || 'matematica') : 'matematica';
+        const modalTitle = document.getElementById('modalTitle');
+        const nomeInput = document.getElementById('nomeTarefa');
+        const descInput = document.getElementById('descricaoTarefa');
+        const prazoInput = document.getElementById('prazoTarefa');
+        
+        if (modalTitle) modalTitle.textContent = task ? 'Editar Tarefa' : 'Nova Tarefa';
+        if (nomeInput) nomeInput.value = task ? (task.nome || task.title || '') : '';
+        if (descInput) descInput.value = task ? (task.descricao || '') : '';
+        if (prazoInput) prazoInput.value = task ? (task.prazo || '') : '';
+        
+        // ⭐ Obter o nome real da disciplina para selecionar no <select>
+        const disciplinaRaw = task ? (task.disciplina || task.subject) : null;
+        this.popularSelectDisciplinas(disciplinaRaw);
         
         this.renderSubtasks();
         this.selectPriority(this.selectedPriority);
         
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+    }
+    
+    // ⭐ POPULAR SELECT (AGORA VAI USAR O NOME COMO VALUE)
+    popularSelectDisciplinas(disciplinaSelecionadaRaw = null) {
+        const select = document.getElementById('disciplinaTarefa');
+        if (!select) return;
+        
+        const disciplinas = this.getDisciplinas();
+        
+        select.innerHTML = '';
+        
+        if (disciplinas.length === 0) {
+            const optVazia = document.createElement('option');
+            optVazia.value = '';
+            optVazia.textContent = '⚠️ Nenhuma disciplina cadastrada';
+            optVazia.disabled = true;
+            optVazia.selected = true;
+            select.appendChild(optVazia);
+            
+            const optSem = document.createElement('option');
+            optSem.value = '';
+            optSem.textContent = 'Sem disciplina';
+            select.appendChild(optSem);
+            
+            const optNova = document.createElement('option');
+            optNova.value = '__CRIAR_NOVA__';
+            optNova.textContent = '➕ Criar nova disciplina';
+            select.appendChild(optNova);
+            
+            return;
+        }
+        
+        const optSem = document.createElement('option');
+        optSem.value = '';
+        optSem.textContent = '— Sem disciplina —';
+        select.appendChild(optSem);
+        
+        const optTodas = document.createElement('optgroup');
+        optTodas.label = '📚 Disciplinas';
+        
+        disciplinas.forEach(d => {
+            const opt = document.createElement('option');
+            // ⭐ AGORA O VALUE É O NOME (e não o ID)
+            opt.value = d.nome; 
+            opt.textContent = `${d.nome}`;
+            optTodas.appendChild(opt);
+        });
+        
+        select.appendChild(optTodas);
+        
+        const optNova = document.createElement('option');
+        optNova.value = '__CRIAR_NOVA__';
+        optNova.textContent = '➕ Criar nova disciplina';
+        select.appendChild(optNova);
+        
+        // ⭐ Traduzir ID antigo para Nome
+        const nomeReal = this.obterNomeDisciplina(disciplinaSelecionadaRaw);
+        if (nomeReal) {
+            select.value = nomeReal;
+        } else {
+            select.value = '';
+        }
+        
+        console.log('[Tarefas] 📚 Select de disciplinas populado:', disciplinas.length);
     }
     
     closeTaskModal() {
@@ -361,7 +442,6 @@ class TarefasModule {
             container.appendChild(div);
         });
         
-        // Eventos de remoção
         container.querySelectorAll('.remove-subtask').forEach(btn => {
             btn.addEventListener('click', () => {
                 const index = parseInt(btn.dataset.index);
@@ -380,12 +460,17 @@ class TarefasModule {
         document.querySelectorAll('.priority-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.priority === priority);
         });
+        this.selectedPriority = priority;
     }
-    
-    saveTaskFromForm() {
-        const nome = document.getElementById('nomeTarefa').value.trim();
+        saveTaskFromForm() {
+        // ⭐ PROTEÇÃO CONTRA CLIQUE DUPLO
+        if (this._isSavingTask) return;
+        this._isSavingTask = true;
+        
+        const nome = document.getElementById('nomeTarefa')?.value?.trim();
         if (!nome) {
             this.showToast('Preencha o nome da tarefa!', 'error');
+            this._isSavingTask = false;
             return;
         }
         
@@ -396,13 +481,25 @@ class TarefasModule {
             }
         });
         
+        const selectDisciplina = document.getElementById('disciplinaTarefa');
+        let disciplinaNome = selectDisciplina?.value || '';
+        
+        if (disciplinaNome === '__CRIAR_NOVA__') {
+            if (this.app?.modules?.disciplinas) {
+                this.app.modules.disciplinas.abrirModal();
+            }
+            this._isSavingTask = false;
+            return;
+        }
+        
         const taskData = {
             nome: nome,
             title: nome,
-            descricao: document.getElementById('descricaoTarefa').value.trim(),
+            descricao: document.getElementById('descricaoTarefa')?.value?.trim() || '',
             prioridade: this.selectedPriority,
-            prazo: document.getElementById('prazoTarefa').value,
-            disciplina: document.getElementById('disciplinaTarefa').value,
+            prazo: document.getElementById('prazoTarefa')?.value || '',
+            disciplina: disciplinaNome, // ⭐ GUARDA O NOME
+            subject: disciplinaNome,    // ⭐ GUARDA O NOME
             subtasks: subtasksList,
             completed: false,
             favorita: false,
@@ -425,56 +522,68 @@ class TarefasModule {
         this.renderStats();
         this.renderSubjects();
         this.showToast(this.editingTaskId ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
+        
+        // ⭐ LIBERTA A FLAG DEPOIS DE 500ms
+        setTimeout(() => { this._isSavingTask = false; }, 500);
     }
     
-    // ============================================
-    // SUBJECTS
-    // ============================================
+    
     renderSubjects() {
         const list = document.getElementById('subjectsList');
         if (!list) return;
         
         const disciplinasMap = new Map();
+        const todasDisciplinas = this.getDisciplinas();
         
-        this.tasks.forEach(t => {
-            const disc = t.disciplina || t.subject;
-            if (disc) {
-                const key = disc.toLowerCase();
-                if (!disciplinasMap.has(key)) {
-                    disciplinasMap.set(key, { nome: disc, count: 0 });
-                }
-                if (!t.completed) {
-                    disciplinasMap.get(key).count++;
-                }
-            }
+        // 1. Adicionar todas as oficiais
+        todasDisciplinas.forEach(d => {
+            const key = d.nome.toLowerCase();
+            disciplinasMap.set(key, {
+                nome: d.nome,
+                cor: d.cor,
+                icone: d.icone,
+                count: 0
+            });
         });
         
-        // Adicionar disciplinas do horário
-        Object.values(this.weeklySchedule).forEach(day => {
-            if (Array.isArray(day)) {
-                day.forEach(c => {
-                    if (c && c.materia) {
-                        const key = c.materia.toLowerCase();
-                        if (!disciplinasMap.has(key)) {
-                            disciplinasMap.set(key, { nome: c.materia, count: 0 });
-                        }
+        // 2. Contar as tarefas
+        this.tasks.forEach(t => {
+            const discValue = t.disciplina || t.subject;
+            if (discValue) {
+                const nomeReal = this.obterNomeDisciplina(discValue);
+                if (nomeReal) {
+                    const key = nomeReal.toLowerCase();
+                    if (!disciplinasMap.has(key)) {
+                        // Se for uma disciplina "fantasma" (antiga), adiciona
+                        disciplinasMap.set(key, {
+                            nome: nomeReal,
+                            cor: this.app?.modules?.disciplinas?.getCor(nomeReal) || '#9ca3af',
+                            icone: this.app?.modules?.disciplinas?.getIcone(nomeReal) || 'fa-book',
+                            count: 0
+                        });
                     }
-                });
+                    if (!t.completed) {
+                        disciplinasMap.get(key).count++;
+                    }
+                }
             }
         });
         
         if (disciplinasMap.size === 0) {
-            list.innerHTML = '<p style="text-align:center;padding:20px;color:#9ca3af;">Nenhuma disciplina</p>';
+            list.innerHTML = `
+                <p style="text-align:center;padding:20px;color:#9ca3af;font-size:13px;">
+                    Nenhuma disciplina<br>
+                    <small style="font-size:11px;opacity:0.7;">Crie no card "Minhas Disciplinas"</small>
+                </p>
+            `;
             return;
         }
         
-        const cores = ['#8b5cf6', '#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#eab308'];
-        let i = 0;
         let html = '';
-        
         for (const [key, disc] of disciplinasMap) {
-            const cor = cores[i % cores.length];
             const isActive = this.disciplinaAtual === key;
+            const cor = disc.cor || '#9ca3af';
+            
             html += `
                 <div class="subject-item ${isActive ? 'active' : ''}" data-subject="${key}">
                     <div class="subject-color" style="background-color: ${cor};"></div>
@@ -482,12 +591,10 @@ class TarefasModule {
                     <span class="subject-count">${disc.count}</span>
                 </div>
             `;
-            i++;
         }
         
         list.innerHTML = html;
         
-        // Eventos das disciplinas
         list.querySelectorAll('.subject-item').forEach(item => {
             item.addEventListener('click', () => {
                 const disciplina = item.dataset.subject;
@@ -502,27 +609,6 @@ class TarefasModule {
                 this.renderTasks();
             });
         });
-    }
-    
-    // ============================================
-    // HELPERS
-    // ============================================
-    getCorDisciplina(disciplina) {
-        const cores = {
-            'matematica': '#8b5cf6', 'portugues': '#3b82f6', 'historia': '#ef4444',
-            'fisica': '#f59e0b', 'quimica': '#10b981', 'biologia': '#eab308',
-            'geografia': '#14b8a6', 'ingles': '#64748b', 'outros': '#9ca3af'
-        };
-        return cores[disciplina?.toLowerCase()] || '#9ca3af';
-    }
-    
-    getTextoDisciplina(disciplina) {
-        const textos = {
-            'matematica': 'Matemática', 'portugues': 'Português', 'historia': 'História',
-            'fisica': 'Física', 'quimica': 'Química', 'biologia': 'Biologia',
-            'geografia': 'Geografia', 'ingles': 'Inglês', 'outros': 'Outros'
-        };
-        return textos[disciplina?.toLowerCase()] || disciplina || 'Geral';
     }
     
     getClassePrioridade(prioridade) {
@@ -541,9 +627,6 @@ class TarefasModule {
         return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
     }
     
-    // ============================================
-    // NOTIFICAÇÕES
-    // ============================================
     updateBadge() {
         const badge = document.getElementById('notificationBadge');
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
@@ -566,11 +649,7 @@ class TarefasModule {
         }
     }
     
-    // ============================================
-    // EVENTOS DA UI
-    // ============================================
     setupEvents() {
-        // Filtros
         document.querySelectorAll('.filter-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active-filter'));
@@ -580,42 +659,76 @@ class TarefasModule {
             });
         });
         
-        // Busca
         document.getElementById('searchInput')?.addEventListener('input', () => {
             this.renderTasks();
         });
         
-        // Ordenação
         document.getElementById('orderSelect')?.addEventListener('change', () => {
             this.renderTasks();
         });
         
-        // Nova tarefa
         document.getElementById('btnNewTask')?.addEventListener('click', () => {
             this.openTaskModal();
         });
         
-        // Fechar modal
         document.getElementById('taskModal')?.addEventListener('click', (e) => {
             if (e.target === e.currentTarget) this.closeTaskModal();
         });
         
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') this.closeTaskModal();
+        document.getElementById('modalCloseTask')?.addEventListener('click', () => {
+            this.closeTaskModal();
         });
         
-        // Form submit
+        document.getElementById('btnCancelTask')?.addEventListener('click', () => {
+            this.closeTaskModal();
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modalAberto = document.getElementById('taskModal')?.classList.contains('active');
+                if (modalAberto) this.closeTaskModal();
+            }
+        });
+        
         document.getElementById('formNovaTarefa')?.addEventListener('submit', (e) => {
             e.preventDefault();
             this.saveTaskFromForm();
         });
         
-        // Adicionar subtarefa
+        document.getElementById('disciplinaTarefa')?.addEventListener('change', (e) => {
+            if (e.target.value === '__CRIAR_NOVA__') {
+                console.log('[Tarefas] ➕ Abrindo modal de criar disciplina...');
+                
+                const modalTarefa = document.getElementById('taskModal');
+                const estavaAberto = modalTarefa?.classList.contains('active');
+                if (estavaAberto) {
+                    modalTarefa.classList.remove('active');
+                }
+                
+                setTimeout(() => {
+                    if (this.app?.modules?.disciplinas) {
+                        this.app.modules.disciplinas.abrirModal();
+                        
+                        const checkInterval = setInterval(() => {
+                            const modalDisc = document.getElementById('modalDisciplinas');
+                            if (!modalDisc?.classList.contains('active')) {
+                                clearInterval(checkInterval);
+                                if (estavaAberto) {
+                                    setTimeout(() => {
+                                        this.openTaskModal(this.editingTaskId);
+                                    }, 200);
+                                }
+                            }
+                        }, 300);
+                    }
+                }, 200);
+            }
+        });
+        
         document.querySelector('.btn-add-subtask')?.addEventListener('click', () => {
             this.addSubtask();
         });
         
-        // Prioridade buttons
         document.querySelectorAll('.priority-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
@@ -624,8 +737,33 @@ class TarefasModule {
             });
         });
         
-        // Atualizar dados
-        window.addEventListener('cloudDataLoaded', () => {
+        window.addEventListener('disciplinasUpdated', () => {
+            const viewAtiva = document.getElementById('view-tarefas')?.classList.contains('active');
+            if (viewAtiva) {
+                this.renderSubjects();
+            }
+            
+            const modalAberto = document.getElementById('taskModal')?.classList.contains('active');
+            if (modalAberto) {
+                const select = document.getElementById('disciplinaTarefa');
+                const valorAtual = select?.value || '';
+                this.popularSelectDisciplinas(valorAtual);
+            }
+        });
+        
+        window.addEventListener('disciplinaCriada', (e) => {
+            console.log('[Tarefas] ✅ Nova disciplina criada:', e.detail?.nome);
+            const modalAberto = document.getElementById('taskModal')?.classList.contains('active');
+            if (modalAberto) {
+                this.popularSelectDisciplinas(e.detail?.nome);
+            }
+        });
+        
+                window.addEventListener('cloudDataLoaded', () => {
+            // ⭐ SÓ ATUALIZA SE A VIEW ESTIVER ATIVA E NÃO ESTIVER A SALVAR
+            const viewAtiva = document.getElementById('view-tarefas')?.classList.contains('active');
+            if (!viewAtiva || this._isSavingTask) return;
+            
             this.tasks = this.app.data.tasks || [];
             this.notes = this.app.data.notes || [];
             this.notifications = this.app.data.notifications || [];
@@ -640,7 +778,6 @@ class TarefasModule {
             this.updateBadge();
         });
         
-        // Sincronização entre abas
         window.addEventListener('storage', (e) => {
             if (e.key && (e.key.includes('_tasks') || e.key.includes('tarefas_'))) {
                 this.tasks = this.app.data.tasks || [];

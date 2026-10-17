@@ -1,5 +1,7 @@
 // ============================================
-// modules/inicio.js - INÍCIO (DASHBOARD RESUMIDO) - CORRIGIDO
+// modules/inicio.js - INÍCIO (CORRIGIDO)
+// ⭐ Chips de disciplinas no modal Matéria
+// ⭐ Listener disciplinasUpdated atualiza chips
 // ============================================
 
 class InicioModule {
@@ -16,7 +18,7 @@ class InicioModule {
         this.weeklySchedule = {};
         this.editingSubject = null;
         this.selectedSubjectColor = '#9333ea';
-        this.disciplinaEditando = null;
+        this._renderingSubjects = false;
         
         console.log('[Inicio] 🏠 Módulo inicializado');
     }
@@ -41,12 +43,7 @@ class InicioModule {
             this.timeSlots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
         }
         
-        // EXPOR FUNÇÕES GLOBALMENTE
         this.exporFuncoesGlobais();
-        
-        if (window.DisciplinaManager) {
-            window.DisciplinaManager.init(this.profile.email || this.app.user?.email);
-        }
         
         this.renderProfile();
         this.renderStats();
@@ -65,13 +62,9 @@ class InicioModule {
         this.carregarDadosDoCache();
     }
     
-    // ============================================
-    // EXPOR FUNÇÕES GLOBAIS
-    // ============================================
     exporFuncoesGlobais() {
         const self = this;
         
-        // Funções do horário
         window.fecharModalHorario = function() { self.fecharModalHorario(); };
         window.abrirModalHorario = function() { self.abrirModalHorario(); };
         window.renderizarGradeEdicao = function() { self.renderizarGradeEdicao(); };
@@ -79,99 +72,34 @@ class InicioModule {
         window.removerHorario = function(time) { self.removerHorario(time); };
         window.removerAula = function(day, time) { self.removerAula(day, time); };
         
-        // Funções da matéria
         window.fecharModalMateria = function() { self.fecharModalMateria(); };
         window.abrirModalMateria = function(day, time) { self.abrirModalMateria(day, time); };
         window.editarMateria = function(day, time) { self.editarMateria(day, time); };
         window.salvarMateria = function(e) { self.salvarMateria(e); };
         window.selecionarCor = function(el) { self.selecionarCor(el); };
         
-        // Funções das disciplinas
-        window.fecharModalDisciplinas = function() { self.fecharModalDisciplinas(); };
-        window.abrirModalDisciplinas = function() { self.abrirModalDisciplinas(); };
-        window.limparFormDisciplina = function() { self.limparFormDisciplina(); };
-        window.salvarDisciplina = function() { self.salvarDisciplina(); };
-        window.editarDisciplina = function(id) { self.editarDisciplina(id); };
-        window.confirmarExcluirDisciplina = function(id) { self.confirmarExcluirDisciplina(id); };
-        window.renderizarListaDisciplinas = function() { self.renderizarListaDisciplinas(); };
-        
-        console.log('[Inicio] 🌐 Funções globais expostas');
+        window.abrirModalDisciplinas = function() {
+            console.log('[Inicio] 🌐 Delegando para DisciplinasModule...');
+            if (window.app?.modules?.disciplinas) {
+                window.app.modules.disciplinas.abrirModal();
+            } else {
+                console.warn('[Inicio] ⚠️ DisciplinasModule não disponível!');
+            }
+        };
+        window.fecharModalDisciplinas = function() {
+            if (window.app?.modules?.disciplinas) {
+                window.app.modules.disciplinas.fecharModal();
+            }
+        };
     }
     
-    // ============================================
-    // DISCIPLINA MANAGER
-    // ============================================
-    getDisciplinaManager() {
-        if (!window.DisciplinaManager) {
-            window.DisciplinaManager = {
-                disciplinas: [],
-                storageKey: null,
-                init(email) {
-                    this.storageKey = `disciplinas_${email}`;
-                    this.carregar();
-                },
-                carregar() {
-                    const cached = localStorage.getItem(this.storageKey);
-                    if (cached) {
-                        try { this.disciplinas = JSON.parse(cached); } catch(e) { this.disciplinas = []; }
-                    }
-                },
-                salvar() {
-                    localStorage.setItem(this.storageKey, JSON.stringify(this.disciplinas));
-                    if (window.CacheManager) {
-                        window.CacheManager.set('disciplinas', this.disciplinas, true);
-                    }
-                },
-                getAll() { return [...this.disciplinas]; },
-                getById(id) { return this.disciplinas.find(d => d.id === id); },
-                add(nome, cor, icone = 'fa-book') {
-                    const id = this.normalizar(nome);
-                    if (this.disciplinas.find(d => d.id === id)) {
-                        return { success: false, message: 'Disciplina já existe!' };
-                    }
-                    const nova = { id, nome, cor, icone };
-                    this.disciplinas.push(nova);
-                    this.salvar();
-                    return { success: true, disciplina: nova };
-                },
-                update(id, nome, cor, icone) {
-                    const index = this.disciplinas.findIndex(d => d.id === id);
-                    if (index === -1) return { success: false, message: 'Disciplina não encontrada!' };
-                    this.disciplinas[index] = { ...this.disciplinas[index], nome, cor, icone };
-                    this.salvar();
-                    return { success: true };
-                },
-                delete(id) {
-                    const index = this.disciplinas.findIndex(d => d.id === id);
-                    if (index === -1) return { success: false, message: 'Disciplina não encontrada!' };
-                    this.disciplinas.splice(index, 1);
-                    this.salvar();
-                    return { success: true };
-                },
-                estaEmUso(id) {
-                    const tasks = this.app?.data?.tasks || [];
-                    const schedule = this.app?.data?.weeklySchedule || {};
-                    return tasks.some(t => (t.disciplina || t.subject) === id) ||
-                           Object.values(schedule).some(day =>
-                               day.some(c => c.materia && this.normalizar(c.materia) === id)
-                           );
-                },
-                normalizar(texto) {
-                    return texto.toLowerCase()
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .replace(/[^a-z0-9]/g, '_');
-                }
-            };
-            const profile = this.profile || this.app.user || {};
-            window.DisciplinaManager.init(profile.email);
+    getDisciplinas() {
+        if (this.app?.modules?.disciplinas?.getTodas) {
+            return this.app.modules.disciplinas.getTodas();
         }
-        return window.DisciplinaManager;
+        return this.disciplinas || [];
     }
     
-    // ============================================
-    // CARREGAR DADOS DO CACHE
-    // ============================================
     carregarDadosDoCache() {
         if (window.CacheManager) {
             const schedule = window.CacheManager.get('weeklySchedule', {});
@@ -186,9 +114,6 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // PROFILE
-    // ============================================
     renderProfile() {
         const profile = this.profile || this.app.user || {};
         const nome = profile.nome || profile.displayName || 'Usuário';
@@ -222,9 +147,6 @@ class InicioModule {
         if (userName) userName.textContent = nome;
     }
     
-    // ============================================
-    // STATS
-    // ============================================
     renderStats() {
         const total = this.tasks.length;
         const concluidas = this.tasks.filter(t => t.completed).length;
@@ -242,9 +164,6 @@ class InicioModule {
         if (totalHours) totalHours.textContent = Math.floor(horasEstudo) + 'h';
     }
     
-    // ============================================
-    // PROGRESS
-    // ============================================
     renderProgress() {
         const total = this.tasks.length;
         const concluidas = this.tasks.filter(t => t.completed).length;
@@ -255,22 +174,8 @@ class InicioModule {
         
         if (progressValue) progressValue.textContent = progresso + '%';
         if (progressFill) progressFill.style.width = progresso + '%';
-        
-        const percentageEl = document.querySelector('.percentage');
-        if (percentageEl) percentageEl.textContent = progresso + '%';
-        
-        const circularFill = document.querySelector('.progress-ring-fill');
-        if (circularFill) {
-            const radius = circularFill.r.baseVal.value;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (progresso / 100) * circumference;
-            circularFill.style.strokeDashoffset = offset;
-        }
     }
     
-    // ============================================
-    // CALENDAR WIDGET
-    // ============================================
     renderCalendar() {
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
@@ -314,9 +219,6 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // NEXT CLASS & TASK
-    // ============================================
     renderNextClass() {
         const el = document.getElementById('nextClassInfo');
         if (!el) return;
@@ -366,20 +268,14 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // NOTIFICATIONS
-    // ============================================
     renderNotifications() {
         const container = document.getElementById('notificacoesRecentes');
         if (!container) return;
         
         let notificacoes = this.notifications || [];
-        
         if (notificacoes.length === 0 && window.CacheManager) {
             const cached = window.CacheManager.get('notifications', null);
-            if (cached && cached.length > 0) {
-                notificacoes = cached;
-            }
+            if (cached && cached.length > 0) notificacoes = cached;
         }
         
         notificacoes.sort((a, b) => {
@@ -400,21 +296,8 @@ class InicioModule {
             return;
         }
         
-        const icones = {
-            'info': 'fa-bell',
-            'aula': 'fa-book',
-            'tarefa': 'fa-tasks',
-            'warning': 'fa-exclamation-triangle',
-            'success': 'fa-check-circle'
-        };
-        
-        const cores = {
-            'info': 'purple',
-            'aula': 'blue',
-            'tarefa': 'green',
-            'warning': 'orange',
-            'success': 'purple'
-        };
+        const icones = { 'info': 'fa-bell', 'aula': 'fa-book', 'tarefa': 'fa-tasks', 'warning': 'fa-exclamation-triangle', 'success': 'fa-check-circle' };
+        const cores = { 'info': 'purple', 'aula': 'blue', 'tarefa': 'green', 'warning': 'orange', 'success': 'purple' };
         
         container.innerHTML = recentes.map(notif => `
             <div class="notification-item ${cores[notif.type] || 'purple'}" onclick="app.openNotifications()">
@@ -427,9 +310,6 @@ class InicioModule {
         `).join('');
     }
     
-    // ============================================
-    // SCHEDULE
-    // ============================================
     renderSchedule() {
         const tbody = document.getElementById('scheduleTableBody');
         if (!tbody) return;
@@ -464,9 +344,6 @@ class InicioModule {
         tbody.innerHTML = html;
     }
     
-    // ============================================
-    // STUDY HOURS
-    // ============================================
     renderStudyHours() {
         const chartContainer = document.getElementById('studyChart');
         if (!chartContainer) return;
@@ -531,88 +408,109 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // SUBJECTS
-    // ============================================
-    renderSubjects() {
-        const grid = document.getElementById('subjectsGrid');
-        if (!grid) return;
+       renderSubjects() {
+        if (this._renderingSubjects) return;
+        this._renderingSubjects = true;
         
-        const disciplinasMap = new Map();
-        
-        this.tasks.forEach(t => {
-            const disc = t.subject || t.disciplina;
-            if (disc) {
-                const key = disc.toLowerCase();
+        try {
+            const grid = document.getElementById('subjectsGrid');
+            if (!grid) return;
+            
+            const disciplinasMap = new Map();
+            const todasDisciplinas = this.getDisciplinas(); // Array de objetos {id, nome, cor, icone}
+            
+            // ⭐ Função auxiliar para descobrir o nome real de uma disciplina a partir do ID ou Nome
+            const obterNomeReal = (valor) => {
+                if (!valor) return null;
+                const disc = todasDisciplinas.find(d => 
+                    d.id === valor || 
+                    d.nome.toLowerCase() === valor.toLowerCase()
+                );
+                return disc ? disc.nome : valor;
+            };
+
+            // ⭐ Função auxiliar para adicionar/atualizar no Map
+            const registarDisciplina = (nomeReal, corForcada = null, iconeForcado = null, isTask = false) => {
+                if (!nomeReal) return;
+                const key = nomeReal.toLowerCase(); // Chave normalizada
+                
                 if (!disciplinasMap.has(key)) {
-                    disciplinasMap.set(key, { nome: disc, count: 0 });
+                    // Procura dados oficiais da disciplina
+                    const discOficial = todasDisciplinas.find(d => d.nome.toLowerCase() === key);
+                    
+                    disciplinasMap.set(key, {
+                        nome: discOficial ? discOficial.nome : nomeReal,
+                        count: 0,
+                        cor: discOficial ? discOficial.cor : (corForcada || this.app.modules?.disciplinas?.getCor(nomeReal) || '#8b5cf6'),
+                        icone: discOficial ? discOficial.icone : (iconeForcado || this.app.modules?.disciplinas?.getIcone(nomeReal) || 'fa-book')
+                    });
                 }
-                if (!t.completed) {
+                
+                if (isTask && !disciplinasMap.get(key).countTaskAdded) {
+                    // Se for tarefa, adiciona ao count
                     disciplinasMap.get(key).count++;
+                    disciplinasMap.get(key).countTaskAdded = true;
                 }
-            }
-        });
-        
-        Object.values(this.weeklySchedule).forEach(day => {
-            if (Array.isArray(day)) {
-                day.forEach(c => {
-                    if (c && c.materia) {
-                        const key = c.materia.toLowerCase();
-                        if (!disciplinasMap.has(key)) {
-                            disciplinasMap.set(key, { nome: c.materia, count: 0 });
-                        }
+            };
+            
+            // 1. Adicionar todas as disciplinas oficiais
+            todasDisciplinas.forEach(d => {
+                registarDisciplina(d.nome);
+            });
+            
+            // 2. Adicionar disciplinas das tarefas (converte ID para nome)
+            this.tasks.forEach(t => {
+                const discValue = t.subject || t.disciplina;
+                if (discValue) {
+                    const nomeReal = obterNomeReal(discValue);
+                    if (nomeReal) {
+                        registarDisciplina(nomeReal, null, null, !t.completed);
                     }
-                });
+                }
+            });
+            
+            // 3. Adicionar disciplinas do horário (converte ID para nome)
+            Object.values(this.weeklySchedule).forEach(day => {
+                if (Array.isArray(day)) {
+                    day.forEach(c => {
+                        if (c && c.materia) {
+                            const nomeReal = obterNomeReal(c.materia);
+                            registarDisciplina(nomeReal, c.color);
+                        }
+                    });
+                }
+            });
+            
+            if (disciplinasMap.size === 0) {
+                grid.innerHTML = '<p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina em uso</p>';
+                return;
             }
-        });
-        
-        if (disciplinasMap.size === 0) {
-            grid.innerHTML = '<p style="grid-column: span 2; text-align: center; padding: 20px; color: #888;">Nenhuma disciplina em uso</p>';
-            return;
-        }
-        
-        const cores = ['#8b5cf6', '#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#eab308', '#ec4899', '#14b8a6'];
-        let i = 0;
-        let html = '';
-        
-        for (const [key, disc] of disciplinasMap) {
-            const cor = cores[i % cores.length];
-            const icone = this.getIconeDisciplina(key);
-            html += `
-                <div class="subject-card" style="background:${cor}20;border-left:3px solid ${cor};">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <i class="fas ${icone}" style="color:${cor};font-size:16px;"></i>
-                        <span style="color:${cor};font-weight:600;">${this.app.escapeHtml(disc.nome)}</span>
+            
+            let html = '';
+            for (const [key, disc] of disciplinasMap) {
+                const cor = disc.cor || '#8b5cf6';
+                const icone = disc.icone || 'fa-book';
+                
+                html += `
+                    <div class="subject-card" style="background:${cor}20;border-left:3px solid ${cor};">
+                        <div style="display:flex;align-items:center;gap:10px;overflow:hidden;">
+                            <i class="fas ${icone}" style="color:${cor};font-size:16px;flex-shrink:0;"></i>
+                            <span style="color:${cor};font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${this.app.escapeHtml(disc.nome)}">
+                                ${this.app.escapeHtml(disc.nome)}
+                            </span>
+                        </div>
+                        ${disc.count > 0 ? `<span style="background:var(--bg-color);padding:2px 8px;border-radius:10px;font-size:12px;color:var(--text-secondary);flex-shrink:0;">${disc.count}</span>` : ''}
                     </div>
-                    ${disc.count > 0 ? `<span style="background:var(--bg-color);padding:2px 8px;border-radius:10px;font-size:12px;color:var(--text-secondary);">${disc.count}</span>` : ''}
-                </div>
-            `;
-            i++;
+                `;
+            }
+            
+            grid.innerHTML = html;
+            
+        } finally {
+            setTimeout(() => { this._renderingSubjects = false; }, 100);
         }
-        
-        grid.innerHTML = html;
     }
     
-    getIconeDisciplina(disciplina) {
-        const icones = {
-            'matematica': 'fa-square-root-variable',
-            'portugues': 'fa-language',
-            'historia': 'fa-landmark',
-            'fisica': 'fa-atom',
-            'quimica': 'fa-flask',
-            'biologia': 'fa-dna',
-            'geografia': 'fa-globe-americas',
-            'ingles': 'fa-language',
-            'programacao': 'fa-laptop-code',
-            'arte': 'fa-palette',
-            'musica': 'fa-music'
-        };
-        return icones[disciplina] || 'fa-book';
-    }
-    
-    // ============================================
-    // PHRASE OF THE DAY
-    // ============================================
     renderPhrase() {
         const el = document.getElementById('fraseDoDiaText');
         if (!el) return;
@@ -624,9 +522,6 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // TIMER
-    // ============================================
     loadTimerState() {
         if (!this.app.user) return;
         const timerKey = `timer_${this.app.user.email}`;
@@ -637,9 +532,7 @@ class InicioModule {
                 const hoje = new Date().toDateString();
                 if (timerData.data === hoje) {
                     this.timerSeconds = timerData.segundos || 0;
-                    if (timerData.ativo) {
-                        this.startTimer();
-                    }
+                    if (timerData.ativo) this.startTimer();
                     this.updateTimerDisplay();
                 }
             } catch(e) {}
@@ -683,9 +576,7 @@ class InicioModule {
     
     updateTimerDisplay() {
         const btn = document.getElementById('startStudy');
-        if (btn && this.isTimerActive) {
-            btn.innerHTML = this.formatTimerDisplay();
-        }
+        if (btn && this.isTimerActive) btn.innerHTML = this.formatTimerDisplay();
     }
     
     formatTimerDisplay() {
@@ -705,12 +596,8 @@ class InicioModule {
         }));
     }
     
-    // ============================================
-    // MODAIS DE HORÁRIO
-    // ============================================
     abrirModalHorario() {
         this.renderizarGradeEdicao();
-        this.atualizarDatalistDisciplinas();
         const modal = document.getElementById('editScheduleModal');
         if (modal) {
             modal.classList.add('active');
@@ -776,20 +663,6 @@ class InicioModule {
         grid.innerHTML = html;
     }
     
-    atualizarDatalistDisciplinas() {
-        const datalist = document.getElementById('disciplinasList');
-        if (!datalist) return;
-        
-        datalist.innerHTML = '';
-        const manager = this.getDisciplinaManager();
-        const disciplinas = manager.getAll();
-        disciplinas.forEach(d => {
-            const option = document.createElement('option');
-            option.value = d.nome;
-            datalist.appendChild(option);
-        });
-    }
-    
     abrirModalMateria(day, time) {
         this.editingSubject = null;
         this.selectedSubjectColor = '#9333ea';
@@ -801,11 +674,147 @@ class InicioModule {
         document.getElementById('subjectEndInput').value = '';
         document.getElementById('subjectDayInput').value = day;
         
-        document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
-        document.querySelector('.color-option[data-color="#9333ea"]')?.classList.add('active');
+        document.querySelectorAll('#subjectModal .color-option').forEach(opt => opt.classList.remove('active'));
+        document.querySelector('#subjectModal .color-option[data-color="#9333ea"]')?.classList.add('active');
+        
+        // ⭐ RENDERIZAR CHIPS DE DISCIPLINAS
+        this.renderizarChipsDisciplinas();
         
         const modal = document.getElementById('subjectModal');
         if (modal) modal.classList.add('active');
+    }
+    
+    // ============================================
+    // ⭐ RENDERIZAR CHIPS DE DISCIPLINAS
+    // ============================================
+    renderizarChipsDisciplinas() {
+        const container = document.getElementById('subjectDisciplinasChips');
+        if (!container) {
+            console.warn('[Inicio] ⚠️ #subjectDisciplinasChips não encontrado');
+            return;
+        }
+        
+        const disciplinas = this.getDisciplinas();
+        const nomeAtual = document.getElementById('subjectNameInput')?.value?.trim() || '';
+        
+        console.log('[Inicio] 📚 Renderizando chips:', disciplinas.length, 'disciplinas');
+        
+        if (disciplinas.length === 0) {
+            container.innerHTML = `
+                <div class="chips-empty">
+                    Nenhuma disciplina cadastrada. 
+                    <a href="#" onclick="event.preventDefault(); app.modules.inicio.abrirModalDisciplinasGlobal();" 
+                       style="color: var(--primary-color); text-decoration: underline; font-weight: 600;">
+                        Criar disciplina
+                    </a>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        disciplinas.forEach(d => {
+            const isActive = nomeAtual && d.nome.toLowerCase() === nomeAtual.toLowerCase();
+            const cor = d.cor || '#8b5cf6';
+            const icone = d.icone || 'fa-book';
+            
+            html += `
+                <div class="disciplina-chip ${isActive ? 'active' : ''}" 
+                     data-nome="${this.app.escapeHtml(d.nome)}"
+                     data-cor="${cor}"
+                     style="${isActive ? `border-color: ${cor}; background: ${cor}20;` : ''}">
+                    <i class="fas ${icone}" style="color: ${cor};"></i>
+                    <span>${this.app.escapeHtml(d.nome)}</span>
+                </div>
+            `;
+        });
+        
+        // ⭐ Botão "Nova disciplina"
+        html += `
+            <div class="disciplina-chip chip-nova" 
+                 onclick="event.stopPropagation(); app.modules.inicio.abrirModalDisciplinasGlobal();"
+                 title="Criar nova disciplina">
+                <i class="fas fa-plus"></i>
+                <span>Nova disciplina</span>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        // ⭐ Eventos de clique nos chips
+        container.querySelectorAll('.disciplina-chip:not(.chip-nova)').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const nomeInput = document.getElementById('subjectNameInput');
+                if (!nomeInput) return;
+                
+                const nome = chip.dataset.nome;
+                const cor = chip.dataset.cor;
+                
+                nomeInput.value = nome;
+                this.selecionarCorPorHex(cor);
+                
+                container.querySelectorAll('.disciplina-chip').forEach(c => {
+                    c.classList.remove('active');
+                    c.style.borderColor = '';
+                    c.style.background = '';
+                });
+                chip.classList.add('active');
+                chip.style.borderColor = cor;
+                chip.style.background = `${cor}20`;
+                
+                nomeInput.focus();
+            });
+        });
+    }
+    
+    // ⭐ Selecionar cor por hex
+    selecionarCorPorHex(hex) {
+        const corOptions = document.querySelectorAll('#subjectModal .color-option');
+        let encontrou = false;
+        
+        corOptions.forEach(opt => {
+            opt.classList.remove('active');
+            if (opt.dataset.color && opt.dataset.color.toLowerCase() === hex.toLowerCase()) {
+                opt.classList.add('active');
+                this.selectedSubjectColor = hex;
+                encontrou = true;
+            }
+        });
+        
+        if (!encontrou) {
+            this.selectedSubjectColor = hex;
+        }
+    }
+    
+    // ⭐ Abrir modal global de disciplinas (compatível com modal matéria)
+    abrirModalDisciplinasGlobal() {
+        console.log('[Inicio] 🌐 Abrindo modal global de disciplinas...');
+        
+        const subjectModal = document.getElementById('subjectModal');
+        const subjectEstavaAberto = subjectModal?.classList.contains('active');
+        if (subjectEstavaAberto) {
+            subjectModal.classList.remove('active');
+        }
+        
+        if (this.app?.modules?.disciplinas) {
+            this.app.modules.disciplinas.abrirModal();
+            
+            const checkInterval = setInterval(() => {
+                const modalDisc = document.getElementById('modalDisciplinas');
+                if (!modalDisc?.classList.contains('active')) {
+                    clearInterval(checkInterval);
+                    if (subjectEstavaAberto) {
+                        setTimeout(() => {
+                            subjectModal?.classList.add('active');
+                            this.renderizarChipsDisciplinas();
+                        }, 200);
+                    }
+                }
+            }, 300);
+        } else {
+            console.error('[Inicio] ❌ DisciplinasModule não disponível!');
+            this.showToast('Módulo de disciplinas não disponível', 'error');
+        }
     }
     
     editarMateria(day, time) {
@@ -822,9 +831,12 @@ class InicioModule {
         document.getElementById('subjectEndInput').value = aula.horaFim || '';
         document.getElementById('subjectDayInput').value = day;
         
-        document.querySelectorAll('.color-option').forEach(opt => {
+        document.querySelectorAll('#subjectModal .color-option').forEach(opt => {
             opt.classList.toggle('active', opt.dataset.color === this.selectedSubjectColor);
         });
+        
+        // ⭐ RENDERIZAR CHIPS DE DISCIPLINAS
+        this.renderizarChipsDisciplinas();
         
         const modal = document.getElementById('subjectModal');
         if (modal) modal.classList.add('active');
@@ -837,7 +849,7 @@ class InicioModule {
     }
     
     selecionarCor(element) {
-        document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
+        document.querySelectorAll('#subjectModal .color-option').forEach(opt => opt.classList.remove('active'));
         element.classList.add('active');
         this.selectedSubjectColor = element.dataset.color;
     }
@@ -903,9 +915,7 @@ class InicioModule {
         }
         
         if (hasClasses) {
-            if (!confirm(`O horário ${timeSlot} possui aulas. Remover mesmo assim?`)) {
-                return;
-            }
+            if (!confirm(`O horário ${timeSlot} possui aulas. Remover mesmo assim?`)) return;
         }
         
         const index = this.timeSlots.indexOf(timeSlot);
@@ -929,13 +939,10 @@ class InicioModule {
     }
     
     removerAula(day, timeSlot) {
-        if (!confirm(`Remover aula de ${day} às ${timeSlot}?`)) {
-            return;
-        }
+        if (!confirm(`Remover aula de ${day} às ${timeSlot}?`)) return;
         
         if (this.weeklySchedule[day]) {
             this.weeklySchedule[day] = this.weeklySchedule[day].filter(cls => cls.horaInicio !== timeSlot);
-            
             this.app.data.weeklySchedule = this.weeklySchedule;
             this.app.saveAllData();
             
@@ -963,151 +970,6 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // MODAL DE DISCIPLINAS
-    // ============================================
-    abrirModalDisciplinas() {
-        this.disciplinaEditando = null;
-        this.renderizarListaDisciplinas();
-        this.limparFormDisciplina();
-        const modal = document.getElementById('modalDisciplinas');
-        if (modal) {
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-    
-    fecharModalDisciplinas() {
-        const modal = document.getElementById('modalDisciplinas');
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-        this.disciplinaEditando = null;
-    }
-    
-    renderizarListaDisciplinas() {
-        const container = document.getElementById('listaDisciplinas');
-        if (!container) return;
-        
-        const manager = this.getDisciplinaManager();
-        const disciplinas = manager.getAll();
-        
-        if (disciplinas.length === 0) {
-            container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary);">Nenhuma disciplina cadastrada.</p>';
-            return;
-        }
-        
-        let html = '';
-        disciplinas.forEach(d => {
-            const emUso = manager.estaEmUso(d.id);
-            html += `
-                <div class="disciplina-card" data-id="${d.id}">
-                    <div class="disciplina-info">
-                        <div class="disciplina-color" style="background-color: ${d.cor};">
-                            <i class="fas ${d.icone || 'fa-book'}"></i>
-                        </div>
-                        <div class="disciplina-text">
-                            <strong>${this.app.escapeHtml(d.nome)}</strong>
-                            <span class="disciplina-id">${d.id}</span>
-                            ${emUso ? '<span class="badge-uso">Em uso</span>' : ''}
-                        </div>
-                    </div>
-                    <div class="disciplina-actions">
-                        <button class="btn-edit-disc" onclick="editarDisciplina('${d.id}')" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-delete-disc" onclick="confirmarExcluirDisciplina('${d.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-    }
-    
-    editarDisciplina(id) {
-        const manager = this.getDisciplinaManager();
-        const disc = manager.getById(id);
-        if (!disc) return;
-        
-        this.disciplinaEditando = disc;
-        document.getElementById('modalDiscTitle').textContent = 'Editar Disciplina';
-        document.getElementById('discNome').value = disc.nome;
-        document.getElementById('discCor').value = disc.cor;
-        document.getElementById('colorHexDisplay').textContent = disc.cor;
-        document.getElementById('discIcone').value = disc.icone || 'fa-book';
-        document.getElementById('btnSalvarDisc').textContent = 'Salvar Alterações';
-        
-        window.scrollTo({ top: document.getElementById('formDisciplina').offsetTop, behavior: 'smooth' });
-    }
-    
-    confirmarExcluirDisciplina(id) {
-        const manager = this.getDisciplinaManager();
-        const disc = manager.getById(id);
-        if (!disc) return;
-        
-        const emUso = manager.estaEmUso(id);
-        let msg = `Deseja excluir a disciplina "${disc.nome}"?`;
-        if (emUso) {
-            msg += '\n\n⚠️ ATENÇÃO: Esta disciplina está sendo usada em tarefas ou horários.';
-        }
-        
-        if (confirm(msg)) {
-            const resultado = manager.delete(id);
-            if (resultado.success) {
-                this.renderizarListaDisciplinas();
-                this.renderSubjects();
-                this.showToast('Disciplina excluída!', 'success');
-            } else {
-                this.showToast(resultado.message, 'error');
-            }
-        }
-    }
-    
-    limparFormDisciplina() {
-        document.getElementById('modalDiscTitle').textContent = 'Nova Disciplina';
-        document.getElementById('discNome').value = '';
-        document.getElementById('discCor').value = '#9333ea';
-        document.getElementById('colorHexDisplay').textContent = '#9333ea';
-        document.getElementById('discIcone').value = 'fa-book';
-        document.getElementById('btnSalvarDisc').textContent = 'Criar Disciplina';
-        this.disciplinaEditando = null;
-    }
-    
-    salvarDisciplina() {
-        const nome = document.getElementById('discNome').value.trim();
-        const cor = document.getElementById('discCor').value;
-        const icone = document.getElementById('discIcone').value;
-        
-        if (!nome) {
-            this.showToast('Preencha o nome da disciplina!', 'error');
-            return;
-        }
-        
-        const manager = this.getDisciplinaManager();
-        let resultado;
-        if (this.disciplinaEditando) {
-            resultado = manager.update(this.disciplinaEditando.id, nome, cor, icone);
-        } else {
-            resultado = manager.add(nome, cor, icone);
-        }
-        
-        if (resultado.success) {
-            this.limparFormDisciplina();
-            this.renderizarListaDisciplinas();
-            this.renderSubjects();
-            this.showToast(this.disciplinaEditando ? 'Disciplina atualizada!' : 'Disciplina criada!', 'success');
-        } else {
-            this.showToast(resultado.message, 'error');
-        }
-    }
-    
-    // ============================================
-    // HELPERS
-    // ============================================
     formatTimeAgo(timeString) {
         if (!timeString) return '';
         try {
@@ -1148,9 +1010,6 @@ class InicioModule {
         }
     }
     
-    // ============================================
-    // EVENTS
-    // ============================================
     setupEvents() {
         document.getElementById('prevMonth')?.addEventListener('click', () => {
             this.currentDate.setMonth(this.currentDate.getMonth() - 1);
@@ -1166,9 +1025,24 @@ class InicioModule {
             this.abrirModalHorario();
         });
         
-        document.getElementById('btnGerenciarDisciplinas')?.addEventListener('click', () => {
-            this.abrirModalDisciplinas();
-        });
+        const btnGerenciar = document.getElementById('btnGerenciarDisciplinas');
+        if (btnGerenciar) {
+            const novoBtn = btnGerenciar.cloneNode(true);
+            btnGerenciar.parentNode.replaceChild(novoBtn, btnGerenciar);
+            
+            novoBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Inicio] 🎯 Botão "Gerenciar Disciplinas" clicado!');
+                
+                if (this.app?.modules?.disciplinas) {
+                    this.app.modules.disciplinas.abrirModal();
+                } else {
+                    console.error('[Inicio] ❌ DisciplinasModule não disponível!');
+                    this.showToast('Módulo de disciplinas não disponível', 'error');
+                }
+            });
+        }
         
         document.getElementById('startStudy')?.addEventListener('click', () => {
             this.toggleTimer();
@@ -1186,41 +1060,92 @@ class InicioModule {
             if (e.target === e.currentTarget) this.fecharModalMateria();
         });
         
-        document.getElementById('modalDisciplinas')?.addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) this.fecharModalDisciplinas();
-        });
+        // ⭐ Listener no input de nome para destacar chips
+        const subjectNameInput = document.getElementById('subjectNameInput');
+        if (subjectNameInput && !subjectNameInput._inicioListener) {
+            subjectNameInput._inicioListener = true;
+            subjectNameInput.addEventListener('input', () => {
+                const nome = subjectNameInput.value.trim().toLowerCase();
+                const chips = document.querySelectorAll('#subjectDisciplinasChips .disciplina-chip:not(.chip-nova)');
+                
+                chips.forEach(chip => {
+                    const chipNome = chip.dataset.nome?.toLowerCase() || '';
+                    const cor = chip.dataset.cor || '#8b5cf6';
+                    
+                    if (nome && chipNome === nome) {
+                        chip.classList.add('active');
+                        chip.style.borderColor = cor;
+                        chip.style.background = `${cor}20`;
+                    } else {
+                        chip.classList.remove('active');
+                        chip.style.borderColor = '';
+                        chip.style.background = '';
+                    }
+                });
+            });
+        }
         
-        document.getElementById('formDisciplina')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.salvarDisciplina();
-        });
+        // ⭐ DISCIPLINAS ATUALIZADAS - SÓ renderSubjects COM DEBOUNCE
+        if (!window._inicioDisciplinasListener) {
+            window._inicioDisciplinasListener = true;
+            let _debounceTimer = null;
+            window.addEventListener('disciplinasUpdated', () => {
+                if (_debounceTimer) clearTimeout(_debounceTimer);
+                _debounceTimer = setTimeout(() => {
+                    const viewAtiva = document.getElementById('view-inicio')?.classList.contains('active');
+                    if (!viewAtiva) return;
+                    
+                    console.log('[Inicio] 📚 Disciplinas atualizadas (debounced)');
+                    if (window.app?.modules?.inicio) {
+                        window.app.modules.inicio.renderSubjects();
+                    }
+                    
+                    // ⭐ Se o modal de matéria estiver aberto, atualizar chips
+                    const subjectModalAberto = document.getElementById('subjectModal')?.classList.contains('active');
+                    if (subjectModalAberto && window.app?.modules?.inicio) {
+                        window.app.modules.inicio.renderizarChipsDisciplinas();
+                    }
+                }, 300);
+            });
+        }
         
-        document.getElementById('discCor')?.addEventListener('input', function() {
-            document.getElementById('colorHexDisplay').textContent = this.value;
-        });
-        
-        window.addEventListener('cloudDataLoaded', () => {
-            this.tasks = this.app.data.tasks || [];
-            this.notes = this.app.data.notes || [];
-            this.calendarEvents = this.app.data.calendarEvents || [];
-            this.weeklySchedule = this.app.data.weeklySchedule || {};
-            this.timeSlots = this.app.data.timeSlots || [];
-            this.notifications = this.app.data.notifications || [];
-            this.disciplinas = this.app.data.disciplinas || [];
-            this.profile = this.app.data.profile || {};
-            
-            this.renderStats();
-            this.renderProgress();
-            this.renderCalendar();
-            this.renderNextClass();
-            this.renderNextTask();
-            this.renderNotifications();
-            this.renderSchedule();
-            this.renderStudyHours();
-            this.renderSubjects();
-            this.renderPhrase();
-            this.updateBadge();
-        });
+        // ⭐ CLOUD DATA LOADED - DEBOUNCE
+        if (!window._inicioCloudListener) {
+            window._inicioCloudListener = true;
+            let _cloudDebounce = null;
+            window.addEventListener('cloudDataLoaded', () => {
+                if (_cloudDebounce) clearTimeout(_cloudDebounce);
+                _cloudDebounce = setTimeout(() => {
+                    console.log('[Inicio] ☁️ Cloud data loaded (debounced)');
+                    if (!window.app?.modules?.inicio) return;
+                    
+                    const viewAtiva = document.getElementById('view-inicio')?.classList.contains('active');
+                    if (!viewAtiva) return;
+                    
+                    const inicio = window.app.modules.inicio;
+                    inicio.tasks = window.app.data.tasks || [];
+                    inicio.notes = window.app.data.notes || [];
+                    inicio.calendarEvents = window.app.data.calendarEvents || [];
+                    inicio.weeklySchedule = window.app.data.weeklySchedule || {};
+                    inicio.timeSlots = window.app.data.timeSlots || [];
+                    inicio.notifications = window.app.data.notifications || [];
+                    inicio.disciplinas = window.app.data.disciplinas || [];
+                    inicio.profile = window.app.data.profile || {};
+                    
+                    inicio.renderStats();
+                    inicio.renderProgress();
+                    inicio.renderCalendar();
+                    inicio.renderNextClass();
+                    inicio.renderNextTask();
+                    inicio.renderNotifications();
+                    inicio.renderSchedule();
+                    inicio.renderStudyHours();
+                    inicio.renderSubjects();
+                    inicio.renderPhrase();
+                    inicio.updateBadge();
+                }, 500);
+            });
+        }
         
         window.addEventListener('profilePhotoUpdated', (event) => {
             if (event.detail && event.detail.photoUrl) {

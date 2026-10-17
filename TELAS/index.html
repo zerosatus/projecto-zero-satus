@@ -5,16 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zero Satus - Painel do Aluno</title>
     
-    <!-- Favicon -->
     <link rel="icon" href="../imagem/favicon.png" type="image/png">
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- CSS Base -->
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/modals.css">
@@ -29,11 +23,36 @@
 </head>
 <body>
 
+<!-- ========================================== -->
+<!-- VERIFICAÇÃO DE LOGIN - ANTES DE TUDO      -->
+<!-- ========================================== -->
+<script>
+    (function() {
+        console.log('[SPA] 🔍 Verificando autenticação...');
+        const usuario = localStorage.getItem('usuarioLogado');
+        
+        if (!usuario) {
+            console.log('[SPA] ❌ Não logado, redirecionando...');
+            window.location.href = 'login/index.html';
+            return;
+        }
+        
+        try {
+            const user = JSON.parse(usuario);
+            if (!user.id || !user.email) {
+                console.log('[SPA] ❌ Inválido, redirecionando...');
+                window.location.href = 'login/index.html';
+                return;
+            }
+            console.log('[SPA] ✅ Logado:', user.email);
+        } catch(e) {
+            window.location.href = 'login/index.html';
+        }
+    })();
+</script>
+
 <div id="app">
     
-    <!-- ========================================== -->
-    <!-- SIDEBAR FIXA                              -->
-    <!-- ========================================== -->
     <aside class="sidebar" id="sidebar">
         <div class="logo">
             <i class="fas fa-graduation-cap"></i>
@@ -42,46 +61,34 @@
         
         <nav class="menu">
             <a class="menu-item active" data-view="inicio">
-                <i class="fas fa-home"></i>
-                <span>Início</span>
+                <i class="fas fa-home"></i><span>Início</span>
             </a>
             <a class="menu-item" data-view="dashboard">
-                <i class="fas fa-chart-line"></i>
-                <span>Dashboard</span>
+                <i class="fas fa-chart-line"></i><span>Dashboard</span>
             </a>
             <a class="menu-item" data-view="calendario">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Calendário</span>
+                <i class="fas fa-calendar-alt"></i><span>Calendário</span>
             </a>
             <a class="menu-item" data-view="tarefas">
-                <i class="fas fa-tasks"></i>
-                <span>Tarefas</span>
+                <i class="fas fa-tasks"></i><span>Tarefas</span>
             </a>
             <a class="menu-item" data-view="anotacoes">
-                <i class="fas fa-sticky-note"></i>
-                <span>Anotações</span>
+                <i class="fas fa-sticky-note"></i><span>Anotações</span>
             </a>
-            <!-- IA removida da sidebar -->
         </nav>
         
         <div class="menu-bottom">
             <div class="logout-section">
                 <button class="logout-btn" id="logoutBtn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sair</span>
+                    <i class="fas fa-sign-out-alt"></i><span>Sair</span>
                 </button>
             </div>
         </div>
     </aside>
 
-    <!-- ========================================== -->
-    <!-- CONTEÚDO PRINCIPAL                        -->
-    <!-- ========================================== -->
     <main class="main-content" id="main-content">
 
-        <!-- ========================================== -->
-        <!-- VIEW: INÍCIO                              -->
-        <!-- ========================================== -->
+        <!-- VIEW: INÍCIO -->
         <section id="view-inicio" class="view active">
             <div class="page-header">
                 <div>
@@ -100,9 +107,7 @@
                 </div>
             </div>
             
-            <!-- ====== LINHA 1: PERFIL + CALENDÁRIO ====== -->
             <div class="row-profile-calendar">
-                
                 <div class="card-profile">
                     <div class="profile-header">
                         <div class="profile-avatar">
@@ -151,7 +156,7 @@
                 <div class="card-calendar">
                     <div class="calendar-header">
                         <button class="cal-nav" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
-                        <span id="currentMonth">Agosto 2026</span>
+                        <span id="currentMonth">Outubro 2026</span>
                         <button class="cal-nav" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
                     </div>
                     <div class="calendar-weekdays">
@@ -162,7 +167,6 @@
                 </div>
             </div>
 
-            <!-- ====== LINHA 2: PRÓXIMA AULA/TAREFA + NOTIFICAÇÕES ====== -->
             <div class="row-next-notifications">
                 <div class="col-next-tasks">
                     <div class="card-next purple">
@@ -192,7 +196,6 @@
                 </div>
             </div>
 
-            <!-- ====== LINHA 3: HORÁRIO SEMANAL ====== -->
             <div class="row-schedule">
                 <div class="card-schedule">
                     <div class="schedule-header">
@@ -212,7 +215,6 @@
                 </div>
             </div>
 
-            <!-- ====== LINHA 4: HORAS ESTUDO + DISCIPLINAS ====== -->
             <div class="row-study-subjects">
                 <div class="card-study-hours">
                     <h4>Total de Horas de Estudo</h4>
@@ -250,7 +252,6 @@
                 </div>
             </div>
 
-            <!-- ====== LINHA 5: FRASE DO DIA ====== -->
             <div class="row-phrase">
                 <div class="card-phrase">
                     <h4>Frase do Dia</h4>
@@ -265,7 +266,7 @@
                 <div class="col-empty"></div>
             </div>
 
-            <!-- MODAIS -->
+            <!-- MODAL: HORÁRIO SEMANAL -->
             <div class="modal" id="editScheduleModal">
                 <div class="modal-content schedule-modal-content">
                     <div class="modal-header">
@@ -277,7 +278,7 @@
                             <div class="edit-schedule-grid" id="editScheduleGrid"></div>
                         </div>
                         <div class="add-time-section">
-                            <h3><i class="fas fa-plus-circle"></i> Adicionar Novo Horário à Grade</h3>
+                            <h3><i class="fas fa-plus-circle"></i> Adicionar Novo Horário</h3>
                             <div class="add-time-controls">
                                 <input type="time" id="newTimeInput" value="11:00">
                                 <button class="btn-add-time" onclick="adicionarHorario()"><i class="fas fa-plus"></i> Adicionar</button>
@@ -291,6 +292,7 @@
                 </div>
             </div>
 
+            <!-- MODAL: MATÉRIA -->
             <div class="modal" id="subjectModal">
                 <div class="modal-content subject-modal-content">
                     <div class="modal-header">
@@ -299,9 +301,12 @@
                     </div>
                     <form id="subjectForm" onsubmit="salvarMateria(event)">
                         <div class="form-group">
+                            <label>Suas disciplinas (clique para usar):</label>
+                            <div class="disciplinas-chips" id="subjectDisciplinasChips"></div>
+                        </div>
+                        <div class="form-group">
                             <label>Nome da Matéria</label>
-                            <input type="text" id="subjectNameInput" placeholder="Ex: Matemática" required list="disciplinasList">
-                            <datalist id="disciplinasList"></datalist>
+                            <input type="text" id="subjectNameInput" placeholder="Ex: Matemática" required autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label>Professor (Opcional)</label>
@@ -347,67 +352,9 @@
                     </form>
                 </div>
             </div>
-
-            <div class="modal" id="modalDisciplinas">
-                <div class="modal-content modal-disciplinas">
-                    <div class="modal-header">
-                        <h2><i class="fas fa-book" style="margin-right: 8px; color: var(--purple-primary);"></i>Gerenciar Minhas Disciplinas</h2>
-                        <button class="modal-close" onclick="fecharModalDisciplinas()"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="modal-disc-body">
-                        <div class="disc-form-section">
-                            <h3 id="modalDiscTitle">Nova Disciplina</h3>
-                            <form id="formDisciplina">
-                                <div class="form-group">
-                                    <label>Nome da Disciplina</label>
-                                    <input type="text" id="discNome" placeholder="Ex: Programação" required>
-                                </div>
-                                <div class="form-row-two">
-                                    <div class="form-group">
-                                        <label>Cor</label>
-                                        <div class="color-picker-wrapper">
-                                            <input type="color" id="discCor" value="#9333ea">
-                                            <span class="color-hex" id="colorHexDisplay">#9333ea</span>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Ícone</label>
-                                        <select id="discIcone">
-                                            <option value="fa-book">📖 Livro</option>
-                                            <option value="fa-square-root-variable">📐 Matemática</option>
-                                            <option value="fa-atom">⚛️ Átomo</option>
-                                            <option value="fa-flask">🧪 Laboratório</option>
-                                            <option value="fa-dna">🧬 DNA</option>
-                                            <option value="fa-globe-americas">🌍 Globo</option>
-                                            <option value="fa-language">🌐 Idioma</option>
-                                            <option value="fa-landmark">🏛️ História</option>
-                                            <option value="fa-palette">🎨 Arte</option>
-                                            <option value="fa-music">🎵 Música</option>
-                                            <option value="fa-laptop-code">💻 Código</option>
-                                            <option value="fa-calculator">🧮 Calculadora</option>
-                                            <option value="fa-pen">✏️ Escrita</option>
-                                            <option value="fa-star">⭐ Estrela</option>
-                                            <option value="fa-heart">❤️ Coração</option>
-                                            <option value="fa-bolt">⚡ Energia</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <button type="submit" class="btn-create" id="btnSalvarDisc">Criar Disciplina</button>
-                                <button type="button" class="btn-cancel" onclick="limparFormDisciplina()" style="margin-top: 8px; width: 100%;">Limpar</button>
-                            </form>
-                        </div>
-                        <div class="disc-list-section">
-                            <h3>Disciplinas Cadastradas</h3>
-                            <div class="disc-list" id="listaDisciplinas"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: DASHBOARD                           -->
-        <!-- ========================================== -->
+        <!-- VIEW: DASHBOARD -->
         <section id="view-dashboard" class="view hidden">
             <div class="page-header">
                 <div>
@@ -457,9 +404,7 @@
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: CALENDÁRIO                          -->
-        <!-- ========================================== -->
+        <!-- VIEW: CALENDÁRIO -->
         <section id="view-calendario" class="view hidden">
             <div class="page-header">
                 <div>
@@ -528,6 +473,12 @@
                             <label>Descrição</label>
                             <textarea id="eventDescription" placeholder="Detalhes do evento (opcional)"></textarea>
                         </div>
+                        <div class="form-group">
+                            <label>Disciplina (opcional)</label>
+                            <select id="eventDisciplina">
+                                <option value="">— Sem disciplina —</option>
+                            </select>
+                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Data</label>
@@ -580,9 +531,7 @@
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: TAREFAS                             -->
-        <!-- ========================================== -->
+        <!-- VIEW: TAREFAS -->
         <section id="view-tarefas" class="view hidden">
             <div class="page-header">
                 <div>
@@ -700,15 +649,7 @@
                         <div class="form-group">
                             <label>Disciplina</label>
                             <select id="disciplinaTarefa">
-                                <option value="matematica">Matemática</option>
-                                <option value="portugues">Português</option>
-                                <option value="historia">História</option>
-                                <option value="fisica">Física</option>
-                                <option value="quimica">Química</option>
-                                <option value="biologia">Biologia</option>
-                                <option value="geografia">Geografia</option>
-                                <option value="ingles">Inglês</option>
-                                <option value="outros">Outros</option>
+                                <option value="">— Sem disciplina —</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -725,9 +666,7 @@
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: ANOTAÇÕES                           -->
-        <!-- ========================================== -->
+        <!-- VIEW: ANOTAÇÕES -->
         <section id="view-anotacoes" class="view hidden">
             <div class="page-header">
                 <div>
@@ -773,7 +712,6 @@
                             </select>
                         </div>
                         <div class="toolbar-spacer"></div>
-                        <!-- 🔥 BOTÃO TOGGLE SIDEBAR -->
                         <button class="toolbar-btn" id="btnToggleSidebar" title="Ocultar/Mostrar Anotações">
                             <i class="fas fa-columns"></i>
                         </button>
@@ -785,9 +723,16 @@
                     <div class="editor-wrapper">
                         <div class="editor-header">
                             <input type="text" class="note-title" id="noteTitle" placeholder="Título da anotação...">
+                            <div class="note-disciplina-wrapper">
+                                <label for="noteDisciplina">
+                                    <i class="fas fa-book"></i> Disciplina:
+                                </label>
+                                <select id="noteDisciplina" class="note-disciplina-select">
+                                    <option value="">— Sem disciplina —</option>
+                                </select>
+                            </div>
                             <div class="note-meta"><span class="last-saved" id="lastSaved"></span></div>
                         </div>
-                        <!-- 🔥 EDITOR SEM TEXTO FIXO -->
                         <div class="editor-content" contenteditable="true" id="editor"></div>
                     </div>
                 </div>
@@ -796,6 +741,11 @@
                     <div class="sidebar-header">
                         <h3>Minhas Anotações</h3>
                         <button class="btn-new" id="btnNewNote"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="notes-filtro-wrapper">
+                        <select id="notesFiltroDisciplina" class="notes-filtro-select">
+                            <option value="">📚 Todas as disciplinas</option>
+                        </select>
                     </div>
                     <div class="notes-list" id="notesList">
                         <div style="text-align:center;padding:40px;color:var(--text-secondary)">
@@ -806,9 +756,8 @@
                 </div>
             </div>
         </section>
-        <!-- ========================================== -->
-        <!-- VIEW: DOCUMENTOS                           -->
-        <!-- ========================================== -->
+
+        <!-- VIEW: DOCUMENTOS -->
         <section id="view-documentos" class="view hidden">
             <div class="page-header">
                 <div>
@@ -837,24 +786,16 @@
                 </button>
             </div>
 
-            <!-- Categorias/Filtros -->
             <div class="documentos-categorias" id="documentos-categorias"></div>
-
-            <!-- Contador -->
             <div class="documentos-info">
                 <span id="documentos-count">0</span> documentos
             </div>
-
-            <!-- Lista de Documentos -->
             <div id="documentos-list" class="documentos-list"></div>
         </section>
-        <!-- ========================================== -->
-        <!-- VIEW: ASSISTENTE IA (TOTALMENTE ISOLADA)   -->
-        <!-- ========================================== -->
+
+        <!-- VIEW: IA -->
         <section id="view-ia" class="view hidden">
             <div class="ia-app ia-fullscreen">
-                
-                <!-- SIDEBAR DE HISTÓRICO DA IA -->
                 <aside class="ia-sidebar" id="iaSidebar">
                     <div class="sidebar-header">
                         <div class="brand">
@@ -868,21 +809,17 @@
                             <ion-icon name="close-outline"></ion-icon>
                         </button>
                     </div>
-
                     <div class="sidebar-body">
                         <button class="new-chat-btn" id="newChatBtn">
                             <ion-icon name="add"></ion-icon>
                             <span>Nova conversa</span>
                         </button>
-
                         <div class="sidebar-search">
                             <ion-icon name="search-outline"></ion-icon>
                             <input type="text" id="searchInputIA" placeholder="Buscar conversas..." autocomplete="off" />
                         </div>
-
                         <nav class="history-list" id="historyList"></nav>
                     </div>
-
                     <div class="sidebar-footer">
                         <div class="user-card">
                             <div class="user-avatar" id="userAvatarIA">U</div>
@@ -896,26 +833,19 @@
                         </div>
                     </div>
                 </aside>
-                
                 <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-                <!-- ÁREA PRINCIPAL DA IA -->
                 <main class="ia-main">
-
                     <header class="ia-topbar">
                         <button class="icon-btn menu-toggle" id="menuToggle" title="Menu">
                             <ion-icon name="menu-outline"></ion-icon>
                         </button>
-                        
                         <button class="icon-btn" id="navBackBtn" title="Voltar ao Início">
                             <ion-icon name="arrow-back-outline"></ion-icon>
                         </button>
-
                         <div class="topbar-title">
                             <span class="model-badge"><ion-icon name="sparkles"></ion-icon> Satus IA</span>
                             <span class="chat-title" id="chatTitle">Nova conversa</span>
                         </div>
-
                         <div class="topbar-actions">
                             <button class="icon-btn" id="themeToggle" title="Alternar tema">
                                 <ion-icon name="moon-outline" id="themeIcon"></ion-icon>
@@ -926,11 +856,9 @@
                             </button>
                         </div>
                     </header>
-
                     <div class="chat-scroll" id="chatScroll">
                         <div class="chat-container">
                             <div id="ia-messages-container"></div>
-
                             <div class="quick-chips" id="ia-quick-actions">
                                 <button class="chip" data-prompt="Como posso organizar meus estudos?">
                                     <ion-icon name="library-outline"></ion-icon> Organizar estudos
@@ -947,7 +875,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="composer-area">
                         <div class="composer">
                             <textarea id="ia-input" rows="1" placeholder="Envie uma mensagem para a IA..."></textarea>
@@ -955,15 +882,13 @@
                                 <ion-icon name="arrow-up"></ion-icon>
                             </button>
                         </div>
-                        <p class="composer-footer">A IA pode cometer erros. Verifique informações importantes. </p>
+                        <p class="composer-footer">A IA pode cometer erros. Verifique informações importantes.</p>
                     </div>
                 </main>
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VIEW: PERFIL                              -->
-        <!-- ========================================== -->
+        <!-- VIEW: PERFIL -->
         <section id="view-perfil" class="view hidden">
             <div class="page-header">
                 <h1>Minha Conta</h1>
@@ -996,11 +921,11 @@
                     </div>
                 </div>
                 <div class="profile-right">
-                 <div class="menu-item" data-action="documentos">
-                    <i class="fas fa-folder"></i>
-                    <span>Meus Documentos</span>
-                    <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
-                </div>
+                    <div class="menu-item" data-action="documentos">
+                        <i class="fas fa-folder"></i>
+                        <span>Meus Documentos</span>
+                        <i class="fas fa-chevron-right" style="margin-left: auto; color: var(--text-secondary);"></i>
+                    </div>
                     <div class="settings-card">
                         <h3><i class="fas fa-user"></i> Informações Pessoais</h3>
                         <div class="form-row"><div class="form-group"><label>Nome Completo</label><input type="text" id="nome" placeholder="Seu nome"></div></div>
@@ -1077,41 +1002,67 @@
 
     </main>
 </div>
+
 <!-- ========================================== -->
-<!-- VERIFICAÇÃO DE LOGIN - SPA                 -->
-<!-- ========================================== -->
-<script>
-    (function() {
-        console.log('[SPA] 🔍 Verificando autenticação...');
-        
-        // Verificar se está logado
-        const usuario = localStorage.getItem('usuarioLogado');
-        
-        if (!usuario) {
-            console.log('[SPA] ❌ Usuário não logado, redirecionando para login...');
-            window.location.href = 'login/index.html';
-            return;
-        }
-        
-        try {
-            const user = JSON.parse(usuario);
-            if (!user.id || !user.email) {
-                console.log('[SPA] ❌ Dados de usuário inválidos, redirecionando para login...');
-                window.location.href = 'login/index.html';
-                return;
-            }
-            console.log('[SPA] ✅ Usuário logado:', user.email);
-        } catch(e) {
-            console.log('[SPA] ❌ Erro ao ler dados do usuário, redirecionando para login...');
-            window.location.href = 'login/index.html';
-        }
-    })();
-</script>
-<!-- ========================================== -->
-<!-- MODAIS GLOBAIS                             -->
+<!-- MODAIS GLOBAIS -->
 <!-- ========================================== -->
 
-<!-- Modal de Notificações -->
+<div class="modal" id="modalDisciplinas">
+    <div class="modal-content modal-disciplinas">
+        <div class="modal-header">
+            <h2><i class="fas fa-book" style="margin-right: 8px; color: var(--primary-color);"></i>Gerenciar Minhas Disciplinas</h2>
+            <button class="modal-close" id="btnFecharModalDisciplinas"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-disc-body">
+            <div class="disc-form-section">
+                <h3 id="modalDiscTitle">Nova Disciplina</h3>
+                <form id="formDisciplina">
+                    <div class="form-group">
+                        <label>Nome da Disciplina</label>
+                        <input type="text" id="discNome" placeholder="Ex: Programação" required autocomplete="off">
+                    </div>
+                    <div class="form-row-two">
+                        <div class="form-group">
+                            <label>Cor</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="discCor" value="#9333ea">
+                                <span class="color-hex" id="colorHexDisplay">#9333ea</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Ícone</label>
+                            <select id="discIcone">
+                                <option value="fa-book">📖 Livro</option>
+                                <option value="fa-square-root-variable">📐 Matemática</option>
+                                <option value="fa-atom">⚛️ Átomo</option>
+                                <option value="fa-flask">🧪 Laboratório</option>
+                                <option value="fa-dna">🧬 DNA</option>
+                                <option value="fa-globe-americas">🌍 Globo</option>
+                                <option value="fa-language">🌐 Idioma</option>
+                                <option value="fa-landmark">🏛️ História</option>
+                                <option value="fa-palette">🎨 Arte</option>
+                                <option value="fa-music">🎵 Música</option>
+                                <option value="fa-laptop-code">💻 Código</option>
+                                <option value="fa-calculator">🧮 Calculadora</option>
+                                <option value="fa-pen">✏️ Escrita</option>
+                                <option value="fa-star">⭐ Estrela</option>
+                                <option value="fa-heart">❤️ Coração</option>
+                                <option value="fa-bolt">⚡ Energia</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-create" id="btnSalvarDisc">Criar Disciplina</button>
+                    <button type="button" class="btn-cancel" id="btnLimparDisc" style="margin-top: 8px; width: 100%;">Limpar</button>
+                </form>
+            </div>
+            <div class="disc-list-section">
+                <h3>Disciplinas Cadastradas</h3>
+                <div class="disc-list" id="listaDisciplinas"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="notif-modal" id="notifModal">
     <div class="notif-modal-content">
         <div class="notif-modal-header">
@@ -1129,94 +1080,77 @@
             <button class="notif-tab" data-filter="tarefas">Tarefas</button>
         </div>
         <div class="notif-list" id="notifList"></div>
-    </div>    <!-- ========================================== -->
-    <!-- MODAL: UPLOAD DOCUMENTO                    -->
-    <!-- ========================================== -->
-    <div class="modal" id="documento-modal">
-        <div class="modal-content" style="max-width: 520px;">
-            <div class="modal-header">
-                <h2><i class="fas fa-cloud-upload-alt" style="color: var(--primary-color); margin-right: 8px;"></i>Enviar Documento</h2>
-                <button class="modal-close" onclick="app.modules.documentos?.closeUploadModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="formDocumento" style="padding: 24px;">
-                <div class="form-group">
-                    <label>Nome do Documento *</label>
-                    <input type="text" id="doc-nome" placeholder="Ex: Trabalho de Matemática" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Categoria</label>
-                    <select id="doc-categoria">
-                        <option value="Trabalhos">Trabalhos</option>
-                        <option value="Provas">Provas</option>
-                        <option value="Apresentações">Apresentações</option>
-                        <option value="Artigos">Artigos</option>
-                        <option value="Outros">Outros</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Descrição (Opcional)</label>
-                    <input type="text" id="doc-descricao" placeholder="Breve descrição do documento">
-                </div>
-                
-                <div class="form-group">
-                    <label>Arquivo *</label>
-                    <div class="file-upload-area" id="file-upload-area" onclick="app.modules.documentos?.selectFile()">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span id="doc-file-preview">Clique para selecionar um arquivo</span>
-                        <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.rar" style="display:none">
-                    </div>
-                    <small style="color: var(--text-secondary); font-size: 0.65rem; display: block; margin-top: 6px;">
-                        Formatos suportados: PDF, Word, Excel, PowerPoint, Imagens, Vídeos, Áudio, ZIP. Máx: 10MB
-                    </small>
-                </div>
-                
-                <div class="modal-footer" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                    <button type="button" class="btn-cancel" onclick="app.modules.documentos?.closeUploadModal()">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                    <button type="button" class="btn-create" id="btn-save-documento">
-                        <i class="fas fa-cloud-upload-alt"></i> Enviar
-                    </button>
-                </div>
-            </form>
-        </div>
     </div>
 </div>
 
-<!-- Toast -->
+<div class="modal" id="documento-modal">
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-cloud-upload-alt" style="color: var(--primary-color); margin-right: 8px;"></i>Enviar Documento</h2>
+            <button class="modal-close" onclick="app.modules.documentos?.closeUploadModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="formDocumento" style="padding: 24px;">
+            <div class="form-group">
+                <label>Nome do Documento *</label>
+                <input type="text" id="doc-nome" placeholder="Ex: Trabalho de Matemática" required>
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <select id="doc-categoria">
+                    <option value="Trabalhos">Trabalhos</option>
+                    <option value="Provas">Provas</option>
+                    <option value="Apresentações">Apresentações</option>
+                    <option value="Artigos">Artigos</option>
+                    <option value="Outros">Outros</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Descrição (Opcional)</label>
+                <input type="text" id="doc-descricao" placeholder="Breve descrição do documento">
+            </div>
+            <div class="form-group">
+                <label>Arquivo *</label>
+                <div class="file-upload-area" id="file-upload-area" onclick="app.modules.documentos?.selectFile()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span id="doc-file-preview">Clique para selecionar um arquivo</span>
+                    <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.rar" style="display:none">
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <button type="button" class="btn-cancel" onclick="app.modules.documentos?.closeUploadModal()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="btn-create" id="btn-save-documento">
+                    <i class="fas fa-cloud-upload-alt"></i> Enviar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="toast" id="toast">
     <i class="fas fa-check-circle"></i>
     <span id="toastMessage">Operação realizada!</span>
 </div>
 
-<!-- ========================================== -->
-<!-- BOTÃO FLUTUANTE DA IA (SEMPRE VISÍVEL)    -->
-<!-- ========================================== -->
 <button class="fab-ia" id="btnOpenIA" title="Assistente IA">
     <ion-icon name="sparkles-outline"></ion-icon>
 </button>
 
 <!-- ========================================== -->
-<!-- SCRIPTS                                   -->
+<!-- SCRIPTS - APENAS OS QUE EXISTEM            -->
 <!-- ========================================== -->
 
 <!-- Serviços Compartilhados -->
 <script src="mobile-telas/supabase-client.js"></script>
 <script src="mobile-telas/database-service.js"></script>
 <script src="mobile-telas/cache-manager.js"></script>
-<script src="mobile-telas/notifications-sync.js"></script>
-<script src="mobile-telas/realtime-sync.js"></script>
-<script src="mobile-telas/shared-data.js"></script>
-<script src="mobile-telas/sync-helper.js"></script>
 <script src="mobile-telas/daily-phrases.js"></script>
-<script src="mobile-telas/notes-sync.js"></script>
-<script src="mobile-telas/maintenance-check.js"></script>
 
-<!-- Módulos JavaScript -->
+<!-- Módulos JavaScript (ORDEM CRÍTICA!) -->
+<script src="modules/disciplinas.js"></script>
 <script src="modules/inicio.js"></script>
 <script src="modules/dashboard.js"></script>
 <script src="modules/calendario.js"></script>
@@ -1225,51 +1159,35 @@
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 <script src="modules/documentos.js"></script>
-<script>// ============================================
-// multi-ai-service.js - GROQ (ATUALIZADO)
-// ⭐ NOVA API KEY
-// ⭐ MODELOS GPT-OSS ADICIONADOS
-// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
-// ⭐ HISTÓRICO DE CONVERSAS CONTÍNUO
-// ============================================
 
-console.log('🔥 [MultiAI] CARREGANDO SERVIÇO GROQ...');
+<!-- MultiAI Service -->
+<script>
+console.log('🔥 [MultiAI] CARREGANDO...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ NOVA API KEY
         this.GROQ_API_KEY = "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";
-        
         this.GROQ_MODELS = [
-            "llama-3.1-8b-instant",       // 1º - RÁPIDO
-            "llama-3.3-70b-versatile",    // 2º - QUALIDADE
-            "openai/gpt-oss-20b",         // 3º - NOVO
-            "openai/gpt-oss-120b",        // 4º - NOVO
-            "mixtral-8x7b-32768",         // 5º - Fallback
-            "qwen/qwen3.6-27b"            // 6º - ÚLTIMO
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            "mixtral-8x7b-32768",
+            "qwen/qwen3.6-27b"
         ];
-        
         this._cache = new Map();
         this._cacheMaxSize = 50;
         this._limiteDiario = 100;
         this._usosHoje = 0;
-        this._dataReset = new Date().toDateString();
-        
-        console.log('[MultiAI] 🚀 Inicializando...');
-        console.log('[MultiAI] 📌 Ordem dos modelos:');
-        this.GROQ_MODELS.forEach((m, i) => console.log(`   ${i+1}º - ${m}`));
         this._resetarLimite();
-        console.log('[MultiAI] ✅ Serviço pronto!');
+        console.log('[MultiAI] ✅ Pronto!');
     }
     
-    // ⭐ MÉTODO PARA ACESSAR DADOS DO USUÁRIO (APENAS LEITURA)
     _getUserDataContext() {
         try {
-            // Tentar obter dados do app global
             if (window.app && window.app.data) {
                 const data = window.app.data;
                 const user = window.app.user || {};
-                
                 return {
                     nome: user.nome || user.displayName || 'Estudante',
                     email: user.email || '',
@@ -1282,12 +1200,9 @@ class MultiAIService {
                     documentos: data.documentos || []
                 };
             }
-            
-            // Fallback: tentar do CacheManager
             if (window.CacheManager) {
                 return {
-                    nome: 'Estudante',
-                    email: '',
+                    nome: 'Estudante', email: '',
                     tarefas: window.CacheManager.get('tasks', []),
                     anotacoes: window.CacheManager.get('notes', []),
                     eventos: window.CacheManager.get('calendarEvents', []),
@@ -1297,464 +1212,197 @@ class MultiAIService {
                     documentos: window.CacheManager.get('documentos', [])
                 };
             }
-        } catch (e) {
-            console.warn('[MultiAI] ⚠️ Erro ao obter dados do usuário:', e);
-        }
+        } catch (e) { console.warn('[MultiAI] ⚠️', e); }
         return null;
     }
     
-    // ⭐ CONSTRUIR CONTEXTO COMPLETO COM DADOS DO USUÁRIO
     _buildFullContext(userMessage, extraContext = '') {
         const userData = this._getUserDataContext();
-        
         let context = '';
         
-        // ⭐ HISTÓRICO DA CONVERSA (últimas 10 mensagens)
         if (window.app?.modules?.ia?.messages) {
             const messages = window.app.modules.ia.messages;
             if (messages.length > 0) {
                 const ultimas = messages.slice(-10);
-                context += '\n📜 HISTÓRICO DA CONVERSA ATUAL:\n';
+                context += '\n📜 HISTÓRICO:\n';
                 ultimas.forEach(msg => {
-                    const role = msg.role === 'user' ? '👤 Usuário' : '🤖 Assistente';
+                    const role = msg.role === 'user' ? '👤' : '🤖';
                     const content = (msg.content || '').substring(0, 200);
                     context += `${role}: ${content}${(msg.content || '').length > 200 ? '...' : ''}\n`;
                 });
             }
         }
         
-        // ⭐ DADOS DO USUÁRIO (APENAS LEITURA)
         if (userData) {
-            context += `\n\n📚 DADOS DO ESTUDANTE (APENAS LEITURA - NÃO MODIFIQUE):\n`;
+            context += `\n\n📚 DADOS DO ESTUDANTE:\n`;
             context += `👤 Nome: ${userData.nome}\n`;
             context += `📧 Email: ${userData.email}\n`;
-            
-            // Tarefas
             const tarefas = userData.tarefas || [];
             const pendentes = tarefas.filter(t => !t.completed);
-            const concluidas = tarefas.filter(t => t.completed);
-            context += `\n📋 TAREFAS:\n`;
-            context += `   Total: ${tarefas.length}\n`;
-            context += `   Pendentes: ${pendentes.length}\n`;
-            context += `   Concluídas: ${concluidas.length}\n`;
-            if (pendentes.length > 0) {
-                context += `   📌 Pendentes:\n`;
-                pendentes.slice(0, 5).forEach((t, i) => {
-                    context += `      ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}\n`;
-                });
-            }
-            
-            // Anotações
-            const anotacoes = userData.anotacoes || [];
-            context += `\n📝 ANOTAÇÕES: ${anotacoes.length}\n`;
-            if (anotacoes.length > 0) {
-                anotacoes.slice(0, 3).forEach((n, i) => {
-                    context += `   ${i+1}. ${n.title || 'Sem título'}\n`;
-                });
-            }
-            
-            // Disciplinas
+            context += `\n📋 TAREFAS: Total ${tarefas.length}, Pendentes ${pendentes.length}\n`;
             const disciplinas = userData.disciplinas || [];
             context += `\n📚 DISCIPLINAS: ${disciplinas.length}\n`;
-            if (disciplinas.length > 0) {
-                disciplinas.slice(0, 8).forEach(d => {
-                    context += `   - ${d.nome}\n`;
-                });
-            }
-            
-            // Horário
-            const horario = userData.horario || {};
-            context += `\n📅 HORÁRIO SEMANAL:\n`;
-            Object.entries(horario).forEach(([dia, aulas]) => {
-                if (aulas && aulas.length > 0) {
-                    const lista = aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ');
-                    context += `   ${dia}: ${lista}\n`;
-                }
-            });
-            
-            // Documentos
-            const documentos = userData.documentos || [];
-            context += `\n📁 DOCUMENTOS: ${documentos.length}\n`;
+            disciplinas.slice(0, 8).forEach(d => { context += `   - ${d.nome}\n`; });
         }
-        
-        // Contexto extra passado
-        if (extraContext) {
-            context += `\n\n${extraContext}`;
-        }
-        
+        if (extraContext) context += `\n\n${extraContext}`;
         return context;
     }
     
     async sendMessage(prompt, context = '') {
-        console.log('[MultiAI] 📤 Enviando:', prompt.substring(0, 60) + '...');
-        
-        if (!this.temLimiteDisponivel()) {
-            return {
-                success: false,
-                error: `Limite diário de ${this._limiteDiario} perguntas atingido.`
-            };
-        }
-        
-        // ⭐ CONSTRUIR CONTEXTO COMPLETO
+        if (!this.temLimiteDisponivel()) return { success: false, error: 'Limite diário atingido.' };
         const fullContext = this._buildFullContext(prompt, context);
-        
         const cached = this._getFromCache(prompt, fullContext);
-        if (cached) {
-            console.log('[MultiAI] 📦 Resposta do cache!');
-            return { success: true, text: cached, fromCache: true };
-        }
-        
+        if (cached) return { success: true, text: cached, fromCache: true };
         const groqResult = await this._callGroqWithFallback(prompt, fullContext);
         if (groqResult.success) {
             this._incrementarUso();
             this._saveToCache(prompt, fullContext, groqResult.text);
-            console.log('[MultiAI] ✅ Resposta do Groq!');
             return { success: true, text: groqResult.text };
         }
-        
-        console.log('[MultiAI] 📝 Usando fallback local');
         const fallback = this._getFallback(prompt, fullContext);
         this._incrementarUso();
-        return {
-            success: true,
-            text: fallback,
-            fromFallback: true
-        };
+        return { success: true, text: fallback, fromFallback: true };
     }
     
     async _callGroqWithFallback(prompt, context) {
-        const errors = [];
-        
         for (let i = 0; i < this.GROQ_MODELS.length; i++) {
             const model = this.GROQ_MODELS[i];
-            console.log(`[Groq] 📡 Tentando modelo ${i+1}/${this.GROQ_MODELS.length}: ${model}`);
-            
             try {
                 const result = await this._callGroqAPI(prompt, context, model);
-                if (result.success) {
-                    console.log(`[Groq] ✅ SUCESSO com modelo: ${model}`);
-                    return { success: true, text: result.text };
-                }
-                errors.push(`[${model}] ${result.error}`);
-                console.log(`[Groq] ❌ Modelo ${model} falhou:`, result.error);
-            } catch (error) {
-                errors.push(`[${model}] ${error.message}`);
-                console.error(`[Groq] ❌ Erro no modelo ${model}:`, error.message);
-            }
+                if (result.success) return { success: true, text: result.text };
+            } catch (error) {}
         }
-        
-        return { success: false, error: `Todos os modelos falharam: ${errors.join('; ')}` };
+        return { success: false, error: 'Todos falharam' };
     }
     
     async _callGroqAPI(prompt, context, model) {
-        if (!this.GROQ_API_KEY) {
-            return { success: false, error: 'Groq não configurado' };
-        }
-        
+        if (!this.GROQ_API_KEY) return { success: false, error: 'Groq não configurado' };
         const url = 'https://api.groq.com/openai/v1/chat/completions';
+        const systemPrompt = `Você é o Zero IA, assistente de estudos do sistema Zero Satus. Responda APENAS em português do Brasil. NUNCA mostre raciocínio. Comece DIRETAMENTE com o conteúdo final.\n\n${context ? `CONTEXTO:\n${context}` : ''}`;
         
-        // ⭐ SYSTEM PROMPT ATUALIZADO COM ACESSO A DADOS
-        const systemPrompt = `Você é um assistente de estudos chamado Zero IA, integrado ao sistema Zero Satus.
-
-⚠️ REGRAS ABSOLUTAS - VIOLAR É PROIBIDO:
-1. Responda APENAS em português do Brasil. NUNCA use inglês.
-2. NUNCA mostre seu raciocínio, pensamentos ou análises.
-3. NUNCA escreva "Okay", "Let me", "First", "Now", "I need", "I should", "Another possibility", "Draft", "Analysis" ou qualquer texto em inglês.
-4. Comece sua resposta DIRETAMENTE com o conteúdo final em português.
-5. NÃO use tags como <thought>, <thinking> ou similares.
-6. Se não souber algo, diga "Desculpe, não tenho essa informação" em português.
-7. Seja claro, objetivo e útil.
-
-📊 ACESSO A DADOS DO USUÁRIO (APENAS LEITURA):
-- Você tem acesso aos dados do estudante (tarefas, anotações, disciplinas, horário, documentos)
-- USE esses dados para dar respostas personalizadas
-- NUNCA modifique, crie ou delete dados do usuário
-- Apenas LEIA e use as informações para ajudar
-
-💬 HISTÓRICO DE CONVERSA:
-- Você tem acesso ao histórico da conversa atual
-- Mantenha a CONTINUIDADE e CONTEXTO das mensagens anteriores
-- Se o usuário fizer uma pergunta de acompanhamento, responda no contexto
-
-${context ? `\nCONTEXTO COMPLETO:\n${context}` : ''}`;
-
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.GROQ_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${this.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: model,
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: prompt }
                     ],
-                    temperature: 0.0,
-                    max_tokens: 800,
-                    top_p: 0.9,
-                    stream: false
+                    temperature: 0.0, max_tokens: 800, top_p: 0.9
                 })
             });
             
-            console.log(`[Groq] 📥 Status (${model}):`, response.status);
-            
-            // TRATAR MODELOS COM PREFIXO
             if (response.status === 404 && model.includes('/')) {
                 const modelSimple = model.split('/').pop();
-                console.log(`[Groq] 🔄 Tentando sem prefixo: ${modelSimple}`);
-                
-                const response2 = await fetch(url, {
+                const r2 = await fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.GROQ_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': `Bearer ${this.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: modelSimple,
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: prompt }
                         ],
-                        temperature: 0.0,
-                        max_tokens: 800
+                        temperature: 0.0, max_tokens: 800
                     })
                 });
-                
-                if (response2.ok) {
-                    const data2 = await response2.json();
-                    const text2 = data2.choices?.[0]?.message?.content;
-                    if (text2 && text2.length > 0) {
-                        const cleanText = this._extractPortugueseResponse(text2.trim());
-                        return { success: true, text: cleanText };
-                    }
+                if (r2.ok) {
+                    const d2 = await r2.json();
+                    const t2 = d2.choices?.[0]?.message?.content;
+                    if (t2) return { success: true, text: this._extractPortugueseResponse(t2.trim()) };
                 }
             }
             
-            // TRATAR ERROS
             if (!response.ok) {
-                let errorMessage = `Erro ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error?.message || errorData.error || errorMessage;
-                } catch (e) {}
-                return { success: false, error: errorMessage };
+                let em = `Erro ${response.status}`;
+                try { const ed = await response.json(); em = ed.error?.message || em; } catch (e) {}
+                return { success: false, error: em };
             }
             
-            // PROCESSAR RESPOSTA
             const data = await response.json();
             let text = data.choices?.[0]?.message?.content;
-            
-            if (text && text.length > 0) {
-                console.log('[Groq] 📝 Tamanho original:', text.length);
-                const cleanText = this._extractPortugueseResponse(text.trim());
-                console.log('[Groq] 🧹 Tamanho limpo:', cleanText.length);
-                return { success: true, text: cleanText };
-            }
-            
+            if (text && text.length > 0) return { success: true, text: this._extractPortugueseResponse(text.trim()) };
             return { success: false, error: 'Resposta vazia' };
-            
-        } catch (error) {
-            console.error('[Groq] ❌ Erro de rede:', error.message);
-            return { success: false, error: error.message };
-        }
+        } catch (error) { return { success: false, error: error.message }; }
     }
     
-    // ⭐ EXTRAIR APENAS A RESPOSTA EM PORTUGUÊS
     _extractPortugueseResponse(text) {
         if (!text) return text;
-        
-        let cleaned = text
-            .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
-            .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
-            .replace(/\[thinking\][\s\S]*?\[\/thinking\]/gi, '')
-            .replace(/```[\s\S]*?```/g, '')
-            .trim();
-        
+        let cleaned = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').replace(/```[\s\S]*?```/g, '').trim();
         const lines = cleaned.split('\n');
         const cleanedLines = [];
-        
         for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed) continue;
-            
-            const isEnglishThought = 
-                /^(Okay|Ok|Let me|I need|I should|First|Now|So|Well|Hmm|Alright|Draft|Analysis|Step|Wait|Actually|Another|Possibility|Maybe|Perhaps|Note|Important|Considering|However|But|Also|Then|Next|Finally)/i.test(trimmed) ||
-                /(I need to|I should|Let me|I'll|I will|I can|I could|I think|I believe|I'm going|It seems|It appears|Another possibility)/i.test(trimmed);
-            
-            if (!isEnglishThought) {
-                cleanedLines.push(trimmed);
-            }
+            const isEnglishThought = /^(Okay|Ok|Let me|I need|First|Now|So|Well|Hmm|Alright)/i.test(trimmed) || /(I need to|I should|Let me|I'll|I think)/i.test(trimmed);
+            if (!isEnglishThought) cleanedLines.push(trimmed);
         }
-        
         cleaned = cleanedLines.join('\n').trim();
-        
-        if (!cleaned || cleaned.length < 5) {
-            return 'Desculpe, não consegui processar sua pergunta. Poderia reformular?';
-        }
-        
+        if (!cleaned || cleaned.length < 5) return 'Desculpe, não consegui processar. Poderia reformular?';
         return cleaned.trim();
     }
     
-    // FALLBACK LOCAL
     _getFallback(prompt, context) {
         const texto = prompt.toLowerCase();
-        
-        if (texto.includes('tarefa') || texto.includes('pendente')) {
+        if (texto.includes('tarefa')) {
             const tarefas = window.app?.data?.tasks || [];
             const pendentes = tarefas.filter(t => !t.completed);
-            if (pendentes.length === 0) {
-                return 'Você não tem tarefas pendentes. Parabéns! 🎉';
-            }
-            return `Você tem ${pendentes.length} tarefas pendentes. Acesse a aba Tarefas para vê-las.`;
+            if (pendentes.length === 0) return 'Você não tem tarefas pendentes. 🎉';
+            return `Você tem ${pendentes.length} tarefas pendentes.`;
         }
-        
-        if (texto.includes('anota') || texto.includes('nota')) {
-            const notas = window.app?.data?.notes || [];
-            return `Você tem ${notas.length} anotações salvas.`;
-        }
-        
         if (texto.includes('disciplina')) {
-            const disciplinas = window.app?.data?.disciplinas || [];
-            if (disciplinas.length === 0) {
-                return 'Nenhuma disciplina cadastrada.';
-            }
+            const disciplinas = window.app?.modules?.disciplinas?.getTodas?.() || window.app?.data?.disciplinas || [];
+            if (disciplinas.length === 0) return 'Nenhuma disciplina cadastrada.';
             return `Suas disciplinas: ${disciplinas.map(d => d.nome).join(', ')}`;
         }
-        
-        if (texto.includes('oi') || texto.includes('olá') || texto.includes('eai')) {
-            return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
-        }
-        
-        return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes?';
+        if (texto.includes('oi') || texto.includes('olá')) return 'Olá! Como posso ajudar?';
+        return 'Desculpe, não entendi. Poderia reformular?';
     }
     
-    // MÉTODOS DE LIMITE E CACHE
     _resetarLimite() {
         const hoje = new Date().toDateString();
-        const dataSalva = localStorage.getItem('pollinations_data');
-        if (dataSalva !== hoje) {
+        if (localStorage.getItem('pollinations_data') !== hoje) {
             localStorage.setItem('pollinations_data', hoje);
             localStorage.setItem('pollinations_uso', '0');
             this._usosHoje = 0;
         }
     }
-    
-    getUsoHoje() {
-        this._resetarLimite();
-        this._usosHoje = parseInt(localStorage.getItem('pollinations_uso')) || 0;
-        return this._usosHoje;
-    }
-    
-    _incrementarUso() {
-        this._resetarLimite();
-        this._usosHoje++;
-        localStorage.setItem('pollinations_uso', String(this._usosHoje));
-    }
-    
-    temLimiteDisponivel() {
-        return this.getUsoHoje() < this._limiteDiario;
-    }
-    
-    getLimiteRestante() {
-        return Math.max(0, this._limiteDiario - this.getUsoHoje());
-    }
-    
-    _getCacheKey(prompt, context) {
-        return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`;
-    }
-    
+    getUsoHoje() { this._resetarLimite(); this._usosHoje = parseInt(localStorage.getItem('pollinations_uso')) || 0; return this._usosHoje; }
+    _incrementarUso() { this._resetarLimite(); this._usosHoje++; localStorage.setItem('pollinations_uso', String(this._usosHoje)); }
+    temLimiteDisponivel() { return this.getUsoHoje() < this._limiteDiario; }
+    getLimiteRestante() { return Math.max(0, this._limiteDiario - this.getUsoHoje()); }
+    _getCacheKey(prompt, context) { return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`; }
     _getFromCache(prompt, context) {
         const key = this._getCacheKey(prompt, context);
         if (this._cache.has(key)) {
             const item = this._cache.get(key);
-            if (Date.now() - item.timestamp < 3600000) {
-                return item.value;
-            }
+            if (Date.now() - item.timestamp < 3600000) return item.value;
             this._cache.delete(key);
         }
         return null;
     }
-    
     _saveToCache(prompt, context, response) {
         const key = this._getCacheKey(prompt, context);
-        this._cache.set(key, {
-            value: response,
-            timestamp: Date.now()
-        });
-        
+        this._cache.set(key, { value: response, timestamp: Date.now() });
         if (this._cache.size > this._cacheMaxSize) {
             const keys = Array.from(this._cache.keys());
-            const oldest = keys.sort((a, b) => 
-                this._cache.get(a).timestamp - this._cache.get(b).timestamp
-            )[0];
+            const oldest = keys.sort((a, b) => this._cache.get(a).timestamp - this._cache.get(b).timestamp)[0];
             this._cache.delete(oldest);
         }
     }
-    
-    getStatus() {
-        return {
-            usoTotal: this.getUsoHoje(),
-            limiteTotal: this._limiteDiario,
-            restante: this.getLimiteRestante(),
-            cacheSize: this._cache.size,
-            modo: 'GROQ',
-            groqConfigurado: !!this.GROQ_API_KEY,
-            modelos: this.GROQ_MODELS,
-            ordem: this.GROQ_MODELS.join(' → ')
-        };
-    }
-    
-    resetLimite() {
-        localStorage.setItem('pollinations_data', new Date().toDateString());
-        localStorage.setItem('pollinations_uso', '0');
-        this._usosHoje = 0;
-        console.log('[MultiAI] Limite resetado');
-        return this.getStatus();
-    }
+    getStatus() { return { usoTotal: this.getUsoHoje(), limiteTotal: this._limiteDiario, restante: this.getLimiteRestante(), cacheSize: this._cache.size, modo: 'GROQ' }; }
+    resetLimite() { localStorage.setItem('pollinations_data', new Date().toDateString()); localStorage.setItem('pollinations_uso', '0'); this._usosHoje = 0; return this.getStatus(); }
 }
 
-// ============================================
-// INSTÂNCIA GLOBAL
-// ============================================
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
-
-window.getLimiteIA = () => {
-    const status = multiAI.getStatus();
-    return {
-        usado: status.usoTotal,
-        maximo: status.limiteTotal,
-        restante: status.restante,
-        modo: status.modo,
-        modelos: status.modelos,
-        ordem: status.ordem,
-        reset: () => multiAI.resetLimite()
-    };
-};
-
-window.testIA = async (pergunta) => {
-    console.log('🧪 Testando IA...');
-    const result = await multiAI.sendMessage(pergunta);
-    console.log('🤖 Resposta:', result);
-    return result;
-};
-
-window.verModelos = () => {
-    console.log('📌 MODELOS NA ORDEM DE TENTATIVA:');
-    multiAI.GROQ_MODELS.forEach((model, index) => {
-        console.log(`   ${index + 1}º - ${model}`);
-    });
-    return multiAI.GROQ_MODELS;
-};
-
+window.getLimiteIA = () => { const s = multiAI.getStatus(); return { usado: s.usoTotal, maximo: s.limiteTotal, restante: s.restante, modo: s.modo, reset: () => multiAI.resetLimite() }; };
+window.testIA = async (p) => await multiAI.sendMessage(p);
 console.log('[MultiAI] ✅ Serviço carregado!');
-console.log('[MultiAI] 📌 Ordem dos modelos:');
-multiAI.GROQ_MODELS.forEach((model, index) => {
-    console.log(`   ${index + 1}º - ${model}`);
-});
-console.log('[MultiAI] 💡 Teste: window.testIA("quais são minhas tarefas?")');</script>
+</script>
+
 <!-- App Principal -->
 <script src="app.js"></script>
 

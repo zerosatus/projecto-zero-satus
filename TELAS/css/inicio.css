@@ -1399,3 +1399,138 @@
         grid-template-columns: 1fr 1fr;
     }
 }
+/* ============================================
+   CHIPS DE DISCIPLINAS (Modal Adicionar Matéria)
+   ============================================ */
+.disciplinas-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary, #0f0f1a);
+    border: 1px solid var(--border-color, #2a2a4a);
+    border-radius: 10px;
+    max-height: 140px;
+    overflow-y: auto;
+    min-height: 60px;
+}
+
+.disciplina-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--card-bg, #1e1e3a);
+    border: 1px solid var(--border-color, #2a2a4a);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary, #fff);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.disciplina-chip:hover {
+    background: var(--card-bg-hover, #252545);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.disciplina-chip i {
+    font-size: 14px;
+}
+
+.disciplina-chip.active {
+    border-width: 2px;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.disciplina-chip.chip-nova {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px dashed rgba(139, 92, 246, 0.5);
+    color: #a78bfa;
+}
+
+.disciplina-chip.chip-nova:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: #8b5cf6;
+}
+
+.disciplinas-chips .chips-empty {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 13px;
+    padding: 8px;
+    text-align: center;
+    width: 100%;
+}
+/* ============================================
+   CHIPS DE DISCIPLINAS (Modal Adicionar Matéria)
+   ============================================ */
+.disciplinas-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary, #0f0f1a);
+    border: 1px solid var(--border-color, #2a2a4a);
+    border-radius: 10px;
+    max-height: 140px;
+    overflow-y: auto;
+    min-height: 60px;
+}
+
+.disciplinas-chips .chips-empty {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 13px;
+    padding: 8px;
+    text-align: center;
+    width: 100%;
+    align-self: center;
+}
+
+.disciplina-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--card-bg, #1e1e3a);
+    border: 1px solid var(--border-color, #2a2a4a);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary, #fff);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.disciplina-chip:hover {
+    background: var(--card-bg-hover, #252545);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.disciplina-chip i {
+    font-size: 14px;
+}
+
+.disciplina-chip.active {
+    border-width: 2px;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.disciplina-chip.chip-nova {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px dashed rgba(139, 92, 246, 0.5);
+    color: #a78bfa;
+}
+
+.disciplina-chip.chip-nova:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: #8b5cf6;
+}

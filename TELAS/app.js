@@ -1,7 +1,10 @@
 // ============================================
-// app.js - SPA DO PAINEL PC (COMPLETO CORRIGIDO v2)
-// COM DELETE EM CASCATA, DEBOUNCE SYNC E SINCRONIZAÇÃO TOTAL
+// app.js - SPA DO PAINEL PC (CORRIGIDO)
+// ⭐ SEM loop em disciplinasUpdated
+// ⭐ Profile nunca é sobrescrito
 // ============================================
+
+console.log('[App PC] 🚀 Iniciando aplicação PC...');
 
 class App {
     constructor() {
@@ -47,6 +50,7 @@ class App {
             'calendario': 'calendario',
             'tarefas': 'tarefas',
             'anotacoes': 'anotacoes',
+            'notas': 'anotacoes',
             'perfil': 'perfil',
             'ia': 'ia',
             'disciplinas': 'disciplinas',
@@ -57,7 +61,7 @@ class App {
     }
     
     // ============================================
-    // ⭐ CRIAR OVERLAY DE LOADING
+    // LOADING OVERLAY
     // ============================================
     createLoadingOverlay() {
         if (this._loadingOverlay) return;
@@ -65,112 +69,54 @@ class App {
         this._loadingOverlay = document.createElement('div');
         this._loadingOverlay.id = 'app-loading-overlay';
         this._loadingOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.92);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 99999;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 99999; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             transition: opacity 0.6s ease;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         `;
         
         const logo = document.createElement('div');
         logo.className = 'loading-logo';
-        logo.style.cssText = `
-            width: 120px;
-            height: 120px;
-            margin-bottom: 24px;
-            animation: loadingPulse 1.8s ease-in-out infinite;
-        `;
+        logo.style.cssText = `width: 120px; height: 120px; margin-bottom: 24px; animation: loadingPulse 1.8s ease-in-out infinite;`;
         logo.innerHTML = `<img src="https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png" alt="Zero Satus" style="width:100%;height:100%;object-fit:contain;">`;
         
         const spinner = document.createElement('div');
         spinner.className = 'loading-spinner';
-        spinner.style.cssText = `
-            width: 48px;
-            height: 48px;
-            border: 4px solid rgba(139, 92, 246, 0.15);
-            border-top-color: #8b5cf6;
-            border-radius: 50%;
-            animation: loadingSpin 0.8s linear infinite;
-            margin-bottom: 20px;
-        `;
+        spinner.style.cssText = `width: 48px; height: 48px; border: 4px solid rgba(139, 92, 246, 0.15); border-top-color: #8b5cf6; border-radius: 50%; animation: loadingSpin 0.8s linear infinite; margin-bottom: 20px;`;
         
         const title = document.createElement('h2');
         title.className = 'loading-title';
-        title.style.cssText = `
-            color: #ffffff;
-            font-size: 22px;
-            font-weight: 700;
-            margin: 0 0 6px 0;
-            letter-spacing: 0.5px;
-        `;
+        title.style.cssText = `color: #ffffff; font-size: 22px; font-weight: 700; margin: 0 0 6px 0; letter-spacing: 0.5px;`;
         title.textContent = 'Carregando...';
         
         const subtitle = document.createElement('p');
         subtitle.className = 'loading-subtitle';
         subtitle.id = 'loading-status';
-        subtitle.style.cssText = `
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
-            margin: 0 0 20px 0;
-            font-weight: 400;
-        `;
+        subtitle.style.cssText = `color: rgba(255, 255, 255, 0.5); font-size: 14px; margin: 0 0 20px 0;`;
         subtitle.textContent = 'Preparando seus dados...';
         
         const progressContainer = document.createElement('div');
         progressContainer.className = 'loading-progress-container';
-        progressContainer.style.cssText = `
-            width: 240px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 4px;
-        `;
+        progressContainer.style.cssText = `width: 240px; height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 4px; overflow: hidden; margin-top: 4px;`;
         
         const progressBar = document.createElement('div');
         progressBar.className = 'loading-progress-bar';
         progressBar.id = 'loading-progress-bar';
-        progressBar.style.cssText = `
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #8b5cf6, #6366f1, #a78bfa);
-            border-radius: 4px;
-            transition: width 0.4s ease;
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-        `;
+        progressBar.style.cssText = `width: 0%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #6366f1, #a78bfa); border-radius: 4px; transition: width 0.4s ease;`;
         progressContainer.appendChild(progressBar);
         
         const status = document.createElement('p');
         status.className = 'loading-status';
         status.id = 'loading-status-text';
-        status.style.cssText = `
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 12px;
-            margin-top: 14px;
-            font-weight: 300;
-            letter-spacing: 0.3px;
-        `;
+        status.style.cssText = `color: rgba(255, 255, 255, 0.4); font-size: 12px; margin-top: 14px;`;
         status.textContent = 'Inicializando...';
         
         const style = document.createElement('style');
         style.textContent = `
-            @keyframes loadingPulse {
-                0%, 100% { transform: scale(1); opacity: 1; }
-                50% { transform: scale(1.06); opacity: 0.85; }
-            }
-            @keyframes loadingSpin {
-                to { transform: rotate(360deg); }
-            }
+            @keyframes loadingPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: 0.85; } }
+            @keyframes loadingSpin { to { transform: rotate(360deg); } }
         `;
         
         this._loadingOverlay.appendChild(logo);
@@ -184,9 +130,6 @@ class App {
         document.body.appendChild(this._loadingOverlay);
     }
     
-    // ============================================
-    // ⭐ ATUALIZAR STATUS DO LOADING
-    // ============================================
     updateLoadingStatus(message, progress = null) {
         const statusEl = document.getElementById('loading-status');
         if (statusEl) statusEl.textContent = message;
@@ -200,9 +143,6 @@ class App {
         }
     }
     
-    // ============================================
-    // ⭐ FECHAR OVERLAY DE LOADING
-    // ============================================
     closeLoadingOverlay() {
         if (this._loadingOverlay) {
             this._loadingOverlay.style.opacity = '0';
@@ -215,48 +155,24 @@ class App {
         }
     }
     
-    // ============================================
-    // GET SUPABASE CLIENT
-    // ============================================
     getSupabase() {
         if (window.SupabaseClient?.getClient) {
             const client = window.SupabaseClient.getClient();
             if (client) return client;
         }
-        
-        if (window.SupabaseClient?.client) {
-            return window.SupabaseClient.client;
-        }
-        
-        if (window.supabaseClient) {
-            return window.supabaseClient;
-        }
-        
+        if (window.SupabaseClient?.client) return window.SupabaseClient.client;
+        if (window.supabaseClient) return window.supabaseClient;
         return null;
     }
     
-    // ============================================
-    // ⭐ OBTER NOME DO USUÁRIO
-    // ============================================
     getNomeUsuario() {
         if (!this.user) return 'Usuário';
-        
-        return this.user.nome || 
-               this.user.displayName || 
-               this.user.full_name || 
-               this.user.name ||
-               this.user.email?.split('@')[0] || 
-               'Usuário';
+        return this.user.nome || this.user.displayName || this.user.full_name || this.user.name ||
+               this.user.email?.split('@')[0] || 'Usuário';
     }
     
-    // ============================================
-    // ⭐ INICIALIZAÇÃO
-    // ============================================
     async init() {
-        if (this._isInitializing) {
-            console.log('[App PC] ⏳ Já inicializando...');
-            return;
-        }
+        if (this._isInitializing) return;
         this._isInitializing = true;
         
         this.createLoadingOverlay();
@@ -286,102 +202,64 @@ class App {
         const iniciais = nomeExibicao.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
         
-        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
         if (window.CacheManager) {
             console.log('[App PC] 🔄 Inicializando CacheManager...');
             window.CacheManager.init();
             window.CacheManager.currentUserId = this.user.id;
-            console.log('[App PC] ✅ CacheManager inicializado com userId:', this.user.id);
-        } else {
-            console.warn('[App PC] ⚠️ CacheManager não encontrado, tentando carregar...');
-            const script = document.createElement('script');
-            script.src = 'mobile-telas/cache-manager.js';
-            script.onload = () => {
-                if (window.CacheManager) {
-                    window.CacheManager.init();
-                    window.CacheManager.currentUserId = this.user.id;
-                    console.log('[App PC] ✅ CacheManager carregado e inicializado!');
-                }
-            };
-            script.onerror = () => {
-                console.error('[App PC] ❌ Falha ao carregar CacheManager');
-            };
-            document.head.appendChild(script);
+            console.log('[App PC] ✅ CacheManager inicializado');
         }
         
         this.updateLoadingStatus('Inicializando cache...', 20);
-        console.log('[App PC] ✅ CacheManager inicializado');
         
-        // Aguardar Supabase
         this.updateLoadingStatus('Conectando ao servidor...', 25);
         await this.waitForSupabase();
         
-        // Inicializar Sync
         this.updateLoadingStatus('Inicializando sincronização...', 30);
         if (window.initSync) {
             try {
                 await window.initSync({ force: false });
-                console.log('[App PC] ✅ Sync inicializado');
             } catch(e) {
                 console.warn('[App PC] ⚠️ Erro no sync:', e);
             }
         }
         
-        // Carregar módulos
         this.updateLoadingStatus('Carregando módulos...', 40);
         this.loadModules();
         
-        // Carregar dados da nuvem
         this.updateLoadingStatus('Carregando dados da nuvem...', 45);
         await this.loadDataFromCloud();
         
-        // Carregar dados locais
         this.updateLoadingStatus('Carregando dados locais...', 55);
         await this.loadData();
         
-        // Configurar navegação
         this.updateLoadingStatus('Configurando...', 70);
         this.setupNavigation();
         
-        // Configurar eventos
         this.updateLoadingStatus('Preparando...', 80);
         this.setupEvents();
         
-        // Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 90);
         this.showView('inicio');
         
-        // Atualizar badge
         this.updateLoadingStatus('Atualizando...', 95);
         this.updateBadge();
         
-        // Carregar notificações do Supabase
         this.updateLoadingStatus('Carregando notificações...', 96);
         await this.loadNotificationsFromSupabase();
         
-        // Fechar loading
         this.updateLoadingStatus('Pronto!', 100);
-        setTimeout(() => {
-            this.closeLoadingOverlay();
-        }, 400);
+        setTimeout(() => { this.closeLoadingOverlay(); }, 400);
         
         this._isInitializing = false;
         console.log('[App PC] ✅ Aplicação pronta!');
     }
     
-    // ============================================
-    // ⭐ ATUALIZAR NOME DO USUÁRIO
-    // ============================================
     atualizarNomeUsuario(nome) {
-        if (!nome && this.user) {
-            nome = this.getNomeUsuario();
-        }
+        if (!nome && this.user) nome = this.getNomeUsuario();
         
-        const ids = [
-            'userNameDisplay', 'userName', 'userName2', 'userName3', 
-            'userName4', 'userName5', 'userNameIA', 'miniName',
-            'header-name', 'profile-name'
-        ];
+        const ids = ['userNameDisplay', 'userName', 'userName2', 'userName3', 
+                     'userName4', 'userName5', 'userNameIA', 'miniName',
+                     'header-name', 'profile-name'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = nome;
@@ -395,30 +273,18 @@ class App {
         
         const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
-        
-        console.log('[App PC] 📛 Nome atualizado:', nome);
     }
     
-    // ============================================
-    // ⭐ ATUALIZAR AVATAR
-    // ============================================
     atualizarAvatar(iniciais) {
-        const ids = [
-            'userAvatar', 'userAvatar2', 'userAvatar3', 
-            'userAvatar4', 'userAvatar5', 'userAvatarIA'
-        ];
+        const ids = ['userAvatar', 'userAvatar2', 'userAvatar3', 'userAvatar4', 'userAvatar5', 'userAvatarIA'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = iniciais || 'U';
         });
     }
     
-    // ============================================
-    // ⭐ CARREGAR AVATAR
-    // ============================================
     async carregarAvatar() {
         if (!this.user) return;
-        
         const miniAvatar = document.getElementById('miniAvatar');
         const avatarImage = document.getElementById('avatarImage');
         
@@ -429,38 +295,25 @@ class App {
                 if (avatarImage) avatarImage.src = photoUrl;
                 this.user.profilePhotoUrl = photoUrl;
                 localStorage.setItem('usuarioLogado', JSON.stringify(this.user));
-                console.log('[App PC] 🖼️ Avatar carregado');
             }
         }
     }
     
-    // ============================================
-    // ⭐ AGUARDAR SUPABASE
-    // ============================================
     async waitForSupabase() {
-        if (this.getSupabase()) {
-            console.log('[App PC] ✅ Supabase já disponível');
-            return true;
-        }
-        
-        console.log('[App PC] ⏳ Aguardando Supabase inicializar...');
+        if (this.getSupabase()) return true;
         
         if (window.SupabaseClient?.initSupabase) {
             window.SupabaseClient.initSupabase();
         }
         
         let attempts = 0;
-        const maxAttempts = 50;
-        
         return new Promise((resolve) => {
             const checkInterval = setInterval(() => {
                 attempts++;
                 if (this.getSupabase()) {
-                    console.log('[App PC] ✅ Supabase pronto!');
                     clearInterval(checkInterval);
                     resolve(true);
-                } else if (attempts >= maxAttempts) {
-                    console.warn('[App PC] ⚠️ Timeout aguardando Supabase - continuando offline');
+                } else if (attempts >= 50) {
                     clearInterval(checkInterval);
                     resolve(false);
                 }
@@ -468,30 +321,29 @@ class App {
         });
     }
     
-    // ============================================
-    // ⭐ CARREGAR DADOS DA NUVEM
-    // ============================================
     async loadDataFromCloud() {
         try {
-            if (!window.CacheManager) {
-                console.warn('[App PC] ⚠️ CacheManager não disponível');
-                return false;
-            }
-            
-            console.log('[App PC] ☁️ Carregando dados da nuvem...');
+            if (!window.CacheManager) return false;
             const result = await window.CacheManager.loadFromCloud(true);
-            console.log('[App PC] ✅ Dados da nuvem carregados:', result ? 'com alterações' : 'sem alterações');
             return result;
         } catch (error) {
-            console.error('[App PC] ❌ Erro ao carregar dados da nuvem:', error);
+            console.error('[App PC] ❌ Erro nuvem:', error);
             return false;
         }
     }
     
-    // ============================================
-    // ⭐ CARREGAR DADOS (LOCAL + CACHE)
-    // ============================================
     async loadData() {
+        const usuario = localStorage.getItem('usuarioLogado');
+        if (usuario) {
+            try {
+                this.data.profile = JSON.parse(usuario);
+                console.log('[App PC] 👤 Perfil carregado do localStorage');
+            } catch(e) {
+                console.warn('[App PC] ⚠️ Erro ao ler usuarioLogado:', e);
+                this.data.profile = {};
+            }
+        }
+        
         if (window.CacheManager) {
             this.data.tasks = window.CacheManager.get('tasks', []);
             this.data.notes = window.CacheManager.get('notes', []);
@@ -501,384 +353,184 @@ class App {
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
             this.data.documentos = window.CacheManager.get('documentos', []);
-            this.data.profile = window.CacheManager.get('usuarioLogado', {});
             
-            // Garantir estrutura do horário
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
-                if (!this.data.weeklySchedule[day]) {
-                    this.data.weeklySchedule[day] = [];
-                }
+                if (!this.data.weeklySchedule[day]) this.data.weeklySchedule[day] = [];
             });
             
-            // ⭐ FILTRAR NOTAS FANTASMAS
             if (Array.isArray(this.data.notes)) {
-                const filtradas = this.data.notes.filter(n => {
+                this.data.notes = this.data.notes.filter(n => {
                     const hasTitle = n.title && n.title.trim().length > 0;
                     const hasContent = n.content && n.content.trim().length > 0 && 
-                                      n.content !== '<br>' && 
-                                      n.content !== '<div><br></div>' &&
-                                      n.content !== '<p><br></p>';
+                                      n.content !== '<br>' && n.content !== '<div><br></div>' && n.content !== '<p><br></p>';
                     return hasTitle || hasContent;
                 });
-                if (filtradas.length !== this.data.notes.length) {
-                    console.log(`[App PC] 🧹 Removidas ${this.data.notes.length - filtradas.length} notas fantasmas`);
-                    this.data.notes = filtradas;
-                    window.CacheManager.set('notes', filtradas, true);
-                }
             }
             
-            // ⭐ LIMPEZA DE DOCUMENTOS VAZIOS (URLs de Storage são curtas, não ocupam espaço)
-            if (Array.isArray(this.data.documentos)) {
-                const filtrados = this.data.documentos.filter(doc => {
-                    // Só remove se faltar o nome ou o arquivo
-                    if (!doc.nome || doc.nome.trim() === '') return false;
-                    if (!doc.arquivo || doc.arquivo.trim() === '') return false;
-                    // Aviso (não remove) se ainda houver Base64 antigo grande
-                    if (doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                        console.warn('[App PC] ⚠️ Documento Base64 antigo grande (recomenda-se reenviar):', doc.nome);
-                    }
-                    return true;
-                });
-                if (filtrados.length !== this.data.documentos.length) {
-                    console.log(`[App PC] 🧹 Removidos ${this.data.documentos.length - filtrados.length} documentos vazios`);
-                    this.data.documentos = filtrados;
-                    window.CacheManager.set('documentos', filtrados, true);
-                }
-            }
-            
-            console.log('[App PC] 📊 Dados carregados:');
-            console.log(`   - Tarefas: ${this.data.tasks.length}`);
-            console.log(`   - Anotações: ${this.data.notes.length}`);
-            console.log(`   - Eventos: ${this.data.calendarEvents.length}`);
-            console.log(`   - Notificações: ${this.data.notifications.length}`);
-            console.log(`   - Disciplinas: ${this.data.disciplinas.length}`);
-            console.log(`   - Documentos: ${this.data.documentos.length}`);
+            console.log('[App PC] 📊 Dados carregados:', {
+                tasks: this.data.tasks.length,
+                notes: this.data.notes.length,
+                disciplinas: this.data.disciplinas.length
+            });
             
             if (this.data.profile && this.data.profile.nome) {
                 this.atualizarNomeUsuario(this.data.profile.nome);
             }
-            
             this.carregarAvatar();
         }
     }
     
-    // ============================================
-    // ⭐ SALVAR DADOS (CORRIGIDO COM DEBOUNCE DE 2s)
-    // ⭐ APLICADA A MESMA CORREÇÃO DO MOBILE
-    // ============================================
-    async saveAllData() {
-        if (this.isSaving) return;
-        this.isSaving = true;
+   async saveAllData() {
+    if (this.isSaving) return;
+    this.isSaving = true;
+    
+    if (!window.CacheManager) { this.isSaving = false; return; }
+    const userId = this.user?.id;
+    if (!userId) { this.isSaving = false; return; }
+    
+    try {
+        // ... filtros ...
         
-        if (!window.CacheManager) {
-            console.error('[App PC] ❌ CacheManager não disponível');
-            this.isSaving = false;
-            return;
+        for (const key of Object.keys(this.data)) {
+            if (SKIP_KEYS.includes(key)) continue;
+            if (this.data[key] !== undefined && this.data[key] !== null) {
+                // ⭐ false = salva local, não dispara sync imediato
+                window.CacheManager.set(key, this.data[key], false);
+            }
         }
         
-        const userId = this.user?.id;
-        if (!userId) {
-            console.warn('[App PC] ⚠️ Usuário não logado para salvar');
-            this.isSaving = false;
-            return;
-        }
+        // ⭐ NÃO forçar sync global — cada módulo já salva o que precisa
+        // O CacheManager tem seu próprio debounce interno
+        if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
+        window.CacheManager._syncTimeout = setTimeout(() => {
+            if (window.CacheManager.forceSyncNotes) {
+                // ⭐ Só sincroniza notes se tiver notas
+                window.CacheManager.forceSyncNotes().catch(() => {});
+            }
+        }, 3000);
         
-        try {
-            // ⭐ FILTRAR NOTAS FANTASMAS
-            if (Array.isArray(this.data.notes)) {
-                const antes = this.data.notes.length;
-                this.data.notes = this.data.notes.filter(n => {
-                    const hasTitle = n.title && n.title.trim().length > 0;
-                    const hasContent = n.content && n.content.trim().length > 0 && 
-                                      n.content !== '<br>' && 
-                                      n.content !== '<div><br></div>' &&
-                                      n.content !== '<p><br></p>';
-                    return hasTitle || hasContent;
-                });
-                if (this.data.notes.length !== antes) {
-                    console.log(`[App PC] 🧹 Removidas ${antes - this.data.notes.length} notas fantasmas ao salvar`);
-                }
-            }
-            
-            // ⭐ LIMPEZA DE DOCUMENTOS VAZIOS AO SALVAR
-            if (Array.isArray(this.data.documentos)) {
-                const antes = this.data.documentos.length;
-                this.data.documentos = this.data.documentos.filter(doc => {
-                    if (!doc.nome || doc.nome.trim() === '') return false;
-                    if (!doc.arquivo || doc.arquivo.trim() === '') return false;
-                    if (doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                        console.warn('[App PC] ⚠️ Documento Base64 antigo grande (recomenda-se reenviar):', doc.nome);
-                    }
-                    return true;
-                });
-                if (this.data.documentos.length !== antes) {
-                    console.log(`[App PC] 🧹 Removidos ${antes - this.data.documentos.length} documentos vazios ao salvar`);
-                }
-            }
-            
-            console.log('[App PC] 💾 Salvando dados...');
-            let savedCount = 0;
-            
-            // Salvar cada tipo no CacheManager (local + fila de sync)
-            for (const key of Object.keys(this.data)) {
-                if (this.data[key] !== undefined && this.data[key] !== null) {
-                    const result = window.CacheManager.set(key, this.data[key], true);
-                    if (result) savedCount++;
-                }
-            }
-            
-            console.log(`[App PC] ✅ ${savedCount} tipos salvos no CacheManager`);
-            
-            // ⭐ DEBOUNCE DE 2s - NÃO FAZER forceSync IMEDIATO
-            // ⭐ O sync-helper.js já faz sync periódico a cada 30s
-            // ⭐ Isto evita sobrescrever dados recentes com dados antigos da nuvem
-            if (window.CacheManager._syncTimeout) {
-                clearTimeout(window.CacheManager._syncTimeout);
-            }
-            window.CacheManager._syncTimeout = setTimeout(() => {
-                console.log('[App PC] 🔄 Executando sync (debounce 2s)...');
-                window.CacheManager.forceSync().catch((err) => {
-                    console.warn('[App PC] ⚠️ Sync falhou (silencioso):', err.message);
-                });
-            }, 2000);  // ⭐ Debounce de 2s
-            
-            console.log('[App PC] ✅ Dados salvos (sync agendado em 2s)');
-            
-        } catch (error) {
-            console.error('[App PC] ❌ Erro ao salvar dados:', error);
-        }
-        
-        setTimeout(() => { this.isSaving = false; }, 500);
+    } catch (error) {
+        console.error('[App PC] ❌ Erro ao salvar:', error);
     }
     
-    // ============================================
-    // ⭐ DELETAR ITEM (COM SYNC EM CASCATA)
-    // ============================================
+    setTimeout(() => { this.isSaving = false; }, 500);
+}
+    
     async deleteItem(type, id) {
-        if (!window.CacheManager) {
-            console.error('[App PC] ❌ CacheManager não disponível para delete');
-            return false;
-        }
-
+        if (!window.CacheManager) return false;
         const userId = this.user?.id;
-        if (!userId) {
-            console.error('[App PC] ❌ Usuário não logado para delete');
-            return false;
-        }
-
+        if (!userId) return false;
+        
         try {
             const deleted = window.CacheManager.delete(type, id, true);
-            
             if (deleted) {
                 this.data[type] = window.CacheManager.get(type, []);
-                
-                // ⭐ DEBOUNCE NO DELETE TAMBÉM
-                if (window.CacheManager._syncTimeout) {
-                    clearTimeout(window.CacheManager._syncTimeout);
-                }
+                if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
                 window.CacheManager._syncTimeout = setTimeout(() => {
                     window.CacheManager.forceSync().catch(() => {});
                 }, 1000);
-                
-                console.log(`[App PC] ✅ ${type} item ${id} deletado (sync agendado)`);
-                
-                window.dispatchEvent(new CustomEvent(`${type}Updated`, { 
-                    detail: this.data[type] 
-                }));
-                window.dispatchEvent(new CustomEvent('forceRefresh'));
-                
+                window.dispatchEvent(new CustomEvent(`${type}Updated`, { detail: this.data[type] }));
                 return true;
             }
-            
             return false;
         } catch (error) {
-            console.error(`[App PC] ❌ Erro ao deletar ${type}:`, error);
+            console.error(`[App PC] ❌ Erro delete ${type}:`, error);
             return false;
         }
     }
     
-    // ============================================
-    // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE
-    // ============================================
     async loadNotificationsFromSupabase() {
         try {
             const client = this.getSupabase();
-            if (!client || !this.user) {
-                console.log('[App PC] ℹ️ Supabase ou usuário não disponível para carregar notificações');
-                return;
-            }
+            if (!client || !this.user) return;
 
-            console.log('[App PC] 📬 Carregando notificações do Supabase...');
-            
             const { data, error } = await client
-                .from('notifications')
-                .select('*')
+                .from('notifications').select('*')
                 .eq('user_id', this.user.id)
-                .order('created_at', { ascending: false })
-                .limit(50);
+                .order('created_at', { ascending: false }).limit(50);
 
-            if (error) {
-                console.warn('[App PC] ⚠️ Erro ao carregar notificações:', error);
-                return;
-            }
+            if (error) return;
 
             if (data && data.length > 0) {
                 const notificacoes = data.map(n => ({
-                    id: n.id,
-                    title: n.title || 'Notificação',
-                    message: n.message || '',
-                    type: n.type || 'info',
-                    read: n.read || false,
-                    time: n.created_at
+                    id: n.id, title: n.title || 'Notificação', message: n.message || '',
+                    type: n.type || 'info', read: n.read || false, time: n.created_at
                 }));
-
                 this.data.notifications = notificacoes;
-                
-                if (window.CacheManager) {
-                    window.CacheManager.set('notifications', notificacoes, true);
-                }
-                
-                const key = `${this.user.id}_notifications`;
-                localStorage.setItem(key, JSON.stringify(notificacoes));
-
-                console.log(`[App PC] ✅ ${notificacoes.length} notificações carregadas do Supabase`);
+                if (window.CacheManager) window.CacheManager.set('notifications', notificacoes, true);
+                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(notificacoes));
                 this.updateBadge();
                 window.dispatchEvent(new CustomEvent('notificationsUpdated'));
             }
         } catch (error) {
-            console.error('[App PC] ❌ Erro ao carregar notificações:', error);
+            console.error('[App PC] ❌ Erro notificações:', error);
         }
     }
     
-    // ============================================
-    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL
-    // ============================================
     async deleteNotification(id) {
         try {
             const client = this.getSupabase();
             if (client && this.user) {
-                const { error } = await client
-                    .from('notifications')
-                    .delete()
-                    .eq('id', id)
-                    .eq('user_id', this.user.id);
-
-                if (error) {
-                    console.error('[App PC] ❌ Erro ao deletar notificação do Supabase:', error);
-                }
+                await client.from('notifications').delete().eq('id', id).eq('user_id', this.user.id);
             }
-
             this.data.notifications = this.data.notifications.filter(n => n.id != id);
-            
-            if (window.CacheManager) {
-                window.CacheManager.set('notifications', this.data.notifications, true);
-            }
-            
+            if (window.CacheManager) window.CacheManager.set('notifications', this.data.notifications, true);
             this.updateBadge();
             this.renderNotifications();
-            
-            if (typeof showToast === 'function') {
-                showToast('🗑️ Notificação removida!', 'success');
-            }
-            
-            console.log('[App PC] ✅ Notificação deletada:', id);
-            
+            if (typeof showToast === 'function') showToast('🗑️ Notificação removida!', 'success');
         } catch (error) {
-            console.error('[App PC] ❌ Erro ao deletar notificação:', error);
+            console.error('[App PC] ❌ Erro:', error);
         }
     }
     
-    // ============================================
-    // ⭐ MARCAR TODAS COMO LIDAS
-    // ============================================
     async marcarTodasComoLidas() {
         try {
             const naoLidas = this.data.notifications.filter(n => !n.read);
             if (naoLidas.length === 0) {
-                if (typeof showToast === 'function') {
-                    showToast('✅ Todas as notificações já estão lidas!', 'info');
-                }
+                if (typeof showToast === 'function') showToast('✅ Já estão lidas!', 'info');
                 return;
             }
-
             const client = this.getSupabase();
             if (client && this.user) {
-                const ids = naoLidas.map(n => n.id);
-                const { error } = await client
-                    .from('notifications')
-                    .update({ read: true })
-                    .in('id', ids)
-                    .eq('user_id', this.user.id);
-
-                if (error) {
-                    console.error('[App PC] ❌ Erro ao marcar como lidas no Supabase:', error);
-                }
+                await client.from('notifications').update({ read: true })
+                    .in('id', naoLidas.map(n => n.id)).eq('user_id', this.user.id);
             }
-
-            this.data.notifications.forEach(n => {
-                if (!n.read) n.read = true;
-            });
-
-            if (window.CacheManager) {
-                window.CacheManager.set('notifications', this.data.notifications, true);
-            }
-
+            this.data.notifications.forEach(n => { if (!n.read) n.read = true; });
+            if (window.CacheManager) window.CacheManager.set('notifications', this.data.notifications, true);
             this.updateBadge();
             this.renderNotifications();
-
-            if (typeof showToast === 'function') {
-                showToast('✅ Todas as notificações marcadas como lidas!', 'success');
-            }
-
+            if (typeof showToast === 'function') showToast('✅ Marcadas como lidas!', 'success');
         } catch (error) {
-            console.error('[App PC] ❌ Erro ao marcar como lidas:', error);
+            console.error('[App PC] ❌ Erro:', error);
         }
     }
     
-    // ============================================
-    // ⭐ LIMPAR TODAS AS NOTIFICAÇÕES
-    // ============================================
     async limparTodasNotificacoes() {
         if (!confirm('Limpar todas as notificações?')) return;
-
         try {
             const client = this.getSupabase();
             if (client && this.user) {
-                const { error } = await client
-                    .from('notifications')
-                    .delete()
-                    .eq('user_id', this.user.id);
-
-                if (error) {
-                    console.error('[App PC] ❌ Erro ao limpar notificações do Supabase:', error);
-                }
+                await client.from('notifications').delete().eq('user_id', this.user.id);
             }
-
             this.data.notifications = [];
-
-            if (window.CacheManager) {
-                window.CacheManager.set('notifications', this.data.notifications, true);
-            }
-
+            if (window.CacheManager) window.CacheManager.set('notifications', [], true);
             this.updateBadge();
             this.renderNotifications();
-
-            if (typeof showToast === 'function') {
-                showToast('🗑️ Todas as notificações removidas!', 'success');
-            }
-
+            if (typeof showToast === 'function') showToast('🗑️ Limpas!', 'success');
         } catch (error) {
-            console.error('[App PC] ❌ Erro ao limpar notificações:', error);
+            console.error('[App PC] ❌ Erro:', error);
         }
     }
     
-    // ============================================
-    // CARREGAR MÓDULOS
-    // ============================================
     loadModules() {
+        console.log('[App PC] 🔧 Carregando módulos...');
+        
         if (typeof InicioModule !== 'undefined') {
             this.modules.inicio = new InicioModule(this);
+            console.log('[App PC] ✅ InicioModule carregado');
+        } else {
+            console.error('[App PC] ❌ InicioModule NÃO definido!');
         }
         if (typeof DashboardModule !== 'undefined') {
             this.modules.dashboard = new DashboardModule(this);
@@ -897,41 +549,35 @@ class App {
         }
         if (typeof IaModule !== 'undefined') {
             this.modules.ia = new IaModule(this);
+        } else if (typeof IAModule !== 'undefined') {
+            this.modules.ia = new IAModule(this);
         }
         if (typeof DisciplinasModule !== 'undefined') {
             this.modules.disciplinas = new DisciplinasModule(this);
+            // ⭐ Configurar eventos do módulo de disciplinas
+            this.modules.disciplinas.setupEventos();
         }
         if (typeof DocumentosModule !== 'undefined') {
             this.modules.documentos = new DocumentosModule(this);
-            console.log('[App PC] 📁 Módulo Documentos carregado');
         }
+        
         console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
     }
     
-    // ============================================
-    // CARREGAR CSS
-    // ============================================
     loadCSS(moduleName) {
         const cssPath = this.cssModules[moduleName];
         if (!cssPath || this.loadedCSS.has(moduleName)) return;
         
         const existing = document.querySelector(`link[href="${cssPath}"]`);
-        if (existing) {
-            this.loadedCSS.add(moduleName);
-            return;
-        }
+        if (existing) { this.loadedCSS.add(moduleName); return; }
         
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = cssPath;
         document.head.appendChild(link);
         this.loadedCSS.add(moduleName);
-        console.log('[App PC] 🎨 CSS carregado:', moduleName);
     }
     
-    // ============================================
-    // NAVEGAÇÃO
-    // ============================================
     setupNavigation() {
         document.querySelectorAll('.menu-item[data-view]').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -944,9 +590,6 @@ class App {
         });
     }
     
-    // ============================================
-    // SHOW VIEW
-    // ============================================
     showView(viewName) {
         console.log('[App PC] 📄 Mostrando:', viewName);
         
@@ -963,7 +606,6 @@ class App {
                 mainContent.style.padding = '0';
             }
             if (btnIA) btnIA.style.display = 'none';
-            
             if (viewIA) {
                 viewIA.style.display = 'flex';
                 viewIA.style.position = 'fixed';
@@ -974,12 +616,8 @@ class App {
                 viewIA.style.zIndex = '9999';
                 viewIA.style.background = 'var(--bg-color)';
                 viewIA.style.overflow = 'hidden';
-                viewIA.style.padding = '0';
-                viewIA.style.margin = '0';
             }
-            
             document.body.style.overflow = 'hidden';
-            
         } else {
             if (sidebar) sidebar.style.display = 'flex';
             if (mainContent) {
@@ -992,14 +630,12 @@ class App {
                 btnIA.style.visibility = 'visible';
                 btnIA.style.opacity = '1';
             }
-            
             if (viewIA) {
                 viewIA.style.display = 'none';
                 viewIA.style.position = 'relative';
                 viewIA.style.zIndex = '1';
                 viewIA.style.overflow = 'visible';
             }
-            
             document.body.style.overflow = '';
         }
         
@@ -1018,7 +654,6 @@ class App {
                 view.style.zIndex = '1';
                 view.style.overflow = 'visible';
             }
-            
             view.classList.remove('hidden');
             view.classList.add('active');
             
@@ -1028,18 +663,19 @@ class App {
             
             const moduleName = this.viewToModuleMap[viewName];
             if (moduleName && this.modules[moduleName]) {
-                this.modules[moduleName].render(this.data);
+                try {
+                    this.modules[moduleName].render(this.data);
+                } catch (err) {
+                    console.error(`[App PC] ❌ Erro render ${moduleName}:`, err);
+                }
             } else {
-                console.warn('[App PC] ⚠️ Módulo não encontrado para:', viewName);
+                console.warn('[App PC] ⚠️ Módulo não encontrado:', viewName, '→', moduleName);
             }
             
             this.currentView = viewName;
         }
     }
     
-    // ============================================
-    // NOTIFICAÇÕES
-    // ============================================
     openNotifications() {
         const modal = document.getElementById('notifModal');
         if (modal) {
@@ -1058,17 +694,10 @@ class App {
         if (!container) return;
         
         let notificacoes = this.data.notifications || [];
-        if (filter === 'nao-lidas') {
-            notificacoes = notificacoes.filter(n => !n.read);
-        }
+        if (filter === 'nao-lidas') notificacoes = notificacoes.filter(n => !n.read);
         
         if (notificacoes.length === 0) {
-            container.innerHTML = `
-                <div class="notif-empty">
-                    <i class="fas fa-bell-slash"></i>
-                    <p>Nenhuma notificação</p>
-                </div>
-            `;
+            container.innerHTML = `<div class="notif-empty"><i class="fas fa-bell-slash"></i><p>Nenhuma notificação</p></div>`;
             return;
         }
         
@@ -1091,21 +720,15 @@ class App {
         const notif = this.data.notifications.find(n => n.id == id);
         if (notif && !notif.read) {
             notif.read = true;
-            if (window.CacheManager) {
-                window.CacheManager.set('notifications', this.data.notifications, true);
-            }
+            if (window.CacheManager) window.CacheManager.set('notifications', this.data.notifications, true);
             this.renderNotifications();
             this.updateBadge();
         }
     }
     
-    // ============================================
-    // HELPERS
-    // ============================================
     updateBadge() {
         const naoLidas = (this.data.notifications || []).filter(n => !n.read).length;
-        const badges = document.querySelectorAll('.badge, .notif-badge');
-        badges.forEach(badge => {
+        document.querySelectorAll('.badge, .notif-badge').forEach(badge => {
             badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
             badge.style.display = naoLidas > 0 ? 'flex' : 'none';
         });
@@ -1129,11 +752,7 @@ class App {
         return notifTime.toLocaleDateString('pt-BR');
     }
     
-    // ============================================
-    // EVENTOS
-    // ============================================
     setupEvents() {
-        // Logout
         document.getElementById('logoutBtn')?.addEventListener('click', () => {
             if (confirm('Deseja sair?')) {
                 localStorage.removeItem('usuarioLogado');
@@ -1142,34 +761,15 @@ class App {
             }
         });
         
-        // Notificações - todos os botões de sino
         document.querySelectorAll('[id^="bellBtn"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.openNotifications();
-            });
+            btn.addEventListener('click', () => this.openNotifications());
         });
         
-        // Botão IA (FLUTUANTE)
-        document.getElementById('btnOpenIA')?.addEventListener('click', () => {
-            this.showView('ia');
-        });
+        document.getElementById('btnOpenIA')?.addEventListener('click', () => this.showView('ia'));
+        document.getElementById('navBackBtn')?.addEventListener('click', () => this.showView('inicio'));
+        document.getElementById('btnMarkAllRead')?.addEventListener('click', () => this.marcarTodasComoLidas());
+        document.getElementById('btnClearAll')?.addEventListener('click', () => this.limparTodasNotificacoes());
         
-        // Botão voltar na IA
-        document.getElementById('navBackBtn')?.addEventListener('click', () => {
-            this.showView('inicio');
-        });
-        
-        // Botão marcar todas como lidas
-        document.getElementById('btnMarkAllRead')?.addEventListener('click', () => {
-            this.marcarTodasComoLidas();
-        });
-        
-        // Botão limpar todas
-        document.getElementById('btnClearAll')?.addEventListener('click', () => {
-            this.limparTodasNotificacoes();
-        });
-        
-        // Tabs de notificações
         document.querySelectorAll('.notif-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
@@ -1178,42 +778,25 @@ class App {
             });
         });
         
-        // Fechar modal de notificações
         document.getElementById('notifModal')?.addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                this.closeNotifications();
-            }
+            if (e.target === e.currentTarget) this.closeNotifications();
         });
         
-        // EVENTO DE DADOS CARREGADOS DA NUVEM
         window.addEventListener('cloudDataLoaded', () => {
-            console.log('[App PC] 📡 Dados carregados da nuvem');
-            this.loadData();
-            if (this.modules[this.currentView]) {
-                this.modules[this.currentView].render(this.data);
-            }
-            this.updateBadge();
-        });
+           console.log('[App PC] 📡 cloudDataLoaded recebido (ignorado para evitar sobrescrever)');
+           this.updateBadge();
+       });
         
-        // EVENTO DE FORÇAR REFRESH
         window.addEventListener('forceRefresh', () => {
-            console.log('[App PC] 🔄 Forçando atualização da UI');
-            if (this.modules[this.currentView]) {
-                this.modules[this.currentView].render(this.data);
-            }
+            if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
             this.updateBadge();
         });
         
-        // EVENTO DE NOTIFICAÇÕES ATUALIZADAS
         window.addEventListener('notificationsUpdated', () => {
-            console.log('[App PC] 📬 Notificações atualizadas!');
-            if (this.modules[this.currentView]) {
-                this.modules[this.currentView].render(this.data);
-            }
+            if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
             this.updateBadge();
         });
         
-        // EVENTO DE PERFIL ATUALIZADO
         window.addEventListener('profilePhotoUpdated', (event) => {
             if (event.detail && event.detail.photoUrl) {
                 const miniAvatar = document.getElementById('miniAvatar');
@@ -1223,95 +806,53 @@ class App {
             }
         });
         
-        // EVENTO DE DADOS ATUALIZADOS
-        window.addEventListener('dataUpdated', (e) => {
-            if (e.detail && e.detail.key) {
-                console.log(`[App PC] 📡 ${e.detail.key} atualizado via evento`);
-                if (this.modules[this.currentView]) {
-                    this.modules[this.currentView].render(this.data);
-                }
-                this.updateBadge();
-            }
-        });
-        
-        // EVENTO DE DISCIPLINAS ATUALIZADAS
+        // ⭐ DISCIPLINAS — NÃO re-renderiza o próprio módulo (evita loop)
         window.addEventListener('disciplinasUpdated', () => {
-            console.log('[App PC] 📚 Disciplinas atualizadas!');
-            if (this.modules.disciplinas) {
-                this.modules.disciplinas.render(this.data);
-            }
+            this.updateBadge();
         });
         
-        // EVENTO DE DOCUMENTOS ATUALIZADOS
         window.addEventListener('documentosUpdated', () => {
-            console.log('[App PC] 📁 Documentos atualizados!');
-            if (this.modules.documentos) {
-                this.modules.documentos.render(this.data);
-            }
+            if (this.modules.documentos) this.modules.documentos.render(this.data);
         });
         
-        // TECLA ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                const notifModal = document.getElementById('notifModal');
-                if (notifModal?.classList.contains('active')) {
+                if (document.getElementById('notifModal')?.classList.contains('active')) {
                     this.closeNotifications();
                 }
-                if (this.currentView === 'ia') {
-                    this.showView('inicio');
-                }
+                if (this.currentView === 'ia') this.showView('inicio');
             }
         });
         
-        // NOVAS NOTIFICAÇÕES EM TEMPO REAL
-        window.addEventListener('newNotification', (e) => {
-            console.log('[App PC] 📬 Nova notificação recebida via Realtime!');
+        window.addEventListener('newNotification', () => {
             this.loadNotificationsFromSupabase();
             this.updateBadge();
-            if (this.modules[this.currentView]) {
-                this.modules[this.currentView].render(this.data);
-            }
+            if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
         });
         
-        // SINCRONIZAÇÃO DE DADOS ENTRE ABAS
         window.addEventListener('storage', (e) => {
             if (e.key && (e.key.includes('_') || e.key === 'usuarioLogado')) {
-                console.log('[App PC] 📡 Dados alterados em outra aba:', e.key);
-                
                 if (e.key === 'usuarioLogado' && e.newValue) {
                     try {
                         const user = JSON.parse(e.newValue);
-                        if (user && user.nome) {
-                            this.atualizarNomeUsuario(user.nome);
-                        }
+                        if (user && user.nome) this.atualizarNomeUsuario(user.nome);
                     } catch(err) {}
                 }
-                
                 this.loadData();
-                if (this.modules[this.currentView]) {
-                    this.modules[this.currentView].render(this.data);
-                }
+                if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
                 this.updateBadge();
             }
         });
         
-        // VERIFICAR SE O NOME APARECE CORRETAMENTE APÓS O LOAD
         setTimeout(() => {
             const nome = this.getNomeUsuario();
-            if (nome && nome !== 'Usuário') {
-                this.atualizarNomeUsuario(nome);
-            }
+            if (nome && nome !== 'Usuário') this.atualizarNomeUsuario(nome);
         }, 1000);
     }
 }
 
-// ============================================
-// INICIALIZAR
-// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        window.app = new App();
-    }, 100);
+    setTimeout(() => { window.app = new App(); }, 100);
 });
 
-console.log('[App PC] ✅ app.js carregado com DEBOUNCE SYNC e sincronização total!');
+console.log('[App PC] ✅ app.js carregado!');

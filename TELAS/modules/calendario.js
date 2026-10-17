@@ -1,5 +1,6 @@
 // ============================================
-// modules/calendario.js - CALENDÁRIO SPA (PC CORRIGIDO)
+// modules/calendario.js - CALENDÁRIO (CORRIGIDO FINAL)
+// ⭐ SINCRONIZADO COM AS CLASSES DO index.html
 // ============================================
 
 class CalendarioModule {
@@ -7,23 +8,13 @@ class CalendarioModule {
         this.app = app;
         this.name = 'calendario';
         this.currentDate = new Date();
-        this.selectedDate = new Date();
-        this.currentView = 'month';
-        this.events = [];
+        this.selectedDay = this.currentDate.getDate();
         this.editingEventId = null;
         this.selectedEventType = 'aula';
-        
-        // ⭐ Guardar referências dos manipuladores de eventos para remover duplicados
-        this._eventHandlers = {
-            prev: null,
-            next: null
-        };
-        
-        this.monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-        this.weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        this.weekDaysFull = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
-                             'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        this.selectedEventColor = '#8b5cf6';
+        this.isSaving = false;
+        this._isSubmitting = false;
+        this._eventsSetup = false;
         
         console.log('[Calendario] 📅 Módulo inicializado');
     }
@@ -31,668 +22,412 @@ class CalendarioModule {
     render(data) {
         console.log('[Calendario] 📅 Renderizando...');
         
-        this.events = data.calendarEvents || [];
+        this.calendarEvents = data.calendarEvents || [];
         this.notifications = data.notifications || [];
-        this.profile = data.profile || {};
-        
-        // Atualizar nome do usuário
-        this.atualizarNomeUsuario();
+        this.disciplinas = data.disciplinas || [];
         
         this.renderCalendar();
-        this.renderEventsForSelectedDay();
+        this.renderEvents();
+        
+        if (!this._eventsSetup) {
+            this.setupEvents();
+            this._eventsSetup = true;
+        }
+        
         this.updateBadge();
-        this.setupEvents();
+    }
+
+    getDisciplinas() {
+        if (this.app?.modules?.disciplinas?.getTodas) {
+            return this.app.modules.disciplinas.getTodas();
+        }
+        return this.disciplinas || [];
+    }
+
+    popularSelectDisciplinas(disciplinaSelecionada = null) {
+        const select = document.getElementById('eventDisciplina');
+        if (!select) return;
+        
+        const disciplinas = this.getDisciplinas();
+        
+        select.innerHTML = '<option value="">— Sem disciplina —</option>';
+        
+        disciplinas.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.nome;
+            opt.textContent = d.nome;
+            select.appendChild(opt);
+        });
+        
+        select.value = disciplinaSelecionada || '';
     }
     
-    // ============================================
-    // ATUALIZAR NOME DO USUÁRIO
-    // ============================================
-    atualizarNomeUsuario() {
-        const profile = this.profile || this.app.user || {};
-        const nome = profile.nome || profile.displayName || 'Usuário';
+    async salvarDados() {
+        if (this.isSaving || !this.app) return;
+        this.isSaving = true;
         
-        const userNameDisplay = document.getElementById('userNameDisplay');
-        if (userNameDisplay) {
-            userNameDisplay.textContent = nome;
+        try {
+            this.app.data.calendarEvents = this.calendarEvents;
+            await this.app.saveAllData();
+        } catch (error) {
+            console.error('[Calendario] ❌ Erro:', error);
         }
         
-        const userName = document.getElementById('userName');
-        if (userName) {
-            userName.textContent = nome;
-        }
+        setTimeout(() => { this.isSaving = false; }, 500);
     }
     
-    // ============================================
-    // RENDER CALENDÁRIO (COM REMOÇÃO DE LISTENERS DUPLICADOS)
-    // ============================================
     renderCalendar() {
+        // ⭐ IDs corretos do teu index.html
         const calendarDays = document.getElementById('calendarDays');
-        const currentMonthEl = document.getElementById('currentMonth');
+        const currentMonthYear = document.getElementById('currentMonthCal');
         if (!calendarDays) return;
         
-        calendarDays.className = 'days';
-        
-        if (this.currentView === 'month') this.renderMonthView(calendarDays, currentMonthEl);
-        else if (this.currentView === 'week') this.renderWeekView(calendarDays, currentMonthEl);
-        else if (this.currentView === 'day') this.renderDayView(calendarDays, currentMonthEl);
-
-        // ⭐ GERENCIAMENTO DE LISTENERS DOS BOTÕES DE NAVEGAÇÃO
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-
-        if (prevBtn) {
-            if (this._eventHandlers.prev) {
-                prevBtn.removeEventListener('click', this._eventHandlers.prev);
-            }
-            this._eventHandlers.prev = () => {
-                if (this.currentView === 'month') {
-                    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-                } else if (this.currentView === 'week') {
-                    this.currentDate.setDate(this.currentDate.getDate() - 7);
-                } else {
-                    this.selectedDate.setDate(this.selectedDate.getDate() - 1);
-                    this.currentDate = new Date(this.selectedDate);
-                }
-                this.renderCalendar();
-                this.renderEventsForSelectedDay();
-            };
-            prevBtn.addEventListener('click', this._eventHandlers.prev);
-        }
-
-        if (nextBtn) {
-            if (this._eventHandlers.next) {
-                nextBtn.removeEventListener('click', this._eventHandlers.next);
-            }
-            this._eventHandlers.next = () => {
-                if (this.currentView === 'month') {
-                    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-                } else if (this.currentView === 'week') {
-                    this.currentDate.setDate(this.currentDate.getDate() + 7);
-                } else {
-                    this.selectedDate.setDate(this.selectedDate.getDate() + 1);
-                    this.currentDate = new Date(this.selectedDate);
-                }
-                this.renderCalendar();
-                this.renderEventsForSelectedDay();
-            };
-            nextBtn.addEventListener('click', this._eventHandlers.next);
-        }
-    }
-    
-    // ============================================
-    // VIEW MÊS
-    // ============================================
-    renderMonthView(calendarDays, currentMonthEl) {
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
-        
-        if (currentMonthEl) currentMonthEl.textContent = `${this.monthNames[month]} ${year}`;
+        const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        if (currentMonthYear) currentMonthYear.textContent = `${monthNames[month]} ${year}`;
         
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const daysInPrevMonth = new Date(year, month, 0).getDate();
         const today = new Date();
+        const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
+        const currentDay = today.getDate();
         
-        calendarDays.innerHTML = '';
-        calendarDays.style.display = 'grid';
-        calendarDays.style.gridTemplateColumns = 'repeat(7, 1fr)';
+        let html = '';
         
-        // Dias do mês anterior
-        for (let i = firstDay - 1; i >= 0; i--) {
-            const dayEl = this.createDayElement(daysInPrevMonth - i, true);
-            calendarDays.appendChild(dayEl);
+        // Células vazias do início do mês
+        for (let i = 0; i < firstDay; i++) {
+            html += '<div class="day other-month" style="visibility: hidden;"></div>';
         }
         
-        // Dias do mês atual
+        // Dias do mês
         for (let day = 1; day <= daysInMonth; day++) {
-            const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-            const dayEl = this.createDayElement(day, false, isToday);
+            const isToday = isCurrentMonth && day === currentDay;
+            const isSelected = day === this.selectedDay;
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             
-            const dayEvents = this.events.filter(e => 
-                e.day === day && e.month === month && e.year === year
-            ).sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
+            // Verifica eventos do dia
+            const dayEvents = this.calendarEvents.filter(e => e.date === dateStr);
+            let eventsHTML = '';
             
-            dayEvents.forEach(event => {
-                const eventEl = document.createElement('div');
-                eventEl.className = `event ${event.type || 'outro'}`;
-                eventEl.textContent = `${event.time || '--:--'} ${event.title}`;
-                dayEl.appendChild(eventEl);
+            dayEvents.slice(0, 3).forEach(ev => {
+                let cor = ev.color || '#8b5cf6';
+                if (ev.disciplina) {
+                    const c = this.app?.modules?.disciplinas?.getCor(ev.disciplina);
+                    if (c) cor = c;
+                }
+                eventsHTML += `<div class="event" style="background-color: ${cor};">${this.app.escapeHtml(ev.title)}</div>`;
             });
             
-            dayEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.selectedDate = new Date(year, month, day);
-                document.querySelectorAll('.day').forEach(d => d.classList.remove('selected'));
-                dayEl.classList.add('selected');
-                this.renderEventsForSelectedDay();
-            });
-            
-            if (day === this.selectedDate.getDate() && month === this.selectedDate.getMonth() && 
-                year === this.selectedDate.getFullYear()) {
-                dayEl.classList.add('selected');
+            if (dayEvents.length > 3) {
+                eventsHTML += `<div style="font-size:0.6rem;color:var(--text-secondary);text-align:right;">+${dayEvents.length - 3}</div>`;
             }
             
-            calendarDays.appendChild(dayEl);
-        }
-        
-        // Dias do próximo mês
-        const totalCells = firstDay + daysInMonth;
-        const remainingCells = totalCells <= 35 ? 35 - totalCells : 42 - totalCells;
-        for (let day = 1; day <= remainingCells; day++) {
-            calendarDays.appendChild(this.createDayElement(day, true));
-        }
-    }
-    
-    createDayElement(day, isOtherMonth, isToday = false) {
-        const dayEl = document.createElement('div');
-        dayEl.className = 'day';
-        if (isOtherMonth) dayEl.classList.add('other-month');
-        if (isToday) dayEl.classList.add('today');
-        
-        const dayNumber = document.createElement('div');
-        dayNumber.className = 'day-number';
-        dayNumber.textContent = day;
-        dayEl.appendChild(dayNumber);
-        
-        return dayEl;
-    }
-    
-    // ============================================
-    // VIEW SEMANA
-    // ============================================
-    renderWeekView(calendarDays, currentMonthEl) {
-        const startOfWeek = new Date(this.currentDate);
-        startOfWeek.setDate(this.currentDate.getDate() - this.currentDate.getDay());
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        
-        if (currentMonthEl) {
-            currentMonthEl.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} de ${this.monthNames[startOfWeek.getMonth()]} ${startOfWeek.getFullYear()}`;
-        }
-        
-        calendarDays.innerHTML = '';
-        calendarDays.className = 'days week-view';
-        calendarDays.style.display = 'grid';
-        calendarDays.style.gridTemplateColumns = '70px repeat(7, 1fr)';
-        calendarDays.style.minHeight = '600px';
-        calendarDays.style.maxHeight = '700px';
-        calendarDays.style.overflowY = 'auto';
-        
-        const today = new Date();
-        
-        // Canto superior esquerdo
-        const cornerCell = document.createElement('div');
-        cornerCell.style.cssText = `
-            background: var(--bg-color);
-            border-right: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0.5rem;
-        `;
-        calendarDays.appendChild(cornerCell);
-        
-        // Cabeçalho dos dias
-        for (let i = 0; i < 7; i++) {
-            const dayDate = new Date(startOfWeek);
-            dayDate.setDate(startOfWeek.getDate() + i);
-            const isToday = dayDate.getDate() === today.getDate() && 
-                           dayDate.getMonth() === today.getMonth() && 
-                           dayDate.getFullYear() === today.getFullYear();
-            
-            const headerCell = document.createElement('div');
-            headerCell.className = `week-header-cell ${isToday ? 'today' : ''}`;
-            headerCell.innerHTML = `
-                <div style="font-size:0.75rem;color:var(--text-secondary);">${this.weekDays[i]}</div>
-                <div style="font-size:1.5rem;font-weight:600;margin-top:0.25rem;color:var(--text-primary);">${dayDate.getDate()}</div>
+            // ⭐ Usar as classes 'day', 'today', 'selected' do CSS
+            html += `
+                <div class="day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-day="${day}" data-date="${dateStr}">
+                    <div class="day-number">${day}</div>
+                    ${eventsHTML}
+                </div>
             `;
-            headerCell.style.cssText = `
-                background: ${isToday ? 'var(--purple-light)' : 'var(--bg-color)'};
-                border-right: 1px solid var(--border-color);
-                border-bottom: 1px solid var(--border-color);
-                padding: 1rem 0.5rem;
-                text-align: center;
-            `;
-            calendarDays.appendChild(headerCell);
         }
+        calendarDays.innerHTML = html;
         
-        // Horas
-        for (let hour = 0; hour < 24; hour++) {
-            const timeCell = document.createElement('div');
-            timeCell.className = 'time-label-cell';
-            timeCell.textContent = `${hour.toString().padStart(2, '0')}:00`;
-            timeCell.style.cssText = `
-                background: var(--bg-color);
-                border-right: 1px solid var(--border-color);
-                border-bottom: 1px solid var(--border-color);
-                padding: 0.5rem;
-                font-size: 0.75rem;
-                color: var(--text-secondary);
-                text-align: center;
-                height: 80px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            `;
-            calendarDays.appendChild(timeCell);
-            
-            for (let day = 0; day < 7; day++) {
-                const dayDate = new Date(startOfWeek);
-                dayDate.setDate(startOfWeek.getDate() + day);
+        // ⭐ Adicionar evento de clique nos dias
+        calendarDays.querySelectorAll('.day').forEach(day => {
+            day.addEventListener('click', () => {
+                this.selectedDay = parseInt(day.dataset.day);
                 
-                const cell = document.createElement('div');
-                cell.className = 'week-hour-cell';
-                cell.style.cssText = `
-                    border-right: 1px solid var(--border-color);
-                    border-bottom: 1px solid var(--border-color);
-                    height: 80px;
-                    position: relative;
-                    cursor: pointer;
-                    background: var(--card-bg);
-                `;
+                // Atualiza o título da secção de eventos
+                const spanDia = document.getElementById('selectedDay');
+                if (spanDia) spanDia.textContent = this.selectedDay;
                 
-                const hourEvents = this.events.filter(e => {
-                    const eventDate = new Date(e.year, e.month, e.day);
-                    const eventHour = parseInt((e.time || '00:00').split(':')[0]);
-                    return eventDate.getTime() === dayDate.getTime() && eventHour === hour;
-                });
-                
-                let topOffset = 2;
-                hourEvents.forEach(event => {
-                    const eventEl = document.createElement('div');
-                    eventEl.className = `week-event ${event.type || 'outro'}`;
-                    eventEl.textContent = `${event.time || '--:--'} ${event.title}`;
-                    eventEl.style.cssText = `
-                        position: absolute;
-                        left: 2px;
-                        right: 2px;
-                        top: ${topOffset}px;
-                        padding: 0.25rem 0.5rem;
-                        border-radius: 4px;
-                        font-size: 0.7rem;
-                        color: white;
-                        font-weight: 500;
-                        overflow: hidden;
-                        z-index: 10;
-                        background: ${this.getEventColor(event.type)};
-                    `;
-                    cell.appendChild(eventEl);
-                    topOffset += 26;
-                });
-                
-                cell.addEventListener('click', () => {
-                    this.selectedDate = dayDate;
-                    this.renderEventsForSelectedDay();
-                    this.openEventModal(null, `${hour.toString().padStart(2, '0')}:00`);
-                });
-                
-                calendarDays.appendChild(cell);
-            }
-        }
-    }
-    
-    // ============================================
-    // VIEW DIA
-    // ============================================
-    renderDayView(calendarDays, currentMonthEl) {
-        const year = this.selectedDate.getFullYear();
-        const month = this.selectedDate.getMonth();
-        const day = this.selectedDate.getDate();
-        
-        if (currentMonthEl) {
-            currentMonthEl.textContent = `${this.weekDaysFull[this.selectedDate.getDay()]}, ${day} de ${this.monthNames[month]} de ${year}`;
-        }
-        
-        calendarDays.innerHTML = '';
-        calendarDays.className = 'days day-view';
-        calendarDays.style.display = 'flex';
-        calendarDays.style.flexDirection = 'column';
-        
-        const dayEvents = this.events.filter(e => 
-            e.day === day && e.month === month && e.year === year
-        ).sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
-        
-        for (let hour = 0; hour < 24; hour++) {
-            const hourEvents = dayEvents.filter(e => parseInt((e.time || '00:00').split(':')[0]) === hour);
-            
-            const timeSlot = document.createElement('div');
-            timeSlot.className = 'day-time-slot';
-            timeSlot.style.cssText = `
-                display: flex;
-                border-bottom: 1px solid var(--border-color);
-                min-height: 80px;
-                cursor: pointer;
-            `;
-            
-            const timeLabel = document.createElement('div');
-            timeLabel.className = 'day-time-label';
-            timeLabel.textContent = `${hour.toString().padStart(2, '0')}:00`;
-            timeLabel.style.cssText = `
-                width: 80px;
-                padding: 0.5rem 1rem;
-                font-size: 0.875rem;
-                color: var(--text-secondary);
-                font-weight: 500;
-                border-right: 1px solid var(--border-color);
-                text-align: right;
-                flex-shrink: 0;
-                background: var(--bg-color);
-            `;
-            
-            const timeContent = document.createElement('div');
-            timeContent.className = 'day-time-content';
-            timeContent.style.cssText = `
-                flex: 1;
-                padding: 0.5rem;
-                background: var(--card-bg);
-            `;
-            
-            hourEvents.forEach(event => {
-                const eventEl = document.createElement('div');
-                eventEl.className = `day-event ${event.type || 'outro'}`;
-                eventEl.innerHTML = `<strong>${event.time || '--:--'}</strong> ${event.title}`;
-                eventEl.style.cssText = `
-                    padding: 0.75rem;
-                    border-radius: 8px;
-                    margin-bottom: 0.5rem;
-                    color: white;
-                    font-size: 0.875rem;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                    background: ${this.getEventColor(event.type)};
-                `;
-                timeContent.appendChild(eventEl);
+                this.renderEvents();
+                this.renderCalendar();
             });
-            
-            timeSlot.appendChild(timeLabel);
-            timeSlot.appendChild(timeContent);
-            
-            timeSlot.addEventListener('click', () => {
-                this.openEventModal(null, `${hour.toString().padStart(2, '0')}:00`);
-            });
-            
-            calendarDays.appendChild(timeSlot);
-        }
+        });
     }
     
-    getEventColor(type) {
-        const colors = {
-            'prova': '#ef4444',
-            'trabalho': '#eab308',
-            'apresentacao': '#3b82f6',
-            'reuniao': '#8b5cf6',
-            'aula': '#10b981',
-            'outro': '#9333ea'
-        };
-        return colors[type] || '#9333ea';
-    }
-    
-    // ============================================
-    // RENDER EVENTOS DO DIA
-    // ============================================
-    renderEventsForSelectedDay() {
-        const eventsListEl = document.getElementById('eventsList');
-        const selectedDayEl = document.getElementById('selectedDay');
-        if (!eventsListEl) return;
+    renderEvents() {
+        const eventsList = document.getElementById('eventsList');
+        if (!eventsList) return;
         
-        const year = this.selectedDate.getFullYear();
-        const month = this.selectedDate.getMonth();
-        const day = this.selectedDate.getDate();
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        const selectedDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(this.selectedDay).padStart(2, '0')}`;
         
-        if (selectedDayEl) selectedDayEl.textContent = day;
-        
-        const dayEvents = this.events.filter(e => 
-            e.day === day && e.month === month && e.year === year
-        ).sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
+        const dayEvents = this.calendarEvents.filter(e => e.date === selectedDateStr);
         
         if (dayEvents.length === 0) {
-            eventsListEl.innerHTML = `
-                <p style="color: var(--text-secondary); padding: 1rem; text-align: center;">
-                    Nenhum evento para este dia
-                </p>
+            eventsList.innerHTML = `
+                <div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">
+                    <i class="fas fa-calendar" style="font-size:1.5rem;opacity:0.4;display:block;margin-bottom:6px;"></i>
+                    Nenhum evento neste dia
+                </div>
             `;
             return;
         }
         
-        eventsListEl.innerHTML = '';
+        let html = '';
         dayEvents.forEach(event => {
-            const colors = {
-                'prova': '#ef4444',
-                'trabalho': '#eab308',
-                'apresentacao': '#3b82f6',
-                'reuniao': '#8b5cf6',
-                'aula': '#10b981',
-                'outro': '#9333ea'
-            };
+            const iconMap = { 'aula': 'book', 'prova': 'file-alt', 'tarefa': 'tasks', 'trabalho': 'briefcase', 'apresentacao': 'chalkboard-teacher', 'reuniao': 'users', 'outro': 'calendar' };
             
-            const eventItem = document.createElement('div');
-            eventItem.className = 'event-item';
-            eventItem.style.borderLeftColor = colors[event.type] || '#9333ea';
-            eventItem.innerHTML = `
-                <div class="event-color" style="background-color: ${colors[event.type] || '#9333ea'};"></div>
-                <div class="event-info">
-                    <h4>${this.app.escapeHtml(event.title)}</h4>
-                    <p>${event.time || '--:--'} - ${event.endTime || ''} ${event.description ? '• ' + this.app.escapeHtml(event.description) : ''}</p>
+            let corFinal = event.color || '#8b5cf6';
+            let iconeFinal = iconMap[event.type] || 'calendar';
+            
+            if (event.disciplina) {
+                const corDisc = this.app?.modules?.disciplinas?.getCor(event.disciplina);
+                const iconeDisc = this.app?.modules?.disciplinas?.getIcone(event.disciplina);
+                if (corDisc) corFinal = corDisc;
+                if (iconeDisc) iconeFinal = iconeDisc.replace('fa-', ''); 
+            }
+
+            html += `
+                <div class="event-item" data-id="${event.id}" style="border-left: 3px solid ${corFinal};">
+                    <div class="event-icon" style="background-color: ${corFinal}20; color: ${corFinal}; display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px;">
+                        <i class="fas fa-${iconeFinal}"></i>
+                    </div>
+                    <div class="event-info" style="flex:1;">
+                        <div class="event-title" style="font-weight:600;font-size:0.9rem;">${this.app.escapeHtml(event.title)}</div>
+                        <div class="event-time" style="font-size:0.75rem;color:var(--text-secondary);">${event.start || '--:--'} ${event.end ? '- ' + event.end : ''}</div>
+                        ${event.disciplina ? `<div style="font-size:0.7rem;color:${corFinal};margin-top:4px;"><i class="fas fa-book"></i> ${this.app.escapeHtml(event.disciplina)}</div>` : ''}
+                    </div>
+                    <div class="event-actions" style="display:flex;gap:8px;">
+                        <button class="edit-event" data-id="${event.id}" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;"><i class="fas fa-edit"></i></button>
+                        <button class="delete-event" data-id="${event.id}" style="background:none;border:none;color:var(--danger);cursor:pointer;"><i class="fas fa-trash"></i></button>
+                    </div>
                 </div>
-                <button class="delete-event" data-id="${event.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
             `;
-            
-            eventItem.querySelector('.delete-event').addEventListener('click', (e) => {
+        });
+        eventsList.innerHTML = html;
+        
+        eventsList.querySelectorAll('.edit-event').forEach(btn => {
+            btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.deleteEvent(event.id);
+                const event = this.calendarEvents.find(ev => ev.id == btn.dataset.id);
+                if (event) this.openEventModal(event);
             });
-            
-            eventsListEl.appendChild(eventItem);
+        });
+        
+        eventsList.querySelectorAll('.delete-event').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteEvent(btn.dataset.id);
+            });
         });
     }
     
-    // ============================================
-    // CRUD EVENTOS
-    // ============================================
-    gerarId() {
-        return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    }
-    
-    saveEvent(eventData) {
-        if (this.editingEventId) {
-            const index = this.events.findIndex(e => e.id === this.editingEventId);
-            if (index > -1) {
-                this.events[index] = { ...this.events[index], ...eventData };
-            }
-        } else {
-            this.events.push({
-                id: this.gerarId(),
-                ...eventData,
-                dataCriacao: new Date().toISOString()
-            });
-        }
+    deleteEvent(eventId) {
+        if (!confirm('Excluir este evento?')) return;
         
-        this.app.data.calendarEvents = this.events;
-        this.app.saveAllData();
-        this.closeEventModal();
+        this.calendarEvents = this.calendarEvents.filter(ev => ev.id != eventId);
+        this.salvarDados();
+        this.renderEvents();
         this.renderCalendar();
-        this.renderEventsForSelectedDay();
         this.updateBadge();
-        this.showToast(this.editingEventId ? 'Evento atualizado!' : 'Evento criado!', 'success');
-        this.editingEventId = null;
-    }
-    
-    deleteEvent(id) {
-        if (!confirm('Deseja excluir este evento?')) return;
         
-        this.events = this.events.filter(e => e.id !== id);
-        this.app.data.calendarEvents = this.events;
-        this.app.saveAllData();
-        this.renderCalendar();
-        this.renderEventsForSelectedDay();
-        this.showToast('Evento excluído!', 'success');
+        if (typeof showToast === 'function') showToast('🗑️ Evento excluído!', 'success');
     }
     
-    // ============================================
-    // MODAL DE EVENTO
-    // ============================================
-    openEventModal(event = null, startTime = null) {
+    openEventModal(event = null) {
         const modal = document.getElementById('eventModal');
         if (!modal) return;
         
         this.editingEventId = event ? event.id : null;
-        const year = this.selectedDate.getFullYear();
-        const month = String(this.selectedDate.getMonth() + 1).padStart(2, '0');
-        const day = String(this.selectedDate.getDate()).padStart(2, '0');
+        const year = this.currentDate.getFullYear();
+        const month = String(this.currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(this.selectedDay).padStart(2, '0');
         
-        const titleInput = document.getElementById('eventTitle');
-        const descriptionInput = document.getElementById('eventDescription');
-        const dateInput = document.getElementById('eventDate');
-        const startInput = document.getElementById('eventStart');
-        const endInput = document.getElementById('eventEnd');
-        const typeInput = document.getElementById('eventType');
-        const repeatSelect = document.getElementById('eventRepeat');
-        const reminderCheck = document.getElementById('eventReminder');
+        if (event) {
+            document.getElementById('modalEventTitle').textContent = '✏️ Editar Evento';
+            document.getElementById('eventTitle').value = event.title || '';
+            document.getElementById('eventDate').value = event.date || '';
+            document.getElementById('eventStart').value = event.start || '08:00';
+            document.getElementById('eventEnd').value = event.end || '09:00';
+            this.selectedEventType = event.type || 'aula';
+            this.selectedEventColor = event.color || '#8b5cf6';
+            
+            this.popularSelectDisciplinas(event.disciplina || '');
+        } else {
+            document.getElementById('modalEventTitle').textContent = '📝 Novo Evento';
+            document.getElementById('eventTitle').value = '';
+            document.getElementById('eventDate').value = `${year}-${month}-${day}`;
+            document.getElementById('eventStart').value = '08:00';
+            document.getElementById('eventEnd').value = '09:00';
+            this.selectedEventType = 'aula';
+            this.selectedEventColor = '#8b5cf6';
+            
+            this.popularSelectDisciplinas('');
+        }
         
-        if (titleInput) titleInput.value = event ? event.title : '';
-        if (descriptionInput) descriptionInput.value = event ? event.description || '' : '';
-        if (dateInput) dateInput.value = event ? event.date : `${year}-${month}-${day}`;
-        if (startInput) startInput.value = event ? event.time : (startTime || '08:00');
-        if (endInput) endInput.value = event ? event.endTime || '' : '';
-        if (typeInput) typeInput.value = event ? event.type : 'aula';
-        if (repeatSelect) repeatSelect.value = event ? event.repeat || 'nao' : 'nao';
-        if (reminderCheck) reminderCheck.checked = event ? event.reminder || false : false;
-        
-        this.selectedEventType = event ? event.type : 'aula';
-        
-        document.querySelectorAll('.type-btn').forEach(btn => {
+        document.querySelectorAll('#eventModal .type-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.type === this.selectedEventType);
         });
         
         modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
+        setTimeout(() => document.getElementById('eventTitle')?.focus(), 300);
     }
     
     closeEventModal() {
         const modal = document.getElementById('eventModal');
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
+        if (modal) modal.classList.remove('active');
         this.editingEventId = null;
+        this._isSubmitting = false;
     }
     
-    // ============================================
-    // NOTIFICAÇÕES
-    // ============================================
+    async saveEvent(e) {
+        if (e) e.preventDefault();
+
+        if (this._isSubmitting) return;
+        
+        const title = document.getElementById('eventTitle')?.value?.trim();
+        const date = document.getElementById('eventDate')?.value;
+        const start = document.getElementById('eventStart')?.value;
+        const end = document.getElementById('eventEnd')?.value;
+        const disciplina = document.getElementById('eventDisciplina')?.value || '';
+        
+        if (!title || !date) {
+            if (typeof showToast === 'function') showToast('⚠️ Preencha título e data!', 'error');
+            return;
+        }
+        
+        this._isSubmitting = true;
+        const isEditing = !!this.editingEventId;
+        
+        try {
+            if (this.editingEventId) {
+                const index = this.calendarEvents.findIndex(e => e.id == this.editingEventId);
+                if (index > -1) {
+                    this.calendarEvents[index] = {
+                        ...this.calendarEvents[index],
+                        title, date,
+                        start: start || '08:00',
+                        end: end || '09:00',
+                        type: this.selectedEventType,
+                        color: this.selectedEventColor,
+                        disciplina: disciplina
+                    };
+                }
+            } else {
+                const existe = this.calendarEvents.some(ev => 
+                    ev.title === title && ev.date === date && ev.start === start && ev.end === end
+                );
+                
+                if (!existe) {
+                    this.calendarEvents.push({
+                        id: Date.now().toString(),
+                        title, date,
+                        start: start || '08:00',
+                        end: end || '09:00',
+                        type: this.selectedEventType,
+                        color: this.selectedEventColor,
+                        disciplina: disciplina
+                    });
+                } else {
+                    if (typeof showToast === 'function') showToast('⚠️ Evento já existe!', 'info');
+                    this.closeEventModal();
+                    this._isSubmitting = false;
+                    return;
+                }
+            }
+            
+            await this.salvarDados();
+            this.closeEventModal();
+            this.renderEvents();
+            this.renderCalendar();
+            this.updateBadge();
+            
+            if (typeof showToast === 'function') {
+                showToast(isEditing ? '✅ Evento atualizado!' : '✅ Evento criado!', 'success');
+            }
+        } catch (error) {
+            console.error('[Calendario] ❌ Erro:', error);
+            if (typeof showToast === 'function') showToast('❌ Erro ao salvar', 'error');
+        } finally {
+            setTimeout(() => { this._isSubmitting = false; }, 500);
+        }
+    }
+    
     updateBadge() {
-        const badge = document.getElementById('notificationBadge');
+        const badge = document.getElementById('notificationBadge3') || document.getElementById('notification-badge');
+        if (!badge) return;
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
-        if (badge) {
-            badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-        }
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
     
-    // ============================================
-    // TOAST
-    // ============================================
-    showToast(mensagem, tipo = 'success') {
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        if (toast && toastMessage) {
-            toastMessage.textContent = mensagem;
-            toast.className = 'toast show';
-            toast.style.background = tipo === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
-                                   tipo === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                   'linear-gradient(135deg, #10b981, #059669)';
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-    }
-    
-    // ============================================
-    // EVENTOS DA UI
-    // ============================================
     setupEvents() {
-        // View toggle
-        document.querySelectorAll('.toggle-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.currentView = btn.dataset.view;
+        // ⭐ IDs do index.html: prevBtn / nextBtn
+        const prevBtn = document.getElementById('prevBtn');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                this.selectedDay = 1;
                 this.renderCalendar();
+                this.renderEvents();
             });
-        });
+        }
         
-        // Novo evento
-        document.getElementById('newEventBtn')?.addEventListener('click', () => {
-            this.openEventModal();
-        });
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                this.selectedDay = 1;
+                this.renderCalendar();
+                this.renderEvents();
+            });
+        }
         
-        // Fechar modal
-        document.getElementById('modalClose')?.addEventListener('click', () => this.closeEventModal());
-        document.getElementById('btnCancel')?.addEventListener('click', () => this.closeEventModal());
-        document.getElementById('eventModal')?.addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) this.closeEventModal();
-        });
+        // ⭐ IDs do index.html: newEventBtn
+        const btnNew = document.getElementById('newEventBtn');
+        if (btnNew) {
+            btnNew.addEventListener('click', () => this.openEventModal(null));
+        }
         
-        // Tipo de evento
-        document.querySelectorAll('.type-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+        const modal = document.getElementById('eventModal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal || e.target.closest('#modalClose') || e.target.closest('#btnCancel')) {
+                    this.closeEventModal();
+                }
+            });
+        }
+        
+        document.querySelectorAll('#eventModal .type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('#eventModal .type-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.selectedEventType = btn.dataset.type;
-                document.getElementById('eventType').value = btn.dataset.type;
             });
         });
         
-        // Form submit
-        document.getElementById('eventForm')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const title = document.getElementById('eventTitle').value.trim();
-            const description = document.getElementById('eventDescription').value.trim();
-            const date = document.getElementById('eventDate').value;
-            const start = document.getElementById('eventStart').value;
-            const end = document.getElementById('eventEnd').value;
-            const type = document.getElementById('eventType').value;
-            const repeat = document.getElementById('eventRepeat').value;
-            const reminder = document.getElementById('eventReminder').checked;
-            
-            if (!title || !date) {
-                this.showToast('Preencha título e data!', 'error');
-                return;
-            }
-            
-            const eventDate = new Date(date + 'T12:00:00');
-            const novoEvento = {
-                title,
-                description,
-                date,
-                day: eventDate.getDate(),
-                month: eventDate.getMonth(),
-                year: eventDate.getFullYear(),
-                time: start,
-                endTime: end,
-                type,
-                repeat,
-                reminder,
-                color: this.getEventColor(type)
-            };
-            
-            this.saveEvent(novoEvento);
-        });
+        const form = document.getElementById('eventForm');
+        if (form) {
+            form.addEventListener('submit', (e) => this.saveEvent(e));
+        }
         
-        // ESC key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeEventModal();
+        window.addEventListener('disciplinasUpdated', () => {
+            const viewAtiva = document.getElementById('view-calendario')?.classList.contains('active');
+            if (viewAtiva) this.renderCalendar();
+            this.renderEvents();
+            
+            const modalAberto = document.getElementById('eventModal')?.classList.contains('active');
+            if (modalAberto) {
+                const select = document.getElementById('eventDisciplina');
+                const valorAtual = select?.value || '';
+                this.popularSelectDisciplinas(valorAtual);
             }
         });
         
-        // Atualizar dados
         window.addEventListener('cloudDataLoaded', () => {
-            this.events = this.app.data.calendarEvents || [];
-            this.notifications = this.app.data.notifications || [];
-            this.profile = this.app.data.profile || {};
-            this.atualizarNomeUsuario();
+            const viewAtiva = document.getElementById('view-calendario')?.classList.contains('active');
+            if (!viewAtiva || this.isSaving) return;
+            
+            this.calendarEvents = this.app.data.calendarEvents || [];
             this.renderCalendar();
-            this.renderEventsForSelectedDay();
-            this.updateBadge();
+            this.renderEvents();
         });
     }
 }
