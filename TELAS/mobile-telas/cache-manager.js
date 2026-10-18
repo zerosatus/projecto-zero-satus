@@ -657,13 +657,38 @@ class SimpleCacheManager {
                     console.log(`[CacheManager] 🔍 Buscando ${key}...`);
                     const data = await getter(userId);
                     
-                    if (data !== null && data !== undefined) {
+                                       if (data !== null && data !== undefined) {
+                        const storageKey = `${userId}_${key}`;
+                        const currentLocalStr = localStorage.getItem(storageKey);
+                        let currentLocal = null;
+                        try { currentLocal = currentLocalStr ? JSON.parse(currentLocalStr) : null; } catch(e) {}
+
+                        const nuvemLen = Array.isArray(data) ? data.length : 0;
+                        const localLen = Array.isArray(currentLocal) ? currentLocal.length : 0;
+
+                        // ⭐ PROTEÇÃO: se a nuvem tem MENOS itens que o local,
+                        // e a fila de save ainda tem este key pendente, NÃO sobrescrever
+                        const temNaFila = this._saveQueue.some(item => item.key === key) ||
+                                          this._pendingSync.has(key);
+
+                        if (temNaFila && nuvemLen < localLen) {
+                            console.log(`[CacheManager] 🛡️ ${key}: nuvem tem ${nuvemLen}, local tem ${localLen}, fila pendente — IGNORANDO sobrescrita`);
+                            continue;   // não sobrescreve
+                        }
+
+                        // ⭐ PROTEÇÃO: se nuvem vazia e local tem dados, manter local
+                        const nuvemVazia = (nuvemLen === 0) && (typeof data === 'object' && !Array.isArray(data) ? Object.keys(data).length === 0 : true);
+                        const localTemDados = localLen > 0 || (currentLocal && typeof currentLocal === 'object' && !Array.isArray(currentLocal) && Object.keys(currentLocal).length > 0);
+
+                        if (nuvemVazia && localTemDados && (key === 'disciplinas' || key === 'tasks' || key === 'notes')) {
+                            console.log(`[CacheManager] 🛡️ ${key}: nuvem vazia mas local tem dados — IGNORANDO`);
+                            continue;
+                        }
+
                         if (force || (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
-                            const storageKey = `${userId}_${key}`;
                             const newDataStr = JSON.stringify(data);
-                            const currentLocal = localStorage.getItem(storageKey);
                             
-                            if (force || currentLocal !== newDataStr) {
+                            if (force || currentLocalStr !== newDataStr) {
                                 localStorage.setItem(storageKey, newDataStr);
                                 
                                 const usuario = localStorage.getItem('usuarioLogado');
@@ -729,7 +754,7 @@ class SimpleCacheManager {
     // ============================================
     // ⭐ FORÇAR SINCRONIZAÇÃO (BIDIRECIONAL)
     // ============================================
-    async forceSync() {
+        async forceSync() {
         if (this._syncInProgress) {
             console.log('[CacheManager] ⏳ Sync já em andamento...');
             return false;
@@ -745,25 +770,21 @@ class SimpleCacheManager {
                 return false;
             }
             
-            // PASSO 1: Carregar da nuvem (sobrescreve local)
-            console.log('[CacheManager] ☁️ Passo 1: Carregando da nuvem...');
-            await this.loadFromCloud(true);
-            
-            // PASSO 2: Processar fila de delete pendente
+            // ⭐ PASSO 1: Processar DELETES pendentes primeiro
             if (this._deleteQueue.length > 0) {
-                console.log(`[CacheManager] 🗑️ Passo 2: Processando ${this._deleteQueue.length} itens de delete...`);
+                console.log(`[CacheManager] 🗑️ Passo 1: Processando ${this._deleteQueue.length} deletes...`);
                 await this._processDeleteQueue();
             }
             
-            // PASSO 3: Processar fila pendente (salvar local → nuvem)
+            // ⭐ PASSO 2: Enviar SAVE queue (local → nuvem) ANTES de carregar
             if (this._saveQueue.length > 0) {
-                console.log(`[CacheManager] 📤 Passo 3: Enviando ${this._saveQueue.length} itens pendentes...`);
+                console.log(`[CacheManager] 📤 Passo 2: Enviando ${this._saveQueue.length} itens pendentes...`);
                 await this._processSaveQueue();
             }
             
-            // PASSO 4: Recarregar da nuvem (consistência final)
-            console.log('[CacheManager] 🔄 Passo 4: Recarregando para consistência...');
-            await this.loadFromCloud(true);
+            // ⭐ PASSO 3: Carregar da nuvem (agora é seguro, locais já foram enviados)
+            console.log('[CacheManager] ☁️ Passo 3: Carregando da nuvem...');
+            await this.loadFromCloud(false);   // false em vez de true
             
             this._lastSyncTime = Date.now();
             this._syncErrorCount = 0;

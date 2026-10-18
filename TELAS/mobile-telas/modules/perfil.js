@@ -493,6 +493,11 @@ class PerfilModule {
                             this.app.showView('documentos');
                         }
                         break;
+                                            case 'disciplinas':
+                        if (this.app) {
+                            this.app.showView('disciplinas');
+                        }
+                        break;
                     case 'deletar-foto':
                         this.deleteProfilePhoto();
                         break;

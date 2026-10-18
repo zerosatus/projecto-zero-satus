@@ -10,14 +10,15 @@ class App {
         
         // Mapeamento de views para módulos
         this.viewToModuleMap = {
-            'dashboard': 'dashboard',
-            'calendario': 'calendario',
-            'tarefas': 'tarefas',
-            'notas': 'notas',
-            'perfil': 'perfil',
-            'ia': 'ia',
-            'documentos': 'documentos'  // ⭐ ADICIONADO
-        };
+    'dashboard': 'dashboard',
+    'calendario': 'calendario',
+    'tarefas': 'tarefas',
+    'notas': 'notas',
+    'perfil': 'perfil',
+    'ia': 'ia',
+    'documentos': 'documentos',
+    'disciplinas': 'disciplinas'   // ⭐ ADICIONAR
+};
 
         this.data = {
             tasks: [],
@@ -58,15 +59,16 @@ class App {
         this._dataLoadedFromCloud = false;
         
         // CSS por módulo
-        this.cssModules = {
-            dashboard: 'css/dashboard.css',
-            calendario: 'css/calendario.css',
-            tarefas: 'css/tarefas.css',
-            notas: 'css/notas.css',
-            perfil: 'css/perfil.css',
-            ia: 'css/ia.css',
-            documentos: 'css/documentos.css'
-        };
+      this.cssModules = {
+    dashboard: 'css/dashboard.css',
+    calendario: 'css/calendario.css',
+    tarefas: 'css/tarefas.css',
+    notas: 'css/notas.css',
+    perfil: 'css/perfil.css',
+    ia: 'css/ia.css',
+    documentos: 'css/documentos.css',
+    disciplinas: 'css/disciplinas.css'   // ⭐ ADICIONAR
+};
         
         this.init();
     }
@@ -767,7 +769,11 @@ class App {
             this.modules.documentos = new DocumentosModule(this);
             console.log('[SPA] 📁 Módulo Documentos carregado');
         }
-        
+          if (typeof DisciplinasModule !== 'undefined') {
+        this.modules.disciplinas = new DisciplinasModule(this);
+        this.modules.disciplinas._setupEventos();
+        console.log('[SPA] 📚 Módulo Disciplinas carregado');
+        }
         console.log('[SPA] 📦 Módulos carregados:', Object.keys(this.modules));
     }
     
@@ -790,7 +796,7 @@ class App {
                     console.log('[SPA] ☁️ Tentando carregar da nuvem primeiro...');
                     this.updateLoadingStatus('Carregando da nuvem...', 40);
                     
-                    const cloudData = await window.CacheManager.loadFromCloud(true);
+                                     const cloudData = await window.CacheManager.loadFromCloud(false);
                     if (cloudData) {
                         loadedFromCloud = true;
                         this._dataLoadedFromCloud = true;
@@ -1050,12 +1056,16 @@ class App {
                 
                 // ❌ NÃO FAZER forceSync imediato (O sync-helper.js já trata ciclicamente)
                 // ✅ Em vez disso, agendar um sync com Debounce de 2s para evitar duplicações
-                if (window.CacheManager._syncTimeout) {
+                               if (window.CacheManager._syncTimeout) {
                     clearTimeout(window.CacheManager._syncTimeout);
                 }
                 window.CacheManager._syncTimeout = setTimeout(() => {
-                    window.CacheManager.forceSync().catch(() => {});
-                }, 2000);  // ⭐ Debounce de 2s
+                    // ⭐ Só sincroniza se houver algo pendente
+                    if (window.CacheManager._saveQueue.length > 0 ||
+                        window.CacheManager._deleteQueue.length > 0) {
+                        window.CacheManager.forceSync().catch(() => {});
+                    }
+                }, 3000);   // 3s em vez de 2s
             } else {
                 console.error('[SPA] ❌ CacheManager não disponível!');
             }
@@ -1120,6 +1130,9 @@ class App {
         
         document.getElementById('go-to-calendar')?.addEventListener('click', () => {
             this.showView('calendario');
+        });
+                document.getElementById('go-to-disciplinas')?.addEventListener('click', () => {
+            this.showView('disciplinas');
         });
         
         document.getElementById('go-to-tasks')?.addEventListener('click', () => {
@@ -1525,18 +1538,18 @@ class App {
             }
         });
         
-        window.addEventListener('scheduleUpdated', (e) => {
-            console.log('[SPA] 📡 Horário atualizado via evento');
-            if (e.detail) {
-                this.data.weeklySchedule = e.detail.weeklySchedule || this.data.weeklySchedule;
-                this.data.timeSlots = e.detail.timeSlots || this.data.timeSlots;
-                sessionStorage.setItem('app_data', JSON.stringify(this.data));
-                if (this.modules.dashboard) {
-                    this.modules.dashboard.render(this.data);
-                }
-            }
-        });
-
+       window.addEventListener('scheduleUpdated', (e) => {
+    if (e.detail) {
+        this.data.weeklySchedule = e.detail.weeklySchedule || this.data.weeklySchedule;
+        this.data.timeSlots = e.detail.timeSlots || this.data.timeSlots;
+        sessionStorage.setItem('app_data', JSON.stringify(this.data));
+        // ⭐ NÃO re-renderizar o dashboard (já o fez antes de disparar o evento)
+        // Se a view ativa for OUTRA (ex: inicio), aí sim renderiza
+        if (this.currentView !== 'dashboard' && this.modules[this.currentView]) {
+            this.modules[this.currentView].render(this.data);
+        }
+    }
+});
         window.addEventListener('newNotification', (e) => {
             console.log('[App] 📬 Nova notificação recebida via Realtime!');
             

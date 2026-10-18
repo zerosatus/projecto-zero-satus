@@ -20,16 +20,35 @@ class CalendarioModule {
     // ============================================
     // RENDER PRINCIPAL
     // ============================================
-    render(data) {
+       render(data) {
         console.log('[Calendario] 📅 Renderizando...');
         
         this.calendarEvents = data.calendarEvents || [];
         this.notifications = data.notifications || [];
         
+        this.popularSelectDisciplinas();
         this.renderCalendar();
         this.renderEvents();
         this.setupEvents();
         this.updateBadge();
+    }
+
+    // ⭐ Popular select de disciplinas
+    popularSelectDisciplinas(selecionada = '') {
+        const select = document.getElementById('event-disciplina');
+        if (!select) return;
+        
+        const disciplinas = this.app.modules.disciplinas?.getTodas() || [];
+        
+        select.innerHTML = '<option value="">— Sem disciplina —</option>';
+        disciplinas.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.nome;
+            opt.textContent = d.nome;
+            select.appendChild(opt);
+        });
+        
+        select.value = selecionada || '';
     }
     
     // ============================================

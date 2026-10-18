@@ -483,3 +483,20 @@
     .notes-grid-minimal { grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .note-card-minimal { min-height: 190px; padding: 20px; }
 }
+/* Select de disciplina no header da nota */
+.note-disciplina-select {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    outline: none;
+    max-width: 120px;
+    flex-shrink: 0;
+}
+
+.note-disciplina-select:focus {
+    border-color: var(--accent-purple);
+}

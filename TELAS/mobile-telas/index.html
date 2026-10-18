@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="css/tarefas.css">
     <link rel="stylesheet" href="css/notas.css">
     <link rel="stylesheet" href="css/perfil.css">
+    <link rel="stylesheet" href="css/disciplinas.css">
     
     <!-- CSS DA IA -->
     <link rel="stylesheet" href="css/ia.css">
@@ -87,9 +88,14 @@
 
             <!-- Horário Semanal -->
             <section>
-                <div class="section-header">
+                                <div class="section-header">
                     <h3 class="section-title">Horário Semanal</h3>
-                    <button class="edit-btn" id="toggle-edit-mode">Editar <ion-icon name="create-outline"></ion-icon></button>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="edit-btn" id="go-to-disciplinas">
+                            <ion-icon name="book-outline"></ion-icon> Disciplinas
+                        </button>
+                        <button class="edit-btn" id="toggle-edit-mode">Editar <ion-icon name="create-outline"></ion-icon></button>
+                    </div>
                 </div>
                 <div class="schedule-wrapper">
                     <div class="schedule-grid" id="schedule-grid"></div>
@@ -188,6 +194,21 @@
             </div>
             <div class="notes-grid-minimal" id="notes-grid"></div>
         </section>
+                <!-- ========================================== -->
+        <!-- VIEW: DISCIPLINAS                          -->
+        <!-- ========================================== -->
+        <section id="view-disciplinas" class="view hidden">
+            <div class="disciplinas-header">
+                <button class="btn-back-modal" onclick="app.showView('perfil')" title="Voltar ao Perfil">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h1 style="flex:1;">Minhas Disciplinas</h1>
+                <button class="btn-add-disciplina" id="btn-add-disciplina" title="Adicionar Disciplina">
+                    <ion-icon name="add-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="disciplinas-grid" id="disciplinas-list"></div>
+        </section>
 
         <!-- ========================================== -->
         <!-- VIEW: PERFIL                               -->
@@ -249,6 +270,11 @@
                 <div class="menu-item" data-action="ajuda">
                     <ion-icon name="help-circle-outline"></ion-icon>
                     <span>Ajuda e Suporte</span>
+                    <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
+                </div>
+                                <div class="menu-item" data-action="disciplinas">
+                    <ion-icon name="book-outline"></ion-icon>
+                    <span>Minhas Disciplinas</span>
                     <ion-icon name="chevron-forward-outline" class="arrow"></ion-icon>
                 </div>
                 <div class="menu-item" data-action="documentos">
@@ -487,7 +513,12 @@
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
             </div>
-            <form class="subject-form">
+            
+                        <form class="subject-form">
+                <div class="input-group">
+                    <label>Suas disciplinas (toque para usar):</label>
+                    <div class="disciplinas-chips" id="subject-disciplinas-chips"></div>
+                </div>
                 <div class="input-group">
                     <label>Nome da Matéria</label>
                     <input type="text" id="subject-name-input" placeholder="Ex: Matemática">
@@ -564,6 +595,12 @@
                 <div class="input-group">
                     <label>Título do Evento *</label>
                     <input type="text" id="event-title" placeholder="Ex: Prova de Matemática">
+                </div>
+                                <div class="input-group">
+                    <label>Disciplina (opcional)</label>
+                    <select id="event-disciplina">
+                        <option value="">— Sem disciplina —</option>
+                    </select>
                 </div>
                 <div class="input-group">
                     <label>Data *</label>
@@ -649,9 +686,11 @@
                     <label>Título *</label>
                     <input type="text" id="task-title" placeholder="Nome da tarefa">
                 </div>
-                <div class="input-group">
-                    <label>Matéria</label>
-                    <input type="text" id="task-subject" placeholder="Disciplina">
+                               <div class="input-group">
+                    <label>Disciplina</label>
+                    <select id="task-disciplina">
+                        <option value="">— Sem disciplina —</option>
+                    </select>
                 </div>
                 <div class="input-group">
                     <label>Data de Entrega</label>
@@ -708,7 +747,10 @@
                 </button>
                 <input type="text" class="samsung-title-input" id="note-title-input" placeholder="Título" autocomplete="off">
                 <button class="samsung-done-btn" id="btn-save-note">Concluir</button>
-            </div>
+            </div>            
+                <select id="note-disciplina" class="note-disciplina-select" title="Disciplina">
+                    <option value="">📚 Sem disciplina</option>
+                </select>
 
             <!-- Área de Edição -->
             <div class="samsung-editor-wrapper">
@@ -774,6 +816,56 @@
             <!-- Rodapé com Data -->
             <div class="note-footer-info">
                 <span id="note-date-display"></span>
+            </div>
+        </div>
+    </div>
+        <!-- ========================================== -->
+    <!-- MODAL: DISCIPLINA                          -->
+    <!-- ========================================== -->
+    <div class="disciplina-modal" id="disciplina-modal">
+        <div class="disciplina-modal-content">
+            <div class="disciplina-modal-header">
+                <button class="btn-back-modal" id="btn-fechar-disc" title="Fechar">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+                <h2 id="disciplina-modal-title">Nova Disciplina</h2>
+                <button class="btn-close-modal-btn" id="btn-fechar-disc-x" onclick="app.modules.disciplinas?.fecharModal()" title="Fechar">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+
+            <form class="disciplina-form" id="disciplina-form">
+                <div class="input-group">
+                    <label>Nome da Disciplina</label>
+                    <input type="text" id="disc-nome" placeholder="Ex: Matemática" required autocomplete="off">
+                </div>
+
+                <div class="input-group">
+                    <label>Ícone</label>
+                    <select id="disc-icone">
+                        <option value="fa-book">📖 Livro</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>Cor</label>
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="disc-cor" value="#9333ea">
+                        <span class="color-hex" id="disc-cor-hex">#9333ea</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-save" id="btn-salvar-disc">
+                    <ion-icon name="save-outline"></ion-icon> Criar Disciplina
+                </button>
+                <button type="button" class="btn-cancel" id="btn-limpar-disc">
+                    Limpar
+                </button>
+            </form>
+
+            <div class="disc-list-section">
+                <h3>Disciplinas Cadastradas</h3>
+                <div id="lista-disciplinas-modal"></div>
             </div>
         </div>
     </div>
@@ -1140,6 +1232,7 @@ const checkInterval = setInterval(() => {
 }, 500);
 </script>
 <!-- Módulos JavaScript -->
+<script src="modules/disciplinas.js"></script>
 <script src="modules/dashboard.js"></script>
 <script src="modules/calendario.js"></script>
 <script src="modules/tarefas.js"></script>

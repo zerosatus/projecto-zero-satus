@@ -1,0 +1,421 @@
+/* ============================================
+   disciplinas.css - MINHAS DISCIPLINAS (MOBILE)
+   ============================================ */
+
+#view-disciplinas {
+    padding: 16px 20px;
+}
+
+/* HEADER */
+.disciplinas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.disciplinas-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.btn-add-disciplina {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    background: var(--accent-purple);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.btn-add-disciplina:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
+}
+
+.btn-add-disciplina:active {
+    transform: scale(0.95);
+}
+
+/* GRID DE DISCIPLINAS - MOBILE 2 COLUNAS */
+.disciplinas-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.disciplina-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 16px 14px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.disciplina-card:active {
+    transform: scale(0.97);
+}
+
+.disciplina-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--disciplina-color, var(--accent-purple));
+    border-radius: 16px 16px 0 0;
+}
+
+.disciplina-card .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.disciplina-card .card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: white;
+    background: var(--disciplina-color, var(--accent-purple));
+    flex-shrink: 0;
+}
+
+.disciplina-card .card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.disciplina-card .card-actions button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.disciplina-card .card-actions .btn-edit:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent-purple);
+}
+
+.disciplina-card .card-actions .btn-delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-red);
+}
+
+.disciplina-card .card-info {
+    margin-top: 8px;
+}
+
+.disciplina-card .card-info h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.disciplina-card .card-info .card-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.disciplina-card .card-info .card-stats span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.disciplina-card .card-info .card-stats ion-icon {
+    font-size: 0.7rem;
+}
+
+/* ESTADO VAZIO */
+.empty-disciplinas {
+    grid-column: span 2;
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-disciplinas ion-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-disciplinas p {
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   MODAL DE DISCIPLINA (MOBILE)
+   ============================================ */
+.disciplina-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(15, 17, 21, 0.95);
+    z-index: 200;
+    overflow-y: auto;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.disciplina-modal.active {
+    display: block;
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.disciplina-modal-content {
+    max-width: 400px;
+    margin: 20px auto;
+    padding: 20px;
+    min-height: 100vh;
+    background-color: var(--bg-color);
+}
+
+.disciplina-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.disciplina-modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+    text-align: center;
+}
+
+.disciplina-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.disciplina-form .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.disciplina-form .input-group label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.disciplina-form .input-group input,
+.disciplina-form .input-group select {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.25s ease;
+    width: 100%;
+}
+
+.disciplina-form .input-group input:focus,
+.disciplina-form .input-group select:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.disciplina-form .color-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.disciplina-form .color-option {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid transparent;
+    background-color: var(--card-bg);
+    transition: all 0.25s ease;
+}
+
+.disciplina-form .color-option:active {
+    transform: scale(0.9);
+}
+
+.disciplina-form .color-option.active {
+    border-color: var(--text-primary);
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+}
+
+.disciplina-form .color-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.color-preview-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.color-preview-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+}
+
+.color-hex {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.disciplina-form .btn-save {
+    background-color: var(--accent-purple);
+    padding: 14px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    margin-top: 4px;
+}
+
+.disciplina-form .btn-save:active {
+    transform: scale(0.97);
+}
+
+.btn-back-modal,
+.btn-close-modal-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-back-modal:active,
+.btn-close-modal-btn:active {
+    transform: scale(0.9);
+}
+
+/* ============================================
+   RESPONSIVO MOBILE
+   ============================================ */
+@media (max-width: 480px) {
+    #view-disciplinas {
+        padding: 12px 14px;
+    }
+    
+    .disciplinas-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .disciplina-card {
+        min-height: 80px;
+        padding: 14px;
+    }
+    
+    .disciplina-card .card-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    
+    .disciplina-card .card-info h3 {
+        font-size: 0.85rem;
+    }
+    
+    .empty-disciplinas {
+        padding: 40px 16px;
+    }
+    
+    .empty-disciplinas ion-icon {
+        font-size: 2.5rem;
+    }
+    
+    .disciplina-modal-content {
+        padding: 16px;
+        margin: 10px;
+    }
+    
+    .disciplina-form .color-option {
+        width: 34px;
+        height: 34px;
+    }
+    
+    .disciplina-form .color-circle {
+        width: 24px;
+        height: 24px;
+    }
+}
