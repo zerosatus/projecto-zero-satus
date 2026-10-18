@@ -470,25 +470,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ CONVERTER IMAGEM PARA URL (NÃO BASE64)
-    // ============================================
-    fileToUrl(file) {
-        return new Promise((resolve) => {
-            if (file.type.startsWith('image/')) {
-                const url = URL.createObjectURL(file);
-                resolve(url);
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = (e) => resolve(null);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // ============================================
-    // ⭐ SALVAR DOCUMENTO (COM UPLOAD PARA STORAGE)
+    // ⭐ SALVAR DOCUMENTO (COM UPLOAD OBRIGATÓRIO PARA STORAGE)
     // ============================================
     async saveDocumento() {
         if (this._isSubmitting) {
@@ -541,45 +523,24 @@ class DocumentosModule {
             let tamanho = this._selectedFile.size;
             let nomeArquivo = this._selectedFile.name;
             
-            // ⭐ TENTAR UPLOAD PARA STORAGE
+            // ⭐ UPLOAD OBRIGATÓRIO PARA STORAGE
             if (window.DatabaseService && window.DatabaseService.uploadDocumentoStorage) {
-                console.log('[Documentos] 📤 Tentando upload para Storage...');
+                console.log('[Documentos] 📤 Enviando arquivo para o Storage...');
+                const result = await window.DatabaseService.uploadDocumentoStorage(
+                    this.app.user.id,
+                    this._selectedFile,
+                    nome
+                );
                 
-                try {
-                    const result = await window.DatabaseService.uploadDocumentoStorage(
-                        this.app.user.id,
-                        this._selectedFile,
-                        nome
-                    );
-                    
-                    if (result && result.publicUrl) {
-                        arquivo = result.publicUrl;
-                        storagePath = result.storagePath;
-                        console.log('[Documentos] ✅ Upload para Storage concluído!');
-                    }
-                } catch (storageError) {
-                    console.error('[Documentos] ❌ Erro no Storage:', storageError);
-                }
-            }
-            
-            // ⭐ FALLBACK: URL (para imagens) ou Base64 (para outros)
-            if (!arquivo) {
-                console.log('[Documentos] 📦 Usando fallback local...');
-                
-                if (this._selectedFile.type.startsWith('image/')) {
-                    arquivo = URL.createObjectURL(this._selectedFile);
-                    console.log('[Documentos] ✅ URL criada para imagem (não ocupa localStorage)');
+                if (result && result.publicUrl) {
+                    arquivo = result.publicUrl;
+                    storagePath = result.storagePath;
+                    console.log('[Documentos] ✅ Upload para Storage concluído!');
                 } else {
-                    try {
-                        arquivo = await this.fileToBase64(this._selectedFile);
-                        if (arquivo && arquivo.length > 500 * 1024) {
-                            console.warn('[Documentos] ⚠️ Base64 grande:', (arquivo.length / 1024).toFixed(1), 'KB');
-                        }
-                    } catch (e) {
-                        console.error('[Documentos] ❌ Erro ao gerar Base64:', e);
-                        throw new Error('Falha ao processar arquivo');
-                    }
+                    throw new Error('Falha no upload para o Storage');
                 }
+            } else {
+                throw new Error('DatabaseService Storage não disponível');
             }
             
             const novoDoc = {
@@ -588,7 +549,7 @@ class DocumentosModule {
                 categoria: categoria,
                 descricao: descricao,
                 arquivo: arquivo,
-                storagePath: storagePath || null,
+                storagePath: storagePath,
                 tipo: tipo,
                 nomeArquivo: nomeArquivo,
                 tamanho: tamanho,
@@ -597,7 +558,7 @@ class DocumentosModule {
             
             this.documentos.unshift(novoDoc);
             
-            // ⭐ SALVAR DADOS (com compressão se necessário)
+            // ⭐ SALVAR DADOS
             await this.salvarDados();
             
             this.closeUploadModal();
@@ -605,13 +566,7 @@ class DocumentosModule {
             this.renderCategorias();
             
             if (typeof showToast === 'function') {
-                if (storagePath) {
-                    showToast('✅ Documento enviado para a nuvem!', 'success');
-                } else if (this._selectedFile.type.startsWith('image/')) {
-                    showToast('✅ Imagem salva localmente', 'success');
-                } else {
-                    showToast('✅ Documento salvo localmente!', 'success');
-                }
+                showToast('✅ Documento enviado para a nuvem!', 'success');
             }
             
         } catch (error) {
@@ -626,19 +581,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // fileToBase64 (apenas para arquivos não-imagem)
-    // ============================================
-    fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = (e) => reject(e);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // ============================================
-    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO DE TAMANHO)
+    // ⭐ SALVAR DADOS (SEM FILTRO DE BASE64 / IGUAL AO FLUTTER)
     // ============================================
     async salvarDados() {
         if (this.isSaving || !this.app) return;
@@ -647,36 +590,12 @@ class DocumentosModule {
         try {
             await this._ensureCacheManager();
             
-            // ⭐ VERIFICAR TAMANHO DOS DOCUMENTOS
-            let totalSize = 0;
-            let documentosLimpos = [];
-            
-            for (const doc of this.documentos) {
-                if (doc.arquivo && doc.arquivo.startsWith('blob:')) {
-                    documentosLimpos.push(doc);
-                    continue;
-                }
-                
-                if (doc.arquivo && doc.arquivo.startsWith('data:')) {
-                    const sizeKB = doc.arquivo.length / 1024;
-                    if (sizeKB > 500) {
-                        console.warn('[Documentos] ⚠️ Documento grande removido:', doc.nome);
-                        continue;
-                    }
-                    totalSize += doc.arquivo.length;
-                    documentosLimpos.push(doc);
-                } else {
-                    documentosLimpos.push(doc);
-                }
-            }
-            
-            this.documentos = documentosLimpos;
-            this.app.data.documentos = documentosLimpos;
+            this.app.data.documentos = this.documentos;
             
             // ⭐ SALVAR NO CACHE MANAGER
             if (window.CacheManager && this._cacheManagerReady) {
                 try {
-                    window.CacheManager.set('documentos', documentosLimpos, true);
+                    window.CacheManager.set('documentos', this.documentos, true);
                 } catch (cacheError) {
                     console.warn('[Documentos] ⚠️ Erro no CacheManager:', cacheError.message);
                 }
@@ -684,7 +603,7 @@ class DocumentosModule {
             
             // ⭐ SALVAR VIA APP (localStorage)
             await this.app.saveAllData();
-            console.log('[Documentos] ✅ Dados salvos:', documentosLimpos.length);
+            console.log('[Documentos] ✅ Dados salvos:', this.documentos.length);
             
             // ⭐ FORÇAR SYNC PARA NUVEM
             if (window.CacheManager && this._cacheManagerReady && window.CacheManager.forceSync) {
@@ -696,7 +615,7 @@ class DocumentosModule {
             }
             
             window.dispatchEvent(new CustomEvent('documentosUpdated', {
-                detail: documentosLimpos
+                detail: this.documentos
             }));
             
         } catch (error) {
@@ -924,4 +843,4 @@ class DocumentosModule {
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado com Storage + URL fallback + Sync completo!');
+console.log('[Documentos] ✅ Módulo carregado com Storage obrigatório (sem filtro base64) e alinhado com Flutter!');
