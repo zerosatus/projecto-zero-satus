@@ -174,6 +174,20 @@ function generateId() {
 }
 
 // ============================================
+// FUNÇÃO DE NORMALIZAÇÃO DE TEXTO/ID
+// ============================================
+function normalizeText(texto) {
+    if (!texto) return '';
+    return texto
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
+// ============================================
 // COMPRESSÃO DE IMAGEM
 // ============================================
 async function compressImage(file) {
@@ -770,7 +784,7 @@ function criarDatabaseService(client) {
         },
 
         // ============================================
-        // TASKS
+        // TASKS (ID normalizado como String)
         // ============================================
         async getTasks(userId) {
             const client = window.supabaseClient || initSupabase();
@@ -789,7 +803,7 @@ function criarDatabaseService(client) {
                 }
 
                 return (data || []).map(task => ({
-                    id: task.id,
+                    id: task.id ? String(task.id) : null,
                     nome: task.title,
                     descricao: task.description,
                     disciplina: task.subject,
@@ -820,7 +834,7 @@ function criarDatabaseService(client) {
                 const tasksToUpsert = tasks.map(task => {
                     const title = task.nome || task.title || 'Sem título';
                     return {
-                        id: task.id || generateId(),
+                        id: task.id ? String(task.id) : Date.now().toString(), // ⭐ Padronizado como String
                         user_id: userId,
                         title: title,
                         slug: task.slug || title.toLowerCase()
@@ -844,7 +858,7 @@ function criarDatabaseService(client) {
                     if (error) throw error;
                 }
 
-                const idsLocais = tasks.map(t => t.id).filter(Boolean);
+                const idsLocais = tasksToUpsert.map(t => t.id).filter(Boolean);
                 if (idsLocais.length > 0) {
                     await client.from('tasks').delete().eq('user_id', userId)
                         .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
@@ -878,7 +892,8 @@ function criarDatabaseService(client) {
 
             try {
                 const { error } = await client.from('ai_conversations').upsert({
-                    id: conversation.id, user_id: userId,
+                    id: conversation.id ? String(conversation.id) : generateId(),
+                    user_id: userId,
                     title: conversation.title || 'Nova conversa',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'id' });
@@ -920,8 +935,8 @@ function criarDatabaseService(client) {
 
             try {
                 const { error } = await client.from('ai_messages').insert({
-                    id: message.id || (Date.now().toString() + Math.random().toString(36).substr(2, 6)),
-                    conversation_id: message.conversationId,
+                    id: message.id ? String(message.id) : (Date.now().toString() + Math.random().toString(36).substr(2, 6)),
+                    conversation_id: message.conversationId ? String(message.conversationId) : null,
                     user_id: userId,
                     role: message.role,
                     content: message.content,
@@ -993,7 +1008,7 @@ function criarDatabaseService(client) {
                 if (error) { console.error('[DB] ❌', error); return []; }
 
                 return (data || []).map(doc => ({
-                    id: doc.id,
+                    id: doc.id ? String(doc.id) : null,
                     nome: doc.nome,
                     categoria: doc.categoria || 'Outros',
                     descricao: doc.descricao || '',
@@ -1102,7 +1117,7 @@ function criarDatabaseService(client) {
         },
 
         // ============================================
-        // NOTES
+        // NOTES (UPSERT E ID String)
         // ============================================
         async getNotes(userId) {
             const client = window.supabaseClient || initSupabase();
@@ -1121,7 +1136,7 @@ function criarDatabaseService(client) {
                 }
 
                 return (data || []).map(note => ({
-                    id: note.id,
+                    id: note.id ? String(note.id) : null,
                     title: note.title || 'Sem título',
                     content: note.content || '',
                     date: note.created_at,
@@ -1138,20 +1153,13 @@ function criarDatabaseService(client) {
             if (!client) return false;
 
             try {
-                const { error: deleteError } = await client
-                    .from('notes')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[DB] ❌ Erro:', deleteError);
-                    return false;
+                if (!notes || notes.length === 0) {
+                    await client.from('notes').delete().eq('user_id', userId);
+                    return true;
                 }
 
-                if (!notes || notes.length === 0) return true;
-
-                const notesToInsert = notes.map(note => ({
-                    id: generateId(),
+                const notesToUpsert = notes.map(note => ({
+                    id: note.id ? String(note.id) : generateId(),
                     user_id: userId,
                     title: note.title || note.titulo || 'Sem título',
                     content: note.content || note.conteudo || '',
@@ -1159,21 +1167,24 @@ function criarDatabaseService(client) {
                     updated_at: new Date().toISOString()
                 }));
 
-                const { error } = await client.from('notes').insert(notesToInsert);
-                if (error) {
-                    console.error('[DB] ❌ Erro:', error);
-                    throw error;
-                }
+                const { error } = await client.from('notes').upsert(notesToUpsert, { onConflict: 'id' });
+                if (error) throw error;
+
+                const idsLocais = notesToUpsert.map(n => n.id);
+                await client.from('notes')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
 
                 return true;
             } catch (error) {
-                console.error('[DB] ❌ Erro:', error);
+                console.error('[DB] ❌ Erro saveNotes:', error);
                 return false;
             }
         },
 
         // ============================================
-        // CALENDAR EVENTS
+        // CALENDAR EVENTS (UPSERT E ID String)
         // ============================================
         async getCalendarEvents(userId) {
             const client = window.supabaseClient || initSupabase();
@@ -1192,7 +1203,7 @@ function criarDatabaseService(client) {
                 }
 
                 return (data || []).map(event => ({
-                    id: event.id,
+                    id: event.id ? String(event.id) : null,
                     title: event.title,
                     description: event.description || '',
                     date: event.date,
@@ -1214,20 +1225,13 @@ function criarDatabaseService(client) {
             if (!client) return false;
 
             try {
-                const { error: deleteError } = await client
-                    .from('calendar_events')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[DB] ❌ Erro:', deleteError);
-                    return false;
+                if (!events || events.length === 0) {
+                    await client.from('calendar_events').delete().eq('user_id', userId);
+                    return true;
                 }
 
-                if (!events || events.length === 0) return true;
-
-                const eventsToInsert = events.map(event => ({
-                    id: generateId(),
+                const eventsToUpsert = events.map(event => ({
+                    id: event.id ? String(event.id) : generateId(),
                     user_id: userId,
                     title: event.title || 'Evento',
                     description: event.description || '',
@@ -1238,16 +1242,22 @@ function criarDatabaseService(client) {
                     color: event.color || '#8b5cf6',
                     repeat_type: event.repeat || 'nao',
                     reminder: event.reminder || false,
-                    created_at: new Date().toISOString(),
+                    created_at: event.created_at || new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 }));
 
-                const { error } = await client.from('calendar_events').insert(eventsToInsert);
+                const { error } = await client.from('calendar_events').upsert(eventsToUpsert, { onConflict: 'id' });
                 if (error) throw error;
+
+                const idsLocais = eventsToUpsert.map(e => e.id);
+                await client.from('calendar_events')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
 
                 return true;
             } catch (error) {
-                console.error('[DB] ❌ Erro:', error);
+                console.error('[DB] ❌ Erro saveCalendarEvents:', error);
                 return false;
             }
         },
@@ -1293,32 +1303,13 @@ function criarDatabaseService(client) {
                     if (!schedule[day]) schedule[day] = [];
                 });
 
-                const { data: existing } = await client
+                const { error } = await client
                     .from('weekly_schedule')
-                    .select('user_id')
-                    .eq('user_id', userId)
-                    .single();
-
-                let error;
-                if (existing) {
-                    const { error: updateError } = await client
-                        .from('weekly_schedule')
-                        .update({
-                            schedule: schedule,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('user_id', userId);
-                    error = updateError;
-                } else {
-                    const { error: insertError } = await client
-                        .from('weekly_schedule')
-                        .insert({
-                            user_id: userId,
-                            schedule: schedule,
-                            updated_at: new Date().toISOString()
-                        });
-                    error = insertError;
-                }
+                    .upsert({
+                        user_id: userId,
+                        schedule: schedule,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
 
                 if (error) {
                     console.error('[DB] ❌ Erro:', error);
@@ -1366,32 +1357,13 @@ function criarDatabaseService(client) {
                     slots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
                 }
 
-                const { data: existing } = await client
+                const { error } = await client
                     .from('time_slots')
-                    .select('user_id')
-                    .eq('user_id', userId)
-                    .single();
-
-                let error;
-                if (existing) {
-                    const { error: updateError } = await client
-                        .from('time_slots')
-                        .update({
-                            slots: slots,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('user_id', userId);
-                    error = updateError;
-                } else {
-                    const { error: insertError } = await client
-                        .from('time_slots')
-                        .insert({
-                            user_id: userId,
-                            slots: slots,
-                            updated_at: new Date().toISOString()
-                        });
-                    error = insertError;
-                }
+                    .upsert({
+                        user_id: userId,
+                        slots: slots,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
 
                 if (error) {
                     console.error('[DB] ❌ Erro:', error);
@@ -1406,7 +1378,7 @@ function criarDatabaseService(client) {
         },
 
         // ============================================
-        // NOTIFICATIONS
+        // NOTIFICATIONS (UPSERT E ID String)
         // ============================================
         async getNotifications(userId) {
             const client = window.supabaseClient || initSupabase();
@@ -1425,7 +1397,7 @@ function criarDatabaseService(client) {
                 }
 
                 return (data || []).map(notif => ({
-                    id: notif.id,
+                    id: notif.id ? String(notif.id) : null,
                     title: notif.title || 'Notificação',
                     message: notif.message || '',
                     type: notif.type || 'info',
@@ -1443,12 +1415,13 @@ function criarDatabaseService(client) {
             if (!client) return false;
 
             try {
-                await client.from('notifications').delete().eq('user_id', userId);
+                if (!notifications || notifications.length === 0) {
+                    await client.from('notifications').delete().eq('user_id', userId);
+                    return true;
+                }
 
-                if (notifications.length === 0) return true;
-
-                const notifToInsert = notifications.map(notif => ({
-                    id: generateId(),
+                const notifToUpsert = notifications.map(notif => ({
+                    id: notif.id ? String(notif.id) : generateId(),
                     user_id: userId,
                     title: notif.title || 'Notificação',
                     message: notif.message || '',
@@ -1457,18 +1430,24 @@ function criarDatabaseService(client) {
                     created_at: notif.time || new Date().toISOString()
                 }));
 
-                const { error } = await client.from('notifications').insert(notifToInsert);
+                const { error } = await client.from('notifications').upsert(notifToUpsert, { onConflict: 'id' });
                 if (error) throw error;
+
+                const idsLocais = notifToUpsert.map(n => n.id);
+                await client.from('notifications')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
 
                 return true;
             } catch (error) {
-                console.error('[DB] ❌ Erro:', error);
+                console.error('[DB] ❌ Erro saveNotifications:', error);
                 return false;
             }
         },
 
         // ============================================
-        // DISCIPLINAS
+        // DISCIPLINAS (UPSERT E ID Normalizado como Flutter)
         // ============================================
         async getDisciplinas(userId) {
             const client = window.supabaseClient || initSupabase();
@@ -1486,7 +1465,14 @@ function criarDatabaseService(client) {
                     return [];
                 }
 
-                return data || [];
+                return (data || []).map(d => ({
+                    id: d.id ? String(d.id) : null,
+                    nome: d.nome,
+                    cor: d.cor || '#9333ea',
+                    icone: d.icone || 'fa-book',
+                    created_at: d.created_at,
+                    updated_at: d.updated_at
+                }));
             } catch (error) {
                 console.error('[DB] ❌ Erro:', error);
                 return [];
@@ -1498,12 +1484,13 @@ function criarDatabaseService(client) {
             if (!client) return false;
 
             try {
-                await client.from('disciplinas').delete().eq('user_id', userId);
+                if (!disciplinas || disciplinas.length === 0) {
+                    await client.from('disciplinas').delete().eq('user_id', userId);
+                    return true;
+                }
 
-                if (disciplinas.length === 0) return true;
-
-                const disciplinasToInsert = disciplinas.map(d => ({
-                    id: generateId(),
+                const disciplinasToUpsert = disciplinas.map(d => ({
+                    id: d.id ? String(d.id) : normalizeText(d.nome), // ⭐ MESMO FORMATO QUE O FLUTTER (normalizar nome)
                     user_id: userId,
                     nome: d.nome || 'Disciplina',
                     cor: d.cor || '#9333ea',
@@ -1512,12 +1499,18 @@ function criarDatabaseService(client) {
                     updated_at: new Date().toISOString()
                 }));
 
-                const { error } = await client.from('disciplinas').insert(disciplinasToInsert);
+                const { error } = await client.from('disciplinas').upsert(disciplinasToUpsert, { onConflict: 'id' });
                 if (error) throw error;
+
+                const idsLocais = disciplinasToUpsert.map(d => d.id);
+                await client.from('disciplinas')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
 
                 return true;
             } catch (error) {
-                console.error('[DB] ❌ Erro:', error);
+                console.error('[DB] ❌ Erro saveDisciplinas:', error);
                 return false;
             }
         }
