@@ -597,7 +597,7 @@ class DocumentosModule {
             
             this.documentos.unshift(novoDoc);
             
-            // ⭐ SALVAR DADOS (com compressão se necessário)
+            // ⭐ SALVAR DADOS (SEM FILTRO DE TAMANHO)
             await this.salvarDados();
             
             this.closeUploadModal();
@@ -638,7 +638,7 @@ class DocumentosModule {
     }
 
     // ============================================
-    // ⭐ SALVAR DADOS (COM VERIFICAÇÃO DE TAMANHO)
+    // ⭐ SALVAR DADOS (SEM FILTRO DE TAMANHO - IGUAL AO FLUTTER)
     // ============================================
     async salvarDados() {
         if (this.isSaving || !this.app) return;
@@ -647,36 +647,13 @@ class DocumentosModule {
         try {
             await this._ensureCacheManager();
             
-            // ⭐ VERIFICAR TAMANHO DOS DOCUMENTOS
-            let totalSize = 0;
-            let documentosLimpos = [];
-            
-            for (const doc of this.documentos) {
-                if (doc.arquivo && doc.arquivo.startsWith('blob:')) {
-                    documentosLimpos.push(doc);
-                    continue;
-                }
-                
-                if (doc.arquivo && doc.arquivo.startsWith('data:')) {
-                    const sizeKB = doc.arquivo.length / 1024;
-                    if (sizeKB > 500) {
-                        console.warn('[Documentos] ⚠️ Documento grande removido:', doc.nome);
-                        continue;
-                    }
-                    totalSize += doc.arquivo.length;
-                    documentosLimpos.push(doc);
-                } else {
-                    documentosLimpos.push(doc);
-                }
-            }
-            
-            this.documentos = documentosLimpos;
-            this.app.data.documentos = documentosLimpos;
+            // ⭐ ATRIBUIR DIRETAMENTE SEM FILTROS DE TAMANHO
+            this.app.data.documentos = this.documentos;
             
             // ⭐ SALVAR NO CACHE MANAGER
             if (window.CacheManager && this._cacheManagerReady) {
                 try {
-                    window.CacheManager.set('documentos', documentosLimpos, true);
+                    window.CacheManager.set('documentos', this.documentos, true);
                 } catch (cacheError) {
                     console.warn('[Documentos] ⚠️ Erro no CacheManager:', cacheError.message);
                 }
@@ -684,7 +661,7 @@ class DocumentosModule {
             
             // ⭐ SALVAR VIA APP (localStorage)
             await this.app.saveAllData();
-            console.log('[Documentos] ✅ Dados salvos:', documentosLimpos.length);
+            console.log('[Documentos] ✅ Dados salvos:', this.documentos.length);
             
             // ⭐ FORÇAR SYNC PARA NUVEM
             if (window.CacheManager && this._cacheManagerReady && window.CacheManager.forceSync) {
@@ -696,7 +673,7 @@ class DocumentosModule {
             }
             
             window.dispatchEvent(new CustomEvent('documentosUpdated', {
-                detail: documentosLimpos
+                detail: this.documentos
             }));
             
         } catch (error) {
@@ -924,4 +901,4 @@ class DocumentosModule {
     }
 }
 
-console.log('[Documentos] ✅ Módulo carregado com Storage + URL fallback + Sync completo!');
+console.log('[Documentos] ✅ Módulo carregado com Storage + URL fallback + Sync completo (Sem filtro de tamanho)!');
