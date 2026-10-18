@@ -30,34 +30,32 @@ class App {
         this._maxSyncRetries = 3;
         this.isSaving = false;
         
-       this.cssModules = {
-    'inicio': 'css/inicio.css',
-    'dashboard': 'css/dashboard.css',
-    'dashboard-page': 'css/dashboard.css',
-    'calendario': 'css/calendario.css',
-    'tarefas': 'css/tarefas.css',
-    'anotacoes': 'css/anotacoes.css',
-    'perfil': 'css/perfil.css',
-    'ia': 'css/ia.css',
-    'disciplinas': 'css/disciplinas.css',
-    'documentos': 'css/documentos.css',
-    'foco': 'css/foco.css'   // ⭐ ADICIONE ESTA LINHA
-};
+        this.cssModules = {
+            'inicio': 'css/inicio.css',
+            'dashboard': 'css/dashboard.css',
+            'dashboard-page': 'css/dashboard.css',
+            'calendario': 'css/calendario.css',
+            'tarefas': 'css/tarefas.css',
+            'anotacoes': 'css/anotacoes.css',
+            'perfil': 'css/perfil.css',
+            'ia': 'css/ia.css',
+            'disciplinas': 'css/disciplinas.css',
+            'documentos': 'css/documentos.css'
+        };
         
-       this.viewToModuleMap = {
-    'inicio': 'inicio',
-    'dashboard-page': 'dashboard',
-    'dashboard': 'dashboard',
-    'calendario': 'calendario',
-    'tarefas': 'tarefas',
-    'anotacoes': 'anotacoes',
-    'notas': 'anotacoes',
-    'perfil': 'perfil',
-    'ia': 'ia',
-    'disciplinas': 'disciplinas',
-    'documentos': 'documentos',
-    'foco': 'foco'   //  ADICIONE ESTA LINHA
-};
+        this.viewToModuleMap = {
+            'inicio': 'inicio',
+            'dashboard-page': 'dashboard',
+            'dashboard': 'dashboard',
+            'calendario': 'calendario',
+            'tarefas': 'tarefas',
+            'anotacoes': 'anotacoes',
+            'notas': 'anotacoes',
+            'perfil': 'perfil',
+            'ia': 'ia',
+            'disciplinas': 'disciplinas',
+            'documentos': 'documentos'
+        };
         
         this.init();
     }
@@ -383,41 +381,42 @@ class App {
         }
     }
     
-   async saveAllData() {
-    if (this.isSaving) return;
-    this.isSaving = true;
-    
-    if (!window.CacheManager) { this.isSaving = false; return; }
-    const userId = this.user?.id;
-    if (!userId) { this.isSaving = false; return; }
-    
-    try {
-        // ... filtros ...
+    async saveAllData() {
+        if (this.isSaving) return;
+        this.isSaving = true;
         
-        for (const key of Object.keys(this.data)) {
-            if (SKIP_KEYS.includes(key)) continue;
-            if (this.data[key] !== undefined && this.data[key] !== null) {
-                // ⭐ false = salva local, não dispara sync imediato
-                window.CacheManager.set(key, this.data[key], false);
+        if (!window.CacheManager) { this.isSaving = false; return; }
+        const userId = this.user?.id;
+        if (!userId) { this.isSaving = false; return; }
+        
+        try {
+            // ⭐ Lista explícita do que deve ser salvo (NÃO salva profile/settings aqui)
+            const KEYS_TO_SAVE = [
+                'tasks', 'notes', 'calendarEvents', 'weeklySchedule',
+                'timeSlots', 'notifications', 'disciplinas', 'documentos'
+            ];
+            
+            for (const key of KEYS_TO_SAVE) {
+                if (this.data[key] !== undefined && this.data[key] !== null) {
+                    // ⭐ false = salva local, NÃO dispara sync imediato (usa debounce)
+                    window.CacheManager.set(key, this.data[key], false);
+                }
             }
+            
+            // ⭐ Sync com debounce (só notes por padrão, o resto tem sync específico)
+            if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
+            window.CacheManager._syncTimeout = setTimeout(() => {
+                if (window.CacheManager.forceSync) {
+                    window.CacheManager.forceSync().catch(() => {});
+                }
+            }, 3000);
+            
+        } catch (error) {
+            console.error('[App PC] ❌ Erro ao salvar:', error);
         }
         
-        // ⭐ NÃO forçar sync global — cada módulo já salva o que precisa
-        // O CacheManager tem seu próprio debounce interno
-        if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
-        window.CacheManager._syncTimeout = setTimeout(() => {
-            if (window.CacheManager.forceSyncNotes) {
-                // ⭐ Só sincroniza notes se tiver notas
-                window.CacheManager.forceSyncNotes().catch(() => {});
-            }
-        }, 3000);
-        
-    } catch (error) {
-        console.error('[App PC] ❌ Erro ao salvar:', error);
+        setTimeout(() => { this.isSaving = false; }, 500);
     }
-    
-    setTimeout(() => { this.isSaving = false; }, 500);
-}
     
     async deleteItem(type, id) {
         if (!window.CacheManager) return false;
@@ -562,9 +561,6 @@ class App {
         if (typeof DocumentosModule !== 'undefined') {
             this.modules.documentos = new DocumentosModule(this);
         }
-        if (typeof FocoModule !== 'undefined') { // ⭐ ADICIONE ESTE BLOCO
-    this.modules.foco = new FocoModule(this);
-}
         
         console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
     }
@@ -595,26 +591,22 @@ class App {
         });
     }
     
-   showView(viewName) {
-    console.log('[App PC] 📄 Mostrando:', viewName);
-    const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main-content');
-    const viewIA = document.getElementById('view-ia');
-    const btnIA = document.getElementById('btnOpenIA');
-    const viewFoco = document.getElementById('view-foco');
-
-    // Esconder sidebar para IA e FOCO
-    if (viewName === 'ia' || viewName === 'foco') {
-        if (sidebar) sidebar.style.display = 'none';
-        if (mainContent) {
-            mainContent.style.marginLeft = '0';
-            mainContent.style.width = '100%';
-            mainContent.style.padding = '0';
-        }
-        if (btnIA) btnIA.style.display = 'none';
-        document.body.style.overflow = 'hidden';
-
+    showView(viewName) {
+        console.log('[App PC] 📄 Mostrando:', viewName);
+        
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const viewIA = document.getElementById('view-ia');
+        const btnIA = document.getElementById('btnOpenIA');
+        
         if (viewName === 'ia') {
+            if (sidebar) sidebar.style.display = 'none';
+            if (mainContent) {
+                mainContent.style.marginLeft = '0';
+                mainContent.style.width = '100%';
+                mainContent.style.padding = '0';
+            }
+            if (btnIA) btnIA.style.display = 'none';
             if (viewIA) {
                 viewIA.style.display = 'flex';
                 viewIA.style.position = 'fixed';
@@ -626,79 +618,64 @@ class App {
                 viewIA.style.background = 'var(--bg-color)';
                 viewIA.style.overflow = 'hidden';
             }
-            if (viewFoco) viewFoco.style.display = 'none';
-        } else if (viewName === 'foco') {
-            if (viewFoco) {
-                viewFoco.style.display = 'block';
-                viewFoco.style.position = 'fixed';
-                viewFoco.style.top = '0';
-                viewFoco.style.left = '0';
-                viewFoco.style.width = '100vw';
-                viewFoco.style.height = '100vh';
-                viewFoco.style.zIndex = '9998';
-                viewFoco.style.overflow = 'auto';
-                viewFoco.style.background = '#0a0810';
-            }
-            if (viewIA) viewIA.style.display = 'none';
-        }
-    } else {
-        // Mostrar sidebar para outras views
-        if (sidebar) sidebar.style.display = 'flex';
-        if (mainContent) {
-            mainContent.style.marginLeft = '260px';
-            mainContent.style.width = 'calc(100% - 260px)';
-            mainContent.style.padding = '30px';
-        }
-        if (btnIA) {
-            btnIA.style.display = 'flex';
-            btnIA.style.visibility = 'visible';
-            btnIA.style.opacity = '1';
-        }
-        if (viewIA) {
-            viewIA.style.display = 'none';
-            viewIA.style.position = 'relative';
-            viewIA.style.zIndex = '1';
-            viewIA.style.overflow = 'visible';
-        }
-        if (viewFoco) {
-            viewFoco.style.display = 'none';
-            viewFoco.style.position = 'relative';
-            viewFoco.style.zIndex = '1';
-        }
-        document.body.style.overflow = '';
-    }
-
-    this.loadCSS(viewName);
-    document.querySelectorAll('.view').forEach(v => {
-        v.classList.remove('active');
-        v.classList.add('hidden');
-    });
-    const view = document.getElementById(`view-${viewName}`);
-    if (view) {
-        if (viewName !== 'ia' && viewName !== 'foco') {
-            view.style.display = 'block';
-            view.style.position = 'relative';
-            view.style.zIndex = '1';
-            view.style.overflow = 'visible';
-        }
-        view.classList.remove('hidden');
-        view.classList.add('active');
-        document.querySelectorAll('.menu-item[data-view]').forEach(item => {
-            item.classList.toggle('active', item.dataset.view === viewName);
-        });
-        const moduleName = this.viewToModuleMap[viewName];
-        if (moduleName && this.modules[moduleName]) {
-            try {
-                this.modules[moduleName].render(this.data);
-            } catch (err) {
-                console.error(`[App PC] ❌ Erro render ${moduleName}:`, err);
-            }
+            document.body.style.overflow = 'hidden';
         } else {
-            console.warn('[App PC] ⚠️ Módulo não encontrado:', viewName, '→', moduleName);
+            if (sidebar) sidebar.style.display = 'flex';
+            if (mainContent) {
+                mainContent.style.marginLeft = '260px';
+                mainContent.style.width = 'calc(100% - 260px)';
+                mainContent.style.padding = '30px';
+            }
+            if (btnIA) {
+                btnIA.style.display = 'flex';
+                btnIA.style.visibility = 'visible';
+                btnIA.style.opacity = '1';
+            }
+            if (viewIA) {
+                viewIA.style.display = 'none';
+                viewIA.style.position = 'relative';
+                viewIA.style.zIndex = '1';
+                viewIA.style.overflow = 'visible';
+            }
+            document.body.style.overflow = '';
         }
-        this.currentView = viewName;
+        
+        this.loadCSS(viewName);
+        
+        document.querySelectorAll('.view').forEach(v => {
+            v.classList.remove('active');
+            v.classList.add('hidden');
+        });
+        
+        const view = document.getElementById(`view-${viewName}`);
+        if (view) {
+            if (viewName !== 'ia') {
+                view.style.display = 'block';
+                view.style.position = 'relative';
+                view.style.zIndex = '1';
+                view.style.overflow = 'visible';
+            }
+            view.classList.remove('hidden');
+            view.classList.add('active');
+            
+            document.querySelectorAll('.menu-item[data-view]').forEach(item => {
+                item.classList.toggle('active', item.dataset.view === viewName);
+            });
+            
+            const moduleName = this.viewToModuleMap[viewName];
+            if (moduleName && this.modules[moduleName]) {
+                try {
+                    this.modules[moduleName].render(this.data);
+                } catch (err) {
+                    console.error(`[App PC] ❌ Erro render ${moduleName}:`, err);
+                }
+            } else {
+                console.warn('[App PC] ⚠️ Módulo não encontrado:', viewName, '→', moduleName);
+            }
+            
+            this.currentView = viewName;
+        }
     }
-}
     
     openNotifications() {
         const modal = document.getElementById('notifModal');
@@ -839,16 +816,14 @@ class App {
             if (this.modules.documentos) this.modules.documentos.render(this.data);
         });
         
-      document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (document.getElementById('notifModal')?.classList.contains('active')) {
-            this.closeNotifications();
-        }
-        if (this.currentView === 'ia' || this.currentView === 'foco') {
-            this.showView('inicio');
-        }
-    }
-});
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (document.getElementById('notifModal')?.classList.contains('active')) {
+                    this.closeNotifications();
+                }
+                if (this.currentView === 'ia') this.showView('inicio');
+            }
+        });
         
         window.addEventListener('newNotification', () => {
             this.loadNotificationsFromSupabase();
