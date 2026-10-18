@@ -253,7 +253,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             console.log('[Database] ⏰ Timestamp:', new Date().toISOString());
 
             try {
-                // Verificar/criar perfil
                 console.log('[Database] 📌 Passo 1: Verificando perfil...');
                 let profile = await getUserProfile(userId);
                 
@@ -270,7 +269,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     console.log('[Database] 📋 Role atual:', profile.role || 'user');
                 }
 
-                // Verificar/criar weekly_schedule
                 console.log('[Database] 📌 Passo 2: Verificando horário semanal...');
                 let schedule = await getWeeklySchedule(userId);
                 if (!schedule || Object.keys(schedule).length === 0) {
@@ -281,7 +279,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     console.log('[Database] ✅ Horário semanal já existe');
                 }
 
-                // Verificar/criar time_slots
                 console.log('[Database] 📌 Passo 3: Verificando time slots...');
                 let slots = await getTimeSlots(userId);
                 if (!slots || slots.length === 0) {
@@ -293,11 +290,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 }
 
                 console.log('[Database] ✅ Estrutura do usuário verificada com sucesso!');
-                console.log('[Database] 📊 Resumo:');
-                console.log('[Database]    - Perfil:', profile ? '✅ Existe' : '✅ Criado');
-                console.log('[Database]    - Horário:', schedule && Object.keys(schedule).length > 0 ? '✅ Existe' : '✅ Criado');
-                console.log('[Database]    - Time Slots:', slots && slots.length > 0 ? '✅ Existe' : '✅ Criado');
-                
                 return true;
                 
             } catch (error) {
@@ -434,7 +426,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         // ============================================
-        // NOTES - COM LOGS
+        // NOTES - COM UPSERT E LOGS
         // ============================================
         async function getNotes(userId) {
             console.log('[Database] 🔍 Buscando notes para userId:', userId);
@@ -473,24 +465,14 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando notes antigas...');
-                const { error: deleteError } = await client
-                    .from('notes')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[Database] ❌ Erro ao deletar notes:', deleteError);
-                    return false;
-                }
-
                 if (!notes || notes.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma note para salvar');
+                    console.log('[Database] ℹ️ Nenhuma note enviada, limpando todas');
+                    await client.from('notes').delete().eq('user_id', userId);
                     return true;
                 }
 
-                const notesToInsert = notes.map(note => ({
-                    id: generateId(),
+                const notesToUpsert = notes.map(note => ({
+                    id: note.id || generateId(),
                     user_id: userId,
                     title: note.title || note.titulo || 'Sem título',
                     content: note.content || note.conteudo || '',
@@ -498,11 +480,17 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     updated_at: new Date().toISOString()
                 }));
 
-                console.log(`[Database] 📡 Inserindo ${notesToInsert.length} notes...`);
-                const { error } = await client.from('notes').insert(notesToInsert);
+                console.log(`[Database] 📡 Executando UPSERT de ${notesToUpsert.length} notes...`);
+                const { error } = await client.from('notes').upsert(notesToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                console.log(`[Database] ✅ ${notes.length} notes salvas com sucesso`);
+                const idsLocais = notesToUpsert.map(n => n.id);
+                await client.from('notes')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
+                console.log(`[Database] ✅ ${notes.length} notes salvas/atualizadas com sucesso`);
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar notes:', error);
@@ -536,7 +524,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         // ============================================
-        // CALENDAR EVENTS - COM LOGS
+        // CALENDAR EVENTS - COM UPSERT E LOGS
         // ============================================
         async function getCalendarEvents(userId) {
             console.log('[Database] 🔍 Buscando eventos para userId:', userId);
@@ -580,24 +568,14 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando eventos antigos...');
-                const { error: deleteError } = await client
-                    .from('calendar_events')
-                    .delete()
-                    .eq('user_id', userId);
-
-                if (deleteError) {
-                    console.error('[Database] ❌ Erro ao deletar eventos:', deleteError);
-                    return false;
-                }
-
                 if (!events || events.length === 0) {
-                    console.log('[Database] ℹ️ Nenhum evento para salvar');
+                    console.log('[Database] ℹ️ Nenhum evento enviado, limpando todos');
+                    await client.from('calendar_events').delete().eq('user_id', userId);
                     return true;
                 }
 
-                const eventsToInsert = events.map(event => ({
-                    id: generateId(),
+                const eventsToUpsert = events.map(event => ({
+                    id: event.id || generateId(),
                     user_id: userId,
                     title: event.title || 'Evento',
                     description: event.description || '',
@@ -608,15 +586,21 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     color: event.color || '#8b5cf6',
                     repeat_type: event.repeat || 'nao',
                     reminder: event.reminder || false,
-                    created_at: new Date().toISOString(),
+                    created_at: event.created_at || new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 }));
 
-                console.log(`[Database] 📡 Inserindo ${eventsToInsert.length} eventos...`);
-                const { error } = await client.from('calendar_events').insert(eventsToInsert);
+                console.log(`[Database] 📡 Executando UPSERT de ${eventsToUpsert.length} eventos...`);
+                const { error } = await client.from('calendar_events').upsert(eventsToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                console.log(`[Database] ✅ ${events.length} eventos salvos com sucesso`);
+                const idsLocais = eventsToUpsert.map(e => e.id);
+                await client.from('calendar_events')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
+                console.log(`[Database] ✅ ${events.length} eventos salvos/atualizados com sucesso`);
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar eventos:', error);
@@ -650,7 +634,72 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         // ============================================
-        // WEEKLY SCHEDULE - COM LOGS
+        // STUDY SESSIONS - SUPORTE COMPLETO AO MÓDULO
+        // ============================================
+        async function getStudySessions(userId) {
+            console.log('[Database] 🔍 Buscando sessões de estudo para userId:', userId);
+            const client = init();
+            if (!client) return [];
+
+            try {
+                const { data, error } = await client
+                    .from('study_sessions')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('inicio', { ascending: false });
+
+                if (error) {
+                    console.error('[Database] ❌ Erro ao buscar study_sessions:', error);
+                    return [];
+                }
+
+                console.log(`[Database] ✅ ${data?.length || 0} sessões de estudo encontradas`);
+                return (data || []).map(s => ({
+                    id: String(s.id),
+                    user_id: s.user_id,
+                    disciplina: s.disciplina,
+                    duracaoSegundos: s.duracao_segundos,
+                    tipo: s.tipo,
+                    inicio: s.inicio,
+                    fim: s.fim,
+                    concluida: s.concluida,
+                    metaSegundos: s.meta_segundos
+                }));
+            } catch (e) {
+                console.error('[Database] ❌ Erro ao buscar study_sessions:', e);
+                return [];
+            }
+        }
+
+        async function saveStudySession(session) {
+            console.log('[Database] 💾 Salvando sessão de estudo...');
+            const client = init();
+            if (!client) return false;
+
+            try {
+                const { error } = await client.from('study_sessions').upsert({
+                    id: String(session.id || generateId()),
+                    user_id: session.user_id || session.userId,
+                    disciplina: session.disciplina,
+                    duracao_segundos: session.duracaoSegundos,
+                    tipo: session.tipo,
+                    inicio: session.inicio,
+                    fim: session.fim,
+                    concluida: session.concluida,
+                    meta_segundos: session.metaSegundos
+                }, { onConflict: 'id' });
+
+                if (error) throw error;
+                console.log('[Database] ✅ Sessão de estudo salva com sucesso');
+                return true;
+            } catch (e) {
+                console.error('[Database] ❌ Erro ao salvar study_session:', e);
+                return false;
+            }
+        }
+
+        // ============================================
+        // WEEKLY SCHEDULE - COM UPSERT ATÔMICO
         // ============================================
         async function getWeeklySchedule(userId) {
             console.log('[Database] 🔍 Buscando horário semanal para userId:', userId);
@@ -683,7 +732,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         async function saveWeeklySchedule(userId, schedule) {
-            console.log('[Database] 💾 Salvando horário semanal para userId:', userId);
+            console.log('[Database] 💾 Salvando horário semanal (UPSERT) para userId:', userId);
             const client = init();
             if (!client) return false;
 
@@ -693,34 +742,13 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     if (!schedule[day]) schedule[day] = [];
                 });
 
-                const { data: existing } = await client
+                const { error } = await client
                     .from('weekly_schedule')
-                    .select('user_id')
-                    .eq('user_id', userId)
-                    .single();
-
-                let error;
-                if (existing) {
-                    console.log('[Database] 📡 Atualizando horário existente...');
-                    const { error: updateError } = await client
-                        .from('weekly_schedule')
-                        .update({
-                            schedule: schedule,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('user_id', userId);
-                    error = updateError;
-                } else {
-                    console.log('[Database] 📡 Inserindo novo horário...');
-                    const { error: insertError } = await client
-                        .from('weekly_schedule')
-                        .insert({
-                            user_id: userId,
-                            schedule: schedule,
-                            updated_at: new Date().toISOString()
-                        });
-                    error = insertError;
-                }
+                    .upsert({
+                        user_id: userId,
+                        schedule: schedule,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
 
                 if (error) {
                     console.error('[Database] ❌ Erro ao salvar horário:', error);
@@ -736,7 +764,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         // ============================================
-        // TIME SLOTS - COM LOGS
+        // TIME SLOTS - COM UPSERT ATÔMICO
         // ============================================
         async function getTimeSlots(userId) {
             console.log('[Database] 🔍 Buscando time slots para userId:', userId);
@@ -764,7 +792,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         async function saveTimeSlots(userId, slots) {
-            console.log('[Database] 💾 Salvando time slots para userId:', userId);
+            console.log('[Database] 💾 Salvando time slots (UPSERT) para userId:', userId);
             const client = init();
             if (!client) return false;
 
@@ -773,34 +801,13 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     slots = ['08:00', '09:30', '11:00', '14:00', '15:30'];
                 }
 
-                const { data: existing } = await client
+                const { error } = await client
                     .from('time_slots')
-                    .select('user_id')
-                    .eq('user_id', userId)
-                    .single();
-
-                let error;
-                if (existing) {
-                    console.log('[Database] 📡 Atualizando time slots existentes...');
-                    const { error: updateError } = await client
-                        .from('time_slots')
-                        .update({
-                            slots: slots,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('user_id', userId);
-                    error = updateError;
-                } else {
-                    console.log('[Database] 📡 Inserindo novos time slots...');
-                    const { error: insertError } = await client
-                        .from('time_slots')
-                        .insert({
-                            user_id: userId,
-                            slots: slots,
-                            updated_at: new Date().toISOString()
-                        });
-                    error = insertError;
-                }
+                    .upsert({
+                        user_id: userId,
+                        slots: slots,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
 
                 if (error) {
                     console.error('[Database] ❌ Erro ao salvar time slots:', error);
@@ -816,7 +823,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         // ============================================
-        // NOTIFICATIONS - COM LOGS
+        // NOTIFICATIONS - COM UPSERT E LOGS
         // ============================================
         async function getNotifications(userId) {
             console.log('[Database] 🔍 Buscando notificações para userId:', userId);
@@ -856,16 +863,14 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando notificações antigas...');
-                await client.from('notifications').delete().eq('user_id', userId);
-
-                if (notifications.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma notificação para salvar');
+                if (!notifications || notifications.length === 0) {
+                    console.log('[Database] ℹ️ Nenhuma notificação enviada, limpando todas');
+                    await client.from('notifications').delete().eq('user_id', userId);
                     return true;
                 }
 
-                const notifToInsert = notifications.map(notif => ({
-                    id: generateId(),
+                const notifToUpsert = notifications.map(notif => ({
+                    id: notif.id || generateId(),
                     user_id: userId,
                     title: notif.title || 'Notificação',
                     message: notif.message || '',
@@ -874,11 +879,17 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     created_at: notif.time || new Date().toISOString()
                 }));
 
-                console.log(`[Database] 📡 Inserindo ${notifToInsert.length} notificações...`);
-                const { error } = await client.from('notifications').insert(notifToInsert);
+                console.log(`[Database] 📡 Executando UPSERT de ${notifToUpsert.length} notificações...`);
+                const { error } = await client.from('notifications').upsert(notifToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                console.log(`[Database] ✅ ${notifications.length} notificações salvas com sucesso`);
+                const idsLocais = notifToUpsert.map(n => n.id);
+                await client.from('notifications')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
+                console.log(`[Database] ✅ ${notifications.length} notificações salvas/atualizadas com sucesso`);
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar notificações:', error);
@@ -887,7 +898,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         }
 
         // ============================================
-        // DISCIPLINAS - COM LOGS
+        // DISCIPLINAS - COM UPSERT E LOGS
         // ============================================
         async function getDisciplinas(userId) {
             console.log('[Database] 🔍 Buscando disciplinas para userId:', userId);
@@ -920,16 +931,14 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             if (!client) return false;
 
             try {
-                console.log('[Database] 📡 Deletando disciplinas antigas...');
-                await client.from('disciplinas').delete().eq('user_id', userId);
-
-                if (disciplinas.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma disciplina para salvar');
+                if (!disciplinas || disciplinas.length === 0) {
+                    console.log('[Database] ℹ️ Nenhuma disciplina enviada, limpando todas');
+                    await client.from('disciplinas').delete().eq('user_id', userId);
                     return true;
                 }
 
-                const disciplinasToInsert = disciplinas.map(d => ({
-                    id: generateId(),
+                const disciplinasToUpsert = disciplinas.map(d => ({
+                    id: d.id || generateId(),
                     user_id: userId,
                     nome: d.nome || 'Disciplina',
                     cor: d.cor || '#9333ea',
@@ -938,11 +947,17 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     updated_at: new Date().toISOString()
                 }));
 
-                console.log(`[Database] 📡 Inserindo ${disciplinasToInsert.length} disciplinas...`);
-                const { error } = await client.from('disciplinas').insert(disciplinasToInsert);
+                console.log(`[Database] 📡 Executando UPSERT de ${disciplinasToUpsert.length} disciplinas...`);
+                const { error } = await client.from('disciplinas').upsert(disciplinasToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                console.log(`[Database] ✅ ${disciplinas.length} disciplinas salvas com sucesso`);
+                const idsLocais = disciplinasToUpsert.map(d => d.id);
+                await client.from('disciplinas')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
+                console.log(`[Database] ✅ ${disciplinas.length} disciplinas salvas/atualizadas com sucesso`);
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar disciplinas:', error);
@@ -1026,7 +1041,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     return true;
                 }
 
-                // Filtrar documentos com Base64 muito grande
                 const documentosFiltrados = documentos.filter(doc => {
                     if (doc.arquivo && doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
                         console.warn('[Database] ⚠️ Documento grande ignorado:', doc.nome);
@@ -1156,17 +1170,12 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
                 if (uploadError) {
                     console.error('[Database] ❌ Erro no upload:', uploadError);
-                    console.error('[Database] ❌ Detalhes:', JSON.stringify(uploadError, null, 2));
                     return null;
                 }
 
                 const { data: { publicUrl } } = client.storage
                     .from('user-content')
                     .getPublicUrl(filePath);
-
-                console.log('[Database] ✅ Upload concluído!');
-                console.log('[Database] 📎 URL pública:', publicUrl);
-                console.log('[Database] 📁 Path:', filePath);
 
                 return { publicUrl, storagePath: filePath };
             } catch (error) {
@@ -1180,10 +1189,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             const client = init();
             if (!client) return false;
 
-            if (!storagePath) {
-                console.log('[Database] ℹ️ Sem storagePath para deletar');
-                return true;
-            }
+            if (!storagePath) return true;
 
             try {
                 const { error } = await client.storage
@@ -1195,7 +1201,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     return false;
                 }
 
-                console.log('[Database] ✅ Documento deletado do Storage');
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro:', error);
@@ -1223,7 +1228,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 }
 
                 if (data) {
-                    console.log('[Database] ✅ Settings encontrados');
                     return {
                         theme: data.theme || 'dark',
                         accent: data.accent_color || '#8b5cf6',
@@ -1232,7 +1236,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     };
                 }
 
-                console.log('[Database] ℹ️ Settings padrão retornados');
                 return { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
             } catch (error) {
                 console.error('[Database] ❌ Erro ao buscar settings:', error);
@@ -1258,7 +1261,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     }, { onConflict: 'user_id' });
 
                 if (error) throw error;
-                console.log('[Database] ✅ Settings salvos com sucesso');
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar settings:', error);
@@ -1278,8 +1280,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 const fileExt = file.name.split('.').pop() || 'png';
                 const fileName = `avatars/${userId}_${Date.now()}.${fileExt}`;
 
-                console.log('[Database] 📡 Upload para:', fileName);
-
                 const { error: uploadError } = await client.storage
                     .from('user-content')
                     .upload(fileName, file, {
@@ -1287,23 +1287,17 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                         upsert: true
                     });
 
-                if (uploadError) {
-                    console.error('[Database] ❌ Erro no upload:', uploadError);
-                    return null;
-                }
+                if (uploadError) return null;
 
                 const { data: { publicUrl } } = client.storage
                     .from('user-content')
                     .getPublicUrl(fileName);
 
                 if (publicUrl) {
-                    console.log('[Database] ✅ URL pública gerada:', publicUrl);
                     await updateUserProfile(userId, { avatar_url: publicUrl });
-                    console.log('[Database] ✅ Perfil atualizado com nova foto');
                     return publicUrl;
                 }
 
-                console.log('[Database] ⚠️ Não foi possível obter URL pública');
                 return null;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao fazer upload:', error);
@@ -1320,12 +1314,10 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 const profile = await getUserProfile(userId);
                 if (profile?.avatar_url) {
                     const filePath = profile.avatar_url.split('/').pop();
-                    console.log('[Database] 📡 Removendo arquivo:', filePath);
                     await client.storage.from('user-content').remove([`avatars/${filePath}`]);
                 }
 
                 await updateUserProfile(userId, { avatar_url: null });
-                console.log('[Database] ✅ Foto removida com sucesso');
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao deletar foto:', error);
@@ -1348,13 +1340,9 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     .eq('user_id', userId)
                     .order('updated_at', { ascending: false });
 
-                if (error) { 
-                    console.error('[Database] ❌ Erro ao buscar conversas da IA:', error); 
-                    return []; 
-                }
+                if (error) return [];
                 return data || [];
             } catch (error) { 
-                console.error('[Database] ❌ Erro ao buscar conversas da IA:', error); 
                 return []; 
             }
         }
@@ -1375,7 +1363,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 if (error) throw error;
                 return true;
             } catch (error) { 
-                console.error('[Database] ❌ Erro ao salvar conversa da IA:', error); 
                 return false; 
             }
         }
@@ -1394,7 +1381,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 if (error) throw error;
                 return true;
             } catch (error) { 
-                console.error('[Database] ❌ Erro ao deletar conversa da IA:', error); 
                 return false; 
             }
         }
@@ -1412,13 +1398,9 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     .eq('conversation_id', conversationId)
                     .order('created_at', { ascending: true });
 
-                if (error) { 
-                    console.error('[Database] ❌ Erro ao buscar mensagens da IA:', error); 
-                    return []; 
-                }
+                if (error) return [];
                 return data || [];
             } catch (error) { 
-                console.error('[Database] ❌ Erro ao buscar mensagens da IA:', error); 
                 return []; 
             }
         }
@@ -1441,7 +1423,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 if (error) throw error;
                 return true;
             } catch (error) { 
-                console.error('[Database] ❌ Erro ao salvar mensagem da IA:', error); 
                 return false; 
             }
         }
@@ -1465,6 +1446,8 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
             getCalendarEvents,
             saveCalendarEvents,
             deleteCalendarEvent,
+            getStudySessions,
+            saveStudySession,
             getWeeklySchedule,
             saveWeeklySchedule,
             getTimeSlots,
@@ -1491,7 +1474,6 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
         };
     })();
 
-    // Exportar para uso global e atribuir flag de versão
     window.DatabaseService = DatabaseService;
     window.DatabaseService.__version = 'v2-full';
     console.log('[DatabaseService] ✅ Módulo carregado com sucesso! (v2-full)');
