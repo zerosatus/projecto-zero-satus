@@ -2,6 +2,7 @@
 // modules/inicio.js - INÍCIO (CORRIGIDO)
 // ⭐ Chips de disciplinas no modal Matéria
 // ⭐ Listener disciplinasUpdated atualiza chips
+// ⭐ Integração com dados reais de studySessions
 // ============================================
 
 class InicioModule {
@@ -19,6 +20,7 @@ class InicioModule {
         this.editingSubject = null;
         this.selectedSubjectColor = '#9333ea';
         this._renderingSubjects = false;
+        this.studySessions = []; // ⭐ ADICIONAR
         
         console.log('[Inicio] 🏠 Módulo inicializado');
     }
@@ -34,6 +36,7 @@ class InicioModule {
         this.notifications = data.notifications || [];
         this.disciplinas = data.disciplinas || [];
         this.profile = data.profile || {};
+        this.studySessions = data.studySessions || []; // ⭐ ADICIONAR
         
         this.days.forEach(day => {
             if (!this.weeklySchedule[day]) this.weeklySchedule[day] = [];
@@ -104,12 +107,19 @@ class InicioModule {
         if (window.CacheManager) {
             const schedule = window.CacheManager.get('weeklySchedule', {});
             const slots = window.CacheManager.get('timeSlots', []);
+            const sessions = window.CacheManager.get('studySessions', []);
             if (schedule && Object.keys(schedule).length > 0) {
                 this.weeklySchedule = schedule;
                 this.timeSlots = slots || ['08:00', '09:30', '11:00', '14:00', '15:30'];
                 this.renderSchedule();
                 this.renderNextClass();
                 this.renderSubjects();
+            }
+            if (sessions && sessions.length > 0) {
+                this.studySessions = sessions;
+                this.renderStats();
+                this.renderProgress();
+                this.renderStudyHours();
             }
         }
     }
@@ -151,7 +161,19 @@ class InicioModule {
         const total = this.tasks.length;
         const concluidas = this.tasks.filter(t => t.completed).length;
         const percentual = total > 0 ? Math.round((concluidas / total) * 100) : 0;
-        const horasEstudo = concluidas * 1.5 + this.calendarEvents.filter(e => e.type === 'aula').length * 2;
+        
+        // ⭐ Horas do MÊS atual baseadas em studySessions reais[cite: 8]
+        const agora = new Date();
+        const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+        let segundosMes = 0;
+        
+        for (const s of (this.studySessions || [])) {
+            const inicio = new Date(s.inicio);
+            if (inicio >= inicioMes) {
+                segundosMes += (s.duracaoSegundos || s.duracao_segundos || 0);
+            }
+        }
+        const horasEstudo = segundosMes / 3600;
         
         const statTarefas = document.getElementById('statTarefas');
         const statConclusao = document.getElementById('statConclusao');
@@ -160,14 +182,28 @@ class InicioModule {
         
         if (statTarefas) statTarefas.textContent = total;
         if (statConclusao) statConclusao.textContent = percentual + '%';
-        if (statHoras) statHoras.textContent = Math.floor(horasEstudo) + 'h';
-        if (totalHours) totalHours.textContent = Math.floor(horasEstudo) + 'h';
+        if (statHoras) statHoras.textContent = horasEstudo.toFixed(1) + 'h';
+        if (totalHours) totalHours.textContent = horasEstudo.toFixed(1) + 'h';
     }
     
     renderProgress() {
-        const total = this.tasks.length;
-        const concluidas = this.tasks.filter(t => t.completed).length;
-        const progresso = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+        // ⭐ Progresso semanal baseado em sessões de estudo vs meta semanal[cite: 8]
+        const studySessions = this.studySessions || [];
+        const agora = new Date();
+        const inicioSemana = new Date(agora);
+        inicioSemana.setDate(agora.getDate() - agora.getDay()); // Domingo
+        inicioSemana.setHours(0, 0, 0, 0);
+        
+        let segundosSemana = 0;
+        for (const s of studySessions) {
+            const inicio = new Date(s.inicio);
+            if (inicio >= inicioSemana) {
+                segundosSemana += (s.duracaoSegundos || s.duracao_segundos || 0);
+            }
+        }
+        
+        const metaSemanalSegundos = 7 * 4 * 3600; // 4h/dia × 7 = 28h
+        const progresso = Math.min(100, Math.round((segundosSemana / metaSemanalSegundos) * 100));
         
         const progressValue = document.getElementById('progressValue');
         const progressFill = document.getElementById('progressFill');
@@ -357,10 +393,31 @@ class InicioModule {
             chartContainer.appendChild(canvas);
         }
         
-        this.drawChart(canvas);
+        // ⭐ Calcular horas dos últimos 7 dias (REAL)[cite: 8]
+        const agora = new Date();
+        const dadosReais = [];
+        for (let i = 6; i >= 0; i--) {
+            const dia = new Date(agora);
+            dia.setDate(agora.getDate() - i);
+            dia.setHours(0, 0, 0, 0);
+            
+            const diaFim = new Date(dia);
+            diaFim.setDate(dia.getDate() + 1);
+            
+            let segundos = 0;
+            for (const s of (this.studySessions || [])) {
+                const inicio = new Date(s.inicio);
+                if (inicio >= dia && inicio < diaFim) {
+                    segundos += (s.duracaoSegundos || s.duracao_segundos || 0);
+                }
+            }
+            dadosReais.push(segundos / 3600); // em horas
+        }
+        
+        this.drawChart(canvas, dadosReais);
     }
     
-    drawChart(canvas) {
+    drawChart(canvas, dados = [2, 4, 3, 5, 4, 6, 3]) {
         if (!canvas) return;
         
         const ctx = canvas.getContext('2d');
@@ -371,8 +428,7 @@ class InicioModule {
         
         ctx.clearRect(0, 0, width, height);
         
-        const dados = [2, 4, 3, 5, 4, 6, 3];
-        const maxVal = Math.max(...dados, 5);
+        const maxVal = Math.max(...dados, 1); // ⭐ Evitar divisão por 0[cite: 8]
         const larguraBarra = (width - 40) / dados.length - 4;
         
         if (!CanvasRenderingContext2D.prototype.roundRect) {
@@ -403,12 +459,12 @@ class InicioModule {
             
             ctx.fillStyle = gradiente;
             ctx.beginPath();
-            ctx.roundRect(x, y, larguraBarra, altura, 4);
+            ctx.roundRect(x, y, Math.max(larguraBarra, 1), Math.max(altura, 1), 4);
             ctx.fill();
         }
     }
     
-       renderSubjects() {
+    renderSubjects() {
         if (this._renderingSubjects) return;
         this._renderingSubjects = true;
         
@@ -417,9 +473,8 @@ class InicioModule {
             if (!grid) return;
             
             const disciplinasMap = new Map();
-            const todasDisciplinas = this.getDisciplinas(); // Array de objetos {id, nome, cor, icone}
+            const todasDisciplinas = this.getDisciplinas();
             
-            // ⭐ Função auxiliar para descobrir o nome real de uma disciplina a partir do ID ou Nome
             const obterNomeReal = (valor) => {
                 if (!valor) return null;
                 const disc = todasDisciplinas.find(d => 
@@ -429,13 +484,11 @@ class InicioModule {
                 return disc ? disc.nome : valor;
             };
 
-            // ⭐ Função auxiliar para adicionar/atualizar no Map
             const registarDisciplina = (nomeReal, corForcada = null, iconeForcado = null, isTask = false) => {
                 if (!nomeReal) return;
-                const key = nomeReal.toLowerCase(); // Chave normalizada
+                const key = nomeReal.toLowerCase();
                 
                 if (!disciplinasMap.has(key)) {
-                    // Procura dados oficiais da disciplina
                     const discOficial = todasDisciplinas.find(d => d.nome.toLowerCase() === key);
                     
                     disciplinasMap.set(key, {
@@ -447,18 +500,15 @@ class InicioModule {
                 }
                 
                 if (isTask && !disciplinasMap.get(key).countTaskAdded) {
-                    // Se for tarefa, adiciona ao count
                     disciplinasMap.get(key).count++;
                     disciplinasMap.get(key).countTaskAdded = true;
                 }
             };
             
-            // 1. Adicionar todas as disciplinas oficiais
             todasDisciplinas.forEach(d => {
                 registarDisciplina(d.nome);
             });
             
-            // 2. Adicionar disciplinas das tarefas (converte ID para nome)
             this.tasks.forEach(t => {
                 const discValue = t.subject || t.disciplina;
                 if (discValue) {
@@ -469,7 +519,6 @@ class InicioModule {
                 }
             });
             
-            // 3. Adicionar disciplinas do horário (converte ID para nome)
             Object.values(this.weeklySchedule).forEach(day => {
                 if (Array.isArray(day)) {
                     day.forEach(c => {
@@ -677,16 +726,12 @@ class InicioModule {
         document.querySelectorAll('#subjectModal .color-option').forEach(opt => opt.classList.remove('active'));
         document.querySelector('#subjectModal .color-option[data-color="#9333ea"]')?.classList.add('active');
         
-        // ⭐ RENDERIZAR CHIPS DE DISCIPLINAS
         this.renderizarChipsDisciplinas();
         
         const modal = document.getElementById('subjectModal');
         if (modal) modal.classList.add('active');
     }
     
-    // ============================================
-    // ⭐ RENDERIZAR CHIPS DE DISCIPLINAS
-    // ============================================
     renderizarChipsDisciplinas() {
         const container = document.getElementById('subjectDisciplinasChips');
         if (!container) {
@@ -696,8 +741,6 @@ class InicioModule {
         
         const disciplinas = this.getDisciplinas();
         const nomeAtual = document.getElementById('subjectNameInput')?.value?.trim() || '';
-        
-        console.log('[Inicio] 📚 Renderizando chips:', disciplinas.length, 'disciplinas');
         
         if (disciplinas.length === 0) {
             container.innerHTML = `
@@ -722,14 +765,13 @@ class InicioModule {
                 <div class="disciplina-chip ${isActive ? 'active' : ''}" 
                      data-nome="${this.app.escapeHtml(d.nome)}"
                      data-cor="${cor}"
-                     style="${isActive ? `border-color: ${cor}; background: ${cor}20;` : ''}">
+                     style="${isActive ? `border-color: ${cor}; background:${cor}20;` : ''}">
                     <i class="fas ${icone}" style="color: ${cor};"></i>
                     <span>${this.app.escapeHtml(d.nome)}</span>
                 </div>
             `;
         });
         
-        // ⭐ Botão "Nova disciplina"
         html += `
             <div class="disciplina-chip chip-nova" 
                  onclick="event.stopPropagation(); app.modules.inicio.abrirModalDisciplinasGlobal();"
@@ -741,7 +783,6 @@ class InicioModule {
         
         container.innerHTML = html;
         
-        // ⭐ Eventos de clique nos chips
         container.querySelectorAll('.disciplina-chip:not(.chip-nova)').forEach(chip => {
             chip.addEventListener('click', () => {
                 const nomeInput = document.getElementById('subjectNameInput');
@@ -767,7 +808,6 @@ class InicioModule {
         });
     }
     
-    // ⭐ Selecionar cor por hex
     selecionarCorPorHex(hex) {
         const corOptions = document.querySelectorAll('#subjectModal .color-option');
         let encontrou = false;
@@ -786,7 +826,6 @@ class InicioModule {
         }
     }
     
-    // ⭐ Abrir modal global de disciplinas (compatível com modal matéria)
     abrirModalDisciplinasGlobal() {
         console.log('[Inicio] 🌐 Abrindo modal global de disciplinas...');
         
@@ -835,7 +874,6 @@ class InicioModule {
             opt.classList.toggle('active', opt.dataset.color === this.selectedSubjectColor);
         });
         
-        // ⭐ RENDERIZAR CHIPS DE DISCIPLINAS
         this.renderizarChipsDisciplinas();
         
         const modal = document.getElementById('subjectModal');
@@ -1060,7 +1098,6 @@ class InicioModule {
             if (e.target === e.currentTarget) this.fecharModalMateria();
         });
         
-        // ⭐ Listener no input de nome para destacar chips
         const subjectNameInput = document.getElementById('subjectNameInput');
         if (subjectNameInput && !subjectNameInput._inicioListener) {
             subjectNameInput._inicioListener = true;
@@ -1085,7 +1122,6 @@ class InicioModule {
             });
         }
         
-        // ⭐ DISCIPLINAS ATUALIZADAS - SÓ renderSubjects COM DEBOUNCE
         if (!window._inicioDisciplinasListener) {
             window._inicioDisciplinasListener = true;
             let _debounceTimer = null;
@@ -1100,7 +1136,6 @@ class InicioModule {
                         window.app.modules.inicio.renderSubjects();
                     }
                     
-                    // ⭐ Se o modal de matéria estiver aberto, atualizar chips
                     const subjectModalAberto = document.getElementById('subjectModal')?.classList.contains('active');
                     if (subjectModalAberto && window.app?.modules?.inicio) {
                         window.app.modules.inicio.renderizarChipsDisciplinas();
@@ -1109,7 +1144,7 @@ class InicioModule {
             });
         }
         
-        // ⭐ CLOUD DATA LOADED - DEBOUNCE
+        // ⭐ CLOUD DATA LOADED - COM SUPORTE A studySessions[cite: 8]
         if (!window._inicioCloudListener) {
             window._inicioCloudListener = true;
             let _cloudDebounce = null;
@@ -1131,6 +1166,7 @@ class InicioModule {
                     inicio.notifications = window.app.data.notifications || [];
                     inicio.disciplinas = window.app.data.disciplinas || [];
                     inicio.profile = window.app.data.profile || {};
+                    inicio.studySessions = window.app.data.studySessions || []; // ⭐ ADICIONAR
                     
                     inicio.renderStats();
                     inicio.renderProgress();
@@ -1159,7 +1195,7 @@ class InicioModule {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 const canvas = document.getElementById('studyCanvas');
-                if (canvas) this.drawChart(canvas);
+                if (canvas) this.renderStudyHours();
             }, 300);
         });
     }
