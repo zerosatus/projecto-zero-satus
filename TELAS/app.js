@@ -19,6 +19,7 @@ class App {
             notifications: [],
             disciplinas: [],
             documentos: [],
+            studySessions: [],   // ⭐ ADICIONAR
             profile: {},
             settings: {}
         };
@@ -353,6 +354,7 @@ class App {
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
             this.data.documentos = window.CacheManager.get('documentos', []);
+            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR
             
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
@@ -371,7 +373,8 @@ class App {
             console.log('[App PC] 📊 Dados carregados:', {
                 tasks: this.data.tasks.length,
                 notes: this.data.notes.length,
-                disciplinas: this.data.disciplinas.length
+                disciplinas: this.data.disciplinas.length,
+                studySessions: this.data.studySessions.length // ⭐ ADICIONAR
             });
             
             if (this.data.profile && this.data.profile.nome) {
@@ -390,20 +393,17 @@ class App {
         if (!userId) { this.isSaving = false; return; }
         
         try {
-            // ⭐ Lista explícita do que deve ser salvo (NÃO salva profile/settings aqui)
             const KEYS_TO_SAVE = [
                 'tasks', 'notes', 'calendarEvents', 'weeklySchedule',
-                'timeSlots', 'notifications', 'disciplinas', 'documentos'
+                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONAR
             ];
             
             for (const key of KEYS_TO_SAVE) {
                 if (this.data[key] !== undefined && this.data[key] !== null) {
-                    // ⭐ false = salva local, NÃO dispara sync imediato (usa debounce)
                     window.CacheManager.set(key, this.data[key], false);
                 }
             }
             
-            // ⭐ Sync com debounce (só notes por padrão, o resto tem sync específico)
             if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
             window.CacheManager._syncTimeout = setTimeout(() => {
                 if (window.CacheManager.forceSync) {
@@ -555,7 +555,6 @@ class App {
         }
         if (typeof DisciplinasModule !== 'undefined') {
             this.modules.disciplinas = new DisciplinasModule(this);
-            // ⭐ Configurar eventos do módulo de disciplinas
             this.modules.disciplinas.setupEventos();
         }
         if (typeof DocumentosModule !== 'undefined') {
@@ -807,7 +806,6 @@ class App {
             }
         });
         
-        // ⭐ DISCIPLINAS — NÃO re-renderiza o próprio módulo (evita loop)
         window.addEventListener('disciplinasUpdated', () => {
             this.updateBadge();
         });
