@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/anotacoes.css">
     <link rel="stylesheet" href="css/perfil.css">
     <link rel="stylesheet" href="css/ia.css">
+    <link rel="stylesheet" href="css/foco.css">
     
 </head>
 <body>
@@ -976,18 +977,21 @@
 
     </main>
 </div>
-<!-- ============================================
-     VIEW: TIMER DE FOCO
-     ============================================ -->
 <div id="view-foco" class="view hidden">
+    <!-- Botão Voltar -->
     <button onclick="app.showView('inicio')" style="position:fixed;top:20px;right:20px;z-index:99999;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;padding:10px 20px;border-radius:12px;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
         <i class="fas fa-arrow-left"></i> Voltar
     </button>
 
+    <!-- Header -->
     <div class="foco-header">
-    <h1>Zero Satus - Foco Máximo</h1>
-</div>
+        <h1>Zero Satus - Foco Máximo</h1>
+        <button class="foco-sound-toggle" id="btn-som-foco">
+            <i class="fas fa-volume-up"></i> Sons: LIGADO
+        </button>
+    </div>
 
+    <!-- Grid 3 colunas -->
     <div class="foco-grid">
         <!-- COLUNA 1: Configurações -->
         <div class="foco-panel">
@@ -995,9 +999,13 @@
                 <span><i class="fas fa-book-open"></i> Disciplina Ativa</span>
                 <button class="btn-selecionar">SELECIONE</button>
             </div>
-            <div class="disciplina-list" id="foco-disc-list"></div>
+            <div class="disciplina-list" id="foco-disc-list">
+                <!-- Preenchido via JS -->
+            </div>
 
-            <div class="foco-section-title"><i class="fas fa-sliders-h"></i> Modo de Operação</div>
+            <div class="foco-section-title">
+                <i class="fas fa-sliders-h"></i> Modo de Operação
+            </div>
             <div class="mode-toggle">
                 <button class="mode-btn active" data-mode="timer" onclick="app.modules.foco.setMode('timer')">
                     <i class="fas fa-clock"></i> Timer
@@ -1015,8 +1023,12 @@
                 <button class="dur-btn" data-min="60" onclick="app.modules.foco.setDuration(60)">60m</button>
             </div>
             <div class="pausa-grid">
-                <button class="pausa-btn" onclick="app.modules.foco.addTime(5)"><i class="fas fa-coffee"></i> Pausa 5m</button>
-                <button class="pausa-btn" onclick="app.modules.foco.addTime(15)"><i class="fas fa-utensils"></i> Pausa 15m</button>
+                <button class="pausa-btn" onclick="app.modules.foco.addTime(5)">
+                    <i class="fas fa-coffee"></i> Pausa 5m
+                </button>
+                <button class="pausa-btn" onclick="app.modules.foco.addTime(15)">
+                    <i class="fas fa-utensils"></i> Pausa 15m
+                </button>
             </div>
         </div>
 
@@ -1036,50 +1048,52 @@
                     <circle class="timer-progress-circle" id="timer-progress" cx="160" cy="160" r="150"></circle>
                 </svg>
                 <div class="timer-display">
-                    <div class="timer-disc-name" id="timer-disc-name"><i class="fas fa-book"></i> Selecione uma disciplina</div>
+                    <div class="timer-disc-name" id="timer-disc-name">
+                        <i class="fas fa-book"></i> Selecione uma disciplina
+                    </div>
                     <div class="timer-time" id="foco-time">25:00</div>
                     <div class="timer-label">RESTANTE</div>
                 </div>
             </div>
 
             <div class="timer-controls">
-                <button class="ctrl-btn" onclick="app.modules.foco.resetTimer()"><i class="fas fa-redo"></i></button>
+                <button class="ctrl-btn" onclick="app.modules.foco.resetTimer()">
+                    <i class="fas fa-redo"></i>
+                </button>
                 <button class="ctrl-btn btn-play" id="btn-play" onclick="app.modules.foco.toggleTimer()">
                     <i class="fas fa-play" id="btn-play-icon"></i>
                 </button>
-                <button class="ctrl-btn" onclick="app.modules.foco.addTime(5)"><i class="fas fa-plus"></i> 5m</button>
+                <button class="ctrl-btn" onclick="app.modules.foco.addTime(5)">
+                    <i class="fas fa-plus"></i> 5m
+                </button>
             </div>
         </div>
 
         <!-- COLUNA 3: Stats & Log -->
         <div>
-            <!-- Botão de Som movido para cá -->
-<div class="foco-sound-bar">
-    <button class="foco-sound-toggle" id="btn-som-foco">
-        <i class="fas fa-volume-up"></i> Sons: LIGADO
-    </button>
-</div>
-
-<div class="stats-grid-side">
-    <!-- ... stats existentes ... -->
-</div>
             <div class="stats-grid-side">
                 <div class="stat-card-side">
-                    <div class="stat-icon-side purple"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-icon-side purple">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
                     <div class="stat-info-side">
                         <h3 id="stat-sessions">0</h3>
                         <p>Sessões Hoje</p>
                     </div>
                 </div>
                 <div class="stat-card-side">
-                    <div class="stat-icon-side orange"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="stat-icon-side orange">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
                     <div class="stat-info-side">
                         <h3>01:15h</h3>
                         <p>Tempo Total</p>
                     </div>
                 </div>
                 <div class="stat-card-side">
-                    <div class="stat-icon-side orange"><i class="fas fa-fire"></i></div>
+                    <div class="stat-icon-side orange">
+                        <i class="fas fa-fire"></i>
+                    </div>
                     <div class="stat-info-side">
                         <h3>5 Dias</h3>
                         <p>Sequência</p>
@@ -1089,7 +1103,9 @@
 
             <div class="foco-panel">
                 <div class="log-header">
-                    <div class="foco-section-title" style="margin:0"><i class="fas fa-history"></i> Registo de Foco</div>
+                    <div class="foco-section-title" style="margin:0">
+                        <i class="fas fa-history"></i> Registo de Foco
+                    </div>
                     <span style="font-size:0.75rem;color:#666">Hoje</span>
                 </div>
                 <div class="log-list" id="foco-log-list">
