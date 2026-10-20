@@ -354,7 +354,7 @@ class App {
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
             this.data.documentos = window.CacheManager.get('documentos', []);
-            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR
+            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR[cite: 3]
             
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
@@ -374,7 +374,7 @@ class App {
                 tasks: this.data.tasks.length,
                 notes: this.data.notes.length,
                 disciplinas: this.data.disciplinas.length,
-                studySessions: this.data.studySessions.length // ⭐ ADICIONAR
+                studySessions: this.data.studySessions.length // ⭐ ADICIONAR[cite: 3]
             });
             
             if (this.data.profile && this.data.profile.nome) {
@@ -395,7 +395,7 @@ class App {
         try {
             const KEYS_TO_SAVE = [
                 'tasks', 'notes', 'calendarEvents', 'weeklySchedule',
-                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONAR
+                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONAR[cite: 3]
             ];
             
             for (const key of KEYS_TO_SAVE) {

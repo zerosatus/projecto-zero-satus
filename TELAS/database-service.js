@@ -1,4 +1,4 @@
-// database-service.js - Serviço completo de banco de dados Supabase (Corrigido com Study Sessions e createProfile atualizado)
+// database-service.js - Serviço completo de banco de dados Supabase (Corrigido sem exclusão automática por lote)
 // ============================================
 // VERIFICAR SE JÁ FOI CARREGADO
 // ============================================
@@ -245,15 +245,7 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                const idsLocais = tasks.map(t => t.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('tasks')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
-                }
-
+                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar tasks:', error);
@@ -338,15 +330,7 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                const idsLocais = notes.map(n => n.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('notes')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
-                }
-
+                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 console.log(`[Database] ✅ ${notes.length} notes sincronizadas com sucesso via UPSERT`);
                 return true;
             } catch (error) {
@@ -444,15 +428,7 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                const idsLocais = events.map(e => e.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('calendar_events')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
-                }
-
+                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 console.log(`[Database] ✅ ${events.length} eventos sincronizados com sucesso via UPSERT`);
                 return true;
             } catch (error) {
@@ -680,15 +656,7 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                const idsLocais = disciplinasToUpsert.map(d => d.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('disciplinas')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
-                }
-
+                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar disciplinas:', error);
@@ -781,15 +749,7 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                const idsLocais = docsToUpsert.map(d => d.id);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('documentos')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
-                }
-
+                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar documentos:', error);
