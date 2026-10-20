@@ -219,7 +219,9 @@
             log('💾 Passo 3: Salvando dados locais na nuvem...');
             const dataTypes = [
                 'tasks', 'notes', 'calendarEvents',
-                'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'
+                'weeklySchedule', 'timeSlots', 'notifications', 
+                'disciplinas', 'documentos',
+                'studySessions'   // ⭐ ADICIONADO PARA SINCRONIZAR SESSÕES DE ESTUDO[cite: 5]
             ];
 
             let syncCount = 0;
