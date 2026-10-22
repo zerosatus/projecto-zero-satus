@@ -1,0 +1,98 @@
+-- Desativar RLS temporariamente para testar
+ALTER TABLE tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE notes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE study_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE disciplinas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE documentos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE weekly_schedule DISABLE ROW LEVEL SECURITY;
+ALTER TABLE time_slots DISABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+
+
+-- 1. Reativar RLS
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE disciplinas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documentos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weekly_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- 2. Criar as políticas corretas
+CREATE POLICY "Users own tasks" ON tasks FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own notes" ON notes FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own sessions" ON study_sessions FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own disciplinas" ON disciplinas FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own events" ON calendar_events FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own documentos" ON documentos FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own schedule" ON weekly_schedule FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own slots" ON time_slots FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users own profile" ON profiles FOR ALL USING (auth.uid() = id);
+
+
+--premissao para funcionar
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON ALL TABLES IN SCHEMA public
+TO authenticated;
+
+GRANT USAGE, SELECT
+ON ALL SEQUENCES IN SCHEMA public
+TO authenticated;
+
+--pra upload de ficheiro funcionar 
+-- 1. Garantir que o bucket existe
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('user-content', 'user-content', true, 10485760)
+ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 10485760;
+
+-- 2. Apagar as policies antigas de storage (se existirem) para evitar erro 42710
+DROP POLICY IF EXISTS "Users can upload to user-content" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access for user-content" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own files" ON storage.objects;
+
+-- 3. Permitir UPLOAD (INSERT)
+CREATE POLICY "Users can upload to user-content" 
+ON storage.objects FOR INSERT 
+TO authenticated 
+WITH CHECK (bucket_id = 'user-content');
+
+-- 4. Permitir LEITURA pública (SELECT)
+CREATE POLICY "Public read access for user-content" 
+ON storage.objects FOR SELECT 
+TO public 
+USING (bucket_id = 'user-content');
+
+-- 5. Permitir que o utilizador APAGUE os seus próprios ficheiros (DELETE)
+CREATE POLICY "Users can delete own files" 
+ON storage.objects FOR DELETE 
+TO authenticated 
+USING (bucket_id = 'user-content');
+
+-- 6. Permitir que o utilizador ATUALIZE os seus próprios ficheiros (UPDATE)
+CREATE POLICY "Users can update own files" 
+ON storage.objects FOR UPDATE 
+TO authenticated 
+USING (bucket_id = 'user-content');
+
+
+-- ⭐ REMOVER A FOREIGN KEY E ADICIONAR DE NOVO (sem verificação)
+ALTER TABLE public.study_sessions DROP CONSTRAINT IF EXISTS study_sessions_user_id_fkey;
+
+-- ⭐ GARANTIR QUE A TABELA PROFILES TEM O USER_ID
+INSERT INTO public.profiles (id, email, nome, role)
+SELECT 
+    u.id, 
+    u.email, 
+    COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)),
+    'user'
+FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
+
+-- ⭐ TORNAR O ADMIN (se ainda não for)
+UPDATE public.profiles 
+SET role = 'admin' 
+WHERE email = 'projectozerosatus@gmail.com';
