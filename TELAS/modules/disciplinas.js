@@ -1,27 +1,28 @@
 // ============================================
-// modules/disciplinas.js - MÓDULO DE DISCIPLINAS (PC)
-// ⭐ CORRIGIDO: sem loop de re-render, _salvar unificado
-// ⭐ PROTEÇÃO contra cloudDataLoaded sobrescrever dados locais
+// mobile-telas/modules/disciplinas.js
+// MÓDULO DE DISCIPLINAS (MOBILE)
+// ⭐ API pública idêntica ao PC (getTodas, getCor, getIcone, resolverNome)
+// ⭐ estaEmUso() lê do CacheManager (fonte fiável)
+// ⭐ Color picker nativo (sem conflito com chips de outros modais)
 // ============================================
 
 class DisciplinasModule {
     constructor(app) {
         this.app = app;
         this.name = 'disciplinas';
-        
+
         this.disciplinas = [];
         this.editando = null;
         this._carregado = false;
-        this._sincronizando = false;
         this._listenersSetup = false;
         this._salvandoAgora = false;
         this._eventDebounce = null;
-        
+
         this.coresPadrao = [
             '#9333ea', '#3b82f6', '#ef4444', '#10b981',
             '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'
         ];
-        
+
         this.iconesDisponiveis = [
             { value: 'fa-book', label: '📖 Livro' },
             { value: 'fa-square-root-variable', label: '📐 Matemática' },
@@ -40,22 +41,26 @@ class DisciplinasModule {
             { value: 'fa-heart', label: '❤️ Coração' },
             { value: 'fa-bolt', label: '⚡ Energia' }
         ];
-        
-        console.log('[Disciplinas] 📚 Módulo inicializado');
+
+        console.log('[Disciplinas] 📚 Módulo mobile inicializado');
     }
-    
+
     // ============================================
     // RENDER
     // ============================================
-    render(data) {
+       render(data) {
         if (!this._carregado) this.carregar();
-        
+
+        // ⭐ Sempre configurar eventos (idempotente — usa flags _discListener)
+        this._setupEventos();
+
         const viewAtiva = document.getElementById('view-disciplinas')?.classList.contains('active');
-        if (viewAtiva) {
-            this._renderizarListaCompleta();
-        }
+        if (viewAtiva) this._renderizarListaCompleta();
+
+        const modalAberto = document.getElementById('disciplina-modal')?.classList.contains('active');
+        if (modalAberto) this._renderizarListaModal();
     }
-    
+
     // ============================================
     // CARREGAR
     // ============================================
@@ -70,41 +75,35 @@ class DisciplinasModule {
                     return this.disciplinas;
                 }
             }
-            
+
             const email = this.app?.user?.email || this.app?.data?.profile?.email;
             if (email) {
-                const chave = `disciplinas_${email}`;
-                const doLocal = localStorage.getItem(chave);
+                const doLocal = localStorage.getItem(`disciplinas_${email}`);
                 if (doLocal) {
                     try {
                         const parsed = JSON.parse(doLocal);
                         if (Array.isArray(parsed) && parsed.length > 0) {
                             this.disciplinas = parsed;
                             this._carregado = true;
-                            console.log('[Disciplinas] 📦 Carregado do localStorage:', parsed.length);
                             if (window.CacheManager) {
                                 window.CacheManager.set('disciplinas', parsed, true);
                             }
+                            console.log('[Disciplinas] 📦 Carregado do localStorage:', parsed.length);
                             return this.disciplinas;
                         }
-                    } catch (e) {
-                        console.warn('[Disciplinas] ⚠️ Erro localStorage:', e);
-                    }
+                    } catch (e) {}
                 }
             }
-            
+
             if (Array.isArray(this.app?.data?.disciplinas) && this.app.data.disciplinas.length > 0) {
                 this.disciplinas = this.app.data.disciplinas;
                 this._carregado = true;
-                console.log('[Disciplinas] 📦 Carregado do app.data:', this.disciplinas.length);
                 return this.disciplinas;
             }
-            
+
             this.disciplinas = [];
             this._carregado = true;
-            console.log('[Disciplinas] ℹ️ Nenhuma disciplina encontrada');
             return this.disciplinas;
-            
         } catch (error) {
             console.error('[Disciplinas] ❌ Erro ao carregar:', error);
             this.disciplinas = [];
@@ -112,7 +111,7 @@ class DisciplinasModule {
             return this.disciplinas;
         }
     }
-    
+
     // ============================================
     // SALVAR (UNIFICADO + DEBOUNCE NO EVENTO)
     // ============================================
@@ -123,25 +122,22 @@ class DisciplinasModule {
             if (email) {
                 localStorage.setItem(`disciplinas_${email}`, JSON.stringify(this.disciplinas));
             }
-            
+
             if (this.app?.data) {
                 this.app.data.disciplinas = [...this.disciplinas];
             }
-            
+
             if (window.CacheManager) {
-                // ⭐ false = NÃO força sync imediato (usa o debounce de 2s)
                 window.CacheManager.set('disciplinas', this.disciplinas, false);
             }
-            
-            // ⭐ DISPARAR EVENTO APENAS UMA VEZ, COM DEBOUNCE
+
             if (this._eventDebounce) clearTimeout(this._eventDebounce);
             this._eventDebounce = setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('disciplinasUpdated', {
                     detail: [...this.disciplinas]
                 }));
             }, 150);
-            
-            console.log('[Disciplinas] 💾 Salvo:', this.disciplinas.length);
+
             return true;
         } catch (error) {
             console.error('[Disciplinas] ❌ Erro ao salvar:', error);
@@ -150,27 +146,49 @@ class DisciplinasModule {
             setTimeout(() => { this._salvandoAgora = false; }, 1000);
         }
     }
-    
+
     // ============================================
-    // API PÚBLICA
+    // ⭐ API PÚBLICA (usada por outros módulos)
     // ============================================
     getTodas() {
         if (!this._carregado) this.carregar();
         return [...this.disciplinas];
     }
-    
+
     getPorId(id) {
         if (!this._carregado) this.carregar();
         return this.disciplinas.find(d => d.id === id) || null;
     }
-    
+
     getPorNome(nome) {
         if (!this._carregado) this.carregar();
         if (!nome) return null;
         const normalizado = this.normalizar(nome);
         return this.disciplinas.find(d => this.normalizar(d.nome) === normalizado) || null;
     }
-    
+
+    // ⭐ CENTRAL: resolve ID antigo OU nome para o nome canónico
+    resolverNome(valor) {
+        if (!valor) return '';
+        if (!this._carregado) this.carregar();
+
+        // Já é nome exato?
+        const porNome = this.disciplinas.find(d => d.nome === valor);
+        if (porNome) return porNome.nome;
+
+        // É ID?
+        const porId = this.disciplinas.find(d => d.id === valor);
+        if (porId) return porId.nome;
+
+        // Case-insensitive
+        const normalizado = this.normalizar(valor);
+        const porNorm = this.disciplinas.find(d => this.normalizar(d.nome) === normalizado);
+        if (porNorm) return porNorm.nome;
+
+        // Não encontrada — devolve o que veio (pode ser disciplina "fantasma")
+        return valor;
+    }
+
     getCor(disciplinaOuNome) {
         if (typeof disciplinaOuNome === 'object' && disciplinaOuNome !== null) {
             if (disciplinaOuNome.cor) return disciplinaOuNome.cor;
@@ -180,7 +198,7 @@ class DisciplinasModule {
         if (encontrada?.cor) return encontrada.cor;
         return this._corPorHash(disciplinaOuNome);
     }
-    
+
     getIcone(disciplinaOuNome) {
         if (typeof disciplinaOuNome === 'object' && disciplinaOuNome !== null) {
             if (disciplinaOuNome.icone) return disciplinaOuNome.icone;
@@ -190,45 +208,51 @@ class DisciplinasModule {
         if (encontrada?.icone) return encontrada.icone;
         return 'fa-book';
     }
-    
+
+    // ⭐ Lê do CacheManager (fonte fiável) em vez de app.data
     estaEmUso(id) {
         const disc = this.getPorId(id);
         if (!disc) return false;
         const nomeNormalizado = this.normalizar(disc.nome);
-        
-        const tasks = this.app?.data?.tasks || [];
+
+        const get = (key) => {
+            const cache = window.CacheManager?.get(key, null);
+            if (cache && (Array.isArray(cache) ? cache.length > 0 : Object.keys(cache).length > 0)) {
+                return cache;
+            }
+            return this.app?.data?.[key] ?? (Array.isArray(cache) ? cache : []);
+        };
+
+        const tasks = get('tasks');
         if (tasks.some(t => this.normalizar(t.disciplina || t.subject || '') === nomeNormalizado)) return true;
-        
-        const schedule = this.app?.data?.weeklySchedule || {};
-        if (Object.values(schedule).some(day => 
+
+        const schedule = get('weeklySchedule');
+        if (Object.values(schedule).some(day =>
             Array.isArray(day) && day.some(aula => this.normalizar(aula.materia || '') === nomeNormalizado)
         )) return true;
-        
-        const events = this.app?.data?.calendarEvents || [];
+
+        const events = get('calendarEvents');
         if (events.some(e => this.normalizar(e.disciplina || '') === nomeNormalizado)) return true;
-        
-        const notes = this.app?.data?.notes || [];
+
+        const notes = get('notes');
         if (notes.some(n => this.normalizar(n.disciplina || '') === nomeNormalizado)) return true;
-        
+
         return false;
     }
-    
+
     // ============================================
-    // CRUD (SEM forceSync imediato!)
+    // CRUD
     // ============================================
     async criar(nome, cor, icone = 'fa-book') {
         try {
             if (!nome || !nome.trim()) {
                 return { success: false, message: 'Nome é obrigatório' };
             }
-            
             const nomeLimpo = nome.trim();
             const id = this.normalizar(nomeLimpo);
-            
             if (this.getPorId(id)) {
                 return { success: false, message: 'Disciplina já existe!' };
             }
-            
             const nova = {
                 id,
                 nome: nomeLimpo,
@@ -236,39 +260,30 @@ class DisciplinasModule {
                 icone: icone || 'fa-book',
                 criadaEm: new Date().toISOString()
             };
-            
             this.disciplinas.push(nova);
-            
             await this._salvar();
-            
             window.dispatchEvent(new CustomEvent('disciplinaCriada', { detail: nova }));
-            
-            console.log('[Disciplinas] ✅ Criada:', nova.nome);
             return { success: true, disciplina: nova };
-            
         } catch (error) {
-            console.error('[Disciplinas] ❌ Erro ao criar:', error);
             return { success: false, message: error.message };
         }
     }
-    
+
     async editar(id, dados) {
         try {
             const index = this.disciplinas.findIndex(d => d.id === id);
-            if (index === -1) {
-                return { success: false, message: 'Disciplina não encontrada' };
-            }
-            
+            if (index === -1) return { success: false, message: 'Disciplina não encontrada' };
+
             const antiga = this.disciplinas[index];
             let novoId = antiga.id;
-            
+
             if (dados.nome && dados.nome.trim() !== antiga.nome) {
                 novoId = this.normalizar(dados.nome.trim());
                 if (novoId !== antiga.id && this.getPorId(novoId)) {
                     return { success: false, message: 'Já existe outra disciplina com esse nome' };
                 }
             }
-            
+
             const atualizada = {
                 ...antiga,
                 id: novoId,
@@ -277,57 +292,31 @@ class DisciplinasModule {
                 icone: dados.icone || antiga.icone,
                 atualizadaEm: new Date().toISOString()
             };
-            
+
             this.disciplinas[index] = atualizada;
-            
             await this._salvar();
-            
             window.dispatchEvent(new CustomEvent('disciplinaAtualizada', { detail: atualizada }));
-            
-            console.log('[Disciplinas] ✅ Editada:', atualizada.nome);
             return { success: true, disciplina: atualizada };
-            
         } catch (error) {
-            console.error('[Disciplinas] ❌ Erro ao editar:', error);
             return { success: false, message: error.message };
         }
     }
-    
+
     async deletar(id) {
         try {
             const index = this.disciplinas.findIndex(d => d.id === id);
-            if (index === -1) {
-                return { success: false, message: 'Disciplina não encontrada' };
-            }
-            
+            if (index === -1) return { success: false, message: 'Disciplina não encontrada' };
+
             const removida = this.disciplinas[index];
             this.disciplinas.splice(index, 1);
-            
-            if (window.CacheManager?.delete) {
-                window.CacheManager.delete('disciplinas', id, true);
-            } else {
-                await this._salvar();
-            }
-            
-            // ⭐ dispara evento manualmente após deletar (o CacheManager.delete não dispara)
-            if (this._eventDebounce) clearTimeout(this._eventDebounce);
-            this._eventDebounce = setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('disciplinasUpdated', {
-                    detail: [...this.disciplinas]
-                }));
-            }, 150);
-            
+            await this._salvar();
             window.dispatchEvent(new CustomEvent('disciplinaDeletada', { detail: removida }));
-            
-            console.log('[Disciplinas] ✅ Deletada:', removida.nome);
             return { success: true, disciplina: removida };
-            
         } catch (error) {
-            console.error('[Disciplinas] ❌ Erro ao deletar:', error);
             return { success: false, message: error.message };
         }
     }
-    
+
     // ============================================
     // HELPERS
     // ============================================
@@ -341,7 +330,7 @@ class DisciplinasModule {
             .replace(/_+/g, '_')
             .replace(/^_|_$/g, '');
     }
-    
+
     _corPorHash(texto) {
         if (!texto) return this.coresPadrao[0];
         let hash = 0;
@@ -351,22 +340,19 @@ class DisciplinasModule {
         }
         return this.coresPadrao[Math.abs(hash) % this.coresPadrao.length];
     }
-    
+
     getIconesDisponiveis() { return [...this.iconesDisponiveis]; }
     getCoresPadrao() { return [...this.coresPadrao]; }
-    
+
     // ============================================
-    // VIEW: LISTA DE DISCIPLINAS
+    // VIEW: LISTA COMPLETA (cards)
     // ============================================
     _renderizarListaCompleta() {
         const container = document.getElementById('disciplinas-list');
         if (!container) return;
-        
         if (!this._carregado) this.carregar();
-        
-        const disciplinas = this.disciplinas;
-        
-        if (disciplinas.length === 0) {
+
+        if (this.disciplinas.length === 0) {
             container.innerHTML = `
                 <div class="empty-disciplinas">
                     <ion-icon name="book-outline"></ion-icon>
@@ -378,12 +364,12 @@ class DisciplinasModule {
             `;
             return;
         }
-        
+
         let html = '';
-        disciplinas.forEach(d => {
+        this.disciplinas.forEach(d => {
             const emUso = this.estaEmUso(d.id);
             html += `
-                <div class="disciplina-card" data-id="${d.id}">
+                <div class="disciplina-card" data-id="${d.id}" style="--disciplina-color: ${d.cor};">
                     <div class="card-top">
                         <div class="card-icon" style="background: ${d.cor};">
                             <i class="fas ${d.icone || 'fa-book'}"></i>
@@ -400,22 +386,23 @@ class DisciplinasModule {
                     <div class="card-info">
                         <h3>${this.app.escapeHtml(d.nome)}</h3>
                         <div class="card-stats">
-                            ${emUso ? '<span><ion-icon name="checkmark-circle-outline"></ion-icon> Em uso</span>' : '<span><ion-icon name="ellipse-outline"></ion-icon> Não usada</span>'}
+                            ${emUso
+                                ? '<span><ion-icon name="checkmark-circle-outline"></ion-icon> Em uso</span>'
+                                : '<span><ion-icon name="ellipse-outline"></ion-icon> Não usada</span>'}
                         </div>
                     </div>
                 </div>
             `;
         });
-        
         container.innerHTML = html;
-        
+
         container.querySelectorAll('[data-action="editar"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this._iniciarEdicao(btn.dataset.id);
+                const disc = this.getPorId(btn.dataset.id);
+                if (disc) this.abrirModal(disc);
             });
         });
-        
         container.querySelectorAll('[data-action="deletar"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -423,46 +410,27 @@ class DisciplinasModule {
             });
         });
     }
-    
+
     // ============================================
-    // MODAL - COMPATÍVEL COM IDs DO index.html PC
+    // MODAL (mobile)
     // ============================================
     abrirModal(disciplina = null) {
-        console.log('[Disciplinas] 📂 Abrindo modal');
-        
         if (!this._carregado) this.carregar();
-        
-        const modal = document.getElementById('modalDisciplinas');
+
+        const modal = document.getElementById('disciplina-modal');
         if (!modal) {
-            console.warn('[Disciplinas] ⚠️ Modal #modalDisciplinas não encontrado');
+            console.warn('[Disciplinas] ⚠️ #disciplina-modal não encontrado no HTML');
             return;
         }
-        
-        const title = document.getElementById('modalDiscTitle');
-        const nomeInput = document.getElementById('discNome');
-        const corInput = document.getElementById('discCor');
-        const corHex = document.getElementById('colorHexDisplay');
-        const iconeSelect = document.getElementById('discIcone');
-        const btnSalvar = document.getElementById('btnSalvarDisc');
-        
-        if (disciplina) {
-            this.editando = disciplina;
-            if (title) title.textContent = 'Editar Disciplina';
-            if (nomeInput) nomeInput.value = disciplina.nome;
-            if (corInput) corInput.value = disciplina.cor;
-            if (corHex) corHex.textContent = disciplina.cor;
-            if (iconeSelect) iconeSelect.value = disciplina.icone || 'fa-book';
-            if (btnSalvar) btnSalvar.textContent = 'Salvar Alterações';
-        } else {
-            this.editando = null;
-            if (title) title.textContent = 'Nova Disciplina';
-            if (nomeInput) nomeInput.value = '';
-            if (corInput) corInput.value = this.coresPadrao[0];
-            if (corHex) corHex.textContent = this.coresPadrao[0];
-            if (iconeSelect) iconeSelect.value = 'fa-book';
-            if (btnSalvar) btnSalvar.textContent = 'Criar Disciplina';
-        }
-        
+
+        const title = document.getElementById('disciplina-modal-title');
+        const nomeInput = document.getElementById('disc-nome');
+        const corInput = document.getElementById('disc-cor');
+        const corHex = document.getElementById('disc-cor-hex');
+        const iconeSelect = document.getElementById('disc-icone');
+        const btnSalvar = document.getElementById('btn-salvar-disc');
+
+        // Popular select de ícones (só uma vez)
         if (iconeSelect && iconeSelect.options.length <= 1) {
             iconeSelect.innerHTML = '';
             this.iconesDisponiveis.forEach(ic => {
@@ -471,85 +439,100 @@ class DisciplinasModule {
                 opt.textContent = ic.label;
                 iconeSelect.appendChild(opt);
             });
-            if (disciplina) iconeSelect.value = disciplina.icone || 'fa-book';
         }
-        
+
+        if (disciplina) {
+            this.editando = disciplina;
+            if (title) title.textContent = 'Editar Disciplina';
+            if (nomeInput) nomeInput.value = disciplina.nome;
+            if (corInput) corInput.value = disciplina.cor;
+            if (corHex) corHex.textContent = disciplina.cor;
+            if (iconeSelect) iconeSelect.value = disciplina.icone || 'fa-book';
+            if (btnSalvar) btnSalvar.innerHTML = '<ion-icon name="save-outline"></ion-icon> Salvar Alterações';
+        } else {
+            this.editando = null;
+            if (title) title.textContent = 'Nova Disciplina';
+            if (nomeInput) nomeInput.value = '';
+            if (corInput) corInput.value = this.coresPadrao[0];
+            if (corHex) corHex.textContent = this.coresPadrao[0];
+            if (iconeSelect) iconeSelect.value = 'fa-book';
+            if (btnSalvar) btnSalvar.innerHTML = '<ion-icon name="save-outline"></ion-icon> Criar Disciplina';
+        }
+
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
-        
         setTimeout(() => nomeInput?.focus(), 300);
-        
-        this._renderizarListaDisciplinasModal();
+
+        this._renderizarListaModal();
     }
-    
-    _renderizarListaDisciplinasModal() {
-        const container = document.getElementById('listaDisciplinas');
+
+    fecharModal() {
+        const modal = document.getElementById('disciplina-modal');
+        if (modal) modal.classList.remove('active');
+        document.body.style.overflow = '';
+        this.editando = null;
+    }
+
+    _renderizarListaModal() {
+        const container = document.getElementById('lista-disciplinas-modal');
         if (!container) return;
-        
         if (!this._carregado) this.carregar();
-        
-        const disciplinas = this.disciplinas;
-        
-        if (disciplinas.length === 0) {
-            container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary);">Nenhuma disciplina cadastrada.</p>';
+
+        if (this.disciplinas.length === 0) {
+            container.innerHTML = '<p style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">Nenhuma disciplina cadastrada.</p>';
             return;
         }
-        
+
         let html = '';
-        disciplinas.forEach(d => {
+        this.disciplinas.forEach(d => {
             const emUso = this.estaEmUso(d.id);
             html += `
-                <div class="disciplina-card" data-id="${d.id}">
-                    <div class="disciplina-info">
-                        <div class="disciplina-color" style="background-color: ${d.cor};">
+                <div class="disciplina-item-mini" data-id="${d.id}">
+                    <div class="disciplina-mini-info">
+                        <div class="disciplina-mini-color" style="background:${d.cor};">
                             <i class="fas ${d.icone || 'fa-book'}"></i>
                         </div>
-                        <div class="disciplina-text">
+                        <div>
                             <strong>${this.app.escapeHtml(d.nome)}</strong>
-                            <span class="disciplina-id">${d.id}</span>
                             ${emUso ? '<span class="badge-uso">Em uso</span>' : ''}
                         </div>
                     </div>
-                    <div class="disciplina-actions">
-                        <button class="btn-edit-disc" data-action="editar" data-id="${d.id}" title="Editar">
-                            <i class="fas fa-edit"></i>
+                    <div class="disciplina-mini-actions">
+                        <button data-action="editar" data-id="${d.id}" title="Editar">
+                            <ion-icon name="create-outline"></ion-icon>
                         </button>
-                        <button class="btn-delete-disc" data-action="deletar" data-id="${d.id}" title="Excluir">
-                            <i class="fas fa-trash"></i>
+                        <button data-action="deletar" data-id="${d.id}" title="Excluir">
+                            <ion-icon name="trash-outline"></ion-icon>
                         </button>
                     </div>
                 </div>
             `;
         });
-        
         container.innerHTML = html;
-        
+
         container.querySelectorAll('[data-action="editar"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const disc = this.getPorId(btn.dataset.id);
                 if (disc) {
                     this.editando = disc;
-                    
-                    const title = document.getElementById('modalDiscTitle');
-                    const nomeInput = document.getElementById('discNome');
-                    const corInput = document.getElementById('discCor');
-                    const corHex = document.getElementById('colorHexDisplay');
-                    const iconeSelect = document.getElementById('discIcone');
-                    const btnSalvar = document.getElementById('btnSalvarDisc');
-                    
+                    const nomeInput = document.getElementById('disc-nome');
+                    const corInput = document.getElementById('disc-cor');
+                    const corHex = document.getElementById('disc-cor-hex');
+                    const iconeSelect = document.getElementById('disc-icone');
+                    const btnSalvar = document.getElementById('btn-salvar-disc');
+                    const title = document.getElementById('disciplina-modal-title');
                     if (title) title.textContent = 'Editar Disciplina';
                     if (nomeInput) nomeInput.value = disc.nome;
                     if (corInput) corInput.value = disc.cor;
                     if (corHex) corHex.textContent = disc.cor;
                     if (iconeSelect) iconeSelect.value = disc.icone || 'fa-book';
-                    if (btnSalvar) btnSalvar.textContent = 'Salvar Alterações';
-                    
+                    if (btnSalvar) btnSalvar.innerHTML = '<ion-icon name="save-outline"></ion-icon> Salvar Alterações';
                     setTimeout(() => nomeInput?.focus(), 100);
                 }
             });
         });
-        
+
         container.querySelectorAll('[data-action="deletar"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -557,239 +540,158 @@ class DisciplinasModule {
             });
         });
     }
-    
-    fecharModal() {
-        const modal = document.getElementById('modalDisciplinas');
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-        this.editando = null;
-    }
-    
-    _iniciarEdicao(id) {
-        const disc = this.getPorId(id);
-        if (disc) this.abrirModal(disc);
-    }
-    
+
     async _confirmarDelete(id) {
         const disc = this.getPorId(id);
         if (!disc) return;
-        
         const emUso = this.estaEmUso(id);
         let msg = `Excluir a disciplina "${disc.nome}"?`;
-        if (emUso) {
-            msg += '\n\n⚠️ Esta disciplina está em uso em tarefas, horários, eventos ou anotações.';
-        }
-        
+        if (emUso) msg += '\n\n⚠️ Esta disciplina está em uso em tarefas, horários, eventos ou anotações.';
         if (!confirm(msg)) return;
-        
+
         const result = await this.deletar(id);
         if (result.success) {
-            // ⭐ Só re-renderiza se a view estiver ativa
-            const viewAtiva = document.getElementById('view-disciplinas')?.classList.contains('active');
-            if (viewAtiva) this._renderizarListaCompleta();
-            
-            // ⭐ Só re-renderiza o modal se estiver aberto
-            const modalAberto = document.getElementById('modalDisciplinas')?.classList.contains('active');
-            if (modalAberto) this._renderizarListaDisciplinasModal();
-            
-            this._mostrarToast('Disciplina excluída!', 'success');
-            
+            this._renderizarListaCompleta();
+            this._renderizarListaModal();
+            this._toast('Disciplina excluída!', 'success');
             if (this.editando && this.editando.id === id) {
                 this.editando = null;
-                const title = document.getElementById('modalDiscTitle');
-                const nomeInput = document.getElementById('discNome');
-                const btnSalvar = document.getElementById('btnSalvarDisc');
+                const title = document.getElementById('disciplina-modal-title');
+                const nomeInput = document.getElementById('disc-nome');
+                const btnSalvar = document.getElementById('btn-salvar-disc');
                 if (title) title.textContent = 'Nova Disciplina';
                 if (nomeInput) nomeInput.value = '';
-                if (btnSalvar) btnSalvar.textContent = 'Criar Disciplina';
+                if (btnSalvar) btnSalvar.innerHTML = '<ion-icon name="save-outline"></ion-icon> Criar Disciplina';
             }
         } else {
-            this._mostrarToast(result.message || 'Erro ao excluir', 'error');
+            this._toast(result.message || 'Erro ao excluir', 'error');
         }
     }
-    
+
     async _salvarFormulario(event) {
         if (event) event.preventDefault();
-        
-        const nome = document.getElementById('discNome')?.value?.trim();
-        const cor = document.getElementById('discCor')?.value;
-        const icone = document.getElementById('discIcone')?.value;
-        
+        const nome = document.getElementById('disc-nome')?.value?.trim();
+        const cor = document.getElementById('disc-cor')?.value;
+        const icone = document.getElementById('disc-icone')?.value;
+
         if (!nome) {
-            this._mostrarToast('Digite o nome da disciplina!', 'error');
+            this._toast('Digite o nome da disciplina!', 'error');
             return;
         }
-        
+
         const editandoAntes = this.editando;
         let result;
-        
         if (this.editando) {
             result = await this.editar(this.editando.id, { nome, cor, icone });
         } else {
             result = await this.criar(nome, cor, icone);
         }
-        
+
         if (result.success) {
-            // ⭐ Só re-renderiza o modal se estiver aberto
-            const modalAberto = document.getElementById('modalDisciplinas')?.classList.contains('active');
-            if (modalAberto) {
-                this._renderizarListaDisciplinasModal();
-            }
-            
-            // ⭐ Só re-renderiza a view se estiver ativa
-            const viewAtiva = document.getElementById('view-disciplinas')?.classList.contains('active');
-            if (viewAtiva) {
-                this._renderizarListaCompleta();
-            }
-            
-            this._mostrarToast(
-                editandoAntes ? 'Disciplina atualizada!' : 'Disciplina criada!',
-                'success'
-            );
-            
-            // Limpa o form
+            this._renderizarListaModal();
+            this._renderizarListaCompleta();
+            this._toast(editandoAntes ? 'Disciplina atualizada!' : 'Disciplina criada!', 'success');
+
             this.editando = null;
-            const title = document.getElementById('modalDiscTitle');
-            const nomeInput = document.getElementById('discNome');
-            const corInput = document.getElementById('discCor');
-            const corHex = document.getElementById('colorHexDisplay');
-            const btnSalvar = document.getElementById('btnSalvarDisc');
-            
+            const title = document.getElementById('disciplina-modal-title');
+            const nomeInput = document.getElementById('disc-nome');
+            const corInput = document.getElementById('disc-cor');
+            const corHex = document.getElementById('disc-cor-hex');
+            const btnSalvar = document.getElementById('btn-salvar-disc');
             if (title) title.textContent = 'Nova Disciplina';
             if (nomeInput) nomeInput.value = '';
             if (corInput) corInput.value = this.coresPadrao[0];
             if (corHex) corHex.textContent = this.coresPadrao[0];
-            if (btnSalvar) btnSalvar.textContent = 'Criar Disciplina';
-            
-            // ⭐ Foco de volta no input (se modal continuar aberto)
-            if (modalAberto) {
-                setTimeout(() => nomeInput?.focus(), 100);
-            }
-            
+            if (btnSalvar) btnSalvar.innerHTML = '<ion-icon name="save-outline"></ion-icon> Criar Disciplina';
+            setTimeout(() => nomeInput?.focus(), 100);
         } else {
-            this._mostrarToast(result.message || 'Erro ao salvar', 'error');
+            this._toast(result.message || 'Erro ao salvar', 'error');
         }
     }
-    
-    _mostrarToast(mensagem, tipo = 'success') {
+
+    _toast(mensagem, tipo = 'success') {
         if (typeof showToast === 'function') {
             showToast(mensagem, tipo);
-            return;
-        }
-        
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        if (toast && toastMessage) {
-            toastMessage.textContent = mensagem;
-            toast.className = 'toast show';
-            toast.style.background = tipo === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
-                                   tipo === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                   tipo === 'info' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
-                                   'linear-gradient(135deg, #10b981, #059669)';
-            setTimeout(() => toast.classList.remove('show'), 3000);
         } else {
             console.log(`[Disciplinas] 📢 ${mensagem}`);
         }
     }
-    
+
     // ============================================
     // SETUP EVENTOS
     // ============================================
-    setupEventos() {
-        if (this._listenersSetup) return;
-        this._listenersSetup = true;
+    _setupEventos() {
         
-        console.log('[Disciplinas] 🔧 Configurando eventos');
-        
-        const form = document.getElementById('formDisciplina');
-        if (form && !form._disciplinasListener) {
-            form._disciplinasListener = true;
+        const form = document.getElementById('disciplina-form');
+        if (form && !form._discListener) {
+            form._discListener = true;
             form.addEventListener('submit', (e) => this._salvarFormulario(e));
         }
-        
-        const corInput = document.getElementById('discCor');
-        if (corInput && !corInput._disciplinasListener) {
-            corInput._disciplinasListener = true;
+
+        const corInput = document.getElementById('disc-cor');
+        if (corInput && !corInput._discListener) {
+            corInput._discListener = true;
             corInput.addEventListener('input', function() {
-                const hex = document.getElementById('colorHexDisplay');
+                const hex = document.getElementById('disc-cor-hex');
                 if (hex) hex.textContent = this.value;
             });
         }
-        
-        const btnFechar = document.getElementById('btnFecharModalDisciplinas');
-        if (btnFechar && !btnFechar._disciplinasListener) {
-            btnFechar._disciplinasListener = true;
-            btnFechar.addEventListener('click', () => this.fecharModal());
+       
+        // ⭐ Botão "+" da view
+        const btnAdd = document.getElementById('btn-add-disciplina');
+        if (btnAdd && !btnAdd._discListener) {
+            btnAdd._discListener = true;
+            btnAdd.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.abrirModal();
+            });
         }
-        
-        const btnLimpar = document.getElementById('btnLimparDisc');
-        if (btnLimpar && !btnLimpar._disciplinasListener) {
-            btnLimpar._disciplinasListener = true;
+
+        document.getElementById('btn-fechar-disc')?.addEventListener('click', () => this.fecharModal());
+
+        const btnLimpar = document.getElementById('btn-limpar-disc');
+        if (btnLimpar && !btnLimpar._discListener) {
+            btnLimpar._discListener = true;
             btnLimpar.addEventListener('click', () => {
                 this.editando = null;
-                const title = document.getElementById('modalDiscTitle');
-                const nomeInput = document.getElementById('discNome');
-                const corInput = document.getElementById('discCor');
-                const corHex = document.getElementById('colorHexDisplay');
-                const btnSalvar = document.getElementById('btnSalvarDisc');
-                
+                const title = document.getElementById('disciplina-modal-title');
+                const nomeInput = document.getElementById('disc-nome');
+                const corInput = document.getElementById('disc-cor');
+                const corHex = document.getElementById('disc-cor-hex');
+                const btnSalvar = document.getElementById('btn-salvar-disc');
                 if (title) title.textContent = 'Nova Disciplina';
                 if (nomeInput) nomeInput.value = '';
                 if (corInput) corInput.value = this.coresPadrao[0];
                 if (corHex) corHex.textContent = this.coresPadrao[0];
-                if (btnSalvar) btnSalvar.textContent = 'Criar Disciplina';
+                if (btnSalvar) btnSalvar.innerHTML = '<ion-icon name="save-outline"></ion-icon> Criar Disciplina';
             });
         }
-        
-        const modal = document.getElementById('modalDisciplinas');
-        if (modal && !modal._disciplinasListener) {
-            modal._disciplinasListener = true;
+
+        const modal = document.getElementById('disciplina-modal');
+        if (modal && !modal._discListener) {
+            modal._discListener = true;
             modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.fecharModal();
-                }
+                if (e.target === modal) this.fecharModal();
             });
         }
-        
-        if (!document._disciplinasEscListener) {
-            document._disciplinasEscListener = true;
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    const modalAberto = document.getElementById('modalDisciplinas')?.classList.contains('active');
-                    if (modalAberto) this.fecharModal();
-                }
-            });
-        }
-        
-        // ⭐ CLOUD SYNC — PROTEÇÃO TOTAL
-        if (!window._disciplinasCloudListener) {
-            window._disciplinasCloudListener = true;
-            
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const m = document.getElementById('disciplina-modal');
+                if (m && m.classList.contains('active')) this.fecharModal();
+            }
+        });
+
+        if (!window._discCloudListener) {
+            window._discCloudListener = true;
             window.addEventListener('cloudDataLoaded', () => {
-                if (this.disciplinas.length > 0) {
-                    console.log('[Disciplinas] 📡 cloudDataLoaded ignorado (já temos dados)');
-                    return;
-                }
-                
-                if (this._salvandoAgora) {
-                    console.log('[Disciplinas] 📡 cloudDataLoaded ignorado (a salvar)');
-                    return;
-                }
-                
-                console.log('[Disciplinas] 📡 Nuvem atualizou, recarregando...');
+                if (this.disciplinas.length > 0) return;
+                if (this._salvandoAgora) return;
                 this._carregado = false;
                 this.carregar();
-                
-                // ⭐ Só re-renderiza o que está visível
-                const viewAtiva = document.getElementById('view-disciplinas')?.classList.contains('active');
-                if (viewAtiva) this._renderizarListaCompleta();
-                
-                const modalAberto = document.getElementById('modalDisciplinas')?.classList.contains('active');
-                if (modalAberto) this._renderizarListaDisciplinasModal();
+                this._renderizarListaCompleta();
+                this._renderizarListaModal();
             });
-            
             window.addEventListener('disciplinasUpdated', (e) => {
                 if (e.detail && Array.isArray(e.detail)) {
                     this.disciplinas = [...e.detail];
@@ -799,4 +701,4 @@ class DisciplinasModule {
     }
 }
 
-console.log('[Disciplinas] ✅ Módulo carregado!');
+console.log('[Disciplinas] ✅ Módulo mobile carregado!');

@@ -6,399 +6,669 @@ class PerfilModule {
     constructor(app) {
         this.app = app;
         this.name = 'perfil';
+        this.selectedTheme = 'dark';
+        this.selectedAccent = '#8b5cf6';
         this.userPhotoURL = null;
+        this.notificacoesSettings = {};
+        this.appearanceSettings = {};
         
         console.log('[Perfil] 👤 Módulo inicializado');
     }
     
+    // ============================================
+    // RENDER PRINCIPAL
+    // ============================================
     render(data) {
         console.log('[Perfil] 👤 Renderizando...');
         
         this.profile = data.profile || {};
-        this.tasks = data.tasks || [];
-        this.notes = data.notes || [];
-        this.events = data.calendarEvents || [];
+        this.settings = data.settings || {};
         this.notifications = data.notifications || [];
         
         this.renderProfile();
-        this.renderStats();
-        this.renderActivities();
-        this.carregarPreferencias();
         this.setupEvents();
-        this.carregarAvatar();
         this.updateBadge();
     }
     
     // ============================================
-    // PREFERÊNCIAS
-    // ============================================
-    carregarPreferencias() {
-        if (window.CacheManager) {
-            const settings = window.CacheManager.get('appearanceSettings', {});
-            if (settings.theme === 'dark') {
-                document.body.classList.add('dark-mode');
-                document.getElementById('darkModeToggle').checked = true;
-            }
-            if (settings.notifEmail !== undefined) {
-                document.getElementById('notifEmail').checked = settings.notifEmail;
-            }
-            if (settings.notifPush !== undefined) {
-                document.getElementById('notifPush').checked = settings.notifPush;
-            }
-            if (settings.language) {
-                document.getElementById('languageSelect').value = settings.language;
-            }
-        }
-    }
-    
-    salvarPreferencias() {
-        const settings = {
-            theme: document.getElementById('darkModeToggle')?.checked ? 'dark' : 'light',
-            notifEmail: document.getElementById('notifEmail')?.checked || false,
-            notifPush: document.getElementById('notifPush')?.checked || false,
-            language: document.getElementById('languageSelect')?.value || 'pt-BR'
-        };
-        
-        if (window.CacheManager) {
-            window.CacheManager.set('appearanceSettings', settings, true);
-        }
-        
-        if (settings.theme === 'dark') {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
-    }
-    
-    toggleDarkMode() {
-        this.salvarPreferencias();
-        this.showToast('Preferência atualizada!', 'success');
-    }
-    
-    // ============================================
-    // RENDER PROFILE
+    // RENDER PERFIL
     // ============================================
     renderProfile() {
-        const profile = this.profile || this.app.user || {};
+        const profile = this.profile || {};
+        const settings = this.settings || {};
         
-        document.getElementById('profileName').textContent = profile.nome || 'Usuário';
-        document.getElementById('profileEmail').textContent = profile.email || '';
-        document.getElementById('nome').value = profile.nome || '';
-        document.getElementById('email').value = profile.email || '';
-        document.getElementById('telefone').value = profile.telefone || '';
-        document.getElementById('nascimento').value = profile.nascimento || '';
-        document.getElementById('genero').value = profile.genero || 'nao-informar';
-    }
-    
-    renderStats() {
-        const totalTarefas = this.tasks.length;
-        const tarefasConcluidas = this.tasks.filter(t => t.completed).length;
-        const percentual = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
-        const horasEstudo = tarefasConcluidas * 1.5 + this.events.filter(e => e.type === 'aula').length * 2;
+        // Nome e email
+        document.getElementById('profile-name').textContent = profile.nome || 'Usuário';
+        document.getElementById('profile-email').textContent = profile.email || 'usuario@email.com';
         
-        document.getElementById('statTarefasPerfil').textContent = totalTarefas;
-        document.getElementById('statConclusaoPerfil').textContent = percentual + '%';
-        document.getElementById('statHorasPerfil').textContent = Math.floor(horasEstudo) + 'h';
-    }
-    
-    renderActivities() {
-        const container = document.getElementById('activityListPerfil');
-        if (!container) return;
+        // Avatar
+        this.carregarAvatar();
         
-        const atividades = [];
-        this.tasks.slice(0, 2).forEach(t => {
-            atividades.push({
-                titulo: t.title || t.nome || 'Tarefa',
-                descricao: t.completed ? 'Concluída' : 'Pendente',
-                icone: 'fa-tasks',
-                cor: t.completed ? 'green' : 'orange'
-            });
-        });
-        this.notes.slice(0, 2).forEach(n => {
-            atividades.push({
-                titulo: n.title || n.titulo || 'Anotação',
-                descricao: 'Anotação atualizada',
-                icone: 'fa-edit',
-                cor: 'purple'
-            });
-        });
-        
-        if (atividades.length === 0) {
-            container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">Nenhuma atividade recente</p>';
-            return;
+        // Role (se for admin)
+        const roleEl = document.querySelector('.profile-role');
+        if (roleEl && profile.role === 'admin') {
+            roleEl.textContent = '👑 ADMIN';
+            roleEl.style.display = 'inline-block';
+        } else if (roleEl) {
+            roleEl.style.display = 'none';
         }
         
-        const cores = { green: 'green', orange: 'orange', purple: 'purple' };
-        container.innerHTML = atividades.map(a => `
-            <div class="activity-item">
-                <div class="activity-icon ${cores[a.cor] || 'blue'}"><i class="fas ${a.icone}"></i></div>
-                <div class="activity-info">
-                    <p>${this.app.escapeHtml(a.titulo)}</p>
-                    <span class="activity-time">${a.descricao}</span>
-                </div>
-            </div>
-        `).join('');
+        // Aparência
+        this.selectedTheme = settings.theme || 'dark';
+        this.selectedAccent = settings.accent || '#8b5cf6';
+        document.documentElement.style.setProperty('--accent-purple', this.selectedAccent);
     }
     
     // ============================================
     // AVATAR
     // ============================================
     async carregarAvatar() {
-        const avatarImg = document.getElementById('avatarImage');
+        const avatarEl = document.getElementById('profile-avatar');
+        const previewEl = document.getElementById('avatar-preview');
+        if (!avatarEl) return;
         
-        if (window.CacheManager) {
-            const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-            if (photoUrl && photoUrl.startsWith('data:')) {
-                if (avatarImg) avatarImg.src = photoUrl;
-                this.userPhotoURL = photoUrl;
-                return;
-            }
+        let photoUrl = localStorage.getItem('userPhotoURL');
+        
+        if (!photoUrl && window.CacheManager) {
+            try {
+                photoUrl = await window.CacheManager.getProfilePhotoUrl();
+            } catch(e) {}
         }
         
-        const profile = this.profile || this.app.user || {};
-        const iniciais = profile.nome ? profile.nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase() : 'U';
-        if (avatarImg) {
-            avatarImg.src = `https://ui-avatars.com/api/?name=${iniciais}&background=9333ea&color=fff&size=150`;
+        if (!photoUrl && this.profile) {
+            photoUrl = this.profile.avatar_url;
+        }
+        
+        if (photoUrl && (photoUrl.startsWith('data:') || photoUrl.startsWith('http'))) {
+            this.userPhotoURL = photoUrl;
+            localStorage.setItem('userPhotoURL', photoUrl);
+            
+            // Atualizar avatar na view
+            const initial = this.profile.nome ? this.profile.nome.charAt(0).toUpperCase() : 'U';
+            avatarEl.innerHTML = `
+                <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
+                <div class="avatar-edit-badge">
+                    <ion-icon name="camera-outline"></ion-icon>
+                </div>
+            `;
+            
+            // Atualizar preview no modal
+            if (previewEl) {
+                previewEl.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                previewEl.style.display = 'flex';
+            }
+        } else {
+            const initial = this.profile.nome ? this.profile.nome.charAt(0).toUpperCase() : 'U';
+            avatarEl.innerHTML = `
+                <span>${initial}</span>
+                <div class="avatar-edit-badge">
+                    <ion-icon name="camera-outline"></ion-icon>
+                </div>
+            `;
+            
+            if (previewEl) {
+                previewEl.innerHTML = `<span>${initial}</span>`;
+            }
         }
     }
     
-    async uploadAvatar(file) {
+    // ============================================
+    // UPLOAD FOTO
+    // ============================================
+    async uploadProfilePhoto(file) {
         if (!file || !file.type.startsWith('image/')) {
-            this.showToast('Selecione uma imagem válida!', 'error');
-            return;
+            if (typeof showToast === 'function') {
+                showToast('Selecione uma imagem válida!', 'error');
+            }
+            return null;
         }
         
         if (file.size > 2 * 1024 * 1024) {
-            this.showToast('A imagem deve ter no máximo 2MB!', 'error');
-            return;
+            if (typeof showToast === 'function') {
+                showToast('Imagem deve ter no máximo 2MB!', 'error');
+            }
+            return null;
         }
         
         const reader = new FileReader();
         reader.onload = (e) => {
-            const avatarImg = document.getElementById('avatarImage');
-            if (avatarImg) avatarImg.src = e.target.result;
+            const avatarEl = document.getElementById('profile-avatar');
+            if (avatarEl) {
+                avatarEl.innerHTML = `
+                    <img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
+                    <div class="avatar-edit-badge">
+                        <ion-icon name="camera-outline"></ion-icon>
+                    </div>
+                `;
+            }
+            const previewEl = document.getElementById('avatar-preview');
+            if (previewEl) {
+                previewEl.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
         };
         reader.readAsDataURL(file);
         
-        this.showToast('Enviando foto...', 'info');
+        if (typeof showToast === 'function') {
+            showToast('📤 Enviando foto...', 'info');
+        }
         
         if (window.CacheManager) {
             try {
                 const photoUrl = await window.CacheManager.uploadProfilePhoto(file);
                 if (photoUrl) {
                     this.userPhotoURL = photoUrl;
-                    this.showToast('Foto atualizada e sincronizada!', 'success');
-                    window.dispatchEvent(new CustomEvent('profilePhotoUpdated', { detail: { photoUrl } }));
-                } else {
-                    this.showToast('Erro ao enviar foto!', 'error');
-                    await this.carregarAvatar();
+                    localStorage.setItem('userPhotoURL', photoUrl);
+                    
+                    if (this.profile) {
+                        this.profile.avatar_url = photoUrl;
+                        this.app.data.profile = this.profile;
+                        await this.app.saveAllData();
+                    }
+                    
+                    if (typeof showToast === 'function') {
+                        showToast('✅ Foto atualizada!', 'success');
+                    }
+                    
+                    window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+                        detail: { photoUrl }
+                    }));
+                    
+                    return photoUrl;
                 }
             } catch (error) {
-                console.error('[Perfil] Erro no upload:', error);
-                this.showToast('Erro ao enviar foto!', 'error');
+                console.error('[Perfil] Erro ao enviar foto:', error);
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro ao enviar foto', 'error');
+                }
             }
         }
+        
+        return null;
     }
     
     // ============================================
-    // SALVAR DADOS
+    // DELETAR FOTO
     // ============================================
-    async salvarAlteracoes() {
-        const nome = document.getElementById('nome')?.value.trim();
-        const email = document.getElementById('email')?.value.trim();
-        const telefone = document.getElementById('telefone')?.value.trim();
-        const nascimento = document.getElementById('nascimento')?.value;
-        const genero = document.getElementById('genero')?.value;
+    async deleteProfilePhoto() {
+        if (!confirm('Remover sua foto de perfil?')) return;
+        
+        if (window.CacheManager) {
+            try {
+                const deleted = await window.CacheManager.deleteProfilePhoto();
+                if (deleted) {
+                    this.userPhotoURL = null;
+                    localStorage.removeItem('userPhotoURL');
+                    
+                    if (this.profile) {
+                        this.profile.avatar_url = null;
+                        this.app.data.profile = this.profile;
+                        await this.app.saveAllData();
+                    }
+                    
+                    this.carregarAvatar();
+                    
+                    if (typeof showToast === 'function') {
+                        showToast('🗑️ Foto removida!', 'success');
+                    }
+                    return true;
+                }
+            } catch (error) {
+                console.error('[Perfil] Erro ao remover foto:', error);
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro ao remover foto', 'error');
+                }
+            }
+        }
+        return false;
+    }
+    
+    // ============================================
+    // SALVAR DADOS PESSOAIS
+    // ============================================
+    async salvarDadosPessoais() {
+        const nomeInput = document.getElementById('profile-name-input');
+        const emailInput = document.getElementById('profile-email-input');
+        
+        if (!nomeInput || !emailInput) return;
+        
+        const nome = nomeInput.value.trim();
+        const email = emailInput.value.trim();
         
         if (!nome || !email) {
-            this.showToast('Preencha nome e e-mail!', 'error');
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Preencha nome e e-mail!', 'error');
+            }
             return;
         }
         
-        const profile = this.profile || this.app.user || {};
-        profile.nome = nome;
-        profile.email = email;
-        profile.telefone = telefone || '';
-        profile.nascimento = nascimento || '';
-        profile.genero = genero || 'nao-informar';
+        this.profile.nome = nome;
+        this.profile.email = email;
+        this.app.data.profile = this.profile;
         
-        this.app.data.profile = profile;
-        this.app.user = profile;
-        
+        // Salvar no Supabase
         try {
             const userId = this.app.user.id;
             if (userId && window.DatabaseService) {
                 await window.DatabaseService.updateUserProfile(userId, {
                     nome: nome,
-                    email: email,
-                    telefone: telefone || '',
-                    nascimento: nascimento || null,
-                    genero: genero || 'nao-informar'
+                    email: email
                 });
             }
         } catch (error) {
-            console.warn('[Perfil] Erro ao salvar no banco:', error);
+            console.warn('[Perfil] Erro ao atualizar no banco:', error);
         }
         
-        localStorage.setItem('usuarioLogado', JSON.stringify(profile));
         await this.app.saveAllData();
         
-        this.renderProfile();
-        this.showToast('Alterações salvas com sucesso!', 'success');
-    }
-    
-    // ============================================
-    // SEGURANÇA
-    // ============================================
-    togglePassword(inputId) {
-        const input = document.getElementById(inputId);
-        const icon = input?.nextElementSibling;
-        if (input && icon) {
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                input.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
+        // Atualizar UI
+        document.getElementById('profile-name').textContent = nome;
+        document.getElementById('profile-email').textContent = email;
+        document.getElementById('header-name').textContent = nome.split(' ')[0];
+        
+        this.fecharModal('dados-modal');
+        
+        if (typeof showToast === 'function') {
+            showToast('✅ Dados atualizados!', 'success');
         }
     }
     
-    alterarSenha() {
-        const senhaAtual = document.getElementById('senhaAtual')?.value;
-        const novaSenha = document.getElementById('novaSenha')?.value;
-        const confirmarSenha = document.getElementById('confirmarSenha')?.value;
+    // ============================================
+    // SALVAR NOTIFICAÇÕES
+    // ============================================
+    async salvarNotificacoes() {
+        const push = document.getElementById('toggle-push')?.checked || false;
+        const email = document.getElementById('toggle-email')?.checked || false;
+        const aulas = document.getElementById('toggle-aulas')?.checked || false;
+        const tarefas = document.getElementById('toggle-tarefas')?.checked || false;
         
-        if (!senhaAtual || !novaSenha || !confirmarSenha) {
-            this.showToast('Preencha todos os campos de senha!', 'error');
-            return;
+        this.notificacoesSettings = { push, email, aulas, tarefas };
+        
+        this.app.data.settings.notifications_settings = this.notificacoesSettings;
+        await this.app.saveAllData();
+        
+        this.fecharModal('notificacoes-modal');
+        
+        if (typeof showToast === 'function') {
+            showToast('✅ Notificações salvas!', 'success');
         }
-        
-        if (novaSenha !== confirmarSenha) {
-            this.showToast('As senhas não coincidem!', 'error');
-            return;
-        }
-        
-        if (novaSenha.length < 6) {
-            this.showToast('A nova senha deve ter no mínimo 6 caracteres!', 'error');
-            return;
-        }
-        
-        this.showToast('Para alterar a senha, use a opção "Esqueci minha senha" no login', 'info');
-        document.getElementById('senhaAtual').value = '';
-        document.getElementById('novaSenha').value = '';
-        document.getElementById('confirmarSenha').value = '';
     }
     
     // ============================================
-    // EXPORTAR DADOS
+    // SALVAR APARÊNCIA
     // ============================================
-    exportarDados() {
-        const dados = {
-            usuario: this.profile || this.app.user,
-            tarefas: this.tasks,
-            anotacoes: this.notes,
-            eventos: this.events,
-            dataExportacao: new Date().toISOString()
+    async salvarAparencia() {
+        const fontSize = document.getElementById('font-size-slider')?.value || 14;
+        
+        this.appearanceSettings = {
+            theme: this.selectedTheme,
+            accent: this.selectedAccent,
+            fontSize: parseInt(fontSize)
         };
         
-        const dataStr = JSON.stringify(dados, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `dados_${this.profile.nome || 'usuario'}_${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
+        this.app.data.settings = this.appearanceSettings;
+        await this.app.saveAllData();
         
-        this.showToast('Dados exportados com sucesso!', 'success');
+        // Aplicar visualmente
+        document.documentElement.style.setProperty('--accent-purple', this.selectedAccent);
+        document.body.style.fontSize = fontSize + 'px';
+        
+        this.fecharModal('aparencia-modal');
+        
+        if (typeof showToast === 'function') {
+            showToast('✅ Aparência salva!', 'success');
+        }
     }
     
     // ============================================
-    // DELETAR CONTA
+    // CARREGAR DADOS NOS MODAIS
     // ============================================
-    deletarConta() {
-        if (!confirm('TEM CERTEZA ABSOLUTA? Esta ação é irreversível e todos os seus dados serão permanentemente excluídos.')) {
-            return;
-        }
+    loadDadosPessoais() {
+        const nomeInput = document.getElementById('profile-name-input');
+        const emailInput = document.getElementById('profile-email-input');
+        if (nomeInput) nomeInput.value = this.profile.nome || '';
+        if (emailInput) emailInput.value = this.profile.email || '';
+        this.carregarAvatar();
+    }
+    
+    loadNotificacoes() {
+        const settings = this.app.data.settings?.notifications_settings || {};
+        const push = document.getElementById('toggle-push');
+        const email = document.getElementById('toggle-email');
+        const aulas = document.getElementById('toggle-aulas');
+        const tarefas = document.getElementById('toggle-tarefas');
         
-        const confirmacao = prompt('Digite "DELETAR" para confirmar a exclusão da sua conta:');
-        if (confirmacao !== 'DELETAR') {
-            this.showToast('Confirmação incorreta. Operação cancelada.', 'error');
-            return;
-        }
+        if (push) push.checked = settings.push !== undefined ? settings.push : true;
+        if (email) email.checked = settings.email || false;
+        if (aulas) aulas.checked = settings.aulas !== undefined ? settings.aulas : true;
+        if (tarefas) tarefas.checked = settings.tarefas !== undefined ? settings.tarefas : true;
+    }
+    
+    loadAparencia() {
+        const settings = this.app.data.settings || {};
+        this.selectedTheme = settings.theme || 'dark';
+        this.selectedAccent = settings.accent || '#8b5cf6';
         
-        const userId = this.app.user?.id;
-        if (userId) {
-            ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications'].forEach(key => {
-                localStorage.removeItem(`${userId}_${key}`);
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.theme === this.selectedTheme);
+        });
+        
+        document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+            option.classList.toggle('active', option.dataset.accent === this.selectedAccent);
+        });
+        
+        const slider = document.getElementById('font-size-slider');
+        if (slider) slider.value = settings.fontSize || 14;
+        
+        document.documentElement.style.setProperty('--accent-purple', this.selectedAccent);
+    }
+    
+    // ============================================
+    // FUNÇÕES DE MODAL
+    // ============================================
+    abrirModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add('active');
+    }
+    
+    fecharModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove('active');
+    }
+    
+    // ============================================
+    // ⭐ DIAGNÓSTICO
+    // ============================================
+    diagnostico() {
+        console.log('========== 🔍 DIAGNÓSTICO ==========');
+        console.log('1. Supabase Client:', !!window.supabaseClient);
+        console.log('2. AuthService:', !!window.AuthService);
+        console.log('3. DatabaseService:', !!window.DatabaseService);
+        console.log('4. CacheManager:', !!window.CacheManager);
+        console.log('5. SyncHelper:', typeof window.initSync === 'function');
+        console.log('6. SyncHelper inicializado:', window.getSyncStatus ? window.getSyncStatus().initialized : 'N/A');
+        console.log('7. Usuário ID:', this.app.user?.id);
+        console.log('8. Usuário Nome:', this.app.user?.nome);
+        console.log('9. Dados no app:', {
+            tasks: this.app.data.tasks?.length || 0,
+            notes: this.app.data.notes?.length || 0,
+            events: this.app.data.calendarEvents?.length || 0,
+            schedule: Object.keys(this.app.data.weeklySchedule || {}).length
+        });
+        console.log('10. Cache Status:', window.getCacheStatus ? window.getCacheStatus() : 'N/A');
+        console.log('11. Fila de salvamento:', window.CacheManager?._saveQueue?.length || 0);
+        console.log('12. Status do Sync:', window.getSyncStatus ? window.getSyncStatus() : 'Não disponível');
+        
+        // Tentar forçar sync manualmente
+        if (window.CacheManager) {
+            console.log('🔄 Forçando sync manual...');
+            window.CacheManager.forceSync().then(result => {
+                console.log('✅ Sync manual concluído:', result ? 'Sucesso com alterações' : 'Sucesso sem alterações');
+                if (typeof showToast === 'function') {
+                    showToast(result ? '✅ Sincronização concluída!' : '✅ Dados já estão sincronizados', 'success');
+                }
+            }).catch(error => {
+                console.error('❌ Sync manual falhou:', error);
+                if (typeof showToast === 'function') {
+                    showToast('❌ Erro na sincronização: ' + error.message, 'error');
+                }
             });
         }
         
-        localStorage.removeItem('usuarioLogado');
+        alert('🔍 Diagnóstico concluído! Verifique o console (F12) para mais detalhes.');
+    }
+    
+    // ============================================
+    // LOGOUT
+    // ============================================
+    logout() {
+        if (!confirm('Deseja realmente sair da conta?')) return;
+        
+        // Sincronizar antes de sair
         if (window.CacheManager) {
-            window.CacheManager.deleteProfilePhoto();
+            window.CacheManager.forceSync().then(() => {
+                console.log('[Perfil] Dados sincronizados antes do logout');
+            }).catch(() => {});
+        }
+        
+        localStorage.removeItem('usuarioLogado');
+        localStorage.removeItem('userPhotoURL');
+        
+        if (window.CacheManager) {
             window.CacheManager.logout();
         }
         
-        this.showToast('Conta deletada com sucesso!', 'success');
-        setTimeout(() => {
-            window.location.href = '../login/index.html';
-        }, 2000);
+        window.location.href = '../login/index.html';
     }
     
     // ============================================
-    // HELPERS
+    // NOTIFICAÇÕES
     // ============================================
-    showToast(mensagem, tipo = 'success') {
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        if (toast && toastMessage) {
-            toastMessage.textContent = mensagem;
-            toast.className = 'toast show';
-            toast.style.background = tipo === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
-                                   tipo === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                   tipo === 'info' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' :
-                                   'linear-gradient(135deg, #10b981, #059669)';
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        } else {
-            alert(mensagem);
-        }
-    }
-    
     updateBadge() {
-        const badge = document.getElementById('notificationBadge');
+        const badge = document.getElementById('notification-badge');
+        if (!badge) return;
+        
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
-        if (badge) {
-            badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
-            badge.style.display = naoLidas > 0 ? 'flex' : 'none';
-        }
+        badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
+        badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
     
+    // ============================================
+    // EVENTOS DA UI
+    // ============================================
     setupEvents() {
-        document.getElementById('avatarUpload')?.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) this.uploadAvatar(file);
-            e.target.value = '';
+        // Menu items
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                
+                switch(action) {
+                    case 'dados':
+                        this.loadDadosPessoais();
+                        this.abrirModal('dados-modal');
+                        break;
+                    case 'seguranca':
+                        this.abrirModal('seguranca-modal');
+                        break;
+                    case 'notificacoes':
+                        this.loadNotificacoes();
+                        this.abrirModal('notificacoes-modal');
+                        break;
+                    case 'aparencia':
+                        this.loadAparencia();
+                        this.abrirModal('aparencia-modal');
+                        break;
+                    case 'ajuda':
+                        this.abrirModal('ajuda-modal');
+                        break;
+                    case 'documentos':
+                        // Navegar para a view de documentos
+                        if (this.app) {
+                            // Verificar se o módulo está carregado
+                            if (!this.app.modules.documentos) {
+                                // O módulo será carregado via app.js
+                                console.log('[Perfil] ⏳ Aguardando módulo documentos carregar...');
+                            }
+                            // Salvar view atual e mostrar documentos
+                            this.app.currentView = 'perfil';
+                            this.app.showView('documentos');
+                        }
+                        break;
+                                            case 'disciplinas':
+                        if (this.app) {
+                            this.app.showView('disciplinas');
+                        }
+                        break;
+                    case 'deletar-foto':
+                        this.deleteProfilePhoto();
+                        break;
+                    case 'sincronizar':
+                        this.forceSync();
+                        break;
+                    case 'diagnostico':
+                        this.diagnostico();
+                        break;
+                    case 'logout':
+                        this.logout();
+                        break;
+                }
+            });
         });
         
-        document.querySelectorAll('.btn-save, .btn-save-form').forEach(btn => {
-            btn.addEventListener('click', () => this.salvarAlteracoes());
+        // Fechar modais
+        document.querySelectorAll('.btn-back-modal, .btn-close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const modal = btn.closest('.profile-modal');
+                if (modal) modal.classList.remove('active');
+            });
         });
-
-        // ⭐ ADICIONAR EVENTO PARA DOCUMENTOS
-        document.querySelector('.menu-item[data-action="documentos"]')?.addEventListener('click', () => {
-            if (this.app) {
-                // Verificar se o módulo documentos está carregado
-                if (!this.app.modules.documentos) {
-                    // O módulo será carregado via app.js
-                    console.log('[Perfil] 📁 Abrindo documentos...');
+        
+        // Fechar modais clicando fora
+        document.querySelectorAll('.profile-modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
                 }
-                this.app.showView('documentos');
+            });
+        });
+        
+        // Avatar - upload
+        document.querySelector('.btn-change-avatar')?.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) this.uploadProfilePhoto(file);
+            };
+            input.click();
+        });
+        
+        // Salvar dados pessoais
+        document.getElementById('btn-save-dados')?.addEventListener('click', () => {
+            this.salvarDadosPessoais();
+        });
+        
+        // Salvar senha (placeholder)
+        document.getElementById('btn-save-senha')?.addEventListener('click', () => {
+            const current = document.getElementById('current-password')?.value;
+            const newPass = document.getElementById('new-password')?.value;
+            const confirm = document.getElementById('confirm-password')?.value;
+            
+            if (!current || !newPass || !confirm) {
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ Preencha todos os campos!', 'error');
+                }
+                return;
+            }
+            if (newPass.length < 6) {
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ Senha deve ter 6+ caracteres!', 'error');
+                }
+                return;
+            }
+            if (newPass !== confirm) {
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ Senhas não coincidem!', 'error');
+                }
+                return;
+            }
+            
+            if (typeof showToast === 'function') {
+                showToast('🔐 Use "Esqueci minha senha" no login', 'info');
+            }
+            this.fecharModal('seguranca-modal');
+        });
+        
+        // Salvar notificações
+        document.getElementById('btn-save-notificacoes')?.addEventListener('click', () => {
+            this.salvarNotificacoes();
+        });
+        
+        // Salvar aparência
+        document.getElementById('btn-save-aparencia')?.addEventListener('click', () => {
+            this.salvarAparencia();
+        });
+        
+        // Temas
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedTheme = btn.dataset.theme;
+            });
+        });
+        
+        // Cores
+        document.querySelectorAll('#aparencia-modal .color-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('#aparencia-modal .color-option').forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                this.selectedAccent = option.dataset.accent;
+                document.documentElement.style.setProperty('--accent-purple', this.selectedAccent);
+            });
+        });
+        
+        // Tamanho da fonte
+        document.getElementById('font-size-slider')?.addEventListener('input', (e) => {
+            document.body.style.fontSize = e.target.value + 'px';
+        });
+        
+        // Help buttons
+        document.getElementById('btn-contato')?.addEventListener('click', () => {
+            if (typeof showToast === 'function') {
+                showToast('📱 WhatsApp: (00) 00000-0000', 'info');
             }
         });
+        
+        document.getElementById('btn-termos')?.addEventListener('click', () => {
+            if (typeof showToast === 'function') {
+                showToast('📄 Termos de Uso (em breve)', 'info');
+            }
+        });
+        
+        document.getElementById('btn-privacidade')?.addEventListener('click', () => {
+            if (typeof showToast === 'function') {
+                showToast('🔒 Política de Privacidade (em breve)', 'info');
+            }
+        });
+        
+        document.getElementById('btn-avaliar')?.addEventListener('click', () => {
+            if (typeof showToast === 'function') {
+                showToast('⭐ Avalie o App (em breve)', 'info');
+            }
+        });
+    }
+    
+    // ============================================
+    // FORÇAR SINCRONIZAÇÃO
+    // ============================================
+    async forceSync() {
+        if (!window.CacheManager) {
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Sistema de sincronização indisponível', 'error');
+            }
+            return;
+        }
+        
+        if (typeof showToast === 'function') {
+            showToast('🔄 Sincronizando...', 'info');
+        }
+        
+        try {
+            const result = await window.CacheManager.forceSync();
+            await this.app.loadAllData();
+            this.render(this.app.data);
+            
+            if (typeof showToast === 'function') {
+                showToast(result ? '✅ Dados sincronizados!' : '✅ Dados já estão sincronizados!', 'success');
+            }
+        } catch (error) {
+            console.error('[Perfil] Erro na sincronização:', error);
+            if (typeof showToast === 'function') {
+                showToast('❌ Erro ao sincronizar: ' + error.message, 'error');
+            }
+        }
     }
 }
 
