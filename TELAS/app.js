@@ -19,7 +19,7 @@ class App {
             notifications: [],
             disciplinas: [],
             documentos: [],
-            studySessions: [],   // ⭐ ADICIONAR
+            studySessions: [],   // ⭐ ADICIONAR[cite: 3]
             profile: {},
             settings: {}
         };
@@ -215,23 +215,21 @@ class App {
         this.updateLoadingStatus('Conectando ao servidor...', 25);
         await this.waitForSupabase();
         
-        this.updateLoadingStatus('Inicializando sincronização...', 30);
-        if (window.initSync) {
-            try {
-                await window.initSync({ force: false });
-            } catch(e) {
-                console.warn('[App PC] ⚠️ Erro no sync:', e);
-            }
-        }
-        
-        this.updateLoadingStatus('Carregando módulos...', 40);
+        this.updateLoadingStatus('Carregando módulos...', 35);
         this.loadModules();
         
-        this.updateLoadingStatus('Carregando dados da nuvem...', 45);
+        // ⭐ ORDEM CORRIGIDA: Local -> Sincronizar -> Nuvem -> Local[cite: 3]
+        this.updateLoadingStatus('Carregando dados locais...', 45);
+        await this.loadData(); 
+
+        this.updateLoadingStatus('Sincronizando...', 50);
+        if (window.CacheManager) {    
+            await window.CacheManager.forceSync();
+        }
+
+        this.updateLoadingStatus('Carregando dados da nuvem...', 55);
         await this.loadDataFromCloud();
-        
-        this.updateLoadingStatus('Carregando dados locais...', 55);
-        await this.loadData();
+        await this.loadData(); 
         
         this.updateLoadingStatus('Configurando...', 70);
         this.setupNavigation();

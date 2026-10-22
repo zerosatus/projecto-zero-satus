@@ -1,4 +1,4 @@
-// database-service.js - Serviço completo de banco de dados Supabase (Corrigido sem exclusão automática por lote)
+// database-service.js - Serviço completo de banco de dados Supabase (Corrigido sem exclusão automática por lote)[cite: 2]
 // ============================================
 // VERIFICAR SE JÁ FOI CARREGADO
 // ============================================
@@ -31,7 +31,7 @@ if (window.DatabaseService) {
             });
         }
 
-        // ⭐ FUNÇÃO DE NORMALIZAÇÃO (IGUAL AO FLUTTER)
+        // ⭐ FUNÇÃO DE NORMALIZAÇÃO (IGUAL AO FLUTTER)[cite: 2]
         function normalizeText(texto) {
             if (!texto) return '';
             return texto
@@ -65,7 +65,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 getUserProfile - COM LOGS DETALHADOS
+        // 🔥 getUserProfile - COM LOGS DETALHADOS[cite: 2]
         // ============================================
         async function getUserProfile(userId) {
             console.log('[Database] 🔍 Buscando perfil para userId:', userId);
@@ -91,7 +91,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 updateUserProfile
+        // 🔥 updateUserProfile[cite: 2]
         // ============================================
         async function updateUserProfile(userId, profile) {
             const client = init();
@@ -123,7 +123,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 createProfile (COM UPSERT)
+        // 🔥 createProfile (COM UPSERT)[cite: 2]
         // ============================================
         async function createProfile(userId, email, nome, role = 'user') {
             const client = init();
@@ -150,7 +150,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 ensureUserData
+        // 🔥 ensureUserData[cite: 2]
         // ============================================
         async function ensureUserData(userId, email, nome) {
             try {
@@ -177,7 +177,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // TASKS - COM LOGs
+        // TASKS - COM LOGs[cite: 2]
         // ============================================
         async function getTasks(userId) {
             const client = init();
@@ -217,8 +217,7 @@ if (window.DatabaseService) {
 
             try {
                 if (!tasks || tasks.length === 0) {
-                    await client.from('tasks').delete().eq('user_id', userId);
-                    return true;
+                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
                 }
 
                 const tasksToUpsert = tasks.map(task => ({
@@ -245,7 +244,6 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar tasks:', error);
@@ -273,7 +271,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ NOTES - UPSERT CORRIGIDO (MANTÉM IDs)
+        // ⭐ NOTES - UPSERT CORRIGIDO (MANTÉM IDs)[cite: 2]
         // ============================================
         async function getNotes(userId) {
             const client = init();
@@ -308,8 +306,7 @@ if (window.DatabaseService) {
 
             try {
                 if (!notes || notes.length === 0) {
-                    await client.from('notes').delete().eq('user_id', userId);
-                    return true;
+                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
                 }
 
                 const notesToUpsert = notes.map(note => ({
@@ -330,7 +327,6 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 console.log(`[Database] ✅ ${notes.length} notes sincronizadas com sucesso via UPSERT`);
                 return true;
             } catch (error) {
@@ -359,7 +355,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ CALENDAR EVENTS - UPSERT CORRIGIDO (MANTÉM IDs)
+        // ⭐ CALENDAR EVENTS - UPSERT CORRIGIDO (MANTÉM IDs)[cite: 2]
         // ============================================
         async function getCalendarEvents(userId) {
             const client = init();
@@ -399,8 +395,7 @@ if (window.DatabaseService) {
 
             try {
                 if (!events || events.length === 0) {
-                    await client.from('calendar_events').delete().eq('user_id', userId);
-                    return true;
+                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
                 }
 
                 const eventsToUpsert = events.map(event => ({
@@ -428,7 +423,6 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 console.log(`[Database] ✅ ${events.length} eventos sincronizados com sucesso via UPSERT`);
                 return true;
             } catch (error) {
@@ -457,7 +451,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // WEEKLY SCHEDULE
+        // WEEKLY SCHEDULE[cite: 2]
         // ============================================
         async function getWeeklySchedule(userId) {
             const client = init();
@@ -519,7 +513,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // TIME SLOTS
+        // TIME SLOTS[cite: 2]
         // ============================================
         async function getTimeSlots(userId) {
             const client = init();
@@ -576,7 +570,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // NOTIFICATIONS - PROTEGIDAS (VÊM DO SERVIDOR)
+        // NOTIFICATIONS - PROTEGIDAS (VÊM DO SERVIDOR)[cite: 2]
         // ============================================
         async function getNotifications(userId) {
             const client = init();
@@ -608,7 +602,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DISCIPLINAS - UPSERT COM FALLBACK normalizeText
+        // ⭐ DISCIPLINAS - UPSERT COM FALLBACK normalizeText[cite: 2]
         // ============================================
         async function getDisciplinas(userId) {
             const client = init();
@@ -633,12 +627,11 @@ if (window.DatabaseService) {
 
             try {
                 if (!disciplinas || disciplinas.length === 0) {
-                    await client.from('disciplinas').delete().eq('user_id', userId);
-                    return true;
+                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
                 }
 
                 const disciplinasToUpsert = disciplinas.map(d => ({
-                    id: d.id ? String(d.id) : normalizeText(d.nome), // ⭐ MESMO QUE FLUTTER
+                    id: d.id ? String(d.id) : normalizeText(d.nome),
                     user_id: userId,
                     nome: d.nome || 'Disciplina',
                     cor: d.cor || '#9333ea',
@@ -656,7 +649,6 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar disciplinas:', error);
@@ -683,7 +675,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // DOCUMENTOS - COM STORAGE & UPSERT (SEM FILTRO)
+        // DOCUMENTOS - COM STORAGE & UPSERT (SEM FILTRO)[cite: 2]
         // ============================================
         async function getDocumentos(userId) {
             const client = init();
@@ -719,11 +711,9 @@ if (window.DatabaseService) {
 
             try {
                 if (!documentos || documentos.length === 0) {
-                    await client.from('documentos').delete().eq('user_id', userId);
-                    return true;
+                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
                 }
 
-                // ⭐ SEM FILTRO — igual ao Flutter
                 const docsToUpsert = documentos.map(doc => ({
                     id: doc.id ? String(doc.id) : generateId(),
                     user_id: userId,
@@ -749,7 +739,6 @@ if (window.DatabaseService) {
                     if (error) throw error;
                 }
 
-                // ✅ REMOVIDO O DELETE (para não apagar dados acidentalmente)[cite: 2]
                 return true;
             } catch (error) {
                 console.error('[Database] ❌ Erro ao salvar documentos:', error);
@@ -821,7 +810,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // STUDY SESSIONS (SESSÕES DE ESTUDO)
+        // STUDY SESSIONS (SESSÕES DE ESTUDO)[cite: 2]
         // ============================================
         async function getStudySessions(userId) {
             const client = init();
@@ -873,7 +862,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // USER SETTINGS
+        // USER SETTINGS[cite: 2]
         // ============================================
         async function getUserSettings(userId) {
             const client = init();
@@ -924,7 +913,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // STORAGE - AVATAR
+        // STORAGE - AVATAR[cite: 2]
         // ============================================
         async function uploadProfilePhoto(userId, file) {
             const client = init();
@@ -969,7 +958,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // IA - CONVERSAS E MENSAGENS
+        // IA - CONVERSAS E MENSAGENS[cite: 2]
         // ============================================
         async function getAIConversations(userId) {
             const client = init();
@@ -1062,7 +1051,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // API PÚBLICA
+        // API PÚBLICA[cite: 2]
         // ============================================
         return {
             init,
@@ -1108,7 +1097,7 @@ if (window.DatabaseService) {
         };
     })();
 
-    // Exportar para uso global
+    // Exportar para uso global[cite: 2]
     window.DatabaseService = DatabaseService;
     console.log('[DatabaseService] ✅ Módulo carregado com sucesso!');
 }
