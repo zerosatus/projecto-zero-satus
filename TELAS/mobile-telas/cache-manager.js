@@ -519,6 +519,14 @@ class SimpleCacheManager {
             return false;
         }
 
+        // ⭐ NOVA PROTEÇÃO: NÃO ENVIAR ARRAYS VAZIOS PARA A NUVEM
+        // Evita que o Web Mobile apague dados criados pelo Flutter
+        if (Array.isArray(value) && value.length === 0 &&
+            ['tasks', 'notes', 'disciplinas', 'documentos', 'calendarEvents'].includes(key)) {
+            console.log(`[CacheManager] 🛡️ ${key} está vazio — ignorando envio para não apagar na nuvem.`);
+            return true;
+        }
+
         try {
             console.log(`[CacheManager] 💾 Salvando ${key} na nuvem para userId: ${userId.substring(0, 8)}...`);
             
