@@ -1,9 +1,9 @@
 // ============================================
-// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE / WEB)[cite: 4]
-// ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)[cite: 4]
-// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)[cite: 4]
-// ⭐ LIMITE DIÁRIO DE 15 MENSAGENS[cite: 4]
-// ⭐ MODO GÍRIA MOÇAMBICANA[cite: 4]
+// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE / WEB)
+// ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)
+// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
+// ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+// ⭐ MODO GÍRIA MOÇAMBICANA
 // ============================================
 
 const IA_SPARKLES_SVG = `
@@ -471,13 +471,13 @@ Pendentes: ${pendentes.length}
 Concluídas: ${concluidas.length}
 
 ${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) => 
-    `   ${i+1}. ${t.title \vert{}\vert{} t.nome \vert{}\vert{} 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
+    `   ${i+1}. ${t.title || t.nome || 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
 ).join('\n') : '✅ Todas as tarefas foram concluídas! 🎉'}
 
 📝 ANOTAÇÕES:
 Total: ${notes.length}
 ${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, i) => 
-    `   ${i+1}. ${n.title \vert{}\vert{} 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
+    `   ${i+1}. ${n.title || 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
 ).join('\n') : 'Nenhuma anotação ainda'}
 
 📚 DISCIPLINAS:
@@ -658,28 +658,40 @@ INSTRUÇÕES DE ESTILO:
         try {
             const context = this.buildUserContext(text);
             let response;
-            const service = window.MultiAIService;
-            
-            if (service) {
-                console.log('[IA Mobile] 📤 Enviando... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
-                console.log('[IA Mobile] 📊 Mensagens no histórico:', this.messages.length);
                 
-                const result = await service.sendMessage(text, context);
+            // ⭐ CHAMAR A EDGE FUNCTION DO SUPABASE (IGUAL AO FLUTTER)
+            const supabaseUrl = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+            const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
                 
-                if (result.success) {
-                    response = result.text;
-                    if (result.fromCache) response += '\n\n*(Resposta do cache)*';
-                } else {
-                    response = `❌ ${result.error}`;
-                }
+            console.log('[IA Mobile] 📤 Enviando para a Edge Function do Supabase...');
+                
+            const apiResponse = await fetch(`${supabaseUrl}/functions/v1/zero-ia`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`
+                },
+                body: JSON.stringify({
+                    prompt: text,
+                    context: context,
+                    models: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"] // Fallback
+                })
+            });
+            if (apiResponse.ok) {
+                const data = await apiResponse.json();
+                response = data.choices?.[0]?.message?.content;
             } else {
+                console.error('[IA Mobile] ❌ Erro HTTP:', apiResponse.status);
                 response = this._getFallbackResponse(text);
             }
-            
+                
+            if (!response) {
+                response = this._getFallbackResponse(text);
+            }
+                
             loadingDiv.remove();
             this._incrementarUso();
-            
-            // Adicionar resposta da IA
+                
             this.messages.push({
                 role: 'assistant',
                 content: response,
@@ -687,8 +699,7 @@ INSTRUÇÕES DE ESTILO:
                 timestamp: new Date().toISOString(),
                 _saved: false
             });
-            
-            // Salvar conversa
+                
             await this.salvarConversaAtual();
             this.renderChat();
             this._atualizarStatusLimite();
@@ -702,7 +713,7 @@ INSTRUÇÕES DE ESTILO:
             loadingDiv.remove();
             this.messages.push({
                 role: 'assistant',
-                content: '❌ Ocorreu um erro. Tenta novamente!',
+                content: '❌ Ocorreu um erro ao comunicar com a IA. Tenta novamente!',
                 time: new Date().toLocaleTimeString(),
                 _saved: false
             });
@@ -746,7 +757,7 @@ INSTRUÇÕES DE ESTILO:
             ).join('\n');
             return this._modoGiria
                 ? `🇲🇿 Tens ${notasCount} anotações, broo!\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}\n\nQuer ver alguma? 📝`
-                : `Você tem ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}`;
+                : `Você has ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}`;
         }
         
         if (perguntas.includes('disciplina') || perguntas.includes('matéria')) {
@@ -1026,4 +1037,4 @@ function fallbackCopy(text, element) {
     atualizarFab();
 })();
 
-console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');[cite: 4]
+console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');
