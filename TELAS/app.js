@@ -561,7 +561,6 @@ class App {
         }
         if (typeof DisciplinasModule !== 'undefined') {
             this.modules.disciplinas = new DisciplinasModule(this);
-            this.modules.disciplinas.setupEventos();
         }
         if (typeof DocumentosModule !== 'undefined') {
             this.modules.documentos = new DocumentosModule(this);
