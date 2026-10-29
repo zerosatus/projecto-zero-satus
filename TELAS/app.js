@@ -19,7 +19,7 @@ class App {
             notifications: [],
             disciplinas: [],
             documentos: [],
-            studySessions: [],   // ⭐ ADICIONAR[cite: 3]
+            studySessions: [],   // ⭐ ADICIONAR
             profile: {},
             settings: {}
         };
@@ -218,7 +218,7 @@ class App {
         this.updateLoadingStatus('Carregando módulos...', 35);
         this.loadModules();
         
-        // ⭐ ORDEM CORRIGIDA: Local -> Sincronizar -> Nuvem -> Local[cite: 3]
+        // ⭐ ORDEM CORRIGIDA: Local -> Sincronizar -> Nuvem -> Local
         this.updateLoadingStatus('Carregando dados locais...', 45);
         await this.loadData(); 
 
@@ -322,9 +322,17 @@ class App {
     
     async loadDataFromCloud() {
         try {
-            if (!window.CacheManager) return false;
-            const result = await window.CacheManager.loadFromCloud(true);
-            return result;
+            // Garantir que o DatabaseService existe (criado pelo supabase-client.js)
+            if (!window.DatabaseService) {
+                console.warn('[App PC] ⏳ Aguardando DatabaseService...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            if (window.CacheManager) {
+                // Força o download de todos os dados do Supabase
+                const result = await window.CacheManager.loadFromCloud(true);
+                return result;
+            }
+            return false;
         } catch (error) {
             console.error('[App PC] ❌ Erro nuvem:', error);
             return false;
@@ -352,7 +360,7 @@ class App {
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
             this.data.documentos = window.CacheManager.get('documentos', []);
-            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR[cite: 3]
+            this.data.studySessions = window.CacheManager.get('studySessions', []);
             
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
@@ -372,7 +380,7 @@ class App {
                 tasks: this.data.tasks.length,
                 notes: this.data.notes.length,
                 disciplinas: this.data.disciplinas.length,
-                studySessions: this.data.studySessions.length // ⭐ ADICIONAR[cite: 3]
+                studySessions: this.data.studySessions.length
             });
             
             if (this.data.profile && this.data.profile.nome) {
@@ -393,7 +401,7 @@ class App {
         try {
             const KEYS_TO_SAVE = [
                 'tasks', 'notes', 'calendarEvents', 'weeklySchedule',
-                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONAR[cite: 3]
+                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions'
             ];
             
             for (const key of KEYS_TO_SAVE) {
