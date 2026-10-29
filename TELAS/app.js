@@ -41,7 +41,8 @@ class App {
             'perfil': 'css/perfil.css',
             'ia': 'css/ia.css',
             'disciplinas': 'css/disciplinas.css',
-            'documentos': 'css/documentos.css'
+            'documentos': 'css/documentos.css',
+            'foco': 'css/foco.css' // ⭐ ADICIONAR AQUI
         };
         
         this.viewToModuleMap = {
@@ -55,7 +56,8 @@ class App {
             'perfil': 'perfil',
             'ia': 'ia',
             'disciplinas': 'disciplinas',
-            'documentos': 'documentos'
+            'documentos': 'documentos',
+            'foco': 'foco'// ⭐ ADICIONAR AQUI
         };
         
         this.init();
@@ -255,21 +257,36 @@ class App {
     
     atualizarNomeUsuario(nome) {
         if (!nome && this.user) nome = this.getNomeUsuario();
-        
+                
+        // ⭐ LÓGICA DE SAUDAÇÃO DINÂMICA (IGUAL AO FLUTTER)[cite: 1]
+        const hora = new Date().getHours();
+        let saudacao = 'Bom dia';
+        if (hora >= 12 && hora < 19) saudacao = 'Boa tarde';
+        else if (hora >= 19 || hora < 5) saudacao = 'Boa noite';
+                
+        const textoHeader = `${saudacao}, ${nome.split(' ')[0]}!`;
         const ids = ['userNameDisplay', 'userName', 'userName2', 'userName3', 
                      'userName4', 'userName5', 'userNameIA', 'miniName',
                      'header-name', 'profile-name'];
+                     
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.textContent = nome;
+            if (el) {
+                // O miniName e profile-name devem mostrar o nome completo, os outros podem ter a saudação[cite: 1]
+                if (id === 'miniName' || id === 'profile-name') {
+                    el.textContent = nome;
+                } else {
+                    el.textContent = textoHeader;
+                }
+            }
         });
-        
+                
         const miniEmail = document.getElementById('miniEmail');
         if (miniEmail && this.user) miniEmail.textContent = this.user.email || '';
-        
+                
         const profileEmail = document.getElementById('profileEmail');
         if (profileEmail && this.user) profileEmail.textContent = this.user.email || '';
-        
+                
         const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
         this.atualizarAvatar(iniciais);
     }
