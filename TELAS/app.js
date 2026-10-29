@@ -216,32 +216,28 @@ class App {
         
         this.updateLoadingStatus('Conectando ao servidor...', 25);
         await this.waitForSupabase();
-        
+                
         this.updateLoadingStatus('Carregando módulos...', 35);
         this.loadModules();
-        
-        // ⭐ ORDEM CORRIGIDA: Local -> Sincronizar -> Nuvem -> Local
-        this.updateLoadingStatus('Carregando dados locais...', 45);
-        await this.loadData(); 
-
-        this.updateLoadingStatus('Sincronizando...', 50);
-        if (window.CacheManager) {    
-            await window.CacheManager.forceSync();
-        }
-
-        this.updateLoadingStatus('Carregando dados da nuvem...', 55);
+                
+        // ⭐ PASSO 1: CARREGAR DADOS DA NUVEM PRIMEIRO
+        this.updateLoadingStatus('Carregando dados da nuvem...', 45);
         await this.loadDataFromCloud();
-        await this.loadData(); 
-        
+                
+        // ⭐ PASSO 2: AGORA CARREGA DO CACHE (que já tem os dados da nuvem)
+        this.updateLoadingStatus('Preparando dados...', 55);
+        await this.loadData();
+                
         this.updateLoadingStatus('Configurando...', 70);
         this.setupNavigation();
-        
+                
         this.updateLoadingStatus('Preparando...', 80);
         this.setupEvents();
-        
+                
         this.updateLoadingStatus('Quase pronto!', 90);
+        // ⭐ O showView('inicio') vai chamar o dashboard.js COM os dados já prontos
         this.showView('inicio');
-        
+                
         this.updateLoadingStatus('Atualizando...', 95);
         this.updateBadge();
         
@@ -258,7 +254,6 @@ class App {
     atualizarNomeUsuario(nome) {
         if (!nome && this.user) nome = this.getNomeUsuario();
                 
-        // ⭐ LÓGICA DE SAUDAÇÃO DINÂMICA (IGUAL AO FLUTTER)[cite: 1]
         const hora = new Date().getHours();
         let saudacao = 'Bom dia';
         if (hora >= 12 && hora < 19) saudacao = 'Boa tarde';
@@ -272,7 +267,6 @@ class App {
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                // O miniName e profile-name devem mostrar o nome completo, os outros podem ter a saudação[cite: 1]
                 if (id === 'miniName' || id === 'profile-name') {
                     el.textContent = nome;
                 } else {
@@ -339,13 +333,11 @@ class App {
     
     async loadDataFromCloud() {
         try {
-            // Garantir que o DatabaseService existe (criado pelo supabase-client.js)
             if (!window.DatabaseService) {
                 console.warn('[App PC] ⏳ Aguardando DatabaseService...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             if (window.CacheManager) {
-                // Força o download de todos os dados do Supabase
                 const result = await window.CacheManager.loadFromCloud(true);
                 return result;
             }
@@ -397,7 +389,7 @@ class App {
                 tasks: this.data.tasks.length,
                 notes: this.data.notes.length,
                 disciplinas: this.data.disciplinas.length,
-                studySessions: this.data.studySessions.length
+                studySessions: this.data.studySessions.length // ⭐ Verificar se é > 0
             });
             
             if (this.data.profile && this.data.profile.nome) {
