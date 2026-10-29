@@ -3,7 +3,6 @@
 // ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)
 // ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
 // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
-// ⭐ MODO GÍRIA MOÇAMBICANA
 // ============================================
 
 const IA_SPARKLES_SVG = `
@@ -28,7 +27,6 @@ class IAModule {
         this.messages = [];
         this._previousView = 'dashboard';
         this._isProcessing = false;
-        this._modoGiria = false;
         this._ultimaMensagem = '';
         
         // LIMITE DIÁRIO
@@ -129,7 +127,6 @@ class IAModule {
         this.renderChat();
         this.updateBadge();
         this.setupEvents();
-        this._atualizarStatusGiria();
         this._atualizarStatusLimite();
         
         console.log('[IA Mobile] ✅ Renderizado!');
@@ -379,8 +376,6 @@ class IAModule {
                         </div>
                     </div>
                     
-                    <p class="ia-empty-hint">💬 Digite <strong>"fala com gíria"</strong> para ativar ou 
-                        <strong>"fala normal"</strong> para desativar</p>
                     <p class="ia-empty-limite" id="ia-limite-status">
                         💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje
                     </p>
@@ -431,18 +426,6 @@ class IAModule {
         const notes = this.notes || [];
         const schedule = this.weeklySchedule || {};
         const disciplinas = this.disciplinas || [];
-        
-        // Detectar comandos de gíria
-        const pediuGiria = this._usuarioPediuGiria(textoUsuario);
-        const querNormal = this._usuarioQuerNormal(textoUsuario);
-        
-        if (pediuGiria) {
-            this._modoGiria = true;
-            this._mostrarToast('🇲🇿 Modo Gíria ativado!');
-        } else if (querNormal) {
-            this._modoGiria = false;
-            this._mostrarToast('📚 Modo Normal ativado!');
-        }
         
         // Histórico da conversa atual
         let historicoConversa = '';
@@ -496,52 +479,14 @@ Usadas hoje: ${this.getUsoHoje()}/${this.LIMITE_DIARIO}
 Restantes: ${this.getLimiteRestante()}
 
 INSTRUÇÕES DE ESTILO:
-`;
-        
-        if (this._modoGiria) {
-            contexto += `
-✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
-✅ Seja descontraído, amigável e divertido.
-✅ Use emojis frequentemente 🇲🇿
-✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ MANTENHA A CONTINUIDADE DA CONVERSA.
-`;
-        } else {
-            contexto += `
 ✅ MODO NORMAL ATIVO! Fale em português formal e claro.
 ✅ Seja profissional, direto e objetivo.
 ✅ Dê respostas completas e bem estruturadas.
 ✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
 ✅ MANTENHA A CONTINUIDADE DA CONVERSA.
 `;
-        }
         
         return contexto;
-    }
-
-    _usuarioPediuGiria(texto) {
-        const palavrasChave = [
-            'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
-            'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
-            'fala moçambicano', 'fala com gíria', 'fala que nem eu',
-            'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
-            'modo gíria', 'modo giria'
-        ];
-        return palavrasChave.some(palavra =>
-            texto.toLowerCase().includes(palavra.toLowerCase())
-        );
-    }
-    
-    _usuarioQuerNormal(texto) {
-        const palavrasChave = [
-            'sem gíria', 'normal', 'formal', 'sem gírias',
-            'fala normal', 'sério', 'direto', 'sem brincadeira',
-            'desativa gíria', 'desativar gíria', 'fala formal',
-            'volta ao normal', 'modo normal'
-        ];
-        return palavrasChave.some(palavra =>
-            texto.toLowerCase().includes(palavra.toLowerCase())
-        );
     }
 
     _mostrarToast(mensagem) {
@@ -550,21 +495,7 @@ INSTRUÇÕES DE ESTILO:
         } else {
             console.log('[IA Mobile] 📢', mensagem);
         }
-        this._atualizarStatusGiria();
         this._atualizarStatusLimite();
-    }
-
-    _atualizarStatusGiria() {
-        const statusEl = document.getElementById('giria-status');
-        if (statusEl) {
-            statusEl.textContent = this._modoGiria ? 'Gíria 🇲🇿' : 'Normal';
-            statusEl.style.color = this._modoGiria ? 'var(--accent-purple)' : 'var(--text-secondary)';
-        }
-        const btn = document.getElementById('btn-toggle-giria');
-        if (btn) {
-            btn.style.borderColor = this._modoGiria ? 'var(--accent-purple)' : 'var(--border-color)';
-            btn.style.background = this._modoGiria ? 'rgba(139, 92, 246, 0.15)' : 'var(--card-bg)';
-        }
     }
     
     _atualizarStatusLimite() {
@@ -576,24 +507,152 @@ INSTRUÇÕES DE ESTILO:
         limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
     }
 
-    async toggleModoGiria() {
-        this._modoGiria = !this._modoGiria;
-        const mensagem = this._modoGiria
-            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
-            : '📚 Modo Normal ativado! Fala formal.';
-        this._mostrarToast(mensagem);
-        this._atualizarStatusGiria();
-        this.messages.push({
-            role: 'assistant',
-            content: this._modoGiria
-                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
-                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
-            time: new Date().toLocaleTimeString(),
-            isSystem: true,
-            _saved: false
-        });
-        await this.salvarConversaAtual();
-        this.renderChat();
+    // ============================================
+    // DETEÇÃO DE INTENÇÕES (JSON)
+    // ============================================
+    _detectCreateDocument(text) {
+        const regex = /\{[\s\S]*?"action"\s*:\s*"create_document"[\s\S]*?\}/;
+        const match = text.match(regex);
+        if (!match) return null;
+        try {
+            const json = JSON.parse(match[0]);
+            if (json.action === 'create_document') return json;
+        } catch (e) {}
+        return null;
+    }
+
+    _detectReadDocument(text) {
+        const regex = /\{[\s\S]*?"action"\s*:\s*"read_document"[\s\S]*?\}/;
+        const match = text.match(regex);
+        if (!match) return null;
+        try {
+            const json = JSON.parse(match[0]);
+            if (json.action === 'read_document') return json;
+        } catch (e) {}
+        return null;
+    }
+
+    // ============================================
+    // CRIAR E GUARDAR NO TURSO + SUPABASE
+    // ============================================
+    async _createAndUploadDocument(intent) {
+        const userId = this.app.user.id;
+        if (!userId) return;
+        if (typeof showToast === 'function') showToast('⏳ A gerar documento...', 'info');
+        try {
+            const title = intent.title || 'Documento Sem Título';
+            const content = intent.content || '';
+            const format = (intent.format || 'pdf').toLowerCase();
+            const category = intent.category || 'Trabalhos';
+            const id = Date.now().toString();
+
+            console.log('[Turso] Guardando conteúdo para:', title);
+
+            const novoDoc = {
+                id: id,
+                nome: title,
+                categoria: category,
+                descricao: 'Criado pela Zero IA',
+                arquivo: 'TURSO_DB',
+                conteudoIA: content, // ⭐ ADICIONAR O TEXTO COMPLETO AQUI
+                tipo: format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf',
+                nomeArquivo: `${title}.${format}`,
+                tamanho: content.length,
+                dataUpload: new Date().toISOString(),
+                storagePath: null
+            };
+
+            if (!this.app.data.documentos) this.app.data.documentos = [];
+            this.app.data.documentos.unshift(novoDoc);
+
+            await window.DatabaseService.saveDocumentos(userId, this.app.data.documentos);
+
+            if (window.CacheManager) {
+                window.CacheManager.set('documentos', this.app.data.documentos, true);
+            }
+            if (typeof showToast === 'function') showToast('✅ Documento guardado nos Meus Documentos!', 'success');
+            
+            this.messages.push({
+                role: 'assistant',
+                content: `✅ Documento **"${title}"** criado e guardado nos **Meus Documentos** (formato ${format.toUpperCase()}).`,
+                time: new Date().toLocaleTimeString(),
+                _saved: false
+            });
+            await this.salvarConversaAtual();
+            this.renderChat();
+        } catch (e) {
+            console.error('[CreateDoc]', e);
+            if (typeof showToast === 'function') showToast('❌ Erro ao criar documento.', 'error');
+        }
+    }
+
+    // ============================================
+    // LER DOCUMENTO E ENVIAR PARA A IA
+    // ============================================
+    async _handleReadDocument(search, aiContext, docsList) {
+        try {
+            const searchLower = search.toLowerCase();
+            const doc = docsList.find(d => d.nome.toLowerCase().includes(searchLower));
+
+            if (!doc) {
+                this.messages.push({
+                    role: 'assistant',
+                    content: `❌ Não encontrei nenhum documento com o nome "${search}".`,
+                    time: new Date().toLocaleTimeString(),
+                    _saved: false
+                });
+                await this.salvarConversaAtual();
+                this.renderChat();
+                return;
+            }
+            if (typeof showToast === 'function') showToast(`📄 A ler "${doc.nome}"...`, 'info');
+
+            let content = doc.conteudoIA || "Conteúdo do documento não disponível.";
+            if (doc.arquivo && doc.arquivo !== 'TURSO_DB' && doc.arquivo.startsWith('data:')) {
+                content = atob(doc.arquivo.split(',')[1]);
+            }
+
+            const promptWithDoc = `📄 Documento lido: "${doc.nome}"\nCONTEÚDO:\n${content.substring(0, 10000)}\n---\nO utilizador quer criar um trabalho com base neste documento. Gera o trabalho e adiciona o JSON de create_document.`;
+            const supabaseUrl = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+            const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
+            
+            const apiResponse = await fetch(`${supabaseUrl}/functions/v1/zero-ia`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+                body: JSON.stringify({ prompt: promptWithDoc, context: aiContext, models: ["openai/gpt-oss-120b"] })
+            });
+            
+            if (apiResponse.ok) {
+                const data = await apiResponse.json();
+                const response2 = data.choices?.[0]?.message?.content;
+
+                if (response2) {
+                    const createIntent = this._detectCreateDocument(response2);
+                    if (createIntent) {
+                        this.messages.push({
+                            role: 'assistant',
+                            content: '✅ Novo documento baseado no original está pronto!',
+                            time: new Date().toLocaleTimeString(),
+                            _saved: false
+                        });
+                        await this.salvarConversaAtual();
+                        this.renderChat();
+                        await this._createAndUploadDocument(createIntent);
+                    } else {
+                        this.messages.push({
+                            role: 'assistant',
+                            content: response2,
+                            time: new Date().toLocaleTimeString(),
+                            _saved: false
+                        });
+                        await this.salvarConversaAtual();
+                        this.renderChat();
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[ReadDoc]', e);
+        }
     }
 
     // ============================================
@@ -625,7 +684,7 @@ INSTRUÇÕES DE ESTILO:
         
         this._ultimaMensagem = text;
         
-        // Adicionar mensagem do usuário
+        // Adicionar mensagem do user
         this.messages.push({
             role: 'user',
             content: text,
@@ -634,9 +693,7 @@ INSTRUÇÕES DE ESTILO:
             _saved: false
         });
         
-        // Salvar imediatamente
         await this.salvarConversaAtual();
-        
         this.renderChat();
         this._isProcessing = true;
         
@@ -647,23 +704,34 @@ INSTRUÇÕES DE ESTILO:
             <div class="ia-message-avatar">🤖</div>
             <div class="ia-message-content">
                 <span class="ia-dots"><span>.</span><span>.</span><span>.</span></span>
-                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">
-                    ${this._modoGiria ? 'To a pensar, broo...' : 'Processando...'}
-                </span>
+                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">Processando...</span>
             </div>
         `;
         container.appendChild(loadingDiv);
         container.scrollTop = container.scrollHeight;
         
         try {
-            const context = this.buildUserContext(text);
+            // ⭐ BUSCAR DOCUMENTOS DO BANCO (para o contexto da IA)
+            const userId = this.app.user.id;
+            let docsDoBanco = [];
+            if (window.DatabaseService) {
+                docsDoBanco = await window.DatabaseService.getDocumentos(userId);
+            }
+
+            // Construir contexto
+            let context = this.buildUserContext(text);
+            if (docsDoBanco.length > 0) {
+                context += `\n📁 SEUS DOCUMENTOS NO SISTEMA:\n`;
+                docsDoBanco.forEach(d => {
+                    context += `- ${d.nome}\n`;
+                });
+                context += `(Se o utilizador pedir para ler um destes documentos, responda com o JSON de read_document).\n`;
+            }
             let response;
                 
-            // ⭐ CHAMAR A EDGE FUNCTION DO SUPABASE (IGUAL AO FLUTTER)
+            // ⭐ CHAMAR O SUPABASE (EDGE FUNCTION)
             const supabaseUrl = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
             const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
-                
-            console.log('[IA Mobile] 📤 Enviando para a Edge Function do Supabase...');
                 
             const apiResponse = await fetch(`${supabaseUrl}/functions/v1/zero-ia`, {
                 method: 'POST',
@@ -674,24 +742,64 @@ INSTRUÇÕES DE ESTILO:
                 body: JSON.stringify({
                     prompt: text,
                     context: context,
-                    models: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"] // Fallback
+                    models: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"]
                 })
             });
+                        
             if (apiResponse.ok) {
                 const data = await apiResponse.json();
                 response = data.choices?.[0]?.message?.content;
-            } else {
-                console.error('[IA Mobile] ❌ Erro HTTP:', apiResponse.status);
-                response = this._getFallbackResponse(text);
             }
-                
+                        
             if (!response) {
                 response = this._getFallbackResponse(text);
             }
-                
+                        
             loadingDiv.remove();
             this._incrementarUso();
-                
+
+            // ⭐ VERIFICAR SE A IA QUER CRIAR UM DOCUMENTO
+            const createIntent = this._detectCreateDocument(response);
+            if (createIntent) {
+                const cleanResponse = response.replace(/```json[\s\S]*?```/g, '').replace(/\{[\s\S]*?"action"\s*:\s*"create_document"[\s\S]*?\}/g, '').trim();
+
+                this.messages.push({
+                    role: 'assistant',
+                    content: cleanResponse || '✅ Documento preparado!',
+                    time: new Date().toLocaleTimeString(),
+                    timestamp: new Date().toISOString(),
+                    _saved: false
+                });
+                this.renderChat();
+
+                // Criar documento
+                await this._createAndUploadDocument(createIntent);
+                this._isProcessing = false;
+                return;
+            }
+
+            // ⭐ VERIFICAR SE A IA QUER LER UM DOCUMENTO
+            const readIntent = this._detectReadDocument(response);
+            if (readIntent) {
+                const cleanResponse = response.replace(/```json[\s\S]*?```/g, '').replace(/\{[\s\S]*?"action"\s*:\s*"read_document"[\s\S]*?\}/g, '').trim();
+
+                if (cleanResponse) {
+                    this.messages.push({
+                        role: 'assistant',
+                        content: cleanResponse,
+                        time: new Date().toLocaleTimeString(),
+                        timestamp: new Date().toISOString(),
+                        _saved: false
+                    });
+                    this.renderChat();
+                }
+
+                await this._handleReadDocument(readIntent.search, context, docsDoBanco);
+                this._isProcessing = false;
+                return;
+            }
+
+            // Resposta normal
             this.messages.push({
                 role: 'assistant',
                 content: response,
@@ -699,15 +807,11 @@ INSTRUÇÕES DE ESTILO:
                 timestamp: new Date().toISOString(),
                 _saved: false
             });
-                
+                        
             await this.salvarConversaAtual();
             this.renderChat();
             this._atualizarStatusLimite();
-            
-            if (this.getLimiteRestante() === 0) {
-                this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
-            }
-            
+                    
         } catch (error) {
             console.error('[IA Mobile] ❌ Erro:', error);
             loadingDiv.remove();
@@ -734,42 +838,30 @@ INSTRUÇÕES DE ESTILO:
         
         if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente')) {
             if (pendentes.length === 0) {
-                return this._modoGiria 
-                    ? '🇲🇿 Não tens tarefas pendentes, broo! Tás em dia! 🎉'
-                    : 'Você não tem tarefas pendentes. Parabéns, está em dia! 🎉';
+                return 'Você não tem tarefas pendentes. Parabéns, está em dia! 🎉';
             }
             const lista = pendentes.map((t, i) => 
                 `${i+1}. ${t.title || t.nome}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
             ).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Tens ${pendentes.length} tarefas pendentes, magaia!\n\n${lista}\n\nVai devagar, uma de cada vez. Tamos juntos! 💪`
-                : `Você tem ${pendentes.length} tarefas pendentes:\n\n${lista}\n\nRecomendo priorizar as mais urgentes.`;
+            return `Você tem ${pendentes.length} tarefas pendentes:\n\n${lista}\n\nRecomendo priorizar as mais urgentes.`;
         }
         
         if (perguntas.includes('anota') || perguntas.includes('nota')) {
             if (notasCount === 0) {
-                return this._modoGiria
-                    ? '🇲🇿 Não tens anotações guardadas, broo! Quer criar uma? 📝'
-                    : 'Você não tem anotações salvas. Que tal criar uma? 📝';
+                return 'Você não tem anotações salvas. Que tal criar uma? 📝';
             }
             const lista = this.notes.slice(0, 5).map((n, i) => 
                 `${i+1}. ${n.title || 'Sem título'}`
             ).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Tens ${notasCount} anotações, broo!\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}\n\nQuer ver alguma? 📝`
-                : `Você has ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}`;
+            return `Você tem ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}`;
         }
         
         if (perguntas.includes('disciplina') || perguntas.includes('matéria')) {
             if (this.disciplinas.length === 0) {
-                return this._modoGiria
-                    ? '🇲🇿 Nenhuma disciplina cadastrada, maning! Vai no dashboard e adiciona. 📚'
-                    : 'Nenhuma disciplina cadastrada. Vá ao dashboard e adicione suas matérias. 📚';
+                return 'Nenhuma disciplina cadastrada. Vá ao dashboard e adicione suas matérias. 📚';
             }
             const lista = this.disciplinas.map(d => `- ${d.nome}`).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Tuas disciplinas:\n\n${lista}\n\n📚 Bora estudar!`
-                : `Suas disciplinas:\n\n${lista}`;
+            return `Suas disciplinas:\n\n${lista}`;
         }
         
         if (perguntas.includes('horário') || perguntas.includes('aula') || perguntas.includes('hoje')) {
@@ -778,27 +870,19 @@ INSTRUÇÕES DE ESTILO:
             const aulasHoje = this.weeklySchedule[diaSemana] || [];
             
             if (aulasHoje.length === 0) {
-                return this._modoGiria
-                    ? `🇲🇿 Hoje (${diaSemana}) não tens aulas, broo! Aproveita para estudar! 💪`
-                    : `Hoje (${diaSemana}) você não tem aulas agendadas. Aproveite para estudar.`;
+                return `Hoje (${diaSemana}) você não tem aulas agendadas. Aproveite para estudar.`;
             }
             const lista = aulasHoje.map(a => 
                 `${a.materia} às ${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''}`
             ).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Hoje (${diaSemana}) tens:\n\n${lista}\n\n📚 Bora estudar!`
-                : `Hoje (${diaSemana}) você tem:\n\n${lista}`;
+            return `Hoje (${diaSemana}) você tem:\n\n${lista}`;
         }
         
         if (perguntas.includes('oi') || perguntas.includes('olá') || perguntas.includes('eai')) {
-            return this._modoGiria
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar? Tamos juntos! 😎'
-                : 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
+            return 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
         }
         
-        return this._modoGiria
-            ? '🇲🇿 Boa pergunta, magaia! Tenta reformular ou me conta mais detalhes. 🤝'
-            : 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes?';
+        return 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes?';
     }
 
     updateBadge() {
@@ -817,7 +901,6 @@ INSTRUÇÕES DE ESTILO:
         const sendBtn = document.getElementById('ia-send-btn');
         const fabBtn = document.getElementById('btn-open-ia');
         const backBtn = document.getElementById('btn-back-ia');
-        const toggleBtn = document.getElementById('btn-toggle-giria');
 
         if (sendBtn) sendBtn.onclick = () => this.sendMessage();
         if (input) {
@@ -840,20 +923,12 @@ INSTRUÇÕES DE ESTILO:
                 this.app.showView(this._previousView || 'dashboard');
             };
         }
-        if (toggleBtn) {
-            toggleBtn.onclick = () => {
-                this.toggleModoGiria();
-            };
-        }
         
         document.querySelectorAll('.ia-action-card').forEach(card => {
             card.onclick = () => {
                 const prompt = card.dataset.prompt;
                 if (prompt) {
-                    const textoFinal = this._modoGiria
-                        ? `${prompt} (fala com gíria moçambicana)`
-                        : prompt;
-                    this.sendMessage(textoFinal);
+                    this.sendMessage(prompt);
                 }
             };
         });
@@ -1037,4 +1112,4 @@ function fallbackCopy(text, element) {
     atualizarFab();
 })();
 
-console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');
+console.log('[IA Mobile] ✅ Módulo atualizado com sucesso!');

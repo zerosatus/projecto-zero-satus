@@ -265,7 +265,7 @@ class DashboardModule {
         if (!container) return;
 
         const disciplinas = this.getDisciplinas();
-        const metasConcluidas = this.tasks.filter(t => t.completed).length;
+        const metasConcluidas = (this.app.data.studySessions || []).filter(s => s.concluida && (s.duracaoSegundos || s.duracao_segundos || 0) >= (s.metaSegundos || s.meta_segundos || 0)).length;
         const diasSeguidos = this.calcularDiasSeguidos();
         const hojeMinutos = this.calcularMinutosHoje();
         const metaDiaria = 120; // 2h
@@ -382,12 +382,26 @@ class DashboardModule {
     }
 
     // ============================================
-    // HELPERS
+    // HELPERS (ATUALIZADOS COM DADOS REAIS)
     // ============================================
     calcularTotalMinutosSemana() {
-        const tarefas = this.tasks || [];
-        const concluidas = tarefas.filter(t => t.completed);
-        return concluidas.length * 25; // estimativa: 25min por tarefa
+        // Lê as sessões reais que vieram do banco de dados[cite: 2]
+        const sessions = this.app.data.studySessions || [];
+        const agora = new Date();
+                
+        // Calcular a segunda-feira da semana atual[cite: 2]
+        const inicioSemana = new Date(agora);
+        inicioSemana.setDate(agora.getDate() - agora.getDay() + (agora.getDay() === 0 ? -6 : 1)); 
+        inicioSemana.setHours(0, 0, 0, 0);
+        
+        let segundosSemana = 0;
+        for (const s of sessions) {
+            const inicio = new Date(s.inicio || s.created_at);
+            if (inicio >= inicioSemana) {
+                segundosSemana += (s.duracaoSegundos || s.duracao_segundos || 0);
+            }
+        }
+        return Math.floor(segundosSemana / 60);
     }
 
     getProximaAula() {
@@ -408,7 +422,6 @@ class DashboardModule {
             aulas.forEach(aula => {
                 if (diff < menorDiferenca || (diff === menorDiferenca && (!proxima || aula.horaInicio < proxima.horaInicio))) {
                     menorDiferenca = diff;
-                    const [h, m] = (aula.horaInicio || '08:00').split(':').map(Number);
                     const duracaoMin = this.calcularDuracaoAula(aula);
                     proxima = {
                         hora: aula.horaInicio || '08:00',
@@ -469,18 +482,30 @@ class DashboardModule {
     }
 
     calcularEstatisticas() {
-        const tarefas = this.tasks || [];
-        const concluidas = tarefas.filter(t => t.completed);
-        const sessoes = concluidas.length || 26;
-        const metaMin = 45;
-        const minHoje = 30;
+        const sessions = this.app.data.studySessions || [];
+        const agora = new Date();
+        const hojeStr = agora.toDateString();
+                
+        let minHoje = 0;
+        const metaDiariaMin = 240; // Meta de 4h (igual ao Flutter)[cite: 2]
+        
+        for (const s of sessions) {
+            const dataInicio = new Date(s.inicio || s.created_at).toDateString();
+            if (dataInicio === hojeStr) {
+                minHoje += Math.floor((s.duracaoSegundos || s.duracao_segundos || 0) / 60);
+            }
+        }
+        
+        const horas = Math.floor(minHoje / 60);
+        const mins = minHoje % 60;
+                
         return {
-            sessoes,
-            hojeHoras: 1,
-            hojeMins: 38,
-            minHoje,
-            metaMin,
-            percentMeta: Math.round((minHoje / metaMin) * 100)
+            sessoes: sessions.length,
+            hojeHoras: horas,
+            hojeMins: mins,
+            minHoje: minHoje,
+            metaMin: metaDiariaMin,
+            percentMeta: Math.min(100, Math.round((minHoje / metaDiariaMin) * 100))
         };
     }
 
@@ -505,20 +530,35 @@ class DashboardModule {
     }
 
     calcularMinutosPorDia() {
-        // Simulação de dados - em produção viria do backend
-        return {
-            0: 20,  // Dom
-            1: 90,  // Seg
-            2: 60,  // Ter
-            3: 75,  // Qua
-            4: 120, // Qui
-            5: 45,  // Sex
-            6: 180  // Sáb (hoje na imagem)
-        };
+        const sessions = this.app.data.studySessions || [];
+        const resultado = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+                
+        // Últimos 7 dias[cite: 2]
+        const hoje = new Date();
+        const inicioSemana = new Date(hoje);
+        inicioSemana.setDate(hoje.getDate() - hoje.getDay());
+        inicioSemana.setHours(0,0,0,0);
+        
+        for (const s of sessions) {
+            const inicio = new Date(s.inicio || s.created_at);
+            if (inicio >= inicioSemana) {
+                const diaSemana = inicio.getDay(); // 0 = Dom, 1 = Seg...[cite: 2]
+                resultado[diaSemana] += Math.floor((s.duracaoSegundos || s.duracao_segundos || 0) / 60);
+            }
+        }
+        return resultado;
     }
 
     calcularMinutosHoje() {
-        return 110; // 1h 50min
+        const sessions = this.app.data.studySessions || [];
+        const hojeStr = new Date().toDateString();
+        let min = 0;
+        for (const s of sessions) {
+            if (new Date(s.inicio || s.created_at).toDateString() === hojeStr) {
+                min += Math.floor((s.duracaoSegundos || s.duracao_segundos || 0) / 60);
+            }
+        }
+        return min;
     }
 
     calcularDiasSeguidos() {
