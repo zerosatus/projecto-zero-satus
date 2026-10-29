@@ -1032,15 +1032,22 @@ function criarDatabaseService(client) {
                     return true;
                 }
 
-                const docsToUpsert = documentos
-                    .filter(doc => !(doc.arquivo?.startsWith('data:') && doc.arquivo.length > 500 * 1024))
-                    .map(doc => ({
+                const docsToUpsert = documentos.map(doc => {
+                    // ⭐ SE FOR UM DOC DA IA (TURSO_DB), GUARDA O CONTEÚDO NA COLUNA 'arquivo' COMO BASE64
+                    let conteudoParaSalvar = doc.arquivo || '';
+                                        
+                    if (doc.arquivo === 'TURSO_DB' && doc.conteudoIA) {
+                        // Guarda o texto gerado pela IA em base64 para não quebrar o JSON
+                        conteudoParaSalvar = 'data:text/plain;base64,' + btoa(unescape(encodeURIComponent(doc.conteudoIA)));
+                    }
+
+                    return {
                         id: doc.id ? String(doc.id) : generateId(),
                         user_id: userId,
                         nome: doc.nome || 'Documento',
                         categoria: doc.categoria || 'Outros',
                         descricao: doc.descricao || '',
-                        arquivo: doc.arquivo || '',
+                        arquivo: conteudoParaSalvar,
                         tipo: doc.tipo || 'application/octet-stream',
                         nome_arquivo: doc.nomeArquivo || doc.nome,
                         tamanho: doc.tamanho || 0,
@@ -1048,11 +1055,15 @@ function criarDatabaseService(client) {
                         data_upload: doc.dataUpload || new Date().toISOString(),
                         created_at: doc.dataUpload || new Date().toISOString(),
                         updated_at: new Date().toISOString()
-                    }));
+                    };
+                });
 
-                for (let i = 0; i < docsToUpsert.length; i += 50) {
-                    const batch = docsToUpsert.slice(i, i + 50);
-                    const { error } = await client.from('documentos').upsert(batch, { onConflict: 'id' });
+                const batchSize = 50;
+                for (let i = 0; i < docsToUpsert.length; i += batchSize) {
+                    const batch = docsToUpsert.slice(i, i + batchSize);
+                    const { error } = await client
+                        .from('documentos')
+                        .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
                 }
 
@@ -1063,7 +1074,10 @@ function criarDatabaseService(client) {
                 }
 
                 return true;
-            } catch (e) { console.error('[DB] ❌', e); return false; }
+            } catch (error) {
+                console.error('[Database] ❌ Erro ao salvar documentos:', error);
+                return false;
+            }
         },
 
         async deleteDocumento(userId, documentoId) {
