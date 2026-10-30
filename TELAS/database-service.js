@@ -1,4 +1,4 @@
-// database-service.js - Serviço completo de banco de dados Supabase (Corrigido sem exclusão automática por lote)[cite: 2]
+// database-service.js - Serviço completo de banco de dados Supabase (Corrigido com Study Sessions e createProfile atualizado)
 // ============================================
 // VERIFICAR SE JÁ FOI CARREGADO
 // ============================================
@@ -31,7 +31,7 @@ if (window.DatabaseService) {
             });
         }
 
-        // ⭐ FUNÇÃO DE NORMALIZAÇÃO (IGUAL AO FLUTTER)[cite: 2]
+        // ⭐ FUNÇÃO DE NORMALIZAÇÃO (IGUAL AO FLUTTER)
         function normalizeText(texto) {
             if (!texto) return '';
             return texto
@@ -65,7 +65,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 getUserProfile - COM LOGS DETALHADOS[cite: 2]
+        // 🔥 getUserProfile - COM LOGS DETALHADOS
         // ============================================
         async function getUserProfile(userId) {
             console.log('[Database] 🔍 Buscando perfil para userId:', userId);
@@ -91,7 +91,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 updateUserProfile[cite: 2]
+        // 🔥 updateUserProfile
         // ============================================
         async function updateUserProfile(userId, profile) {
             const client = init();
@@ -123,7 +123,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 createProfile (COM UPSERT)[cite: 2]
+        // 🔥 createProfile (COM UPSERT)
         // ============================================
         async function createProfile(userId, email, nome, role = 'user') {
             const client = init();
@@ -150,7 +150,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 ensureUserData[cite: 2]
+        // 🔥 ensureUserData
         // ============================================
         async function ensureUserData(userId, email, nome) {
             try {
@@ -177,7 +177,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // TASKS - COM LOGs[cite: 2]
+        // TASKS - COM LOGs
         // ============================================
         async function getTasks(userId) {
             const client = init();
@@ -217,7 +217,8 @@ if (window.DatabaseService) {
 
             try {
                 if (!tasks || tasks.length === 0) {
-                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
+                    await client.from('tasks').delete().eq('user_id', userId);
+                    return true;
                 }
 
                 const tasksToUpsert = tasks.map(task => ({
@@ -242,6 +243,15 @@ if (window.DatabaseService) {
                         .from('tasks')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = tasks.map(t => t.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('tasks')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
@@ -271,7 +281,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ NOTES - UPSERT CORRIGIDO (MANTÉM IDs)[cite: 2]
+        // ⭐ NOTES - UPSERT CORRIGIDO (MANTÉM IDs)
         // ============================================
         async function getNotes(userId) {
             const client = init();
@@ -306,7 +316,8 @@ if (window.DatabaseService) {
 
             try {
                 if (!notes || notes.length === 0) {
-                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
+                    await client.from('notes').delete().eq('user_id', userId);
+                    return true;
                 }
 
                 const notesToUpsert = notes.map(note => ({
@@ -325,6 +336,15 @@ if (window.DatabaseService) {
                         .from('notes')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = notes.map(n => n.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('notes')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 console.log(`[Database] ✅ ${notes.length} notes sincronizadas com sucesso via UPSERT`);
@@ -355,7 +375,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ CALENDAR EVENTS - UPSERT CORRIGIDO (MANTÉM IDs)[cite: 2]
+        // ⭐ CALENDAR EVENTS - UPSERT CORRIGIDO (MANTÉM IDs)
         // ============================================
         async function getCalendarEvents(userId) {
             const client = init();
@@ -395,7 +415,8 @@ if (window.DatabaseService) {
 
             try {
                 if (!events || events.length === 0) {
-                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
+                    await client.from('calendar_events').delete().eq('user_id', userId);
+                    return true;
                 }
 
                 const eventsToUpsert = events.map(event => ({
@@ -421,6 +442,15 @@ if (window.DatabaseService) {
                         .from('calendar_events')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = events.map(e => e.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('calendar_events')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 console.log(`[Database] ✅ ${events.length} eventos sincronizados com sucesso via UPSERT`);
@@ -451,7 +481,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // WEEKLY SCHEDULE[cite: 2]
+        // WEEKLY SCHEDULE
         // ============================================
         async function getWeeklySchedule(userId) {
             const client = init();
@@ -513,7 +543,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // TIME SLOTS[cite: 2]
+        // TIME SLOTS
         // ============================================
         async function getTimeSlots(userId) {
             const client = init();
@@ -570,7 +600,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // NOTIFICATIONS - PROTEGIDAS (VÊM DO SERVIDOR)[cite: 2]
+        // NOTIFICATIONS - PROTEGIDAS (VÊM DO SERVIDOR)
         // ============================================
         async function getNotifications(userId) {
             const client = init();
@@ -602,7 +632,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DISCIPLINAS - UPSERT COM FALLBACK normalizeText[cite: 2]
+        // ⭐ DISCIPLINAS - UPSERT COM FALLBACK normalizeText
         // ============================================
         async function getDisciplinas(userId) {
             const client = init();
@@ -627,11 +657,12 @@ if (window.DatabaseService) {
 
             try {
                 if (!disciplinas || disciplinas.length === 0) {
-                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
+                    await client.from('disciplinas').delete().eq('user_id', userId);
+                    return true;
                 }
 
                 const disciplinasToUpsert = disciplinas.map(d => ({
-                    id: d.id ? String(d.id) : normalizeText(d.nome),
+                    id: d.id ? String(d.id) : normalizeText(d.nome), // ⭐ MESMO QUE FLUTTER
                     user_id: userId,
                     nome: d.nome || 'Disciplina',
                     cor: d.cor || '#9333ea',
@@ -647,6 +678,15 @@ if (window.DatabaseService) {
                         .from('disciplinas')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = disciplinasToUpsert.map(d => d.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('disciplinas')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
@@ -675,7 +715,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // DOCUMENTOS - COM STORAGE & UPSERT (SEM FILTRO)[cite: 2]
+        // DOCUMENTOS - COM STORAGE & UPSERT (SEM FILTRO)
         // ============================================
         async function getDocumentos(userId) {
             const client = init();
@@ -711,9 +751,11 @@ if (window.DatabaseService) {
 
             try {
                 if (!documentos || documentos.length === 0) {
-                    return true; // Não apaga no servidor se a lista local estiver vazia[cite: 2]
+                    await client.from('documentos').delete().eq('user_id', userId);
+                    return true;
                 }
 
+                // ⭐ SEM FILTRO — igual ao Flutter
                 const docsToUpsert = documentos.map(doc => ({
                     id: doc.id ? String(doc.id) : generateId(),
                     user_id: userId,
@@ -737,6 +779,15 @@ if (window.DatabaseService) {
                         .from('documentos')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = docsToUpsert.map(d => d.id);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('documentos')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
@@ -810,7 +861,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // STUDY SESSIONS (SESSÕES DE ESTUDO)[cite: 2]
+        // STUDY SESSIONS (SESSÕES DE ESTUDO)
         // ============================================
         async function getStudySessions(userId) {
             const client = init();
@@ -862,7 +913,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // USER SETTINGS[cite: 2]
+        // USER SETTINGS
         // ============================================
         async function getUserSettings(userId) {
             const client = init();
@@ -913,7 +964,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // STORAGE - AVATAR[cite: 2]
+        // STORAGE - AVATAR
         // ============================================
         async function uploadProfilePhoto(userId, file) {
             const client = init();
@@ -958,7 +1009,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // IA - CONVERSAS E MENSAGENS[cite: 2]
+        // IA - CONVERSAS E MENSAGENS
         // ============================================
         async function getAIConversations(userId) {
             const client = init();
@@ -1051,7 +1102,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // API PÚBLICA[cite: 2]
+        // API PÚBLICA
         // ============================================
         return {
             init,
@@ -1097,7 +1148,7 @@ if (window.DatabaseService) {
         };
     })();
 
-    // Exportar para uso global[cite: 2]
+    // Exportar para uso global
     window.DatabaseService = DatabaseService;
     console.log('[DatabaseService] ✅ Módulo carregado com sucesso!');
 }

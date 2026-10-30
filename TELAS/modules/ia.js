@@ -3,6 +3,10 @@
 // ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)
 // ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)
 // ⭐ LIMITE DIÁRIO DE 15 MENSAGENS
+<<<<<<< HEAD
+=======
+// ⭐ MODO GÍRIA MOÇAMBICANA
+>>>>>>> 0569fea (Voltando o código para o estado do commit 5caa763)
 // ============================================
 
 const IA_SPARKLES_SVG = `
@@ -84,19 +88,6 @@ class IAModule {
     }
 
     // ============================================
-    // ESCAPE HTML HELPER
-    // ============================================
-    _escapeHtml(text) {
-        if (!text) return '';
-        if (this.app && typeof this.app.escapeHtml === 'function') {
-            return this.app.escapeHtml(text);
-        }
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // ============================================
     // RENDER PRINCIPAL
     // ============================================
     async render(data) {
@@ -109,27 +100,27 @@ class IAModule {
         this.timeSlots = data.timeSlots || [];
         this.disciplinas = data.disciplinas || [];
         
-        // ⭐ GARANTIR FAB E HEADER PRIMEIRO
-        this.garantirFab();
+        // Carregar histórico
+        await this.carregarHistorico();
+        
+        // Atualizar UI
         this.upgradeHeader();
+        this.garantirFab();
         this.criarPainel();
-        
-        // ⭐ CARREGAR HISTÓRICO COM TRY/CATCH
-        try {
-            await this.carregarHistorico();
-        } catch (e) {
-            console.warn('[IA Mobile] ⚠️ Erro no histórico:', e);
-            this.history = [];
-            this.messages = [];
-        }
-        
         this.renderHistoryList();
         this.renderChat();
         this.updateBadge();
         this.setupEvents();
         this._atualizarStatusLimite();
         
-        console.log('[IA Mobile] ✅ Renderizado!');
+        console.log('[IA Mobile] 📊 Dados carregados:', {
+            tasks: this.tasks.length,
+            pendentes: this.tasks.filter(t => !t.completed).length,
+            notes: this.notes.length,
+            disciplinas: this.disciplinas.length,
+            conversas: this.history.length,
+            mensagensAtuais: this.messages.length
+        });
     }
 
     // ============================================
@@ -242,6 +233,7 @@ class IAModule {
         });
         
         // Guardar as últimas mensagens ainda não gravadas
+        // (simples: regravar as últimas 2, que é o par user+assistant mais recente)
         const ultimas = this.messages.slice(-2);
         for (const msg of ultimas) {
             if (!msg._saved) {
@@ -354,7 +346,7 @@ class IAModule {
             container.innerHTML = `
                 <div class="ia-empty-state">
                     <div class="ia-empty-orb">${IA_SPARKLES_SVG}</div>
-                    <h3>${saud}, ${this._escapeHtml(nome)}! 👋</h3>
+                    <h3>${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
                     <p style="font-size:0.9rem;color:var(--text-secondary);">Como posso te ajudar hoje?</p>
                     
                     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0;padding:12px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border-color);width:100%;">
@@ -393,7 +385,7 @@ class IAModule {
         this.messages.forEach((msg) => {
             const isUser = msg.role === 'user';
             const isAI = !isUser;
-            const content = this._escapeHtml(msg.content)
+            const content = this.app.escapeHtml(msg.content)
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             const time = msg.time || (msg.timestamp
@@ -425,6 +417,7 @@ class IAModule {
         const concluidas = tasks.filter(t => t.completed);
         const notes = this.notes || [];
         const schedule = this.weeklySchedule || {};
+        const slots = this.timeSlots || [];
         const disciplinas = this.disciplinas || [];
         
         // Histórico da conversa atual
@@ -507,6 +500,7 @@ INSTRUÇÕES DE ESTILO:
         limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
     }
 
+<<<<<<< HEAD
     // ============================================
     // DETEÇÃO DE INTENÇÕES (JSON)
     // ============================================
@@ -653,6 +647,26 @@ INSTRUÇÕES DE ESTILO:
         } catch (e) {
             console.error('[ReadDoc]', e);
         }
+=======
+    async toggleModoGiria() {
+        this._modoGiria = !this._modoGiria;
+        const mensagem = this._modoGiria
+            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
+            : '📚 Modo Normal ativado! Fala formal.';
+        this._mostrarToast(mensagem);
+        this._atualizarStatusGiria();
+        this.messages.push({
+            role: 'assistant',
+            content: this._modoGiria
+                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
+                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
+            time: new Date().toLocaleTimeString(),
+            isSystem: true,
+            _saved: false // ⭐ MARCAR _saved: false
+        });
+        await this.salvarConversaAtual();
+        this.renderChat();
+>>>>>>> 0569fea (Voltando o código para o estado do commit 5caa763)
     }
 
     // ============================================
@@ -675,7 +689,7 @@ INSTRUÇÕES DE ESTILO:
                 role: 'assistant',
                 content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
                 time: new Date().toLocaleTimeString(),
-                _saved: false
+                _saved: false // ⭐ MARCAR _saved: false
             });
             await this.salvarConversaAtual();
             this.renderChat();
@@ -690,7 +704,7 @@ INSTRUÇÕES DE ESTILO:
             content: text,
             time: new Date().toLocaleTimeString(),
             timestamp: new Date().toISOString(),
-            _saved: false
+            _saved: false // ⭐ ADICIONADO AQUI
         });
         
         await this.salvarConversaAtual();
@@ -805,7 +819,7 @@ INSTRUÇÕES DE ESTILO:
                 content: response,
                 time: new Date().toLocaleTimeString(),
                 timestamp: new Date().toISOString(),
-                _saved: false
+                _saved: false // ⭐ ADICIONADO AQUI
             });
                         
             await this.salvarConversaAtual();
@@ -819,7 +833,7 @@ INSTRUÇÕES DE ESTILO:
                 role: 'assistant',
                 content: '❌ Ocorreu um erro ao comunicar com a IA. Tenta novamente!',
                 time: new Date().toLocaleTimeString(),
-                _saved: false
+                _saved: false // ⭐ MARCAR _saved: false
             });
             await this.salvarConversaAtual();
             this.renderChat();
@@ -834,6 +848,7 @@ INSTRUÇÕES DE ESTILO:
     _getFallbackResponse(texto) {
         const perguntas = texto.toLowerCase();
         const pendentes = this.tasks.filter(t => !t.completed);
+        const concluidas = this.tasks.filter(t => t.completed);
         const notasCount = this.notes.length;
         
         if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente')) {
@@ -1002,9 +1017,9 @@ INSTRUÇÕES DE ESTILO:
             <div class="ia-painel-list" id="iaPainelList"></div>
             <div class="ia-painel-footer">
                 <div class="ia-painel-user">
-                    <div class="ia-painel-user-avatar">${this._escapeHtml(iniciais)}</div>
+                    <div class="ia-painel-user-avatar">${this.app.escapeHtml(iniciais)}</div>
                     <div class="ia-painel-user-info">
-                        <span>${this._escapeHtml(nome)}</span>
+                        <span>${this.app.escapeHtml(nome)}</span>
                         <small>Aluno • Zero Satus</small>
                     </div>
                 </div>
@@ -1044,7 +1059,7 @@ INSTRUÇÕES DE ESTILO:
         list.innerHTML = this.history.map(h => `
             <div class="ia-painel-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
                 ${IA_ICONS.chat}
-                <span class="ia-painel-item-title">${this._escapeHtml(h.title)}</span>
+                <span class="ia-painel-item-title">${this.app.escapeHtml(h.title)}</span>
                 <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
             </div>`).join('');
     }
@@ -1112,4 +1127,8 @@ function fallbackCopy(text, element) {
     atualizarFab();
 })();
 
+<<<<<<< HEAD
 console.log('[IA Mobile] ✅ Módulo atualizado com sucesso!');
+=======
+console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');
+>>>>>>> 0569fea (Voltando o código para o estado do commit 5caa763)

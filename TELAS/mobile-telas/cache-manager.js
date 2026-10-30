@@ -519,14 +519,6 @@ class SimpleCacheManager {
             return false;
         }
 
-        // ⭐ NOVA PROTEÇÃO: NÃO ENVIAR ARRAYS VAZIOS PARA A NUVEM
-        // Evita que o Web Mobile apague dados criados pelo Flutter
-        if (Array.isArray(value) && value.length === 0 &&
-            ['tasks', 'notes', 'disciplinas', 'documentos', 'calendarEvents'].includes(key)) {
-            console.log(`[CacheManager] 🛡️ ${key} está vazio — ignorando envio para não apagar na nuvem.`);
-            return true;
-        }
-
         try {
             console.log(`[CacheManager] 💾 Salvando ${key} na nuvem para userId: ${userId.substring(0, 8)}...`);
             
@@ -553,31 +545,12 @@ class SimpleCacheManager {
                 case 'disciplinas':
                     result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
-                case 'studySessions':
-                    if (typeof window.DatabaseService.saveStudySession === 'function') {
-                        let res = true;
-                        for (const s of value) {
-                            const ok = await window.DatabaseService.saveStudySession({
-                                id: s.id,
-                                user_id: userId,
-                                disciplina: s.disciplina,
-                                duracaoSegundos: s.duracaoSegundos || s.duracao_segundos,
-                                tipo: s.tipo,
-                                inicio: s.inicio,
-                                fim: s.fim,
-                                concluida: s.concluida,
-                                metaSegundos: s.metaSegundos || s.meta_segundos
-                            });
-                            if (!ok) res = false;
-                        }
-                        result = res;
-                    }
-                    break;
                 case 'documentos':
                     if (typeof window.DatabaseService.saveDocumentos === 'function') {
                         result = await window.DatabaseService.saveDocumentos(userId, value);
                     } else {
                         console.warn('[CacheManager] ⚠️ saveDocumentos não disponível, tentando via upsert...');
+                        // Tentar salvar direto
                         if (window.supabaseClient) {
                             const { error } = await window.supabaseClient
                                 .from('documentos')
@@ -676,8 +649,7 @@ class SimpleCacheManager {
                 timeSlots: db.getTimeSlots.bind(db),
                 notifications: db.getNotifications.bind(db),
                 disciplinas: db.getDisciplinas.bind(db),
-                documentos: db.getDocumentos.bind(db),
-                studySessions: db.getStudySessions ? db.getStudySessions.bind(db) : async () => [] // ⭐ ADICIONAR
+                documentos: db.getDocumentos.bind(db)
             };
 
             for (const [key, getter] of Object.entries(dataTypes)) {
@@ -685,7 +657,7 @@ class SimpleCacheManager {
                     console.log(`[CacheManager] 🔍 Buscando ${key}...`);
                     const data = await getter(userId);
                     
-                    if (data !== null && data !== undefined) {
+                                       if (data !== null && data !== undefined) {
                         const storageKey = `${userId}_${key}`;
                         const currentLocalStr = localStorage.getItem(storageKey);
                         let currentLocal = null;
@@ -694,18 +666,21 @@ class SimpleCacheManager {
                         const nuvemLen = Array.isArray(data) ? data.length : 0;
                         const localLen = Array.isArray(currentLocal) ? currentLocal.length : 0;
 
+                        // ⭐ PROTEÇÃO: se a nuvem tem MENOS itens que o local,
+                        // e a fila de save ainda tem este key pendente, NÃO sobrescrever
                         const temNaFila = this._saveQueue.some(item => item.key === key) ||
                                           this._pendingSync.has(key);
 
                         if (temNaFila && nuvemLen < localLen) {
                             console.log(`[CacheManager] 🛡️ ${key}: nuvem tem ${nuvemLen}, local tem ${localLen}, fila pendente — IGNORANDO sobrescrita`);
-                            continue;   
+                            continue;   // não sobrescreve
                         }
 
+                        // ⭐ PROTEÇÃO: se nuvem vazia e local tem dados, manter local
                         const nuvemVazia = (nuvemLen === 0) && (typeof data === 'object' && !Array.isArray(data) ? Object.keys(data).length === 0 : true);
                         const localTemDados = localLen > 0 || (currentLocal && typeof currentLocal === 'object' && !Array.isArray(currentLocal) && Object.keys(currentLocal).length > 0);
 
-                        if (nuvemVazia && localTemDados && (key === 'disciplinas' || key === 'tasks' || key === 'notes' || key === 'studySessions')) {
+                        if (nuvemVazia && localTemDados && (key === 'disciplinas' || key === 'tasks' || key === 'notes')) {
                             console.log(`[CacheManager] 🛡️ ${key}: nuvem vazia mas local tem dados — IGNORANDO`);
                             continue;
                         }
@@ -779,7 +754,7 @@ class SimpleCacheManager {
     // ============================================
     // ⭐ FORÇAR SINCRONIZAÇÃO (BIDIRECIONAL)
     // ============================================
-    async forceSync() {
+        async forceSync() {
         if (this._syncInProgress) {
             console.log('[CacheManager] ⏳ Sync já em andamento...');
             return false;
@@ -795,18 +770,21 @@ class SimpleCacheManager {
                 return false;
             }
             
+            // ⭐ PASSO 1: Processar DELETES pendentes primeiro
             if (this._deleteQueue.length > 0) {
                 console.log(`[CacheManager] 🗑️ Passo 1: Processando ${this._deleteQueue.length} deletes...`);
                 await this._processDeleteQueue();
             }
             
+            // ⭐ PASSO 2: Enviar SAVE queue (local → nuvem) ANTES de carregar
             if (this._saveQueue.length > 0) {
                 console.log(`[CacheManager] 📤 Passo 2: Enviando ${this._saveQueue.length} itens pendentes...`);
                 await this._processSaveQueue();
             }
             
+            // ⭐ PASSO 3: Carregar da nuvem (agora é seguro, locais já foram enviados)
             console.log('[CacheManager] ☁️ Passo 3: Carregando da nuvem...');
-            await this.loadFromCloud(false);   
+            await this.loadFromCloud(false);   // false em vez de true
             
             this._lastSyncTime = Date.now();
             this._syncErrorCount = 0;
@@ -1046,8 +1024,6 @@ window.getDisciplinas = () => window.CacheManager.get('disciplinas', []);
 window.setDisciplinas = (disciplinas, notify) => window.CacheManager.set('disciplinas', disciplinas, notify);
 window.getDocumentos = () => window.CacheManager.get('documentos', []);
 window.setDocumentos = (documentos, notify) => window.CacheManager.set('documentos', documentos, notify);
-window.getStudySessions = () => window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR
-window.setStudySessions = (sessions, notify) => window.CacheManager.set('studySessions', sessions, notify); // ⭐ ADICIONAR
 window.getCacheStatus = () => window.CacheManager.getStatus();
 
-console.log('[CacheManager] ✅ CacheManager v6.0 carregado com suporte a studySessions!');
+console.log('[CacheManager] ✅ CacheManager v6.0 carregado com DELETE em cascata!');

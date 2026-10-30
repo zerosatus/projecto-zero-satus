@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/anotacoes.css">
     <link rel="stylesheet" href="css/perfil.css">
     <link rel="stylesheet" href="css/ia.css">
+    <link rel="stylesheet" href="css/foco.css">
     
 </head>
 <body>
@@ -258,9 +259,9 @@
                     <div class="phrase-content">
                         <div class="phrase-icon"><i class="fas fa-lightbulb"></i></div>
                         <p id="fraseDoDiaText">A disciplina é a ponte entre metas e realizações.</p>
-                        <button class="btn-start-study" id="startStudy">
-                            <i class="fas fa-play"></i> Começar Sessão de Estudo
-                        </button>
+                      <button class="btn-comecar-sessao" onclick="app.showView('foco')">
+        <i class="fas fa-play"></i> Começar Sessão de Estudo
+    </button>
                     </div>
                 </div>
                 <div class="col-empty"></div>
@@ -355,54 +356,28 @@
         </section>
 
         <!-- VIEW: DASHBOARD -->
-        <section id="view-dashboard" class="view hidden">
-            <div class="page-header">
-                <div>
-                    <h1>Dashboard</h1>
-                    <p class="text-muted">Visão geral do seu desempenho</p>
-                </div>
-                <div class="header-actions">
-                    <button class="icon-btn" onclick="app.openNotifications()">
-                        <i class="fas fa-bell"></i>
-                        <span class="badge" id="notificationBadge2">0</span>
-                    </button>
-                    <div class="user-profile" onclick="app.showView('perfil')">
-                        <div class="user-avatar" id="userAvatar2">U</div>
-                        <span id="userName2">Carregando...</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-card stat-purple">
-                    <div class="stat-info"><h3 id="disciplinasCount">0</h3><p>Disciplinas</p></div>
-                    <div class="stat-icon"><i class="fas fa-book"></i></div>
-                </div>
-                <div class="stat-card stat-blue">
-                    <div class="stat-info"><h3 id="pendentesCount">0</h3><p>Tarefas Pendentes</p></div>
-                    <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
-                </div>
-                <div class="stat-card stat-orange">
-                    <div class="stat-info"><h3 id="horasCount">0</h3><p>Horas Estudadas</p></div>
-                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                </div>
-                <div class="stat-card stat-green">
-                    <div class="stat-info"><h3 id="mediaCount">0.0</h3><p>Média Geral</p></div>
-                    <div class="stat-icon"><i class="fas fa-star"></i></div>
-                </div>
-            </div>
-            
-            <div class="content-grid-full">
-                <div class="card performance-card">
-                    <h3><i class="fas fa-chart-bar" style="margin-right:10px;color:var(--primary-color);"></i>Desempenho por Disciplina</h3>
-                    <div class="bar-chart" id="barChart"></div>
-                </div>
-                <div class="card activity-card">
-                    <h3><i class="fas fa-clock" style="margin-right:10px;color:var(--primary-color);"></i>Atividade Recente</h3>
-                    <div class="activity-list" id="activityList"></div>
-                </div>
-            </div>
-        </section>
+        <!-- ============================================
+     DASHBOARD MODERNO
+     ============================================ -->
+<div id="view-dashboard" class="view hidden">
+    <!-- Header -->
+    <div id="dash-header" class="dashboard-header"></div>
+
+    <!-- Grid Principal -->
+    <div id="dash-main-grid" class="dashboard-main-grid"></div>
+
+    <!-- Rascunho Semanal -->
+    <div id="dash-weekly-chart" class="dashboard-section"></div>
+
+    <!-- Layout: Desempenho + Side Stats -->
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;">
+        <!-- Desempenho por Disciplina -->
+        <div id="dash-performance"></div>
+
+        <!-- Side: Mini Stats + Streak + Hoje -->
+        <div id="dash-side-stats"></div>
+    </div>
+</div>
 
         <!-- VIEW: CALENDÁRIO -->
         <section id="view-calendario" class="view hidden">
@@ -1002,6 +977,144 @@
 
     </main>
 </div>
+<div id="view-foco" class="view hidden">
+    <!-- Botão Voltar -->
+    <button onclick="app.showView('inicio')" style="position:fixed;top:20px;right:20px;z-index:99999;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;padding:10px 20px;border-radius:12px;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-arrow-left"></i> Voltar
+    </button>
+
+    <!-- Header -->
+    <div class="foco-header">
+        <h1>Zero Satus - Foco Máximo</h1>
+        <button class="foco-sound-toggle" id="btn-som-foco">
+            <i class="fas fa-volume-up"></i> Sons: LIGADO
+        </button>
+    </div>
+
+    <!-- Grid 3 colunas -->
+    <div class="foco-grid">
+        <!-- COLUNA 1: Configurações -->
+        <div class="foco-panel">
+            <div class="foco-section-title">
+                <span><i class="fas fa-book-open"></i> Disciplina Ativa</span>
+                <button class="btn-selecionar">SELECIONE</button>
+            </div>
+            <div class="disciplina-list" id="foco-disc-list">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <div class="foco-section-title">
+                <i class="fas fa-sliders-h"></i> Modo de Operação
+            </div>
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="timer" onclick="app.modules.foco.setMode('timer')">
+                    <i class="fas fa-clock"></i> Timer
+                </button>
+                <button class="mode-btn" data-mode="cronometro" onclick="app.modules.foco.setMode('cronometro')">
+                    <i class="fas fa-stopwatch"></i> Cronómetro
+                </button>
+            </div>
+
+            <div class="foco-section-title">Duração do Bloco</div>
+            <div class="duration-grid">
+                <button class="dur-btn" data-min="15" onclick="app.modules.foco.setDuration(15)">15m</button>
+                <button class="dur-btn active" data-min="25" onclick="app.modules.foco.setDuration(25)">25m</button>
+                <button class="dur-btn" data-min="45" onclick="app.modules.foco.setDuration(45)">45m</button>
+                <button class="dur-btn" data-min="60" onclick="app.modules.foco.setDuration(60)">60m</button>
+            </div>
+            <div class="pausa-grid">
+                <button class="pausa-btn" onclick="app.modules.foco.addTime(5)">
+                    <i class="fas fa-coffee"></i> Pausa 5m
+                </button>
+                <button class="pausa-btn" onclick="app.modules.foco.addTime(15)">
+                    <i class="fas fa-utensils"></i> Pausa 15m
+                </button>
+            </div>
+        </div>
+
+        <!-- COLUNA 2: Timer Central -->
+        <div class="foco-panel timer-center-panel">
+            <div class="status-badge" id="foco-status">PRONTO PARA FOCAR</div>
+            
+            <div class="timer-circle-container">
+                <svg class="timer-svg" viewBox="0 0 320 320">
+                    <defs>
+                        <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <circle class="timer-bg-circle" cx="160" cy="160" r="150"></circle>
+                    <circle class="timer-progress-circle" id="timer-progress" cx="160" cy="160" r="150"></circle>
+                </svg>
+                <div class="timer-display">
+                    <div class="timer-disc-name" id="timer-disc-name">
+                        <i class="fas fa-book"></i> Selecione uma disciplina
+                    </div>
+                    <div class="timer-time" id="foco-time">25:00</div>
+                    <div class="timer-label">RESTANTE</div>
+                </div>
+            </div>
+
+            <div class="timer-controls">
+                <button class="ctrl-btn" onclick="app.modules.foco.resetTimer()">
+                    <i class="fas fa-redo"></i>
+                </button>
+                <button class="ctrl-btn btn-play" id="btn-play" onclick="app.modules.foco.toggleTimer()">
+                    <i class="fas fa-play" id="btn-play-icon"></i>
+                </button>
+                <button class="ctrl-btn" onclick="app.modules.foco.addTime(5)">
+                    <i class="fas fa-plus"></i> 5m
+                </button>
+            </div>
+        </div>
+
+        <!-- COLUNA 3: Stats & Log -->
+        <div>
+            <div class="stats-grid-side">
+                <div class="stat-card-side">
+                    <div class="stat-icon-side purple">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info-side">
+                        <h3 id="stat-sessions">0</h3>
+                        <p>Sessões Hoje</p>
+                    </div>
+                </div>
+                <div class="stat-card-side">
+                    <div class="stat-icon-side orange">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="stat-info-side">
+                        <h3>01:15h</h3>
+                        <p>Tempo Total</p>
+                    </div>
+                </div>
+                <div class="stat-card-side">
+                    <div class="stat-icon-side orange">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="stat-info-side">
+                        <h3>5 Dias</h3>
+                        <p>Sequência</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="foco-panel">
+                <div class="log-header">
+                    <div class="foco-section-title" style="margin:0">
+                        <i class="fas fa-history"></i> Registo de Foco
+                    </div>
+                    <span style="font-size:0.75rem;color:#666">Hoje</span>
+                </div>
+                <div class="log-list" id="foco-log-list">
+                    <p style="color:#666;font-size:0.8rem;text-align:center;">Nenhuma sessão hoje</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ========================================== -->
 <!-- MODAIS GLOBAIS -->
@@ -1158,8 +1271,250 @@
 <script src="modules/perfil.js"></script>
 <script src="modules/ia.js"></script>
 <script src="modules/documentos.js"></script>
+<script src="modules/foco.js"></script>
 
+<!-- MultiAI Service -->
+<script>
+console.log('🔥 [MultiAI] CARREGANDO...');
 
+class MultiAIService {
+    constructor() {
+        this.GROQ_API_KEY = "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";
+        this.GROQ_MODELS = [
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            "mixtral-8x7b-32768",
+            "qwen/qwen3.6-27b"
+        ];
+        this._cache = new Map();
+        this._cacheMaxSize = 50;
+        this._limiteDiario = 100;
+        this._usosHoje = 0;
+        this._resetarLimite();
+        console.log('[MultiAI] ✅ Pronto!');
+    }
+    
+    _getUserDataContext() {
+        try {
+            if (window.app && window.app.data) {
+                const data = window.app.data;
+                const user = window.app.user || {};
+                return {
+                    nome: user.nome || user.displayName || 'Estudante',
+                    email: user.email || '',
+                    tarefas: data.tasks || [],
+                    anotacoes: data.notes || [],
+                    eventos: data.calendarEvents || [],
+                    disciplinas: data.disciplinas || [],
+                    horario: data.weeklySchedule || {},
+                    timeSlots: data.timeSlots || [],
+                    documentos: data.documentos || []
+                };
+            }
+            if (window.CacheManager) {
+                return {
+                    nome: 'Estudante', email: '',
+                    tarefas: window.CacheManager.get('tasks', []),
+                    anotacoes: window.CacheManager.get('notes', []),
+                    eventos: window.CacheManager.get('calendarEvents', []),
+                    disciplinas: window.CacheManager.get('disciplinas', []),
+                    horario: window.CacheManager.get('weeklySchedule', {}),
+                    timeSlots: window.CacheManager.get('timeSlots', []),
+                    documentos: window.CacheManager.get('documentos', [])
+                };
+            }
+        } catch (e) { console.warn('[MultiAI] ⚠️', e); }
+        return null;
+    }
+    
+    _buildFullContext(userMessage, extraContext = '') {
+        const userData = this._getUserDataContext();
+        let context = '';
+        
+        if (window.app?.modules?.ia?.messages) {
+            const messages = window.app.modules.ia.messages;
+            if (messages.length > 0) {
+                const ultimas = messages.slice(-10);
+                context += '\n📜 HISTÓRICO:\n';
+                ultimas.forEach(msg => {
+                    const role = msg.role === 'user' ? '👤' : '🤖';
+                    const content = (msg.content || '').substring(0, 200);
+                    context += `${role}: ${content}${(msg.content || '').length > 200 ? '...' : ''}\n`;
+                });
+            }
+        }
+        
+        if (userData) {
+            context += `\n\n📚 DADOS DO ESTUDANTE:\n`;
+            context += `👤 Nome: ${userData.nome}\n`;
+            context += `📧 Email: ${userData.email}\n`;
+            const tarefas = userData.tarefas || [];
+            const pendentes = tarefas.filter(t => !t.completed);
+            context += `\n📋 TAREFAS: Total ${tarefas.length}, Pendentes ${pendentes.length}\n`;
+            const disciplinas = userData.disciplinas || [];
+            context += `\n📚 DISCIPLINAS: ${disciplinas.length}\n`;
+            disciplinas.slice(0, 8).forEach(d => { context += `   - ${d.nome}\n`; });
+        }
+        if (extraContext) context += `\n\n${extraContext}`;
+        return context;
+    }
+    
+    async sendMessage(prompt, context = '') {
+        if (!this.temLimiteDisponivel()) return { success: false, error: 'Limite diário atingido.' };
+        const fullContext = this._buildFullContext(prompt, context);
+        const cached = this._getFromCache(prompt, fullContext);
+        if (cached) return { success: true, text: cached, fromCache: true };
+        const groqResult = await this._callGroqWithFallback(prompt, fullContext);
+        if (groqResult.success) {
+            this._incrementarUso();
+            this._saveToCache(prompt, fullContext, groqResult.text);
+            return { success: true, text: groqResult.text };
+        }
+        const fallback = this._getFallback(prompt, fullContext);
+        this._incrementarUso();
+        return { success: true, text: fallback, fromFallback: true };
+    }
+    
+    async _callGroqWithFallback(prompt, context) {
+        for (let i = 0; i < this.GROQ_MODELS.length; i++) {
+            const model = this.GROQ_MODELS[i];
+            try {
+                const result = await this._callGroqAPI(prompt, context, model);
+                if (result.success) return { success: true, text: result.text };
+            } catch (error) {}
+        }
+        return { success: false, error: 'Todos falharam' };
+    }
+    
+    async _callGroqAPI(prompt, context, model) {
+        if (!this.GROQ_API_KEY) return { success: false, error: 'Groq não configurado' };
+        const url = 'https://api.groq.com/openai/v1/chat/completions';
+        const systemPrompt = `Você é o Zero IA, assistente de estudos do sistema Zero Satus. Responda APENAS em português do Brasil. NUNCA mostre raciocínio. Comece DIRETAMENTE com o conteúdo final.\n\n${context ? `CONTEXTO:\n${context}` : ''}`;
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.0, max_tokens: 800, top_p: 0.9
+                })
+            });
+            
+            if (response.status === 404 && model.includes('/')) {
+                const modelSimple = model.split('/').pop();
+                const r2 = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${this.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: modelSimple,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: prompt }
+                        ],
+                        temperature: 0.0, max_tokens: 800
+                    })
+                });
+                if (r2.ok) {
+                    const d2 = await r2.json();
+                    const t2 = d2.choices?.[0]?.message?.content;
+                    if (t2) return { success: true, text: this._extractPortugueseResponse(t2.trim()) };
+                }
+            }
+            
+            if (!response.ok) {
+                let em = `Erro ${response.status}`;
+                try { const ed = await response.json(); em = ed.error?.message || em; } catch (e) {}
+                return { success: false, error: em };
+            }
+            
+            const data = await response.json();
+            let text = data.choices?.[0]?.message?.content;
+            if (text && text.length > 0) return { success: true, text: this._extractPortugueseResponse(text.trim()) };
+            return { success: false, error: 'Resposta vazia' };
+        } catch (error) { return { success: false, error: error.message }; }
+    }
+    
+    _extractPortugueseResponse(text) {
+        if (!text) return text;
+        let cleaned = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').replace(/```[\s\S]*?```/g, '').trim();
+        const lines = cleaned.split('\n');
+        const cleanedLines = [];
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            const isEnglishThought = /^(Okay|Ok|Let me|I need|First|Now|So|Well|Hmm|Alright)/i.test(trimmed) || /(I need to|I should|Let me|I'll|I think)/i.test(trimmed);
+            if (!isEnglishThought) cleanedLines.push(trimmed);
+        }
+        cleaned = cleanedLines.join('\n').trim();
+        if (!cleaned || cleaned.length < 5) return 'Desculpe, não consegui processar. Poderia reformular?';
+        return cleaned.trim();
+    }
+    
+    _getFallback(prompt, context) {
+        const texto = prompt.toLowerCase();
+        if (texto.includes('tarefa')) {
+            const tarefas = window.app?.data?.tasks || [];
+            const pendentes = tarefas.filter(t => !t.completed);
+            if (pendentes.length === 0) return 'Você não tem tarefas pendentes. 🎉';
+            return `Você tem ${pendentes.length} tarefas pendentes.`;
+        }
+        if (texto.includes('disciplina')) {
+            const disciplinas = window.app?.modules?.disciplinas?.getTodas?.() || window.app?.data?.disciplinas || [];
+            if (disciplinas.length === 0) return 'Nenhuma disciplina cadastrada.';
+            return `Suas disciplinas: ${disciplinas.map(d => d.nome).join(', ')}`;
+        }
+        if (texto.includes('oi') || texto.includes('olá')) return 'Olá! Como posso ajudar?';
+        return 'Desculpe, não entendi. Poderia reformular?';
+    }
+    
+    _resetarLimite() {
+        const hoje = new Date().toDateString();
+        if (localStorage.getItem('pollinations_data') !== hoje) {
+            localStorage.setItem('pollinations_data', hoje);
+            localStorage.setItem('pollinations_uso', '0');
+            this._usosHoje = 0;
+        }
+    }
+    getUsoHoje() { this._resetarLimite(); this._usosHoje = parseInt(localStorage.getItem('pollinations_uso')) || 0; return this._usosHoje; }
+    _incrementarUso() { this._resetarLimite(); this._usosHoje++; localStorage.setItem('pollinations_uso', String(this._usosHoje)); }
+    temLimiteDisponivel() { return this.getUsoHoje() < this._limiteDiario; }
+    getLimiteRestante() { return Math.max(0, this._limiteDiario - this.getUsoHoje()); }
+    _getCacheKey(prompt, context) { return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`; }
+    _getFromCache(prompt, context) {
+        const key = this._getCacheKey(prompt, context);
+        if (this._cache.has(key)) {
+            const item = this._cache.get(key);
+            if (Date.now() - item.timestamp < 3600000) return item.value;
+            this._cache.delete(key);
+        }
+        return null;
+    }
+    _saveToCache(prompt, context, response) {
+        const key = this._getCacheKey(prompt, context);
+        this._cache.set(key, { value: response, timestamp: Date.now() });
+        if (this._cache.size > this._cacheMaxSize) {
+            const keys = Array.from(this._cache.keys());
+            const oldest = keys.sort((a, b) => this._cache.get(a).timestamp - this._cache.get(b).timestamp)[0];
+            this._cache.delete(oldest);
+        }
+    }
+    getStatus() { return { usoTotal: this.getUsoHoje(), limiteTotal: this._limiteDiario, restante: this.getLimiteRestante(), cacheSize: this._cache.size, modo: 'GROQ' }; }
+    resetLimite() { localStorage.setItem('pollinations_data', new Date().toDateString()); localStorage.setItem('pollinations_uso', '0'); this._usosHoje = 0; return this.getStatus(); }
+}
+
+const multiAI = new MultiAIService();
+window.MultiAIService = multiAI;
+window.getLimiteIA = () => { const s = multiAI.getStatus(); return { usado: s.usoTotal, maximo: s.limiteTotal, restante: s.restante, modo: s.modo, reset: () => multiAI.resetLimite() }; };
+window.testIA = async (p) => await multiAI.sendMessage(p);
+console.log('[MultiAI] ✅ Serviço carregado!');
+</script>
 
 <!-- App Principal -->
 <script src="app.js"></script>

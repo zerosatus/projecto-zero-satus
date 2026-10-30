@@ -346,7 +346,9 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
             try {
                 if (!tasks || tasks.length === 0) {
-                    return true; // ⭐ NÃO apaga no servidor se a lista local estiver vazia
+                    console.log('[Database] ℹ️ Nenhuma task enviada, limpando todas para userId:', userId);
+                    await client.from('tasks').delete().eq('user_id', userId);
+                    return true;
                 }
 
                 const tasksToUpsert = tasks.map(task => {
@@ -371,6 +373,7 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     };
                 });
 
+                console.log(`[Database] 📡 Executando UPSERT de ${tasksToUpsert.length} tasks...`);
                 const batchSize = 100;
                 for (let i = 0; i < tasksToUpsert.length; i += batchSize) {
                     const batch = tasksToUpsert.slice(i, i + batchSize);
@@ -378,6 +381,15 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                         .from('tasks')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
+                }
+
+                const idsLocais = tasks.map(t => t.id).filter(Boolean);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('tasks')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 console.log(`[Database] ✅ ${tasks.length} tarefas sincronizadas com sucesso`);
@@ -454,7 +466,8 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
             try {
                 if (!notes || notes.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma note enviada');
+                    console.log('[Database] ℹ️ Nenhuma note enviada, limpando todas');
+                    await client.from('notes').delete().eq('user_id', userId);
                     return true;
                 }
 
@@ -471,7 +484,12 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 const { error } = await client.from('notes').upsert(notesToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                // ⭐ O bloco de DELETE foi removido — não apaga notas na nuvem
+                const idsLocais = notesToUpsert.map(n => n.id);
+                await client.from('notes')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
                 console.log(`[Database] ✅ ${notes.length} notes salvas/atualizadas com sucesso`);
                 return true;
             } catch (error) {
@@ -551,7 +569,8 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
             try {
                 if (!events || events.length === 0) {
-                    console.log('[Database] ℹ️ Nenhum evento enviado');
+                    console.log('[Database] ℹ️ Nenhum evento enviado, limpando todos');
+                    await client.from('calendar_events').delete().eq('user_id', userId);
                     return true;
                 }
 
@@ -575,7 +594,12 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 const { error } = await client.from('calendar_events').upsert(eventsToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                // ⭐ O bloco de DELETE foi removido — não apaga eventos na nuvem
+                const idsLocais = eventsToUpsert.map(e => e.id);
+                await client.from('calendar_events')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
                 console.log(`[Database] ✅ ${events.length} eventos salvos/atualizados com sucesso`);
                 return true;
             } catch (error) {
@@ -840,7 +864,8 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
             try {
                 if (!notifications || notifications.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma notificação enviada');
+                    console.log('[Database] ℹ️ Nenhuma notificação enviada, limpando todas');
+                    await client.from('notifications').delete().eq('user_id', userId);
                     return true;
                 }
 
@@ -858,7 +883,12 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 const { error } = await client.from('notifications').upsert(notifToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                // ⭐ O bloco de DELETE foi removido — não apaga notificações na nuvem
+                const idsLocais = notifToUpsert.map(n => n.id);
+                await client.from('notifications')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
                 console.log(`[Database] ✅ ${notifications.length} notificações salvas/atualizadas com sucesso`);
                 return true;
             } catch (error) {
@@ -902,7 +932,8 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
             try {
                 if (!disciplinas || disciplinas.length === 0) {
-                    console.log('[Database] ℹ️ Nenhuma disciplina enviada');
+                    console.log('[Database] ℹ️ Nenhuma disciplina enviada, limpando todas');
+                    await client.from('disciplinas').delete().eq('user_id', userId);
                     return true;
                 }
 
@@ -920,7 +951,12 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                 const { error } = await client.from('disciplinas').upsert(disciplinasToUpsert, { onConflict: 'id' });
                 if (error) throw error;
 
-                // ⭐ O bloco de DELETE foi removido — não apaga disciplinas na nuvem
+                const idsLocais = disciplinasToUpsert.map(d => d.id);
+                await client.from('disciplinas')
+                    .delete()
+                    .eq('user_id', userId)
+                    .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+
                 console.log(`[Database] ✅ ${disciplinas.length} disciplinas salvas/atualizadas com sucesso`);
                 return true;
             } catch (error) {
@@ -1000,7 +1036,8 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
 
             try {
                 if (!documentos || documentos.length === 0) {
-                    console.log('[Database] ℹ️ Nenhum documento enviado');
+                    console.log('[Database] ℹ️ Nenhum documento enviado, limpando todos');
+                    await client.from('documentos').delete().eq('user_id', userId);
                     return true;
                 }
 
@@ -1042,7 +1079,15 @@ if (window.DatabaseService && window.DatabaseService.__version === 'v2-full') {
                     if (error) throw error;
                 }
 
-                // ⭐ O bloco de DELETE foi removido — não apaga documentos na nuvem
+                const idsLocais = docsToUpsert.map(d => d.id);
+                if (idsLocais.length > 0) {
+                    await client
+                        .from('documentos')
+                        .delete()
+                        .eq('user_id', userId)
+                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
+                }
+
                 console.log(`[Database] ✅ ${docsToUpsert.length} documentos sincronizados via UPSERT`);
                 return true;
             } catch (error) {
