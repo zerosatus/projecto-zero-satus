@@ -545,6 +545,15 @@ class SimpleCacheManager {
                 case 'disciplinas':
                     result = await window.DatabaseService.saveDisciplinas(userId, value);
                     break;
+                case 'studySessions':
+                    if (window.DatabaseService && window.DatabaseService.saveStudySession) {
+                        // Salva cada sessão individualmente
+                        for (const session of value) {
+                            await window.DatabaseService.saveStudySession(session);
+                        }
+                        result = true;
+                    }
+                    break;
                 case 'documentos':
                     if (typeof window.DatabaseService.saveDocumentos === 'function') {
                         result = await window.DatabaseService.saveDocumentos(userId, value);
@@ -657,7 +666,7 @@ class SimpleCacheManager {
                     console.log(`[CacheManager] 🔍 Buscando ${key}...`);
                     const data = await getter(userId);
                     
-                                       if (data !== null && data !== undefined) {
+                    if (data !== null && data !== undefined) {
                         const storageKey = `${userId}_${key}`;
                         const currentLocalStr = localStorage.getItem(storageKey);
                         let currentLocal = null;
@@ -754,7 +763,7 @@ class SimpleCacheManager {
     // ============================================
     // ⭐ FORÇAR SINCRONIZAÇÃO (BIDIRECIONAL)
     // ============================================
-        async forceSync() {
+    async forceSync() {
         if (this._syncInProgress) {
             console.log('[CacheManager] ⏳ Sync já em andamento...');
             return false;

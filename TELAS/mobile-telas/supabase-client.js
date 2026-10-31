@@ -1033,11 +1033,9 @@ function criarDatabaseService(client) {
                 }
 
                 const docsToUpsert = documentos.map(doc => {
-                    // ⭐ SE FOR UM DOC DA IA (TURSO_DB), GUARDA O CONTEÚDO NA COLUNA 'arquivo' COMO BASE64
                     let conteudoParaSalvar = doc.arquivo || '';
                                         
                     if (doc.arquivo === 'TURSO_DB' && doc.conteudoIA) {
-                        // Guarda o texto gerado pela IA em base64 para não quebrar o JSON
                         conteudoParaSalvar = 'data:text/plain;base64,' + btoa(unescape(encodeURIComponent(doc.conteudoIA)));
                     }
 
@@ -1504,7 +1502,7 @@ function criarDatabaseService(client) {
                 }
 
                 const disciplinasToUpsert = disciplinas.map(d => ({
-                    id: d.id ? String(d.id) : normalizeText(d.nome), // ⭐ MESMO FORMATO QUE O FLUTTER (normalizar nome)
+                    id: d.id ? String(d.id) : normalizeText(d.nome),
                     user_id: userId,
                     nome: d.nome || 'Disciplina',
                     cor: d.cor || '#9333ea',
@@ -1527,6 +1525,49 @@ function criarDatabaseService(client) {
                 console.error('[DB] ❌ Erro saveDisciplinas:', error);
                 return false;
             }
+        },
+
+        // ============================================
+        // STUDY SESSIONS
+        // ============================================
+        async getStudySessions(userId) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return [];
+            try {
+                const { data, error } = await client.from('study_sessions')
+                    .select('*').eq('user_id', userId).order('inicio', { ascending: false });
+                if (error) return [];
+                return (data || []).map(s => ({
+                    id: String(s.id),
+                    user_id: s.user_id,
+                    disciplina: s.disciplina,
+                    duracaoSegundos: s.duracao_segundos,
+                    tipo: s.tipo,
+                    inicio: s.inicio,
+                    fim: s.fim,
+                    concluida: s.concluida,
+                    metaSegundos: s.meta_segundos
+                }));
+            } catch (e) { return []; }
+        },
+
+        async saveStudySession(session) {
+            const client = window.supabaseClient || initSupabase();
+            if (!client) return false;
+            try {
+                const { error } = await client.from('study_sessions').upsert({
+                    id: String(session.id),
+                    user_id: session.user_id,
+                    disciplina: session.disciplina,
+                    duracao_segundos: session.duracaoSegundos,
+                    tipo: session.tipo,
+                    inicio: session.inicio,
+                    fim: session.fim,
+                    concluida: session.concluida,
+                    meta_segundos: session.metaSegundos
+                }, { onConflict: 'id' });
+                return !error;
+            } catch (e) { return false; }
         }
     };
 
