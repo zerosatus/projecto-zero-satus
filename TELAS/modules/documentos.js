@@ -693,7 +693,7 @@ class DocumentosModule {
     // ============================================
     async downloadDocumento(id) {
         const doc = this.documentos.find(d => d.id == id);
-        if (!doc || !doc.arquivo) {
+        if (!doc) {
             if (typeof showToast === 'function') {
                 showToast('❌ Documento não encontrado', 'error');
             }
@@ -701,6 +701,42 @@ class DocumentosModule {
         }
 
         const nomeFicheiro = doc.nomeArquivo || doc.nome || 'documento';
+
+        // ⭐ CASO ESPECIAL: Documentos criados pela IA (TURSO_DB)
+        if (doc.arquivo === 'TURSO_DB') {
+            let conteudo = doc.conteudoIA || ''; // Se o conteúdo estiver guardado na memória local
+            
+            if (!conteudo) {
+                if (typeof showToast === 'function') {
+                    showToast('❌ Documento da IA sem conteúdo disponível.', 'error');
+                }
+                return;
+            }
+            
+            // Cria um ficheiro de texto simples para download
+            const blob = new Blob([conteudo], { type: 'text/plain' });
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = nomeFicheiro.endsWith('.txt') ? nomeFicheiro : `${nomeFicheiro}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            
+            if (typeof showToast === 'function') {
+                showToast('📥 Download do documento da IA iniciado!', 'success');
+            }
+            return;
+        }
+
+        // ⭐ RESTO DO CÓDIGO (Ficheiros enviados pelo utilizador)
+        if (!doc.arquivo) {
+            if (typeof showToast === 'function') {
+                showToast('❌ Documento não tem ficheiro associado', 'error');
+            }
+            return;
+        }
 
         try {
             // ⭐ CASO 1: URL do Supabase Storage (http/https)

@@ -111,13 +111,41 @@ class FocoModule {
         }, 1000);
     }
 
-    pauseTimer() {
+    async pauseTimer() {
         this.isRunning = false;
         clearInterval(this.interval);
         const statusEl = document.getElementById('foco-status');
         if (statusEl) statusEl.textContent = 'PAUSADO';
         const iconEl = document.getElementById('btn-play-icon');
         if (iconEl) iconEl.className = 'fas fa-play';
+
+        // ⭐ SALVAR SESSÃO PARCIAL SE JÁ PASSOU DE 10 SEGUNDOS
+        const decorrido = this.mode === 'timer' ? (this.totalTime - this.timeLeft) : this.timeLeft;
+        if (decorrido >= 10 && window.CacheManager) {
+            const userId = this.app?.user?.id;
+            if (userId) {
+                const discName = (this.selectedDisc !== null && this.disciplinas[this.selectedDisc]) 
+                    ? this.disciplinas[this.selectedDisc].nome 
+                    : 'Geral';
+                    
+                const session = {
+                    id: Date.now().toString(),
+                    user_id: userId,
+                    disciplina: discName,
+                    duracaoSegundos: decorrido,
+                    tipo: this.mode,
+                    inicio: new Date(Date.now() - decorrido * 1000).toISOString(),
+                    fim: new Date().toISOString(),
+                    concluida: false, // Parcial
+                    metaSegundos: this.totalTime
+                };
+
+                let sessions = window.CacheManager.get('studySessions', []);
+                sessions.unshift(session);
+                window.CacheManager.set('studySessions', sessions, true);
+                if (window.CacheManager.forceSync) window.CacheManager.forceSync();
+            }
+        }
     }
 
     resetTimer() {
@@ -155,23 +183,53 @@ class FocoModule {
         }
     }
 
-    finishTimer() {
+    async finishTimer() {
         this.pauseTimer();
         this.sessionsToday++;
+
         const statEl = document.getElementById('stat-sessions');
         if (statEl) statEl.textContent = this.sessionsToday;
-        
-        const discName = this.selectedDisc !== null ? this.disciplinas[this.selectedDisc].nome : 'Geral';
+
+        const discName = (this.selectedDisc !== null && this.disciplinas[this.selectedDisc]) 
+            ? this.disciplinas[this.selectedDisc].nome 
+            : 'Geral';
+
+        // ⭐ SALVAR A SESSÃO NO BANCO DE DADOS (Igual ao Flutter)
+        const userId = this.app?.user?.id;
+        if (userId && window.CacheManager) {
+            const session = {
+                id: Date.now().toString(), // ID único
+                user_id: userId,
+                disciplina: discName,
+                duracaoSegundos: this.mode === 'timer' ? this.totalTime : this.timeLeft,
+                tipo: this.mode,
+                inicio: new Date(Date.now() - (this.mode === 'timer' ? this.totalTime : this.timeLeft) * 1000).toISOString(),
+                fim: new Date().toISOString(),
+                concluida: true,
+                metaSegundos: this.totalTime
+            };
+
+            // Adiciona ao array de sessões
+            let sessions = window.CacheManager.get('studySessions', []);
+            sessions.unshift(session);
+            window.CacheManager.set('studySessions', sessions, true);
+
+            // Força o sync
+            if (window.CacheManager.forceSync) {
+                window.CacheManager.forceSync();
+            }
+        }
+
         this.log.unshift({
             disc: discName,
             time: Math.floor(this.totalTime / 60) + 'min',
             hora: new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
         });
         this.renderLog();
-        
+
         const statusEl = document.getElementById('foco-status');
         if (statusEl) statusEl.textContent = 'SESSÃO CONCLUÍDA!';
-        
+
         if (this.app.showToast) {
             this.app.showToast('🎉 Sessão de foco concluída!', 'success');
         }
