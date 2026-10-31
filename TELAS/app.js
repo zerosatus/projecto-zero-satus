@@ -19,8 +19,7 @@ class App {
             notifications: [],
             disciplinas: [],
             documentos: [],
-            studySessions: [],   // ⭐ ADICIONAR
-            studySessions: [],   // ⭐ ADICIONAR
+            studySessions: [],   // ⭐ ADICIONADO
             profile: {},
             settings: {}
         };
@@ -233,6 +232,12 @@ class App {
         this.updateLoadingStatus('Carregando dados da nuvem...', 45);
         await this.loadDataFromCloud();
         
+        // ⭐ FORÇAR ATUALIZAÇÃO DO INICIO APÓS CARREGAR DADOS
+        if (window.CacheManager) {    
+            this.data.studySessions = window.CacheManager.get('studySessions', []);    
+            this.data.disciplinas = window.CacheManager.get('disciplinas', []);
+        }
+        
         this.updateLoadingStatus('Carregando dados locais...', 55);
         await this.loadData();
         
@@ -377,7 +382,7 @@ class App {
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
             this.data.documentos = window.CacheManager.get('documentos', []);
-            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR
+            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONADO
             
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
@@ -397,7 +402,7 @@ class App {
                 tasks: this.data.tasks.length,
                 notes: this.data.notes.length,
                 disciplinas: this.data.disciplinas.length,
-                studySessions: this.data.studySessions.length // ⭐ ADICIONAR
+                studySessions: this.data.studySessions.length // ⭐ ADICIONADO
             });
             
             if (this.data.profile && this.data.profile.nome) {
@@ -418,7 +423,7 @@ class App {
         try {
             const KEYS_TO_SAVE = [
                 'tasks', 'notes', 'calendarEvents', 'weeklySchedule',
-                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONAR
+                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONADO
             ];
             
             for (const key of KEYS_TO_SAVE) {
@@ -841,6 +846,17 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
         window.addEventListener('notificationsUpdated', () => {
             if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
             this.updateBadge();
+        });
+        
+        // ⭐ Evento para atualização das sessões de estudo
+        window.addEventListener('studySessionsUpdated', () => {
+            console.log('[App PC] 📊 Sessões de estudo atualizadas!');
+            // Atualiza os dados locais do app
+            this.data.studySessions = window.CacheManager.get('studySessions', []);
+            // Re-renderiza a view atual (se for Inicio ou Dashboard)
+            if (this.modules[this.currentView]) {
+                this.modules[this.currentView].render(this.data);
+            }
         });
         
         window.addEventListener('profilePhotoUpdated', (event) => {
