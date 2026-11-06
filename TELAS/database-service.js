@@ -65,7 +65,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // 🔥 getUserProfile - COM LOGS DETALHADOS
+        // 🔥 getUserProfile
         // ============================================
         async function getUserProfile(userId) {
             console.log('[Database] 🔍 Buscando perfil para userId:', userId);
@@ -177,7 +177,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // TASKS - COM LOGs
+        // TASKS
         // ============================================
         async function getTasks(userId) {
             const client = init();
@@ -216,10 +216,7 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                if (!tasks || tasks.length === 0) {
-                    await client.from('tasks').delete().eq('user_id', userId);
-                    return true;
-                }
+                if (!tasks || tasks.length === 0) return true;
 
                 const tasksToUpsert = tasks.map(task => ({
                     id: task.id || generateId(),
@@ -243,15 +240,6 @@ if (window.DatabaseService) {
                         .from('tasks')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                }
-
-                const idsLocais = tasks.map(t => t.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('tasks')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
@@ -281,7 +269,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ NOTES - UPSERT CORRIGIDO (MANTÉM IDs)
+        // NOTES
         // ============================================
         async function getNotes(userId) {
             const client = init();
@@ -315,10 +303,7 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                if (!notes || notes.length === 0) {
-                    await client.from('notes').delete().eq('user_id', userId);
-                    return true;
-                }
+                if (!notes || notes.length === 0) return true;
 
                 const notesToUpsert = notes.map(note => ({
                     id: note.id || generateId(),
@@ -336,15 +321,6 @@ if (window.DatabaseService) {
                         .from('notes')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                }
-
-                const idsLocais = notes.map(n => n.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('notes')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 console.log(`[Database] ✅ ${notes.length} notes sincronizadas com sucesso via UPSERT`);
@@ -375,7 +351,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ CALENDAR EVENTS - UPSERT CORRIGIDO (MANTÉM IDs)
+        // CALENDAR EVENTS
         // ============================================
         async function getCalendarEvents(userId) {
             const client = init();
@@ -414,10 +390,7 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                if (!events || events.length === 0) {
-                    await client.from('calendar_events').delete().eq('user_id', userId);
-                    return true;
-                }
+                if (!events || events.length === 0) return true;
 
                 const eventsToUpsert = events.map(event => ({
                     id: event.id || generateId(),
@@ -442,15 +415,6 @@ if (window.DatabaseService) {
                         .from('calendar_events')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                }
-
-                const idsLocais = events.map(e => e.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('calendar_events')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 console.log(`[Database] ✅ ${events.length} eventos sincronizados com sucesso via UPSERT`);
@@ -600,7 +564,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // NOTIFICATIONS - PROTEGIDAS (VÊM DO SERVIDOR)
+        // NOTIFICATIONS
         // ============================================
         async function getNotifications(userId) {
             const client = init();
@@ -632,7 +596,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // ⭐ DISCIPLINAS - UPSERT COM FALLBACK normalizeText
+        // DISCIPLINAS
         // ============================================
         async function getDisciplinas(userId) {
             const client = init();
@@ -656,10 +620,7 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                if (!disciplinas || disciplinas.length === 0) {
-                    await client.from('disciplinas').delete().eq('user_id', userId);
-                    return true;
-                }
+                if (!disciplinas || disciplinas.length === 0) return true;
 
                 const disciplinasToUpsert = disciplinas.map(d => ({
                     id: d.id ? String(d.id) : normalizeText(d.nome), // ⭐ MESMO QUE FLUTTER
@@ -678,15 +639,6 @@ if (window.DatabaseService) {
                         .from('disciplinas')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                }
-
-                const idsLocais = disciplinasToUpsert.map(d => d.id).filter(Boolean);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('disciplinas')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
@@ -715,7 +667,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // DOCUMENTOS - COM STORAGE & UPSERT (SEM FILTRO)
+        // DOCUMENTOS
         // ============================================
         async function getDocumentos(userId) {
             const client = init();
@@ -750,12 +702,8 @@ if (window.DatabaseService) {
             if (!client) return false;
 
             try {
-                if (!documentos || documentos.length === 0) {
-                    await client.from('documentos').delete().eq('user_id', userId);
-                    return true;
-                }
+                if (!documentos || documentos.length === 0) return true;
 
-                // ⭐ SEM FILTRO — igual ao Flutter
                 const docsToUpsert = documentos.map(doc => ({
                     id: doc.id ? String(doc.id) : generateId(),
                     user_id: userId,
@@ -779,15 +727,6 @@ if (window.DatabaseService) {
                         .from('documentos')
                         .upsert(batch, { onConflict: 'id' });
                     if (error) throw error;
-                }
-
-                const idsLocais = docsToUpsert.map(d => d.id);
-                if (idsLocais.length > 0) {
-                    await client
-                        .from('documentos')
-                        .delete()
-                        .eq('user_id', userId)
-                        .not('id', 'in', `(${idsLocais.map(id => `'${id}'`).join(',')})`);
                 }
 
                 return true;
@@ -861,7 +800,7 @@ if (window.DatabaseService) {
         }
 
         // ============================================
-        // STUDY SESSIONS (SESSÕES DE ESTUDO)
+        // STUDY SESSIONS
         // ============================================
         async function getStudySessions(userId) {
             const client = init();
