@@ -1,9 +1,10 @@
 // ============================================
-// app.js - MOBILE COMPLETO (v3 - alinhado com Flutter)
-// ⭐ Sem gíria
+// app.js - MOBILE COMPLETO (v4)
+// ⭐ FAB da IA funcional
 // ⭐ Modo Foco → download app
 // ⭐ Documentos (Storage + Turso) via CacheManager
 // ⭐ IA com histórico na nuvem
+// ⭐ SEM gíria
 // ============================================
 
 console.log('[SPA] 🚀 Iniciando aplicação mobile...');
@@ -47,8 +48,6 @@ class App {
         this.loadedCSS = new Set();
         this.currentDate = new Date();
         this.selectedDay = this.currentDate.getDate();
-        this._supabaseReady = false;
-        this._supabaseWaitResolve = null;
         this._loadingOverlay = null;
         this._profileObserver = null;
         this._profileUpdateTimeout = null;
@@ -59,8 +58,6 @@ class App {
         this._syncRetryCount = 0;
         this._maxSyncRetries = 3;
         this._saveTimeout = null;
-        this._notificationRefreshTimeout = null;
-        this._cloudLoaded = false;
         this._dataLoadedFromCloud = false;
 
         this.cssModules = {
@@ -77,9 +74,9 @@ class App {
         this.init();
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  LOADING OVERLAY
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     createLoadingOverlay() {
         if (this._loadingOverlay) return;
 
@@ -181,9 +178,9 @@ class App {
         this.loadedCSS.add(moduleName);
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  SUPABASE
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     async waitForSupabase() {
         if (this.getSupabase()) {
             console.log('[SPA] ✅ Supabase já disponível');
@@ -221,9 +218,9 @@ class App {
         return null;
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  PROFILE OBSERVER
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     setupProfileObserver() {
         if (this._profileObserver) {
             this._profileObserver.disconnect();
@@ -306,9 +303,9 @@ class App {
         if (statEventos) statEventos.textContent = eventos;
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  INIT
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     async init() {
         if (this._isInitializing) return;
         this._isInitializing = true;
@@ -337,6 +334,9 @@ class App {
             window.CacheManager.init();
             window.CacheManager.currentUserId = this.user.id;
             window.dispatchEvent(new CustomEvent('cacheReady'));
+            console.log('[SPA] ✅ CacheManager inicializado com userId:', this.user.id);
+        } else {
+            console.warn('[SPA] ⚠️ CacheManager não encontrado!');
         }
 
         const nomeExibicao = this.user.nome || this.user.email?.split('@')[0] || 'Usuário';
@@ -348,13 +348,6 @@ class App {
 
         // Aguardar Supabase
         await this.waitForSupabase();
-
-        // CacheManager (garantia)
-        this.updateLoadingStatus('Inicializando cache...', 25);
-        if (window.CacheManager) {
-            window.CacheManager.init();
-            window.CacheManager.currentUserId = this.user.id;
-        }
 
         // SyncHelper
         this.updateLoadingStatus('Inicializando sincronização...', 30);
@@ -392,7 +385,7 @@ class App {
 
         // Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 95);
-        this.showView('dashboard');
+        await this.showView('dashboard');
 
         this.updateBadge();
 
@@ -415,9 +408,9 @@ class App {
         console.log('[SPA] ✅ Aplicação pronta!');
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  NOTIFICAÇÕES
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     async loadNotificationsFromSupabase() {
         try {
             const client = this.getSupabase();
@@ -451,8 +444,7 @@ class App {
                     window.CacheManager.set('notifications', notificacoes, true);
                 }
 
-                const key = `${this.user.id}_notifications`;
-                localStorage.setItem(key, JSON.stringify(notificacoes));
+                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(notificacoes));
 
                 this.updateBadge();
                 window.dispatchEvent(new CustomEvent('notificationsUpdated'));
@@ -462,9 +454,9 @@ class App {
         }
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  SYNC INICIAL
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     async forceInitialSync() {
         try {
             if (!window.CacheManager) return false;
@@ -492,9 +484,9 @@ class App {
         }
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  CARREGAR MÓDULOS
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     loadModules() {
         if (typeof DashboardModule !== 'undefined') this.modules.dashboard = new DashboardModule(this);
         if (typeof CalendarioModule !== 'undefined') this.modules.calendario = new CalendarioModule(this);
@@ -510,15 +502,15 @@ class App {
         console.log('[SPA] 📦 Módulos:', Object.keys(this.modules));
     }
 
-    // ═══════════════════════════════════════════════
-    //  CARREGAR DADOS (NUVEM PRIMEIRO)
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    //  CARREGAR DADOS
+    // ══════════════════════════════════════════════════════
     async loadAllData(retryCount = 0) {
         if (this.isLoading) return;
         this.isLoading = true;
 
         console.log(`[SPA] 📊 Carregando dados (tentativa ${retryCount + 1})`);
-        this.updateLoadingStatus(`Carregando dados...`, 40);
+        this.updateLoadingStatus('Carregando dados...', 40);
 
         let loadedFromCloud = false;
         try {
@@ -655,15 +647,14 @@ class App {
         }
     }
 
-    // ═══════════════════════════════════════════════
-    //  SALVAR DADOS
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    //  SALVAR
+    // ══════════════════════════════════════════════════════
     async saveAllData() {
         if (this.isSaving) return;
         this.isSaving = true;
 
         try {
-            // Notas fantasmas
             if (Array.isArray(this.data.notes)) {
                 this.data.notes = this.data.notes.filter(n => {
                     const hasTitle = n.title && n.title.trim().length > 0;
@@ -675,7 +666,6 @@ class App {
                 });
             }
 
-            // Documentos vazios
             if (Array.isArray(this.data.documentos)) {
                 this.data.documentos = this.data.documentos.filter(doc => {
                     if (!doc.nome || doc.nome.trim() === '') return false;
@@ -723,9 +713,9 @@ class App {
         setTimeout(() => { this.isSaving = false; }, 500);
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  NAVEGAÇÃO
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     setupNavigation() {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -800,16 +790,16 @@ class App {
         this.currentView = viewName;
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  NOTIFICAÇÕES (POP-UP)
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     openNotifications() {
         const modal = document.getElementById('notifications-modal');
         if (modal) {
             modal.classList.add('active');
             this.renderNotificationsModal();
         } else {
-            console.warn('[SPA] ⚠️ #notifications-modal não encontrado no HTML');
+            console.warn('[SPA] ⚠️ #notifications-modal não encontrado');
         }
     }
 
@@ -954,9 +944,9 @@ class App {
         }
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  HELPERS
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -984,9 +974,9 @@ class App {
         }
     }
 
-    // ═══════════════════════════════════════════════
-    //  MODAL DE DOWNLOAD DO APP (NOVO)
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    //  DOWNLOAD APP MESSAGE
+    // ══════════════════════════════════════════════════════
     showDownloadAppMessage(featureName) {
         const overlay = document.createElement('div');
         overlay.id = 'download-app-modal';
@@ -1054,14 +1044,28 @@ class App {
         });
     }
 
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //  SETUP EVENTS
-    // ═══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     setupEvents() {
-        // ⭐ NOVO: Modo Foco → download app
-        document.getElementById('focus-card')?.addEventListener('click', () => {
-            this.showDownloadAppMessage('Modo Foco');
-        });
+        // ⭐ FAB DA IA
+        const btnOpenIA = document.getElementById('btn-open-ia');
+        if (btnOpenIA) {
+            btnOpenIA.addEventListener('click', () => {
+                console.log('[SPA] 🤖 Abrindo IA via FAB...');
+                this.showView('ia');
+            });
+        } else {
+            console.warn('[SPA] ⚠️ #btn-open-ia não encontrado');
+        }
+
+        // ⭐ Modo Foco → download app
+        const focusCard = document.getElementById('focus-card');
+        if (focusCard) {
+            focusCard.addEventListener('click', () => {
+                this.showDownloadAppMessage('Modo Foco');
+            });
+        }
 
         // Notificações
         document.getElementById('notification-bell')?.addEventListener('click', () => {
@@ -1088,7 +1092,7 @@ class App {
             });
         });
 
-        // Storage event
+        // Storage
         window.addEventListener('storage', (e) => {
             if (e.key === 'app_data' && !this.isSaving) {
                 try {
@@ -1146,7 +1150,7 @@ class App {
             }
         });
 
-        // Realtime notificações
+        // Realtime
         window.addEventListener('newNotification', () => {
             if (this.user && this.getSupabase()) {
                 this.getSupabase()
@@ -1203,13 +1207,13 @@ class App {
     }
 }
 
-// ═══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 //  INICIALIZAR
-// ═══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         window.app = new App();
     }, 100);
 });
 
-console.log('[SPA] ✅ app.js carregado (v3 - sem gíria, download app, docs funcionais)');
+console.log('[SPA] ✅ app.js carregado (v4 - FAB IA funcional)');
