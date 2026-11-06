@@ -1272,43 +1272,33 @@
 <script src="modules/ia.js"></script>
 <script src="modules/documentos.js"></script>
 <script src="modules/foco.js"></script>
-
+<script src="modules/ia-service.js"></script>
 <!-- MultiAI Service -->
 <script>// ============================================
-// multi-ai-service.js - SERVIÇO DE IA (GROQ via Edge Function)
+// multi-ai-service.js - SERVIÇO DE IA
 // ⭐ Igual ao Flutter: usa a Edge Function "zero-ia"
 // ⭐ Modelos: openai/gpt-oss-120b + qwen/qwen-2-vl-72b-instruct
 // ⭐ Limite diário: 15 mensagens
-// ⭐ Histórico: preservado (últimas 10 mensagens)
-// ⭐ Modo gíria: SÓ no PC (não existe no Flutter)
+// ⭐ SEM modo gíria (igual ao Flutter)
 // ============================================
 
 console.log('[IA-Service] 🚀 Carregando serviço (Edge Function)...');
 
 class MultiAIService {
     constructor() {
-        // ⭐ Endpoints (iguais ao Flutter)
         this.SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
         this.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
         this.EDGE_FUNCTION = `${this.SUPABASE_URL}/functions/v1/zero-ia`;
 
-        // ⭐ Modelos (IGUAIS AO FLUTTER)
         this.MODELS = {
             TEXT: 'openai/gpt-oss-120b',
             VISION: 'qwen/qwen-2-vl-72b-instruct'
         };
 
-        // ⭐ Limites
         this.LIMITE_DIARIO = 15;
         this._usosHoje = 0;
-        this._dataReset = new Date().toDateString();
-
-        // ⭐ Cache
         this._cache = new Map();
         this._cacheMaxSize = 50;
-
-        // ⭐ Modo gíria (SÓ no PC)
-        this._modoGiria = false;
 
         console.log('[IA-Service] 📌 Edge Function:', this.EDGE_FUNCTION);
         console.log('[IA-Service] 📌 Modelos:', this.MODELS);
@@ -1317,9 +1307,6 @@ class MultiAIService {
         console.log('[IA-Service] ✅ Pronto!');
     }
 
-    // ══════════════════════════════════════════════════════
-    //  LIMITE DIÁRIO (15 mensagens)
-    // ══════════════════════════════════════════════════════
     _resetarLimite() {
         const hoje = new Date().toDateString();
         if (localStorage.getItem('ia_limite_data') !== hoje) {
@@ -1356,9 +1343,6 @@ class MultiAIService {
         return this.getStatus();
     }
 
-    // ══════════════════════════════════════════════════════
-    //  TOKEN DO SUPABASE (igual ao Flutter)
-    // ══════════════════════════════════════════════════════
     _getAccessToken() {
         try {
             if (window.supabaseClient?.auth?.currentSession) {
@@ -1370,24 +1354,11 @@ class MultiAIService {
         } catch (e) {
             console.warn('[IA-Service] ⚠️ Erro ao obter token:', e);
         }
-        // Fallback: usa a anon key (funciona se a Edge Function permitir)
         return this.SUPABASE_ANON_KEY;
     }
 
     // ══════════════════════════════════════════════════════
-    //  MODO GÍRIA (SÓ no PC)
-    // ══════════════════════════════════════════════════════
-    setModoGiria(ativo) {
-        this._modoGiria = ativo;
-        console.log('[IA-Service] 🗣️ Modo gíria:', ativo ? 'ON' : 'OFF');
-    }
-
-    isModoGiria() {
-        return this._modoGiria;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  SYSTEM PROMPT (IGUAL AO FLUTTER + opção de gíria)
+    //  SYSTEM PROMPT (sem gíria, igual ao Flutter)
     // ══════════════════════════════════════════════════════
     _buildSystemPrompt(context) {
         let basePrompt = `Você é o Zero IA, assistente de estudos do Zero Satus.
@@ -1411,18 +1382,6 @@ E) Pergunta normal → responde normalmente SEM JSON
 
 `;
 
-        // ⭐ Adicionar modo gíria apenas se ativo
-        if (this._modoGiria) {
-            basePrompt += `
-🎭 MODO GÍRIA ATIVO (moçambicano):
-- Usa gírias: broo, maning, txuna, magaia, tamos juntos, fixe, bué, bora
-- Seja descontraído e divertido
-- Usa emojis 🇲🇿 frequentemente
-- Mantém o profissionalismo nas explicações técnicas
-`;
-        }
-
-        // ⭐ Contexto do utilizador
         if (context) {
             basePrompt += `\n\n📚 CONTEXTO DO ESTUDANTE:\n${context}`;
         }
@@ -1430,13 +1389,9 @@ E) Pergunta normal → responde normalmente SEM JSON
         return basePrompt;
     }
 
-    // ══════════════════════════════════════════════════════
-    //  ENVIAR MENSAGEM (chamada à Edge Function)
-    // ══════════════════════════════════════════════════════
     async sendMessage(prompt, context = '', options = {}) {
         console.log('[IA-Service] 📤 Enviando:', prompt.substring(0, 60) + '...');
 
-        // 1. Verificar limite
         if (!this.temLimiteDisponivel()) {
             return {
                 success: false,
@@ -1445,7 +1400,6 @@ E) Pergunta normal → responde normalmente SEM JSON
             };
         }
 
-        // 2. Verificar cache
         const cacheKey = this._getCacheKey(prompt, context, options);
         const cached = this._getFromCache(cacheKey);
         if (cached) {
@@ -1453,7 +1407,6 @@ E) Pergunta normal → responde normalmente SEM JSON
             return { success: true, text: cached, fromCache: true };
         }
 
-        // 3. Chamar a Edge Function
         const result = await this._callEdgeFunction(prompt, context, options);
 
         if (result.success) {
@@ -1463,25 +1416,19 @@ E) Pergunta normal → responde normalmente SEM JSON
             return result;
         }
 
-        // 4. Fallback local (só se a Edge Function falhar completamente)
         console.warn('[IA-Service] ⚠️ Edge Function falhou, usando fallback local');
         const fallback = this._getFallback(prompt);
         this._incrementarUso();
         return { success: true, text: fallback, fromFallback: true };
     }
 
-    // ══════════════════════════════════════════════════════
-    //  CHAMAR EDGE FUNCTION
-    // ══════════════════════════════════════════════════════
     async _callEdgeFunction(prompt, context, options) {
         const token = this._getAccessToken();
         const systemPrompt = this._buildSystemPrompt(context);
 
-        // ⭐ Escolher modelo (igual ao Flutter)
         const isVision = options.imageBase64 || options.forceVisionModel;
         const model = isVision ? this.MODELS.VISION : this.MODELS.TEXT;
 
-        // ⭐ Construir body (igual ao Flutter)
         let body;
         if (isVision && options.imageBase64) {
             body = {
@@ -1501,7 +1448,6 @@ E) Pergunta normal → responde normalmente SEM JSON
         }
 
         console.log('[IA-Service] 🤖 Modelo:', model);
-        console.log('[IA-Service] 📡 POST:', this.EDGE_FUNCTION);
 
         try {
             const response = await fetch(this.EDGE_FUNCTION, {
@@ -1515,7 +1461,6 @@ E) Pergunta normal → responde normalmente SEM JSON
 
             console.log('[IA-Service] 📥 Status:', response.status);
 
-            // 429 = Limite do servidor
             if (response.status === 429) {
                 try {
                     const err = await response.json();
@@ -1529,7 +1474,6 @@ E) Pergunta normal → responde normalmente SEM JSON
                 }
             }
 
-            // 401 = Token inválido
             if (response.status === 401) {
                 return { success: false, error: '🔑 Sessão inválida. Faz login novamente.' };
             }
@@ -1543,7 +1487,6 @@ E) Pergunta normal → responde normalmente SEM JSON
             const data = await response.json();
             console.log('[IA-Service] 📦 Resposta:', JSON.stringify(data).substring(0, 200));
 
-            // ⭐ Atualizar uso do servidor (igual ao Flutter)
             if (data._meta) {
                 const serverUsed = data._meta.used;
                 const serverLimit = data._meta.limit;
@@ -1557,13 +1500,11 @@ E) Pergunta normal → responde normalmente SEM JSON
                 console.log(`[IA-Service] 📊 Servidor: ${serverUsed}/${serverLimit}`);
             }
 
-            // ⭐ Extrair conteúdo (igual ao Flutter)
             const content = data.choices?.[0]?.message?.content;
             if (!content) {
                 return { success: false, error: 'Resposta vazia do servidor.' };
             }
 
-            // ⭐ Limpar resposta (igual ao Flutter)
             const cleaned = this._extractPortugueseResponse(content);
             return { success: true, text: cleaned };
 
@@ -1573,12 +1514,8 @@ E) Pergunta normal → responde normalmente SEM JSON
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  EXTRAIR RESPOSTA EM PORTUGUÊS (igual ao Flutter)
-    // ══════════════════════════════════════════════════════
     _extractPortugueseResponse(text) {
         if (!text) return text;
-
         let cleaned = text
             .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
             .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
@@ -1591,9 +1528,6 @@ E) Pergunta normal → responde normalmente SEM JSON
         return cleaned;
     }
 
-    // ══════════════════════════════════════════════════════
-    //  CACHE
-    // ══════════════════════════════════════════════════════
     _getCacheKey(prompt, context, options) {
         const img = options.imageBase64 ? 'img' : 'noimg';
         return `${prompt.substring(0, 50)}|${context.substring(0, 100)}|${img}`;
@@ -1617,9 +1551,6 @@ E) Pergunta normal → responde normalmente SEM JSON
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  FALLBACK LOCAL (se a Edge Function falhar totalmente)
-    // ══════════════════════════════════════════════════════
     _getFallback(prompt) {
         const texto = prompt.toLowerCase();
         if (texto.includes('tarefa') || texto.includes('pendente')) {
@@ -1634,22 +1565,16 @@ E) Pergunta normal → responde normalmente SEM JSON
             return `📚 As tuas disciplinas: ${discs.map(d => d.nome).join(', ')}`;
         }
         if (texto.includes('oi') || texto.includes('olá') || texto.includes('eai')) {
-            return this._modoGiria
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar? Tamos juntos! 😎'
-                : 'Olá! Como posso ajudar-te hoje?';
+            return 'Olá! Como posso ajudar-te hoje?';
         }
         return 'Desculpe, não consegui conectar ao servidor. Tenta novamente em alguns segundos.';
     }
 
-    // ══════════════════════════════════════════════════════
-    //  STATUS
-    // ══════════════════════════════════════════════════════
     getStatus() {
         return {
             usoTotal: this.getUsoHoje(),
             limiteTotal: this.LIMITE_DIARIO,
             restante: this.getLimiteRestante(),
-            modoGiria: this._modoGiria,
             cacheSize: this._cache.size,
             models: this.MODELS,
             endpoint: this.EDGE_FUNCTION
@@ -1657,15 +1582,9 @@ E) Pergunta normal → responde normalmente SEM JSON
     }
 }
 
-// ══════════════════════════════════════════════════════
-//  INSTÂNCIA GLOBAL
-// ══════════════════════════════════════════════════════
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
 
-// ══════════════════════════════════════════════════════
-//  HELPERS GLOBAIS (compatibilidade)
-// ══════════════════════════════════════════════════════
 window.getLimiteIA = () => {
     const s = multiAI.getStatus();
     return {
@@ -1683,13 +1602,7 @@ window.testIA = async (pergunta) => {
     return r;
 };
 
-window.toggleGiriaIA = () => {
-    multiAI.setModoGiria(!multiAI.isModoGiria());
-    console.log('[IA-Service] 🗣️ Modo gíria:', multiAI.isModoGiria() ? 'ON' : 'OFF');
-    return multiAI.isModoGiria();
-};
-
-console.log('[IA-Service] ✅ Serviço carregado! (Edge Function zero-ia)');</script>
+console.log('[IA-Service] ✅ Serviço carregado! (Edge Function zero-ia, sem gíria)');</script>
 <script src="turso-service.js"></script>
 <script src="neon-service.js"></script>
 <script src="ia-service.js"></script>
