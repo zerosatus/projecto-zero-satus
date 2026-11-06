@@ -1274,221 +1274,332 @@
 <script src="modules/foco.js"></script>
 
 <!-- MultiAI Service -->
-<script>
-console.log('🔥 [MultiAI] CARREGANDO...');
+<script>// ============================================
+// multi-ai-service.js - SERVIÇO DE IA (GROQ via Edge Function)
+// ⭐ Igual ao Flutter: usa a Edge Function "zero-ia"
+// ⭐ Modelos: openai/gpt-oss-120b + qwen/qwen-2-vl-72b-instruct
+// ⭐ Limite diário: 15 mensagens
+// ⭐ Histórico: preservado (últimas 10 mensagens)
+// ⭐ Modo gíria: SÓ no PC (não existe no Flutter)
+// ============================================
+
+console.log('[IA-Service] 🚀 Carregando serviço (Edge Function)...');
 
 class MultiAIService {
     constructor() {
-        this.GROQ_API_KEY = "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";
-        this.GROQ_MODELS = [
-            "llama-3.1-8b-instant",
-            "llama-3.3-70b-versatile",
-            "openai/gpt-oss-20b",
-            "openai/gpt-oss-120b",
-            "mixtral-8x7b-32768",
-            "qwen/qwen3.6-27b"
-        ];
+        // ⭐ Endpoints (iguais ao Flutter)
+        this.SUPABASE_URL = "https://yqxtfnnjjpoitbmtcxjd.supabase.co";
+        this.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeHRmbm5qanBvaXRibXRjeGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NTQ2MTMsImV4cCI6MjA5NDMzMDYxM30.GY3aTXq2leTgJ1WSvDk-Mqn5-wYuLABsLI3_UaBiHN0";
+        this.EDGE_FUNCTION = `${this.SUPABASE_URL}/functions/v1/zero-ia`;
+
+        // ⭐ Modelos (IGUAIS AO FLUTTER)
+        this.MODELS = {
+            TEXT: 'openai/gpt-oss-120b',
+            VISION: 'qwen/qwen-2-vl-72b-instruct'
+        };
+
+        // ⭐ Limites
+        this.LIMITE_DIARIO = 15;
+        this._usosHoje = 0;
+        this._dataReset = new Date().toDateString();
+
+        // ⭐ Cache
         this._cache = new Map();
         this._cacheMaxSize = 50;
-        this._limiteDiario = 100;
-        this._usosHoje = 0;
+
+        // ⭐ Modo gíria (SÓ no PC)
+        this._modoGiria = false;
+
+        console.log('[IA-Service] 📌 Edge Function:', this.EDGE_FUNCTION);
+        console.log('[IA-Service] 📌 Modelos:', this.MODELS);
+
         this._resetarLimite();
-        console.log('[MultiAI] ✅ Pronto!');
+        console.log('[IA-Service] ✅ Pronto!');
     }
-    
-    _getUserDataContext() {
-        try {
-            if (window.app && window.app.data) {
-                const data = window.app.data;
-                const user = window.app.user || {};
-                return {
-                    nome: user.nome || user.displayName || 'Estudante',
-                    email: user.email || '',
-                    tarefas: data.tasks || [],
-                    anotacoes: data.notes || [],
-                    eventos: data.calendarEvents || [],
-                    disciplinas: data.disciplinas || [],
-                    horario: data.weeklySchedule || {},
-                    timeSlots: data.timeSlots || [],
-                    documentos: data.documentos || []
-                };
-            }
-            if (window.CacheManager) {
-                return {
-                    nome: 'Estudante', email: '',
-                    tarefas: window.CacheManager.get('tasks', []),
-                    anotacoes: window.CacheManager.get('notes', []),
-                    eventos: window.CacheManager.get('calendarEvents', []),
-                    disciplinas: window.CacheManager.get('disciplinas', []),
-                    horario: window.CacheManager.get('weeklySchedule', {}),
-                    timeSlots: window.CacheManager.get('timeSlots', []),
-                    documentos: window.CacheManager.get('documentos', [])
-                };
-            }
-        } catch (e) { console.warn('[MultiAI] ⚠️', e); }
-        return null;
-    }
-    
-    _buildFullContext(userMessage, extraContext = '') {
-        const userData = this._getUserDataContext();
-        let context = '';
-        
-        if (window.app?.modules?.ia?.messages) {
-            const messages = window.app.modules.ia.messages;
-            if (messages.length > 0) {
-                const ultimas = messages.slice(-10);
-                context += '\n📜 HISTÓRICO:\n';
-                ultimas.forEach(msg => {
-                    const role = msg.role === 'user' ? '👤' : '🤖';
-                    const content = (msg.content || '').substring(0, 200);
-                    context += `${role}: ${content}${(msg.content || '').length > 200 ? '...' : ''}\n`;
-                });
-            }
-        }
-        
-        if (userData) {
-            context += `\n\n📚 DADOS DO ESTUDANTE:\n`;
-            context += `👤 Nome: ${userData.nome}\n`;
-            context += `📧 Email: ${userData.email}\n`;
-            const tarefas = userData.tarefas || [];
-            const pendentes = tarefas.filter(t => !t.completed);
-            context += `\n📋 TAREFAS: Total ${tarefas.length}, Pendentes ${pendentes.length}\n`;
-            const disciplinas = userData.disciplinas || [];
-            context += `\n📚 DISCIPLINAS: ${disciplinas.length}\n`;
-            disciplinas.slice(0, 8).forEach(d => { context += `   - ${d.nome}\n`; });
-        }
-        if (extraContext) context += `\n\n${extraContext}`;
-        return context;
-    }
-    
-    async sendMessage(prompt, context = '') {
-        if (!this.temLimiteDisponivel()) return { success: false, error: 'Limite diário atingido.' };
-        const fullContext = this._buildFullContext(prompt, context);
-        const cached = this._getFromCache(prompt, fullContext);
-        if (cached) return { success: true, text: cached, fromCache: true };
-        const groqResult = await this._callGroqWithFallback(prompt, fullContext);
-        if (groqResult.success) {
-            this._incrementarUso();
-            this._saveToCache(prompt, fullContext, groqResult.text);
-            return { success: true, text: groqResult.text };
-        }
-        const fallback = this._getFallback(prompt, fullContext);
-        this._incrementarUso();
-        return { success: true, text: fallback, fromFallback: true };
-    }
-    
-    async _callGroqWithFallback(prompt, context) {
-        for (let i = 0; i < this.GROQ_MODELS.length; i++) {
-            const model = this.GROQ_MODELS[i];
-            try {
-                const result = await this._callGroqAPI(prompt, context, model);
-                if (result.success) return { success: true, text: result.text };
-            } catch (error) {}
-        }
-        return { success: false, error: 'Todos falharam' };
-    }
-    
-    async _callGroqAPI(prompt, context, model) {
-        if (!this.GROQ_API_KEY) return { success: false, error: 'Groq não configurado' };
-        const url = 'https://api.groq.com/openai/v1/chat/completions';
-        const systemPrompt = `Você é o Zero IA, assistente de estudos do sistema Zero Satus. Responda APENAS em português do Brasil. NUNCA mostre raciocínio. Comece DIRETAMENTE com o conteúdo final.\n\n${context ? `CONTEXTO:\n${context}` : ''}`;
-        
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${this.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: prompt }
-                    ],
-                    temperature: 0.0, max_tokens: 800, top_p: 0.9
-                })
-            });
-            
-            if (response.status === 404 && model.includes('/')) {
-                const modelSimple = model.split('/').pop();
-                const r2 = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${this.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: modelSimple,
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: prompt }
-                        ],
-                        temperature: 0.0, max_tokens: 800
-                    })
-                });
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    const t2 = d2.choices?.[0]?.message?.content;
-                    if (t2) return { success: true, text: this._extractPortugueseResponse(t2.trim()) };
-                }
-            }
-            
-            if (!response.ok) {
-                let em = `Erro ${response.status}`;
-                try { const ed = await response.json(); em = ed.error?.message || em; } catch (e) {}
-                return { success: false, error: em };
-            }
-            
-            const data = await response.json();
-            let text = data.choices?.[0]?.message?.content;
-            if (text && text.length > 0) return { success: true, text: this._extractPortugueseResponse(text.trim()) };
-            return { success: false, error: 'Resposta vazia' };
-        } catch (error) { return { success: false, error: error.message }; }
-    }
-    
-    _extractPortugueseResponse(text) {
-        if (!text) return text;
-        let cleaned = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').replace(/```[\s\S]*?```/g, '').trim();
-        const lines = cleaned.split('\n');
-        const cleanedLines = [];
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            const isEnglishThought = /^(Okay|Ok|Let me|I need|First|Now|So|Well|Hmm|Alright)/i.test(trimmed) || /(I need to|I should|Let me|I'll|I think)/i.test(trimmed);
-            if (!isEnglishThought) cleanedLines.push(trimmed);
-        }
-        cleaned = cleanedLines.join('\n').trim();
-        if (!cleaned || cleaned.length < 5) return 'Desculpe, não consegui processar. Poderia reformular?';
-        return cleaned.trim();
-    }
-    
-    _getFallback(prompt, context) {
-        const texto = prompt.toLowerCase();
-        if (texto.includes('tarefa')) {
-            const tarefas = window.app?.data?.tasks || [];
-            const pendentes = tarefas.filter(t => !t.completed);
-            if (pendentes.length === 0) return 'Você não tem tarefas pendentes. 🎉';
-            return `Você tem ${pendentes.length} tarefas pendentes.`;
-        }
-        if (texto.includes('disciplina')) {
-            const disciplinas = window.app?.modules?.disciplinas?.getTodas?.() || window.app?.data?.disciplinas || [];
-            if (disciplinas.length === 0) return 'Nenhuma disciplina cadastrada.';
-            return `Suas disciplinas: ${disciplinas.map(d => d.nome).join(', ')}`;
-        }
-        if (texto.includes('oi') || texto.includes('olá')) return 'Olá! Como posso ajudar?';
-        return 'Desculpe, não entendi. Poderia reformular?';
-    }
-    
+
+    // ══════════════════════════════════════════════════════
+    //  LIMITE DIÁRIO (15 mensagens)
+    // ══════════════════════════════════════════════════════
     _resetarLimite() {
         const hoje = new Date().toDateString();
-        if (localStorage.getItem('pollinations_data') !== hoje) {
-            localStorage.setItem('pollinations_data', hoje);
-            localStorage.setItem('pollinations_uso', '0');
+        if (localStorage.getItem('ia_limite_data') !== hoje) {
+            localStorage.setItem('ia_limite_data', hoje);
+            localStorage.setItem('ia_limite_uso', '0');
             this._usosHoje = 0;
         }
     }
-    getUsoHoje() { this._resetarLimite(); this._usosHoje = parseInt(localStorage.getItem('pollinations_uso')) || 0; return this._usosHoje; }
-    _incrementarUso() { this._resetarLimite(); this._usosHoje++; localStorage.setItem('pollinations_uso', String(this._usosHoje)); }
-    temLimiteDisponivel() { return this.getUsoHoje() < this._limiteDiario; }
-    getLimiteRestante() { return Math.max(0, this._limiteDiario - this.getUsoHoje()); }
-    _getCacheKey(prompt, context) { return `${prompt.substring(0, 50)}|${context.substring(0, 100)}`; }
-    _getFromCache(prompt, context) {
-        const key = this._getCacheKey(prompt, context);
+
+    getUsoHoje() {
+        this._resetarLimite();
+        this._usosHoje = parseInt(localStorage.getItem('ia_limite_uso')) || 0;
+        return this._usosHoje;
+    }
+
+    _incrementarUso() {
+        this._resetarLimite();
+        this._usosHoje++;
+        localStorage.setItem('ia_limite_uso', String(this._usosHoje));
+    }
+
+    temLimiteDisponivel() {
+        return this.getUsoHoje() < this.LIMITE_DIARIO;
+    }
+
+    getLimiteRestante() {
+        return Math.max(0, this.LIMITE_DIARIO - this.getUsoHoje());
+    }
+
+    resetLimite() {
+        localStorage.setItem('ia_limite_data', new Date().toDateString());
+        localStorage.setItem('ia_limite_uso', '0');
+        this._usosHoje = 0;
+        return this.getStatus();
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  TOKEN DO SUPABASE (igual ao Flutter)
+    // ══════════════════════════════════════════════════════
+    _getAccessToken() {
+        try {
+            if (window.supabaseClient?.auth?.currentSession) {
+                return window.supabaseClient.auth.currentSession.access_token;
+            }
+            if (window.SupabaseClient?.client?.auth?.currentSession) {
+                return window.SupabaseClient.client.auth.currentSession.access_token;
+            }
+        } catch (e) {
+            console.warn('[IA-Service] ⚠️ Erro ao obter token:', e);
+        }
+        // Fallback: usa a anon key (funciona se a Edge Function permitir)
+        return this.SUPABASE_ANON_KEY;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  MODO GÍRIA (SÓ no PC)
+    // ══════════════════════════════════════════════════════
+    setModoGiria(ativo) {
+        this._modoGiria = ativo;
+        console.log('[IA-Service] 🗣️ Modo gíria:', ativo ? 'ON' : 'OFF');
+    }
+
+    isModoGiria() {
+        return this._modoGiria;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SYSTEM PROMPT (IGUAL AO FLUTTER + opção de gíria)
+    // ══════════════════════════════════════════════════════
+    _buildSystemPrompt(context) {
+        let basePrompt = `Você é o Zero IA, assistente de estudos do Zero Satus.
+
+⚠️ REGRAS ABSOLUTAS:
+1. IDIOMA: Responde SEMPRE em português de Moçambique/Brasil. Nunca em inglês.
+2. NUNCA mostres raciocínio interno ou tags <thought>.
+3. MATEMÁTICA: NUNCA uses LaTeX. Usa SÍMBOLOS UNICODE:
+   √ ∑ ∫ ∂ π θ α β γ Δ ± × ÷ ≠ ≤ ≥ ∞ ≈ ∈ ∉ ⊂ ∪ ∩ ∅ ∴ ∵ ⇒ ⇔ → ← ↔
+   Potências: x² x³ xⁿ
+   Índices: x₁ x₂ xₙ
+   Fracções: ½ ⅓ ¼ ¾ a/b
+4. FORMATAÇÃO: Use # para TÍTULOS e ## para SUBTÍTULOS.
+
+⭐ REGRA DE DECISÃO:
+A) "faz um trabalho/resumo" → devolve JSON {"action":"create_document",...} ou {"action":"create_note",...}
+B) "resume o documento X" → devolve APENAS {"action":"read_document","search":"X"}
+C) "desenha gráfico" → devolve {"action":"plot_chart","type":"line","data":[[x,y],...]}
+D) "o que sabes fazer" → lista de capacidades em markdown
+E) Pergunta normal → responde normalmente SEM JSON
+
+`;
+
+        // ⭐ Adicionar modo gíria apenas se ativo
+        if (this._modoGiria) {
+            basePrompt += `
+🎭 MODO GÍRIA ATIVO (moçambicano):
+- Usa gírias: broo, maning, txuna, magaia, tamos juntos, fixe, bué, bora
+- Seja descontraído e divertido
+- Usa emojis 🇲🇿 frequentemente
+- Mantém o profissionalismo nas explicações técnicas
+`;
+        }
+
+        // ⭐ Contexto do utilizador
+        if (context) {
+            basePrompt += `\n\n📚 CONTEXTO DO ESTUDANTE:\n${context}`;
+        }
+
+        return basePrompt;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ENVIAR MENSAGEM (chamada à Edge Function)
+    // ══════════════════════════════════════════════════════
+    async sendMessage(prompt, context = '', options = {}) {
+        console.log('[IA-Service] 📤 Enviando:', prompt.substring(0, 60) + '...');
+
+        // 1. Verificar limite
+        if (!this.temLimiteDisponivel()) {
+            return {
+                success: false,
+                error: `⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido. Volta amanhã!`,
+                limiteAtingido: true
+            };
+        }
+
+        // 2. Verificar cache
+        const cacheKey = this._getCacheKey(prompt, context, options);
+        const cached = this._getFromCache(cacheKey);
+        if (cached) {
+            console.log('[IA-Service] 📦 Resposta do cache!');
+            return { success: true, text: cached, fromCache: true };
+        }
+
+        // 3. Chamar a Edge Function
+        const result = await this._callEdgeFunction(prompt, context, options);
+
+        if (result.success) {
+            this._incrementarUso();
+            this._saveToCache(cacheKey, result.text);
+            console.log('[IA-Service] ✅ Resposta recebida!');
+            return result;
+        }
+
+        // 4. Fallback local (só se a Edge Function falhar completamente)
+        console.warn('[IA-Service] ⚠️ Edge Function falhou, usando fallback local');
+        const fallback = this._getFallback(prompt);
+        this._incrementarUso();
+        return { success: true, text: fallback, fromFallback: true };
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CHAMAR EDGE FUNCTION
+    // ══════════════════════════════════════════════════════
+    async _callEdgeFunction(prompt, context, options) {
+        const token = this._getAccessToken();
+        const systemPrompt = this._buildSystemPrompt(context);
+
+        // ⭐ Escolher modelo (igual ao Flutter)
+        const isVision = options.imageBase64 || options.forceVisionModel;
+        const model = isVision ? this.MODELS.VISION : this.MODELS.TEXT;
+
+        // ⭐ Construir body (igual ao Flutter)
+        let body;
+        if (isVision && options.imageBase64) {
+            body = {
+                prompt: [
+                    { type: 'text', text: `${systemPrompt}\n\nUtilizador: ${prompt}` },
+                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${options.imageBase64}` } }
+                ],
+                context: '',
+                models: [model]
+            };
+        } else {
+            body = {
+                prompt: prompt,
+                context: systemPrompt,
+                models: [model]
+            };
+        }
+
+        console.log('[IA-Service] 🤖 Modelo:', model);
+        console.log('[IA-Service] 📡 POST:', this.EDGE_FUNCTION);
+
+        try {
+            const response = await fetch(this.EDGE_FUNCTION, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            console.log('[IA-Service] 📥 Status:', response.status);
+
+            // 429 = Limite do servidor
+            if (response.status === 429) {
+                try {
+                    const err = await response.json();
+                    return {
+                        success: false,
+                        error: err.error || '⛔ Limite diário atingido no servidor.',
+                        limiteAtingido: true
+                    };
+                } catch (e) {
+                    return { success: false, error: '⛔ Limite diário atingido.', limiteAtingido: true };
+                }
+            }
+
+            // 401 = Token inválido
+            if (response.status === 401) {
+                return { success: false, error: '🔑 Sessão inválida. Faz login novamente.' };
+            }
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error('[IA-Service] ❌ Erro HTTP:', errText);
+                return { success: false, error: `Erro ${response.status}: ${errText.substring(0, 100)}` };
+            }
+
+            const data = await response.json();
+            console.log('[IA-Service] 📦 Resposta:', JSON.stringify(data).substring(0, 200));
+
+            // ⭐ Atualizar uso do servidor (igual ao Flutter)
+            if (data._meta) {
+                const serverUsed = data._meta.used;
+                const serverLimit = data._meta.limit;
+                if (typeof serverUsed === 'number') {
+                    this._usosHoje = serverUsed;
+                    localStorage.setItem('ia_limite_uso', String(serverUsed));
+                }
+                if (typeof serverLimit === 'number') {
+                    this.LIMITE_DIARIO = serverLimit;
+                }
+                console.log(`[IA-Service] 📊 Servidor: ${serverUsed}/${serverLimit}`);
+            }
+
+            // ⭐ Extrair conteúdo (igual ao Flutter)
+            const content = data.choices?.[0]?.message?.content;
+            if (!content) {
+                return { success: false, error: 'Resposta vazia do servidor.' };
+            }
+
+            // ⭐ Limpar resposta (igual ao Flutter)
+            const cleaned = this._extractPortugueseResponse(content);
+            return { success: true, text: cleaned };
+
+        } catch (error) {
+            console.error('[IA-Service] ❌ Erro de rede:', error);
+            return { success: false, error: `Erro de conexão: ${error.message}` };
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  EXTRAIR RESPOSTA EM PORTUGUÊS (igual ao Flutter)
+    // ══════════════════════════════════════════════════════
+    _extractPortugueseResponse(text) {
+        if (!text) return text;
+
+        let cleaned = text
+            .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+            .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+            .replace(/\[thinking\][\s\S]*?\[\/thinking\]/gi, '')
+            .trim();
+
+        if (cleaned.length < 5) {
+            return 'Desculpe, não consegui processar. Poderia reformular?';
+        }
+        return cleaned;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CACHE
+    // ══════════════════════════════════════════════════════
+    _getCacheKey(prompt, context, options) {
+        const img = options.imageBase64 ? 'img' : 'noimg';
+        return `${prompt.substring(0, 50)}|${context.substring(0, 100)}|${img}`;
+    }
+
+    _getFromCache(key) {
         if (this._cache.has(key)) {
             const item = this._cache.get(key);
             if (Date.now() - item.timestamp < 3600000) return item.value;
@@ -1496,25 +1607,89 @@ class MultiAIService {
         }
         return null;
     }
-    _saveToCache(prompt, context, response) {
-        const key = this._getCacheKey(prompt, context);
-        this._cache.set(key, { value: response, timestamp: Date.now() });
+
+    _saveToCache(key, value) {
+        this._cache.set(key, { value, timestamp: Date.now() });
         if (this._cache.size > this._cacheMaxSize) {
-            const keys = Array.from(this._cache.keys());
-            const oldest = keys.sort((a, b) => this._cache.get(a).timestamp - this._cache.get(b).timestamp)[0];
+            const oldest = Array.from(this._cache.entries())
+                .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
             this._cache.delete(oldest);
         }
     }
-    getStatus() { return { usoTotal: this.getUsoHoje(), limiteTotal: this._limiteDiario, restante: this.getLimiteRestante(), cacheSize: this._cache.size, modo: 'GROQ' }; }
-    resetLimite() { localStorage.setItem('pollinations_data', new Date().toDateString()); localStorage.setItem('pollinations_uso', '0'); this._usosHoje = 0; return this.getStatus(); }
+
+    // ══════════════════════════════════════════════════════
+    //  FALLBACK LOCAL (se a Edge Function falhar totalmente)
+    // ══════════════════════════════════════════════════════
+    _getFallback(prompt) {
+        const texto = prompt.toLowerCase();
+        if (texto.includes('tarefa') || texto.includes('pendente')) {
+            const tasks = window.app?.data?.tasks || [];
+            const pend = tasks.filter(t => !t.completed);
+            if (pend.length === 0) return '🎉 Não tens tarefas pendentes!';
+            return `Tens ${pend.length} tarefas pendentes. Vai à aba Tarefas para as ver.`;
+        }
+        if (texto.includes('disciplina')) {
+            const discs = window.app?.data?.disciplinas || [];
+            if (discs.length === 0) return '📚 Nenhuma disciplina cadastrada.';
+            return `📚 As tuas disciplinas: ${discs.map(d => d.nome).join(', ')}`;
+        }
+        if (texto.includes('oi') || texto.includes('olá') || texto.includes('eai')) {
+            return this._modoGiria
+                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar? Tamos juntos! 😎'
+                : 'Olá! Como posso ajudar-te hoje?';
+        }
+        return 'Desculpe, não consegui conectar ao servidor. Tenta novamente em alguns segundos.';
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  STATUS
+    // ══════════════════════════════════════════════════════
+    getStatus() {
+        return {
+            usoTotal: this.getUsoHoje(),
+            limiteTotal: this.LIMITE_DIARIO,
+            restante: this.getLimiteRestante(),
+            modoGiria: this._modoGiria,
+            cacheSize: this._cache.size,
+            models: this.MODELS,
+            endpoint: this.EDGE_FUNCTION
+        };
+    }
 }
 
+// ══════════════════════════════════════════════════════
+//  INSTÂNCIA GLOBAL
+// ══════════════════════════════════════════════════════
 const multiAI = new MultiAIService();
 window.MultiAIService = multiAI;
-window.getLimiteIA = () => { const s = multiAI.getStatus(); return { usado: s.usoTotal, maximo: s.limiteTotal, restante: s.restante, modo: s.modo, reset: () => multiAI.resetLimite() }; };
-window.testIA = async (p) => await multiAI.sendMessage(p);
-console.log('[MultiAI] ✅ Serviço carregado!');
-</script>
+
+// ══════════════════════════════════════════════════════
+//  HELPERS GLOBAIS (compatibilidade)
+// ══════════════════════════════════════════════════════
+window.getLimiteIA = () => {
+    const s = multiAI.getStatus();
+    return {
+        usado: s.usoTotal,
+        maximo: s.limiteTotal,
+        restante: s.restante,
+        reset: () => multiAI.resetLimite()
+    };
+};
+
+window.testIA = async (pergunta) => {
+    console.log('🧪 Testando IA:', pergunta);
+    const r = await multiAI.sendMessage(pergunta);
+    console.log('🤖 Resposta:', r);
+    return r;
+};
+
+window.toggleGiriaIA = () => {
+    multiAI.setModoGiria(!multiAI.isModoGiria());
+    console.log('[IA-Service] 🗣️ Modo gíria:', multiAI.isModoGiria() ? 'ON' : 'OFF');
+    return multiAI.isModoGiria();
+};
+
+console.log('[IA-Service] ✅ Serviço carregado! (Edge Function zero-ia)');</script>
 <script src="turso-service.js"></script>
 <script src="neon-service.js"></script>
 <script src="ia-service.js"></script>
