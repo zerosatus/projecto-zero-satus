@@ -1,0 +1,59 @@
+/* ==========================================================
+   Zero Satus — base (fonte local, âncoras, foco visível)
+   ========================================================== */
+@font-face { font-family: 'Inter'; font-weight: 400; font-style: normal; font-display: swap; src: url('../assets/fonts/inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 500; font-style: normal; font-display: swap; src: url('../assets/fonts/inter-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 600; font-style: normal; font-display: swap; src: url('../assets/fonts/inter-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 700; font-style: normal; font-display: swap; src: url('../assets/fonts/inter-latin-700-normal.woff2') format('woff2'); }
+
+body { font-family: var(--zs-font); }
+
+/* Âncoras não ficam escondidas debaixo do header fixo */
+section[id], footer[id] { scroll-margin-top: var(--header-height); }
+
+:focus-visible {
+    outline: 2px solid var(--zs-lavender);
+    outline-offset: 3px;
+}
+
+/* Botão do menu mobile (o HTML antigo não tinha este elemento) */
+.mobile-menu-btn { line-height: 1; }
+@media (min-width: 1024px) { .mobile-menu-btn { display: none; } }
+
+/* Header mobile: logo + Entrar + selo de download + menu têm de caber sem empurrar o botão do menu */
+@media (max-width: 1023px) {
+    .header-content { gap: 8px; }
+    .header-content .btn-login { margin-left: auto; }
+    .header-content .download-link { margin-left: 0; min-width: 0; }
+    .header-content .download-link img { height: 34px; max-width: 100%; }
+    .mobile-menu-btn { flex-shrink: 0; margin: 0; padding: 8px 6px; }
+}
+
+/* Botão "Instalar App": o style.css não tinha regras para ele (aparecia como botão por estilizar
+   e ocupava espaço no header mobile até o JS o esconder). O JS continua a controlar a visibilidade
+   (inline display + classe .visible) — isto só define o estado inicial e o aspeto. */
+.install-btn {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--zs-line);
+    background: rgba(147, 51, 234, 0.12);
+    color: var(--zs-lavender);
+    font: 600 0.9rem var(--zs-font);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+.install-btn:hover { background: rgba(147, 51, 234, 0.25); }
+.install-btn.visible { display: inline-flex; }
+
+/* tipografia editorial (Blog, Depoimentos, Encerramento) */
+@font-face { font-family: 'Fraunces'; font-weight: 600; font-style: normal; font-display: swap; src: url('../assets/fonts/fraunces-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Fraunces'; font-weight: 400; font-style: italic; font-display: swap; src: url('../assets/fonts/fraunces-latin-400-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Fraunces'; font-weight: 600; font-style: italic; font-display: swap; src: url('../assets/fonts/fraunces-latin-600-italic.woff2') format('woff2'); }
+:root { --zs-serif: 'Fraunces', Georgia, 'Times New Roman', serif; }
+
+/* Cenas da experiência mobile (css/mobile.css): invisíveis fora do mobile */
+.zm { display: none; }

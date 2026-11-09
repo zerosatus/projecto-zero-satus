@@ -1,0 +1,26 @@
+/* Capítulo 3 — Anotações: ambiente claro e luminoso (muda o ritmo) com a interface escura em contraste */
+html.zs-pending .zs-ch3, html.zs-live .zs-ch3 { height: 620vh; }
+@media (max-width: 899px) { html.zs-pending .zs-ch3, html.zs-live .zs-ch3 { height: 560vh; height: 560svh; } }
+.zs-ch3 { background: #dccfff; }
+.zs-ch3 .zs-stage { background: linear-gradient(160deg, #dccfff 0%, #e9d9ff 42%, #f7cdea 100%); }
+.zs-nbg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.zs-nbg > i { position: absolute; border-radius: 50%; will-change: transform; }
+.zs-nbg__a { width: 70vmax; height: 70vmax; left: -20vmax; top: -30vmax; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.85), transparent 70%); }
+.zs-nbg__b { width: 60vmax; height: 60vmax; right: -22vmax; bottom: -24vmax; background: radial-gradient(closest-side, rgba(244, 114, 182, 0.45), transparent 70%); }
+.zs-nbg__c { width: 50vmax; height: 50vmax; left: 30%; top: 20%; background: radial-gradient(closest-side, rgba(139, 92, 246, 0.28), transparent 70%); }
+.zs-ch3 .zs-kicker { color: #7c3aed; }
+.zs-ch3 .zs-h2 { color: #1c1240; }
+.zs-ch3 .zs-ftitle p { color: #4a3d78; }
+.zs-ch3 .zs-plane2 { background: #0c0c12; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 60px 120px -30px rgba(76, 29, 149, 0.55); }
+.zs-ch3 .zs-plane2--ed { background: #16161f; box-shadow: none; border-radius: 16px 0 0 16px; }
+.zs-scan { position: absolute; left: 20px; width: 780px; height: 3px; top: 0; border-radius: 2px; opacity: 0; pointer-events: none; z-index: 5;
+    background: linear-gradient(90deg, transparent, #c084fc, #fff, #c084fc, transparent); box-shadow: 0 0 24px 6px rgba(192, 132, 252, 0.7); }
+.zs-ch3 .zs-dim { background: #0f172a; opacity: 1; clip-path: circle(0% at 50% 50%); }
+html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-stage { padding: 64px 0; }
+html:not(.zs-live):not(.zs-pending) .zs-nbg, html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-dim { display: none; }
+html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-ftitle { position: relative; top: 0; }
+html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-steps { position: relative; height: auto; bottom: auto; margin-top: 32px; }
+html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-steps li { position: relative; left: 0; right: 0; opacity: 1 !important; margin-bottom: 20px; }
+@media (max-width: 899px) { .zs-ch3 .zs-ftitle p { position: absolute; left: 24px; right: 24px; top: calc(100svh - 190px); margin: 0; } }
+
+@media (min-width: 900px) { .zs-ch1 .zs-ftitle p, .zs-ch3 .zs-ftitle p { max-width: 90ch; } }

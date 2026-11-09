@@ -1,0 +1,36 @@
+/* Encerramento — noite com horizonte; as peças reais do início regressam em órbita, convergem
+   num ponto de luz e abrem o convite final. */
+html.zs-pending .zs-ch6, html.zs-live .zs-ch6 { height: 480vh; }
+@media (max-width: 899px) { html.zs-pending .zs-ch6, html.zs-live .zs-ch6 { height: 430vh; height: 430svh; } }
+.zs-ch6 { background: #0b0818; }
+.zs-ch6 .zs-stage { background: linear-gradient(180deg, #0b0818 0%, #0d0a2a 55%, #1a1048 100%); }
+.zs-cbg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.zs-cbg__a { position: absolute; width: 70vmax; height: 70vmax; left: -26vmax; top: -34vmax; border-radius: 50%; background: radial-gradient(closest-side, rgba(124, 58, 237, 0.28), transparent 70%); }
+.zs-cbg__b { position: absolute; width: 60vmax; height: 60vmax; right: -24vmax; top: 10vmax; border-radius: 50%; background: radial-gradient(closest-side, rgba(59, 130, 246, 0.16), transparent 70%); }
+.zs-horizon { position: absolute; left: -10%; right: -10%; bottom: -26vh; height: 56vh; border-radius: 50% 50% 0 0 / 100% 100% 0 0; transform-origin: 50% 100%;
+    background: radial-gradient(ellipse 60% 100% at 50% 100%, rgba(236, 72, 153, 0.55), rgba(124, 58, 237, 0.5) 40%, transparent 72%); box-shadow: 0 -2px 60px 2px rgba(196, 181, 253, 0.35); }
+.zs-ch6 .zs-world { position: absolute; inset: 0; perspective: 1700px; }
+.zs-orbit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+.zs-ch6 .zs-frag__in { animation: none; box-shadow: 0 30px 70px -24px rgba(124, 58, 237, 0.7), 0 0 0 1px rgba(196, 181, 253, 0.16); }
+.zs-halo { position: absolute; z-index: 3; left: 50%; top: 50%; width: min(84vmin, 860px); aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%) scale(0); opacity: 0; pointer-events: none;
+    background: conic-gradient(from 200deg, #f59e0b, #ec4899, #8b5cf6, #3b82f6, #f59e0b);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    filter: drop-shadow(0 0 26px rgba(168, 85, 247, 0.75)); }
+.zs-orb { position: absolute; z-index: 3; left: 50%; top: 50%; width: 34vmin; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%) scale(0); opacity: 0; pointer-events: none;
+    background: radial-gradient(circle, #fff 0%, #e6dcff 25%, rgba(168, 85, 247, 0.55) 55%, transparent 72%); }
+.zs-ch6 .zs-flash { z-index: 4; }
+.zs-close { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: calc(var(--header-height) + 20px) 24px 48px; }
+.zs-close .zs-kicker { color: #c4b5fd; }
+.zs-close__title { margin: 0 0 20px; max-width: 15ch; font: 600 clamp(2.5rem, 5.6vw, 5.8rem)/1.02 var(--zs-serif); letter-spacing: -0.03em; color: #fff; text-wrap: balance; text-shadow: 0 4px 60px rgba(10, 6, 30, 0.8); }
+.zs-close__lead { margin: 0 0 30px; max-width: 48ch; font-size: clamp(1rem, 1.3vw, 1.2rem); line-height: 1.6; color: #d4cdf0; }
+.zs-close .zs-actions { animation: none; }
+.zs-contacts { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 36px 0 0; padding: 0; list-style: none; }
+.zs-contacts a, .zs-contacts__plain { display: inline-flex; align-items: center; gap: 10px; padding: 11px 18px; border-radius: 99px; font-weight: 600; font-size: 0.95rem; color: #e9e2ff; text-decoration: none; border: 1px solid rgba(196, 181, 253, 0.3); background: rgba(255, 255, 255, 0.05); transition: background 0.25s, border-color 0.25s, transform 0.25s; }
+.zs-contacts a:hover, .zs-contacts a:focus-visible { background: rgba(168, 85, 247, 0.28); border-color: rgba(216, 200, 255, 0.8); transform: translateY(-2px); outline: none; }
+.zs-contacts__plain { border-style: dashed; opacity: 0.85; }
+@media (max-width: 899px) { .zs-close__title { font-size: clamp(2.2rem, 10vw, 3.4rem); } .zs-halo { width: 128vw; top: 48%; } .zs-orb { width: 60vw; } .zs-orbit { top: 40%; } }
+/* versão estática */
+html:not(.zs-live):not(.zs-pending) .zs-ch6 .zs-stage { padding: 80px 0 60px; }
+html:not(.zs-live):not(.zs-pending) .zs-close { position: relative; }
+html:not(.zs-live):not(.zs-pending) .zs-halo, html:not(.zs-live):not(.zs-pending) .zs-orb, html:not(.zs-live):not(.zs-pending) .zs-ch6 .zs-world { display: none; }
+@media (prefers-reduced-motion: reduce) { .zs-ch6 .zs-rv { opacity: 1 !important; transform: none !important; } }

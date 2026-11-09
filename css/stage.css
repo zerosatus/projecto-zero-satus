@@ -1,0 +1,123 @@
+/* ==========================================================
+   Motor de palco — base comum a todos os capítulos
+   Cada capítulo = uma "pista" alta (.zs-chapter) com um palco
+   fixo (.zs-stage, position:sticky) lá dentro. O scroll nativo
+   percorre a pista; o GSAP só liga o progresso às animações.
+   Estados no <html>:
+     .zs-pending  JS a carregar (peças escondidas, sem salto)
+     .zs-live     motor ativo
+     (nenhum)     versão estática: sem JS, reduced-motion ou falha
+   ========================================================== */
+.zs-chapter { position: relative; }
+
+html.zs-pending .zs-chapter,
+html.zs-live .zs-chapter { height: 520vh; }
+html.zs-pending .zs-stage,
+html.zs-live .zs-stage {
+    position: sticky; top: 0;
+    height: 100vh; height: 100svh;
+    overflow: hidden;
+    perspective: 1400px; perspective-origin: 50% 45%;
+}
+@media (max-width: 899px) {
+    html.zs-pending .zs-chapter,
+    html.zs-live .zs-chapter { height: 470vh; height: 470svh; }
+}
+
+.zs-parallax, .zs-world { position: absolute; inset: 0; transform-style: preserve-3d; }
+.zs-world { pointer-events: none; }
+
+/* peça = fragmento recortado do produto real */
+.zs-frag {
+    position: absolute; left: 50%; top: 50%;
+    visibility: hidden;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+}
+html.zs-live .zs-frag { visibility: visible; }
+.zs-frag__in {
+    position: relative;
+    border-radius: var(--r, 16px);
+    box-shadow: 0 34px 80px -28px rgba(124, 58, 237, 0.65), 0 0 0 1px rgba(196, 181, 253, 0.12);
+    animation: zs-float var(--fd, 7s) ease-in-out infinite alternate;
+    animation-delay: var(--fl, 0s);
+}
+.zs-frag--bare .zs-frag__in { box-shadow: none; border-radius: 0; }
+.zs-frag img { display: block; width: 100%; height: auto; border-radius: inherit; }
+.zs-frag__gleam { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.zs-frag__gleam b {
+    position: absolute; inset: 0; opacity: 0;
+    background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.42) 50%, transparent 62%);
+}
+.zs-stage.is-moving .zs-frag__in { animation: none; }
+@keyframes zs-float {
+    from { transform: translateY(-7px) rotate(-0.35deg); }
+    to   { transform: translateY(7px)  rotate(0.35deg); }
+}
+
+/* versão estática: sem palco, sem peças */
+html:not(.zs-live):not(.zs-pending) .zs-world,
+html:not(.zs-live):not(.zs-pending) .zs-cue { display: none; }
+html.zs-live .zs-static, html.zs-pending .zs-static { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    .zs-frag__in { animation: none; }
+}
+
+/* ==========================================================
+   Câmara de composição (usada pelos capítulos com interface montada)
+   .zs-view  = janela da câmara · .zs-rig = câmara (zoom/pan)
+   .zs-comp  = composição em píxeis do ecrã real (left/top/width inline)
+   ========================================================== */
+.zs-view { position: absolute; left: 0; right: 0; top: 215px; bottom: 150px; perspective: 1500px; perspective-origin: 50% 50%; pointer-events: none; clip-path: inset(-24px -30vw -16px -30vw); }
+@media (max-width: 899px) { .zs-view { top: 165px; bottom: 190px; overflow: hidden; } }
+.zs-rig { position: absolute; left: 50%; top: 50%; width: var(--cw); height: var(--ch); margin: calc(var(--ch) / -2) 0 0 calc(var(--cw) / -2); transform-style: preserve-3d; will-change: transform; }
+.zs-comp { position: absolute; inset: 0; transform-style: preserve-3d; }
+.zs-comp .zs-frag { left: auto; top: auto; }
+.zs-comp .zs-frag__in { animation: none; box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(196, 181, 253, 0.1), 0 0 0 rgba(168, 85, 247, 0); }
+.zs-plane2 { position: absolute; border-radius: 22px; background: #0b0b11; box-shadow: 0 0 0 1px rgba(196, 181, 253, 0.2), 0 50px 140px -30px rgba(124, 58, 237, 0.6); transform: translateZ(-3px); }
+.zs-ping { position: absolute; border-radius: 9px; border: 2px solid var(--c, #fff); box-shadow: 0 0 18px var(--c, #fff); opacity: 0; transform: translateZ(2px); animation: zs-ping 1.5s ease-in-out infinite; }
+@keyframes zs-ping { 0%, 100% { box-shadow: 0 0 6px var(--c); } 50% { box-shadow: 0 0 22px var(--c); } }
+html:not(.zs-live):not(.zs-pending) .zs-view { display: none; }
+.zs-static img + img { margin-top: 20px; }
+@media (prefers-reduced-motion: reduce) { .zs-ping { animation: none; } }
+
+/* ---- interfaces grandes: a janela da câmara ocupa quase todo o palco ---- */
+.zs-view { top: 70px; bottom: 0; z-index: 1; }
+@media (max-width: 899px) { .zs-view { top: 70px; bottom: 172px; } }
+.zs-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+html:not(.zs-live):not(.zs-pending) .zs-fx, html:not(.zs-live):not(.zs-pending) .zs-deco { display: none; }
+
+/* elementos decorativos 3D (complementam a interface real, não são funcionalidades) */
+.zs-deco { position: absolute; inset: 0; pointer-events: none; perspective: 1100px; overflow: hidden; }
+.zs-shard { position: absolute; border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02));
+    box-shadow: 0 0 60px -10px var(--c, #8b5cf6), inset 0 0 30px rgba(255, 255, 255, 0.08); will-change: transform; }
+.zs-sticky { position: absolute; left: 0; top: 0; width: 66px; height: 66px; border-radius: 10px; will-change: transform; transform-style: preserve-3d;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--c) 82%, white), var(--c)); box-shadow: 0 16px 34px -8px var(--c), 0 0 0 1px rgba(255, 255, 255, 0.35) inset; }
+.zs-sticky::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; border-radius: 10px 0 8px 0; background: rgba(255, 255, 255, 0.45); box-shadow: -2px -2px 6px rgba(0, 0, 0, 0.18); }
+.zs-sticky::before { content: ''; position: absolute; left: 12px; right: 22px; top: 16px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.7); box-shadow: 0 12px 0 rgba(255, 255, 255, 0.55), 0 24px 0 rgba(255, 255, 255, 0.4); }
+
+/* legendas em vidro sobre a interface (o ecrã real fica protagonista) — o vidro está em cada legenda,
+   por isso nunca aparece uma caixa vazia entre passos */
+.zs-ch1 .zs-steps, .zs-ch3 .zs-steps { left: 3.5vw; right: auto; bottom: 5vh; width: min(410px, 36vw); height: 160px; padding: 0; z-index: 4; }
+.zs-ch1 .zs-steps li, .zs-ch3 .zs-steps li {
+    left: 0; right: 0; top: 0; padding: 18px 22px 20px; text-align: left;
+    background: linear-gradient(160deg, rgba(26, 16, 62, 0.92), rgba(10, 6, 28, 0.9));
+    border: 1px solid rgba(196, 181, 253, 0.3); border-radius: 20px; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+}
+.zs-ch1 .zs-steps h3, .zs-ch3 .zs-steps h3 { color: #fff; }
+.zs-ch1 .zs-steps p, .zs-ch3 .zs-steps p { color: #d7d0f0; margin: 8px 0 0; max-width: none; }
+.zs-ch3 .zs-steps__n { background: #c4b5fd; color: #1a0b3b; }
+@media (max-width: 899px) {
+    .zs-ch1 .zs-steps, .zs-ch3 .zs-steps { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: auto; height: 150px; }
+    .zs-ch1 .zs-steps li, .zs-ch3 .zs-steps li { padding: 15px 18px 16px; }
+}
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-steps, html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-steps { opacity: 1; width: auto; left: auto; padding: 0 24px; height: auto; }
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-steps li, html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-steps li { background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 0; }
+html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-steps h3 { color: #1c1240; }
+html:not(.zs-live):not(.zs-pending) .zs-ch3 .zs-steps p { color: #4a3d78; }
+
+.zs-frag img.zs-hl { position: absolute; display: block; max-width: none; clip-path: inset(0 100% 0 0); }
+
+.zs-deco--front { z-index: 3; }

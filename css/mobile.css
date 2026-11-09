@@ -1,0 +1,169 @@
+/* ==========================================================================
+   Zero Satus — experiência MOBILE (concebida de raiz para o ecrã vertical)
+   Só é carregada em ecrãs ≤ 899px (media no <link>). O desktop não vê nada disto.
+
+   Ideia: no desktop a câmara passeia por janelas do Dashboard; no telemóvel o
+   próprio telemóvel é o palco — ecrãs reais da app Android dentro de um aparelho
+   que se inclina, aproxima e "navega" ao ritmo do scroll.
+   Cada capítulo tem o seu ambiente de cor, o seu numeral gigante e a sua coreografia.
+   ========================================================================== */
+
+/* as cenas desktop ficam fora de jogo; cada capítulo mobile tem a sua própria marcação (.zm) */
+.zs-chapter > .zs-stage > :not(.zm) { display: none !important; }
+.zs-chapter .zs-stage { background: #07060d; }
+
+/* alturas das pistas de scroll (1 palco = 1 ecrã) */
+html.zs-pending .zs-ch0, html.zs-live .zs-ch0 { height: 560vh !important; height: 560svh !important; }
+html.zs-pending .zs-ch1, html.zs-live .zs-ch1 { height: 660vh !important; height: 660svh !important; }
+html.zs-pending .zs-ch2, html.zs-live .zs-ch2 { height: 740vh !important; height: 740svh !important; }
+html.zs-pending .zs-ch3, html.zs-live .zs-ch3 { height: 580vh !important; height: 580svh !important; }
+html.zs-pending .zs-ch4, html.zs-live .zs-ch4 { height: 800vh !important; height: 800svh !important; }
+html.zs-pending .zs-ch5, html.zs-live .zs-ch5 { height: 450vh !important; height: 450svh !important; }
+html.zs-pending .zs-ch6, html.zs-live .zs-ch6 { height: 300vh !important; height: 300svh !important; }
+
+/* ---------- base de uma cena ---------- */
+.zm { display: block; position: absolute; inset: 0; overflow: hidden; color: #f5f3ff; font-family: var(--zs-font);
+    --bg: #0b0818; --a: #8b5cf6; --b: #c4b5fd; --ga: rgba(139, 92, 246, 0.42); --gb: rgba(56, 189, 248, 0.2); --ps: 36svh;
+    --pw: min(74vw, 38svh); background: var(--bg); }
+.zm-bg { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(80% 46% at 88% 8%, var(--ga), transparent 72%), radial-gradient(90% 52% at 6% 100%, var(--gb), transparent 74%); }
+.zm-num { position: absolute; right: -3vw; top: 52px; font: 800 52vw/0.82 var(--zs-font); letter-spacing: -0.07em; color: transparent;
+    -webkit-text-stroke: 1.4px rgba(255, 255, 255, 0.085); pointer-events: none; user-select: none; }
+.zm-wrap { position: absolute; inset: 0; }
+.zm-iris { position: absolute; inset: 0; z-index: 30; background: var(--next, transparent); pointer-events: none; clip-path: circle(0% at 50% 100%); }
+.zm-wrap::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 44svh; z-index: 4; pointer-events: none; background: linear-gradient(var(--bg) 54%, transparent); }
+.zm--blog .zm-wrap::before, .zm--contact .zm-wrap::before { display: none; }
+
+/* ---------- tipografia expressiva ---------- */
+.zm-copy { position: absolute; left: 22px; right: 22px; top: 88px; z-index: 5; }
+.zm-kick { display: inline-block; font: 700 11px/1 var(--zs-font); letter-spacing: 0.2em; text-transform: uppercase; color: var(--b);
+    padding: 7px 12px; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 99px; background: rgba(255, 255, 255, 0.05); }
+.zm-h { margin: 14px 0 0; font: 800 clamp(30px, 9.6vw, 46px)/1.02 var(--zs-font); letter-spacing: -0.04em; color: #fff; }
+.zm-h em { font-family: var(--zs-serif); font-style: italic; font-weight: 600; letter-spacing: -0.02em; color: var(--b); }
+.zm-line { display: block; overflow: hidden; padding-bottom: 0.08em; }
+.zm-line > span { display: block; }
+.zm-lead { margin: 14px 0 0; font: 400 15px/1.5 var(--zs-font); color: rgba(245, 243, 255, 0.76); max-width: 34ch; }
+
+/* legendas de passo: ocupam o lugar do título quando este sai */
+.zm-steps { position: absolute; left: 22px; right: 22px; top: 92px; height: 168px; margin: 0; padding: 0; list-style: none; z-index: 6; pointer-events: none; }
+.zm-steps li { position: absolute; left: 0; right: 0; top: 0; opacity: 0; }
+.zm-steps b { display: block; font: 700 12px/1 var(--zs-font); letter-spacing: 0.22em; color: var(--b); }
+.zm-steps b::after { content: ''; display: inline-block; width: 34px; height: 2px; margin-left: 10px; vertical-align: middle; background: linear-gradient(90deg, var(--b), transparent); }
+.zm-steps h3 { margin: 10px 0 0; font: 800 clamp(26px, 8vw, 36px)/1.04 var(--zs-font); letter-spacing: -0.035em; color: #fff; }
+.zm-steps p { margin: 10px 0 0; font: 400 15px/1.45 var(--zs-font); color: rgba(245, 243, 255, 0.78); max-width: 32ch; }
+
+/* botões */
+.zm-cta { display: flex; gap: 10px; margin-top: 22px; }
+.zm-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 15px 12px; border-radius: 16px; text-decoration: none; font: 700 15px/1 var(--zs-font); }
+.zm-btn--p { color: #fff; background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 14px 30px -12px rgba(124, 58, 237, 0.9); }
+.zm-btn--g { color: #ece6ff; border: 1px solid rgba(196, 181, 253, 0.35); background: rgba(255, 255, 255, 0.05); }
+
+/* ---------- o telemóvel ---------- */
+.zm-scene { position: absolute; inset: 0; perspective: 1100px; perspective-origin: 50% 55%; }
+.zm-phone { z-index: 3; position: absolute; left: 50%; top: var(--ps); width: var(--pw); margin-left: calc(var(--pw) / -2); aspect-ratio: 1080 / 2027; transform-style: preserve-3d; will-change: transform; }
+.zm-phone__b { position: absolute; inset: 0; border-radius: 12% / 6.4%; background: linear-gradient(160deg, #2c2745, #0d0b16 42%, #1b1832);
+    box-shadow: 0 44px 90px -30px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(196, 181, 253, 0.24) inset, 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.zm-phone__b::after { content: ''; position: absolute; left: 50%; top: 1.5%; width: 3.4%; aspect-ratio: 1; margin-left: -1.7%; border-radius: 50%; background: #05040a; }
+.zm-screen { position: absolute; left: 3%; right: 3%; top: 3%; bottom: 3%; border-radius: 9% / 4.8%; overflow: hidden; background: #0f1117; transform: translateZ(1px); }
+.zm-screen img { position: absolute; left: 0; top: 0; width: 100%; height: auto; display: block; max-width: none; }
+.zm-screen img.is-fill { height: 100%; object-fit: cover; object-position: top; }
+.zm-screen::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255, 255, 255, 0.1), transparent 28%); }
+.zm-ping { position: absolute; border: 2px solid var(--p, #34d399); border-radius: 12px; box-shadow: 0 0 16px var(--p, #34d399); opacity: 0; z-index: 3; }
+
+/* cartões reais que flutuam à volta */
+.zm-fl { z-index: 2; position: absolute; left: 50%; top: 0; width: var(--w); margin-left: calc(var(--w) / -2); border-radius: var(--r, 14px); overflow: hidden; will-change: transform;
+    box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(196, 181, 253, 0.16); }
+.zm-fl img { display: block; width: 100%; height: auto; }
+
+/* ---------- montagens: ecrãs reais desfeitos em peças que se reorganizam ---------- */
+.zm-asm { position: absolute; left: 50%; top: var(--at, 32svh); width: var(--aw); margin-left: calc(var(--aw) / -2); height: calc(var(--aw) * var(--hh)); transform-style: preserve-3d; }
+.zm-pc { position: absolute; transform-style: preserve-3d; will-change: transform, opacity; }
+.zm-pc > img:first-child { display: block; width: 100%; height: auto; }
+.zm-asm .zm-ping { z-index: 4; border-radius: 14px; }
+.zm-pfill { position: absolute; display: block; max-width: none; clip-path: inset(0 100% 0 0); }
+.zm-iris__t { position: absolute; left: 0; right: 0; top: 50%; margin-top: -22vw; text-align: center; color: #fff; pointer-events: none; }
+.zm-iris__t b { display: block; font: 800 44vw/0.85 var(--zs-font); letter-spacing: -0.07em; color: transparent; -webkit-text-stroke: 1.6px rgba(255, 255, 255, 0.5); }
+.zm-iris__t i { display: block; margin-top: 8px; font: 600 italic 8.4vw/1 var(--zs-serif); color: #fff; }
+.zm-ring-mask img { -webkit-mask-image: conic-gradient(#000 var(--sw, 100%), transparent calc(var(--sw, 100%) + 0.2%)); mask-image: conic-gradient(#000 var(--sw, 100%), transparent calc(var(--sw, 100%) + 0.2%)); }
+
+/* ---------- ambientes (cor própria por capítulo) ---------- */
+.zm--home    { --bg: #0b0818; --a: #8b5cf6; --b: #c4b5fd; --ga: rgba(139, 92, 246, 0.46); --gb: rgba(236, 72, 153, 0.18); }
+.zm--org     { --bg: #06101f; --a: #38bdf8; --b: #7dd3fc; --ga: rgba(56, 189, 248, 0.34); --gb: rgba(99, 102, 241, 0.28); }
+.zm--foco    { --bg: #12051f; --a: #d946ef; --b: #f0abfc; --ga: rgba(217, 70, 239, 0.4); --gb: rgba(99, 102, 241, 0.3); }
+.zm--notas   { --bg: #14100a; --a: #f59e0b; --b: #fcd34d; --ga: rgba(245, 158, 11, 0.3); --gb: rgba(180, 83, 9, 0.28); }
+.zm--prog    { --bg: #04191a; --a: #10b981; --b: #6ee7b7; --ga: rgba(16, 185, 129, 0.34); --gb: rgba(14, 116, 144, 0.34); }
+.zm--blog    { --bg: #f3eee4; --a: #7c3aed; --b: #6d28d9; color: #1c1240; --ga: rgba(124, 58, 237, 0.12); --gb: rgba(245, 158, 11, 0.14); }
+.zm--contact { --bg: #0a0716; --a: #8b5cf6; --b: #c4b5fd; --ga: rgba(139, 92, 246, 0.4); --gb: rgba(56, 189, 248, 0.18); }
+.zm--depo    { --bg: #0e0c18; --a: #8b5cf6; --b: #c4b5fd; --ga: rgba(139, 92, 246, 0.3); --gb: rgba(236, 72, 153, 0.14); }
+
+/* ---------- Contacto ---------- */
+.zm--contact .zm-copy--c { top: 88px; }
+.zm--contact .zm-phone--fan { --pw: min(50vw, 24svh); top: 53svh; }
+.zm-dock { position: absolute; left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 8; padding: 16px 16px 14px; border-radius: 26px;
+    background: linear-gradient(160deg, rgba(30, 22, 62, 0.92), rgba(10, 7, 22, 0.94)); border: 1px solid rgba(196, 181, 253, 0.28); box-shadow: 0 -20px 60px -20px rgba(0, 0, 0, 0.7); }
+.zm-dock .zm-cta { margin-top: 0; }
+.zm-contacts { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 14px 2px 0; padding: 0; list-style: none; }
+.zm-contacts a, .zm-contacts li > span { display: inline-flex; align-items: center; gap: 8px; font: 600 13px/1.2 var(--zs-font); color: #d8ccff; text-decoration: none; }
+.zm-contacts i { color: var(--b); }
+
+/* ---------- Blog: páginas que se sobrepõem, como uma revista ---------- */
+.zm--blog .zm-num { display: none; }
+.zm-bar { position: absolute; left: 22px; right: 22px; top: 84px; z-index: 6; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.zm-bar h2 { margin: 0; font: 600 26px/1 var(--zs-serif); letter-spacing: -0.01em; color: #1c1240; }
+.zm-bar p { margin: 6px 0 0; font: 400 12.5px/1.35 var(--zs-font); color: #5b4f86; max-width: 26ch; }
+.zm-count { font: 600 14px/1 var(--zs-font); color: #5b4f86; white-space: nowrap; }
+.zm-count b { font: 600 26px/1 var(--zs-serif); color: #1c1240; }
+.zm-posts { position: absolute; inset: 0; }
+.zm-post { position: absolute; inset: 0; padding: 150px 20px 24px; display: flex; flex-direction: column; overflow: hidden; border-radius: 28px 28px 0 0; box-shadow: 0 -20px 50px -20px rgba(28, 18, 64, 0.35); }
+.zm-post--1 { background: #f3eee4; }
+.zm-post--2 { background: #e7defa; }
+.zm-post--3 { background: #d9f1e8; }
+.zm-post__n { position: absolute; right: 12px; top: 112px; z-index: 3; font: 600 30vw/0.8 var(--zs-serif); color: rgba(28, 18, 64, 0.1); pointer-events: none; }
+.zm-cover { position: relative; flex: 0 0 auto; height: 37svh; border-radius: 22px; overflow: hidden; background: linear-gradient(160deg, rgba(28, 18, 64, 0.92), rgba(60, 38, 120, 0.9)); box-shadow: 0 24px 40px -22px rgba(28, 18, 64, 0.6); }
+.zm-cv { position: absolute; height: auto; transform: rotate(var(--r, 0deg)); border-radius: 16px; box-shadow: 0 18px 30px -14px rgba(0, 0, 0, 0.7); will-change: transform; }
+.zm-post__t { position: relative; z-index: 2; margin-top: 18px; }
+.zm-post .zm-kick { color: #5b21b6; border-color: rgba(28, 18, 64, 0.18); background: rgba(255, 255, 255, 0.5); }
+.zm-post h3 { margin: 12px 0 0; font: 600 clamp(25px, 7.6vw, 34px)/1.08 var(--zs-serif); letter-spacing: -0.015em; color: #1c1240; }
+.zm-post p { margin: 10px 0 0; font: 400 14.5px/1.5 var(--zs-font); color: #4a3d78; max-width: 36ch; }
+.zm-post__a { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 12px 18px; border-radius: 99px; background: #1c1240; color: #fff; text-decoration: none; font: 700 14px/1 var(--zs-font); }
+.zm-all { position: absolute; left: 24px; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); z-index: 8; color: #1c1240; font: 700 14px/1 var(--zs-font); text-decoration: none; padding: 12px 16px; border-radius: 99px; background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(28, 18, 64, 0.18); }
+
+/* ---------- Depoimentos: uma citação de cada vez ---------- */
+html.zm-depo-on #testimonials { padding: 0; height: var(--dh, 520svh); background: #0e0c18; overflow: visible; position: relative; }
+html.zm-depo-on #testimonials > :not(.zm-depo) { display: none !important; }
+.zm-depo { position: sticky; top: 0; height: 100svh; overflow: hidden; }
+.zm-depo .zm-copy { top: 88px; }
+.zm-q { position: absolute; left: 24px; right: 24px; top: 28svh; opacity: 0; }
+.zm-q__mark { display: block; font: 600 34vw/0.6 var(--zs-serif); color: rgba(196, 181, 253, 0.2); margin-bottom: 4px; }
+.zm-q blockquote { margin: 0; font: italic 400 clamp(23px, 7vw, 30px)/1.28 var(--zs-serif); color: #fff; letter-spacing: -0.01em; }
+.zm-w { display: inline-block; will-change: opacity, transform; }
+.zm-q footer { margin-top: 22px; display: flex; flex-direction: column; gap: 4px; }
+.zm-q footer b { font: 700 16px/1 var(--zs-font); color: #fff; }
+.zm-q footer span { font: 500 13px/1.3 var(--zs-font); color: var(--b); }
+.zm-dots { position: absolute; left: 24px; right: 24px; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 6px; }
+.zm-dots i { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.zm-dots i b { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #a855f7, #7dd3fc); transform: scaleX(0); transform-origin: left; }
+
+/* ---------- versão estática (sem JS / movimento reduzido): leitura simples, em coluna ---------- */
+html:not(.zs-live):not(.zs-pending) .zs-chapter .zs-stage { height: auto; }
+html:not(.zs-live):not(.zs-pending) .zm { position: relative; inset: auto; overflow: visible; padding: 92px 22px 48px; }
+html:not(.zs-live):not(.zs-pending) .zm-wrap { position: relative; inset: auto; }
+html:not(.zs-live):not(.zs-pending) .zm-copy, html:not(.zs-live):not(.zs-pending) .zm-steps, html:not(.zs-live):not(.zs-pending) .zm-bar { position: relative; left: auto; right: auto; top: auto; height: auto; }
+html:not(.zs-live):not(.zs-pending) .zm-steps { margin-top: 28px; }
+html:not(.zs-live):not(.zs-pending) .zm-steps li { position: relative; opacity: 1; margin-bottom: 22px; }
+html:not(.zs-live):not(.zs-pending) .zm-scene { position: relative; inset: auto; height: auto; margin-top: 26px; perspective: none; }
+html:not(.zs-live):not(.zs-pending) .zm-phone { position: relative; top: auto; left: auto; margin: 0 auto; width: min(64vw, 260px); }
+html:not(.zs-live):not(.zs-pending) .zm-asm { position: relative; left: auto; top: auto; margin: 0 auto; }
+html:not(.zs-live):not(.zs-pending) .zm-asm:not(:last-child) { display: none; }
+html:not(.zs-live):not(.zs-pending) .zm-pfill { clip-path: none; }
+html:not(.zs-live):not(.zs-pending) .zm-cover { height: 220px; }
+html:not(.zs-live):not(.zs-pending) .zm-phone--b, html:not(.zs-live):not(.zs-pending) .zm-fl, html:not(.zs-live):not(.zs-pending) .zm-phone--fan:not([data-id="c-m"]) { display: none; }
+html:not(.zs-live):not(.zs-pending) .zm-num, html:not(.zs-live):not(.zs-pending) .zm-iris { display: none; }
+html:not(.zs-live):not(.zs-pending) .zm-dock { position: relative; inset: auto; margin-top: 24px; }
+html:not(.zs-live):not(.zs-pending) .zm-posts { position: relative; inset: auto; }
+html:not(.zs-live):not(.zs-pending) .zm-post { position: relative; inset: auto; padding: 36px 22px 120px; border-radius: 22px; margin-bottom: 16px; }
+html:not(.zs-live):not(.zs-pending) .zm-post__ph { bottom: -8px; }
+html:not(.zs-live):not(.zs-pending) .zm-all { position: relative; left: auto; bottom: auto; display: inline-block; margin-top: 8px; }
+html:not(.zs-live):not(.zs-pending) .zm-line { overflow: visible; }
+
+@media (prefers-reduced-motion: reduce) { .zm * { animation: none !important; } }

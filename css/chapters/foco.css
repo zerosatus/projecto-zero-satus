@@ -1,0 +1,71 @@
+/* ==========================================================
+   Capítulo 2 — Modo Foco: o ambiente transforma-se
+   Entra-se num ecrã quase negro; o temporizador acende-se e
+   a interface real organiza-se à volta. A luz estreita-se
+   (vinheta), ondas partem do anel e o resto recua.
+   ========================================================== */
+html.zs-pending .zs-ch2, html.zs-live .zs-ch2 { height: 640vh; }
+@media (max-width: 899px) { html.zs-pending .zs-ch2, html.zs-live .zs-ch2 { height: 560vh; height: 560svh; } }
+
+.zs-ch2 { background: #05040a; }
+.zs-ch2 .zs-stage { background: #0f172a; }
+.zs-fbg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: #05040a; }
+.zs-fbg__a, .zs-fbg__b { position: absolute; border-radius: 50%; will-change: transform, opacity; }
+.zs-fbg__a { width: 70vmax; height: 70vmax; right: -24vmax; bottom: -34vmax; background: radial-gradient(closest-side, rgba(245, 158, 11, 0.34), transparent 70%); opacity: 0.25; }
+.zs-fbg__b { width: 70vmax; height: 70vmax; left: -28vmax; top: -34vmax; background: radial-gradient(closest-side, rgba(147, 51, 234, 0.38), transparent 70%); opacity: 0.5; }
+.zs-vig { position: absolute; inset: 0; opacity: 0.25; background: radial-gradient(ellipse 58% 52% at 50% 52%, transparent 30%, rgba(2, 1, 6, 0.92) 100%); }
+
+/* título fixo no topo */
+.zs-ftitle { position: absolute; top: calc(var(--header-height) + 14px); left: 0; right: 0; z-index: 3; text-align: center; padding: 0 24px; }
+.zs-kicker { display: inline-block; font: 600 0.78rem var(--zs-font); letter-spacing: 0.18em; text-transform: uppercase; color: #f5b94a; margin-bottom: 8px; }
+.zs-h2 { font-size: clamp(1.55rem, 5.6vw, 2.6rem); line-height: 1.1; font-weight: 700; letter-spacing: -0.025em; color: #fff; margin: 0 0 10px; text-wrap: balance; }
+.zs-ftitle p { max-width: 58ch; margin: 0 auto; color: #b9b4d4; font-size: clamp(0.92rem, 3.4vw, 1.02rem); line-height: 1.55; }
+
+/* ---- temporizador (recriação fiel do ecrã real, vetorial para ficar nítido) ---- */
+.zs-ring { position: absolute; left: 50%; top: 50%; width: 20em; font-size: calc(var(--d, 360px) / 20); text-align: center; color: #fff; will-change: transform, opacity; }
+.zs-ring__pill { display: inline-block; padding: 0.5em 1.5em; border-radius: 99em; font: 700 0.62em var(--zs-font); letter-spacing: 0.14em; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.42); }
+.zs-ring__disc { position: relative; width: 20em; height: 20em; margin: 1em auto 1.3em; --glow: 0.35; --gs: 1; }
+.zs-ring__disc::before { content: ''; position: absolute; inset: -34%; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.4), rgba(168, 85, 247, 0.28) 45%, transparent 70%);
+    opacity: var(--glow); transform: scale(var(--gs)); }
+.zs-ring__core { position: absolute; inset: 4.5%; border-radius: 50%; background: radial-gradient(circle at 50% 38%, #1a1630, #0b0a13 72%); box-shadow: inset 0 0 3em rgba(124, 58, 237, 0.18), 0 0 5em rgba(168, 85, 247, 0.22); }
+.zs-ring__disc svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.zs-ring__arc { fill: none; stroke: url(#zsFocusGrad); stroke-width: 8.5; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.zs-ring__in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5em; }
+.zs-ring__sub { font-size: 0.78em; color: #a8a3bf; }
+.zs-ring__in b { font-size: 4.1em; line-height: 1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.zs-ring__rest { font-size: 0.7em; letter-spacing: 0.2em; color: #8b8aa3; }
+.zs-ring__ctrl { display: flex; justify-content: center; align-items: center; gap: 1.5em; font-size: 1em; }
+.zs-ring__ctrl > * { display: grid; place-items: center; border-radius: 50%; background: #14121e; border: 1px solid rgba(255, 255, 255, 0.08); color: #d6d3e8; }
+.zs-ring__ctrl i, .zs-ring__ctrl span { font-size: 0.9em; }
+.zs-ring__ctrl .r { width: 2.8em; height: 2.8em; }
+.zs-ring__ctrl .p { width: 4em; height: 4em; font-size: 1.1em; border: 0; color: #fff; background: linear-gradient(135deg, #a855f7, #c026d3); box-shadow: 0 0.6em 2em rgba(168, 85, 247, 0.55); }
+.zs-ring__ctrl .m { width: 2.8em; height: 2.8em; font-weight: 600; }
+.zs-ripple { position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 2px solid rgba(245, 170, 60, 0.55); box-shadow: 0 0 40px rgba(245, 158, 11, 0.25); opacity: 0; will-change: transform, opacity; }
+
+/* destaque âmbar nas peças em foco */
+.zs-ch2 .zs-frag__in { box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(196, 181, 253, 0.1), 0 0 0 rgba(245, 158, 11, 0); }
+
+/* ---- passos ---- */
+.zs-steps { position: absolute; left: 0; right: 0; bottom: calc(4vh + env(safe-area-inset-bottom, 0px)); height: 96px; z-index: 3; margin: 0; padding: 0 24px; list-style: none; }
+.zs-steps li { position: absolute; left: 24px; right: 24px; top: 0; text-align: center; opacity: 0; }
+.zs-steps__n { display: inline-grid; place-items: center; width: 1.7em; height: 1.7em; margin-right: 0.55em; border-radius: 50%; font: 700 0.8rem var(--zs-font); color: #1a1004; background: #f5b94a; vertical-align: 0.1em; }
+.zs-steps h3 { display: inline; font-size: clamp(1.1rem, 4vw, 1.4rem); font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.zs-steps p { margin: 6px auto 0; max-width: 56ch; color: #c9c4e2; font-size: clamp(0.9rem, 3.4vw, 1rem); line-height: 1.5; }
+
+@media (max-width: 899px) {
+    .zs-ftitle p { position: absolute; left: 24px; right: 24px; top: calc(100svh - 190px); margin: 0; }
+}
+
+/* versão estática */
+html:not(.zs-live):not(.zs-pending) .zs-ch2 { background: #0b0818; }
+html:not(.zs-live):not(.zs-pending) .zs-fbg, html:not(.zs-live):not(.zs-pending) .zs-world { display: none; }
+html:not(.zs-live):not(.zs-pending) .zs-ch2 .zs-stage { padding: 64px 0; background: #0b0818; }
+html:not(.zs-live):not(.zs-pending) .zs-ftitle { position: relative; top: 0; }
+html:not(.zs-live):not(.zs-pending) .zs-ftitle p { position: static; }
+html:not(.zs-live):not(.zs-pending) .zs-steps { position: relative; height: auto; bottom: auto; margin-top: 32px; }
+html:not(.zs-live):not(.zs-pending) .zs-steps li { position: relative; left: 0; right: 0; opacity: 1 !important; margin-bottom: 20px; }
+
+/* saída do Foco: flash de luz que "acende" o ambiente claro das Anotações */
+.zs-lightup { position: absolute; inset: 0; z-index: 5; opacity: 1; clip-path: circle(0% at 50% 50%); pointer-events: none; background: radial-gradient(circle at 50% 50%, #ffffff 0%, #ece3ff 38%, #dccfff 100%); }
+html:not(.zs-live):not(.zs-pending) .zs-lightup { display: none; }

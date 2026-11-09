@@ -1,0 +1,24 @@
+/* Capítulo 1 — Organização: ambiente violeta (tarefas) que vira azul (calendário) */
+html.zs-pending .zs-ch1, html.zs-live .zs-ch1 { height: 900vh; }
+@media (max-width: 899px) { html.zs-pending .zs-ch1, html.zs-live .zs-ch1 { height: 780vh; height: 780svh; } }
+.zs-ch1 { background: #05040a; }
+.zs-ch1 .zs-stage { background: #05040a; }
+.zs-obg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.zs-obg > i { position: absolute; inset: 0; }
+.zs-obg__v { background: radial-gradient(60% 50% at 25% 20%, rgba(217, 70, 239, 0.38), transparent 70%), radial-gradient(55% 55% at 85% 85%, rgba(124, 58, 237, 0.5), transparent 70%), linear-gradient(180deg, #1c0d42, #0c0722); }
+.zs-obg__b { opacity: 0; background: radial-gradient(60% 50% at 80% 15%, rgba(34, 211, 238, 0.34), transparent 70%), radial-gradient(55% 55% at 15% 85%, rgba(59, 130, 246, 0.5), transparent 70%), linear-gradient(180deg, #0a1a45, #070d26); }
+.zs-obg__a { background: radial-gradient(40% 40% at 50% 55%, rgba(196, 181, 253, 0.26), transparent 70%); }
+.zs-obg__g { background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000, transparent 80%); mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000, transparent 80%); }
+.zs-sweep { opacity: 0; background: linear-gradient(100deg, transparent 35%, rgba(235, 228, 255, 0.55) 50%, transparent 65%); mix-blend-mode: screen; }
+.zs-dim--in { opacity: 1; }
+.zs-ch1 .zs-kicker { color: #c4b5fd; }
+.zs-ch1 .zs-steps__n { background: #c4b5fd; color: #1a0b3b; }
+.zs-ch1 .zs-ftitle p { color: #cfc8ea; }
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-stage { padding: 64px 0; background: #0c0722; }
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-obg, html:not(.zs-live):not(.zs-pending) .zs-dim { display: none; }
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-ftitle { position: relative; top: 0; }
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-steps { position: relative; height: auto; bottom: auto; margin-top: 32px; }
+html:not(.zs-live):not(.zs-pending) .zs-ch1 .zs-steps li { position: relative; left: 0; right: 0; opacity: 1 !important; margin-bottom: 20px; }
+
+@media (min-width: 900px) { .zs-ch1 .zs-ftitle p, .zs-ch3 .zs-ftitle p { max-width: 90ch; } }

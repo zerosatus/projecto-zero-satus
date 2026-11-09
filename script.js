@@ -1,103 +1,101 @@
+// ============================================================
+// Zero Satus — script principal da landing page
+// Correção: o ficheiro anterior assumia #mobileMenuBtn / #mobileNav
+// sem verificar; como o HTML não os tinha, o script falhava a meio
+// e o resto (animações, resize, fallback da logo) nunca corria.
+// Agora tudo é protegido contra elementos em falta.
+// ============================================================
+
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const mobileNav = document.getElementById('mobileNav');
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function setMobileMenu(open) {
+    if (!mobileNav || !mobileMenuBtn) return;
+    mobileNav.classList.toggle('active', open);
+    mobileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    mobileMenuBtn.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+    const icon = mobileMenuBtn.querySelector('i');
+    if (icon) {
+        icon.classList.toggle('fa-times', open);
+        icon.classList.toggle('fa-bars', !open);
+    }
+}
+
 // Smooth scroll para links internos
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
+        const href = this.getAttribute('href');
+        if (!href || href === '#') return; // links "#" do rodapé: sem comportamento
+        const target = document.querySelector(href);
         if (target) {
-            target.scrollIntoView({ behavior: 'smooth' });
-            // Fechar menu mobile se estiver aberto
-            if (mobileNav.classList.contains('active')) {
-                mobileNav.classList.remove('active');
-                const icon = mobileMenuBtn.querySelector('i');
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
-            }
+            e.preventDefault();
+            target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+            setMobileMenu(false);
         }
     });
 });
 
-// Header scroll effect
-window.addEventListener('scroll', () => {
+// Header: transparente sobre o hero, vidro depois de sair da primeira vista
+(function () {
     const header = document.querySelector('header');
-    if (window.scrollY > 100) {
-        header.style.background = 'rgba(15, 23, 42, 0.98)';
-    } else {
-        header.style.background = 'rgba(15, 23, 42, 0.95)';
-    }
-});
+    if (!header) return;
+    const apply = () => header.classList.toggle('is-scrolled', window.scrollY > 40);
+    window.addEventListener('scroll', apply, { passive: true });
+    apply();
+})();
 
-// Mobile menu toggle
-const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-const mobileNav = document.getElementById('mobileNav');
-
-mobileMenuBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    mobileNav.classList.toggle('active');
-    
-    // Mudar ícone do botão
-    const icon = mobileMenuBtn.querySelector('i');
-    if (mobileNav.classList.contains('active')) {
-        icon.classList.remove('fa-bars');
-        icon.classList.add('fa-times');
-    } else {
-        icon.classList.remove('fa-times');
-        icon.classList.add('fa-bars');
-    }
-});
-
-// Fechar menu ao clicar em um link
-document.querySelectorAll('.mobile-link').forEach(link => {
-    link.addEventListener('click', () => {
-        mobileNav.classList.remove('active');
-        const icon = mobileMenuBtn.querySelector('i');
-        icon.classList.remove('fa-times');
-        icon.classList.add('fa-bars');
+// Mobile menu
+if (mobileMenuBtn && mobileNav) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setMobileMenu(!mobileNav.classList.contains('active'));
     });
-});
 
-// Fechar menu ao clicar fora
-document.addEventListener('click', (e) => {
-    if (!mobileNav.contains(e.target) && !mobileMenuBtn.contains(e.target) && mobileNav.classList.contains('active')) {
-        mobileNav.classList.remove('active');
-        const icon = mobileMenuBtn.querySelector('i');
-        icon.classList.remove('fa-times');
-        icon.classList.add('fa-bars');
-    }
-});
-
-// Animação de entrada
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
+    document.addEventListener('click', (e) => {
+        if (mobileNav.classList.contains('active') &&
+            !mobileNav.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+            setMobileMenu(false);
         }
     });
-}, { threshold: 0.1 });
 
-document.querySelectorAll('.feature-card, .module-card, .testimonial-card').forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = 'all 0.6s ease-out';
-    observer.observe(el);
-});
-
-// Fechar menu ao redimensionar para desktop
-window.addEventListener('resize', () => {
-    if (window.innerWidth >= 1024) {
-        mobileNav.classList.remove('active');
-        const icon = mobileMenuBtn.querySelector('i');
-        if (icon) {
-            icon.classList.remove('fa-times');
-            icon.classList.add('fa-bars');
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && mobileNav.classList.contains('active')) {
+            setMobileMenu(false);
+            mobileMenuBtn.focus();
         }
-    }
-});
+    });
 
-// Garantir que a logo seja exibida corretamente
-const logoImages = document.querySelectorAll('.logo-icon img');
-logoImages.forEach(img => {
-    img.onerror = function() {
-        this.src = 'https://via.placeholder.com/40x40/9333ea/ffffff?text=Z';
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) setMobileMenu(false);
+    });
+}
+
+// Animação de entrada dos cartões (secções ainda não redesenhadas)
+if (!prefersReducedMotion && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.feature-card, .module-card, .testimonial-card').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'all 0.6s ease-out';
+        observer.observe(el);
+    });
+}
+
+// Fallback da logo: usa o ícone local e nunca entra em ciclo
+// (antes, se o fallback também falhasse, o onerror repetia-se sem fim)
+document.querySelectorAll('.logo-icon img').forEach(img => {
+    img.onerror = function () {
+        this.onerror = null;
+        this.src = 'imagem/favicon.png';
     };
 });

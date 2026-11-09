@@ -1,0 +1,26 @@
+/* ==========================================================
+   UI global: cabeçalho transparente sobre o hero, indicador de capítulos, rodapé mínimo
+   ========================================================== */
+header { transition: background 0.5s ease, border-color 0.5s ease, -webkit-backdrop-filter 0.5s, backdrop-filter 0.5s; }
+header:not(.is-scrolled) { background: transparent !important; border-bottom-color: transparent !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+header.is-scrolled { background: rgba(10, 8, 28, 0.82) !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.zs-anchor { position: absolute; top: 0; left: 0; width: 1px; height: 1px; pointer-events: none; }
+
+/* indicador de capítulos (discreto; só desktop com rato) */
+.zs-rail { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 900; display: none; flex-direction: column; gap: 14px; mix-blend-mode: difference; }
+@media (min-width: 900px) and (hover: hover) { .zs-rail { display: flex; } }
+.zs-rail a { position: relative; display: block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #fff; opacity: 0.55; transition: opacity 0.3s, transform 0.3s, background 0.3s; }
+.zs-rail a:hover, .zs-rail a:focus-visible { opacity: 1; transform: scale(1.25); }
+.zs-rail a.is-active { opacity: 1; background: #fff; transform: scale(1.2); }
+.zs-rail a span { position: absolute; right: 22px; top: 50%; transform: translateY(-50%) translateX(8px); white-space: nowrap; font: 600 0.78rem var(--zs-font); letter-spacing: 0.06em; color: #fff; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; }
+.zs-rail a:hover span, .zs-rail a:focus-visible span { opacity: 1; transform: translateY(-50%); }
+
+/* rodapé mínimo (sem ligações para páginas que não existem) */
+.zs-footer { background: #070514; color: #a9a4c4; padding: 36px 0 44px; border-top: 1px solid rgba(196, 181, 253, 0.12); }
+.zs-footer__in { max-width: 1200px; margin: 0 auto; padding: 0 var(--container-padding); display: grid; gap: 14px; grid-template-columns: 1fr; align-items: center; }
+.zs-footer b { display: block; color: #fff; font-size: 1.15rem; margin-bottom: 4px; }
+.zs-footer span { font-size: 0.92rem; line-height: 1.5; }
+.zs-footer nav a { color: #d8ccff; text-decoration: none; font-weight: 600; }
+.zs-footer nav a:hover { text-decoration: underline; }
+.zs-footer small { font-size: 0.8rem; opacity: 0.75; }
+@media (min-width: 900px) { .zs-footer__in { grid-template-columns: 1.4fr auto auto; gap: 40px; } }

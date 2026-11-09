@@ -1,0 +1,15 @@
+/* ==========================================================
+   Zero Satus — design tokens (camada nova, carregada depois do style.css)
+   Mantém as variáveis antigas (--accent, --bg-primary…) intactas.
+   ========================================================== */
+:root {
+    --zs-ink: #07060d;
+    --zs-violet: #8b5cf6;
+    --zs-purple: #9333ea;
+    --zs-lavender: #c4b5fd;
+    --zs-text: #f5f3ff;
+    --zs-muted: #a9a4c4;
+    --zs-line: rgba(167, 139, 250, 0.28);
+    --zs-font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --zs-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}

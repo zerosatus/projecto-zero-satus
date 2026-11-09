@@ -1,0 +1,119 @@
+/* ==========================================================
+   Cena 1 — Hero
+   Layout (duas colunas ≥1024px) vive em CSS para não haver
+   salto de layout quando o JS arranca. O JS só anima transform.
+   ========================================================== */
+.zs-hero {
+    position: relative;
+    overflow: hidden;
+    padding-top: var(--header-height);
+}
+
+/* ---- fundo abstrato e discreto ---- */
+.zs-hero__bg { position: absolute; inset: 0; pointer-events: none; }
+.zs-hero__glow { position: absolute; border-radius: 50%; will-change: transform, opacity; }
+.zs-hero__glow--main {
+    width: 70vw; height: 70vw; right: -14vw; top: -8vw;
+    background: radial-gradient(closest-side, rgba(124, 58, 237, 0.34), transparent 72%);
+}
+.zs-hero__glow--side {
+    width: 50vw; height: 50vw; left: -18vw; bottom: -24vw;
+    background: radial-gradient(closest-side, rgba(79, 70, 229, 0.22), transparent 72%);
+}
+.zs-hero__grid {
+    position: absolute; inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 70% 40%, #000 0%, transparent 75%);
+            mask-image: radial-gradient(ellipse 70% 60% at 70% 40%, #000 0%, transparent 75%);
+}
+
+/* ---- estrutura ---- */
+.zs-hero__stage { position: relative; }
+.zs-hero__inner { position: relative; z-index: 2; padding-top: 32px; padding-bottom: 24px; }
+
+.zs-hero__title {
+    font-size: clamp(2.1rem, 8vw, 2.9rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    text-wrap: balance;
+    color: var(--zs-text);
+    margin-bottom: 20px;
+}
+.zs-hero__line { display: block; }
+.zs-hero__line--soft {
+    background: linear-gradient(100deg, #ece7ff 0%, #b9a2fb 55%, #8b5cf6 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    padding-bottom: 0.08em; /* evita cortar descendentes com background-clip */
+}
+.zs-hero__lead {
+    color: var(--zs-muted);
+    font-size: clamp(1rem, 3.6vw, 1.12rem);
+    line-height: 1.65;
+    max-width: 46ch;
+    margin-bottom: 28px;
+}
+.zs-hero__actions { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+.zs-hero__stats { display: flex; gap: 32px; }
+.zs-hero__stat { display: flex; flex-direction: column; }
+.zs-hero__stat-number { font-size: 1.3rem; font-weight: 600; color: var(--zs-text); line-height: 1.2; }
+.zs-hero__stat-label { font-size: 0.8rem; color: var(--zs-muted); }
+
+/* ---- mockup real do produto ---- */
+.zs-hero__device { position: relative; z-index: 1; padding: 8px var(--container-padding) 48px; }
+.zs-device {
+    margin: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0b0b12;
+    border: 1px solid var(--zs-line);
+    box-shadow: 0 40px 120px -30px rgba(124, 58, 237, 0.5), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+}
+.zs-device__bar {
+    display: flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 12px;
+    background: #12111c;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.zs-device__bar i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); }
+.zs-device img { display: block; width: 100%; height: auto; }
+
+@media (min-width: 640px) {
+    .zs-hero__actions { flex-direction: row; }
+    .zs-hero__actions .btn-primary, .zs-hero__actions .btn-secondary { width: auto; }
+}
+
+/* ---- desktop: texto à esquerda, mockup dominante à direita ---- */
+@media (min-width: 1024px) {
+    .zs-hero__stage { display: flex; align-items: center; min-height: calc(100vh - var(--header-height)); }
+    .zs-hero__inner { padding-top: 0; padding-bottom: 0; }
+    /* o texto ocupa só o espaço à esquerda do mockup (sem sobreposição) */
+    .zs-hero { --zs-device-w: min(54vw, 1000px); --zs-edge: max(0px, calc((100vw - 1200px) / 2)); }
+    .zs-hero__copy { width: calc(100vw - var(--zs-device-w) - 2.5vw - var(--zs-edge) - var(--container-padding) - 36px); max-width: 540px; }
+    .zs-hero__title { font-size: clamp(2.1rem, 3.1vw, 3.6rem); }
+    .zs-hero__lead { font-size: clamp(1rem, 1.2vw, 1.15rem); }
+
+    .zs-hero__device {
+        position: absolute;
+        top: 0; bottom: 0;
+        right: 2.5vw;
+        width: var(--zs-device-w);
+        padding: 0;
+        display: flex; align-items: center;
+        pointer-events: none;
+    }
+    .zs-device {
+        width: 100%;
+        transform: perspective(1600px) rotateY(-9deg) rotateX(4deg);
+        transform-origin: 30% 50%;
+    }
+}
+
+/* Sem animação: mockup assente, sem inclinação */
+@media (prefers-reduced-motion: reduce) {
+    .zs-device { transform: none; }
+}

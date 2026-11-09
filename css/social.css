@@ -1,0 +1,54 @@
+/* Zero Satus — canais oficiais (rodapé, capítulo Contacto desktop e mobile). Gerado por js/ui/social.js. */
+.zs-social { display: flex; flex-wrap: wrap; gap: 14px 12px; }
+.zs-soc { position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 7px; text-decoration: none; color: #e9e3ff; font: 600 12px/1.15 var(--zs-font, 'Inter', system-ui, sans-serif); transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.zs-soc__i { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 16px; font-size: 19px; color: #e9e3ff;
+    background: linear-gradient(160deg, rgba(139, 92, 246, 0.22), rgba(255, 255, 255, 0.04)); border: 1px solid rgba(196, 181, 253, 0.3);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.35s ease, color 0.3s ease; }
+.zs-soc__svg { width: 18px; height: 18px; fill: currentColor; }
+a.zs-soc:hover { transform: translateY(-4px); }
+a.zs-soc:hover .zs-soc__i, a.zs-soc:focus-visible .zs-soc__i { color: #fff; background: linear-gradient(160deg, #7c3aed, #a855f7); border-color: rgba(233, 213, 255, 0.7); box-shadow: 0 14px 30px -12px rgba(124, 58, 237, 0.9); }
+a.zs-soc:focus-visible { outline: none; }
+.zs-soc__t { color: rgba(233, 227, 255, 0.82); }
+/* "Em breve": mesmo estilo, mas claramente sem destino (não é ligação, sem hover) */
+.zs-soc.is-soon { cursor: default; }
+.zs-soc.is-soon .zs-soc__i { opacity: 0.5; border-style: dashed; background: rgba(255, 255, 255, 0.03); }
+.zs-soc.is-soon .zs-soc__t { opacity: 0.55; }
+.zs-soc__soon { white-space: nowrap; font: 600 9.5px/1 var(--zs-font, 'Inter', system-ui, sans-serif); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: #c4b5fd; padding: 4px 7px; border-radius: 99px; border: 1px solid rgba(196, 181, 253, 0.3); background: rgba(139, 92, 246, 0.1); }
+
+/* ---------- rodapé ---------- */
+.zs-footer { padding: 52px 0 38px; }
+.zs-footer__in { display: grid; gap: 30px; grid-template-columns: 1fr; align-items: start; }
+.zs-footer__brand { display: flex; flex-direction: column; gap: 12px; max-width: 360px; }
+.zs-footer__logo { display: inline-flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
+.zs-footer__logo svg { width: 38px; height: 38px; overflow: visible; }
+.zs-footer__logo b { margin: 0; font-size: 1.3rem; letter-spacing: -0.02em; }
+.zs-footer__col h3 { margin: 0 0 14px; font: 700 11px/1 var(--zs-font, 'Inter', system-ui, sans-serif); letter-spacing: 0.2em; text-transform: uppercase; color: #c4b5fd; }
+.zs-footer__mail { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 600; font-size: 0.98rem; word-break: break-all; }
+.zs-footer__mail i { color: #c4b5fd; }
+.zs-footer__mail:hover span { text-decoration: underline; }
+.zs-footer__nav { display: flex; gap: 18px; margin-top: 14px; }
+.zs-footer .zs-social { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 380px; }
+.zs-footer .zs-soc { flex-direction: row; gap: 8px; padding: 7px 10px 7px 8px; min-width: 0; border-radius: 14px; border: 1px solid rgba(196, 181, 253, 0.16); background: rgba(255, 255, 255, 0.03); }
+.zs-footer .zs-soc__i { width: 32px; height: 32px; border-radius: 10px; font-size: 14px; }
+.zs-footer .zs-soc__svg { width: 14px; height: 14px; }
+.zs-footer .zs-soc.is-soon { border-style: dashed; }
+.zs-footer .zs-soc__t { font-size: 12.5px; }
+.zs-footer .zs-soc__soon { margin-left: auto; font-size: 8.5px; padding: 3px 6px; }
+.zs-footer .zs-soc.is-soon .zs-soc__i { border-style: solid; }
+.zs-footer small { grid-column: 1 / -1; padding-top: 22px; border-top: 1px solid rgba(196, 181, 253, 0.12); }
+@media (min-width: 900px) { .zs-footer__in { grid-template-columns: 1.25fr 1fr 1.5fr; gap: 56px; } }
+
+/* ---------- capítulo Contacto · desktop: ícones que surgem em cascata quando o convite final aparece ---------- */
+.zs-social--close { margin-top: 30px; gap: 14px 16px; justify-content: center; }
+.zs-social--close .zs-soc { animation: zsSocIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(0.2s + var(--i) * 0.11s); }
+.zs-close[inert] .zs-soc { animation: none; opacity: 0; transform: translateY(18px) scale(0.82); }
+.zs-social--close .zs-soc__i { width: 56px; height: 56px; font-size: 21px; }
+@keyframes zsSocIn { from { opacity: 0; transform: translateY(18px) scale(0.82); } to { opacity: 1; transform: none; } }
+
+/* ---------- capítulo Contacto · mobile (painel inferior) ---------- */
+.zm-dock .zs-social { margin-top: 14px; gap: 6px; flex-wrap: nowrap; justify-content: space-between; }
+.zm-dock .zs-soc { flex: 1; min-width: 0; gap: 5px; font-size: 10px; }
+.zm-dock .zs-soc__i { width: 100%; max-width: 46px; height: 42px; border-radius: 13px; font-size: 17px; }
+.zm-dock .zs-soc__t { display: none; }
+.zm-dock .zs-soc__soon { font-size: 7.5px; padding: 3px 5px; letter-spacing: 0.04em; }
+@media (prefers-reduced-motion: reduce) { .zs-social--close .zs-soc { animation: none; } }
