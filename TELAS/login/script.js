@@ -9,9 +9,10 @@ let tentativasLogin = 0;
 const MAX_TENTATIVAS_LOGIN = 3;
 
 // ============================================
-// CONSTANTES DE TERMOS
+// CONSTANTES DE TERMOS E ADMIN
 // ============================================
 const TERMOS_ACEITOS_KEY = 'zero_satus_termos_aceitos';
+const ADMIN_EMAIL = 'projectozerosatus@gmail.com'; // ⭐ ADMIN FIXO AQUI
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -35,7 +36,7 @@ function setLoading(button, isLoading) {
     if (!button) return;
     if (isLoading) {
         button.dataset.originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Espera...';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde...';
         button.disabled = true;
     } else {
         button.innerHTML = button.dataset.originalHtml;
@@ -77,7 +78,6 @@ function limparCamposFormulario() {
 // ============================================
 function waitForSupabase() {
     return new Promise((resolve) => {
-        // Verifica se já está disponível
         if (window.AuthService && window.AuthService.isReady && window.AuthService.isReady()) {
             console.log('[Login] ✅ Supabase já disponível');
             resolve();
@@ -92,7 +92,6 @@ function waitForSupabase() {
 
         console.log('[Login] ⏳ Aguardando Supabase...');
         
-        // Listener para o evento
         const handler = () => {
             console.log('[Login] 📡 Evento supabaseReady recebido');
             window.removeEventListener('supabaseReady', handler);
@@ -101,13 +100,11 @@ function waitForSupabase() {
         
         window.addEventListener('supabaseReady', handler);
 
-        // Tentar inicializar manualmente
         if (window.SupabaseClient?.initSupabase) {
             console.log('[Login] 🔄 Tentando inicializar manualmente...');
             window.SupabaseClient.initSupabase();
         }
 
-        // Timeout com retry
         let attempts = 0;
         const checkInterval = setInterval(() => {
             attempts++;
@@ -121,16 +118,13 @@ function waitForSupabase() {
                 window.removeEventListener('supabaseReady', handler);
                 resolve();
             } else if (attempts > 20) {
-                // 20 * 500ms = 10 segundos
                 console.warn('[Login] ⚠️ Timeout aguardando Supabase');
                 clearInterval(checkInterval);
                 window.removeEventListener('supabaseReady', handler);
                 
-                // Última tentativa de inicialização
                 if (window.SupabaseClient?.initSupabase) {
                     window.SupabaseClient.initSupabase();
                     
-                    // Verificar novamente após 1s
                     setTimeout(() => {
                         if (window.supabaseClient || (window.AuthService && window.AuthService.isReady && window.AuthService.isReady())) {
                             console.log('[Login] ✅ Supabase inicializado após timeout');
@@ -172,19 +166,16 @@ function configurarCheckboxTermos() {
         return;
     }
     
-    // Se já aceitou antes, marcar automaticamente e desabilitar
     if (verificarTermosAceitos()) {
         checkbox.checked = true;
         checkbox.disabled = true;
         checkbox.style.opacity = '0.6';
         checkbox.title = 'Você já aceitou os termos anteriormente';
         
-        // Adicionar indicador visual
         const label = checkbox.closest('label');
         if (label) {
             const span = label.querySelector('span');
             if (span) {
-                // Remover badge antigo se existir
                 const oldBadge = span.querySelector('.termos-badge');
                 if (oldBadge) oldBadge.remove();
                 
@@ -220,7 +211,6 @@ function validarTermos() {
         return true;
     }
     
-    // Se já aceitou antes, não precisa validar
     if (verificarTermosAceitos()) {
         return true;
     }
@@ -246,11 +236,9 @@ function validarTermos() {
 function mostrarModalContinuar(usuario, callback) {
     console.log('[Login] Mostrando modal de continuar para:', usuario.email);
     
-    // Remover modal existente
     const modalExistente = document.getElementById('modal-continuar');
     if (modalExistente) modalExistente.remove();
     
-    // Criar overlay
     const overlay = document.createElement('div');
     overlay.id = 'modal-continuar';
     overlay.style.cssText = `
@@ -268,7 +256,6 @@ function mostrarModalContinuar(usuario, callback) {
         animation: fadeIn 0.3s ease;
     `;
     
-    // Criar modal
     const modal = document.createElement('div');
     modal.style.cssText = `
         background: #1e293b;
@@ -344,7 +331,6 @@ function mostrarModalContinuar(usuario, callback) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
-    // Adicionar estilos de animação
     const style = document.createElement('style');
     style.textContent = `
         @keyframes fadeIn {
@@ -358,7 +344,6 @@ function mostrarModalContinuar(usuario, callback) {
     `;
     document.head.appendChild(style);
     
-    // Eventos dos botões
     document.getElementById('btn-continuar-sim').addEventListener('click', () => {
         overlay.remove();
         callback(true);
@@ -369,7 +354,6 @@ function mostrarModalContinuar(usuario, callback) {
         callback(false);
     });
     
-    // Clicar fora fecha (apenas se clicar no overlay)
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             overlay.remove();
@@ -379,7 +363,7 @@ function mostrarModalContinuar(usuario, callback) {
 }
 
 // ============================================
-// 🔥 PROCESSAR LOGIN COM ROLE
+// 🔥 PROCESSAR LOGIN COM ROLE (CORRIGIDO PARA ADMIN FIXO)
 // ============================================
 async function processarLogin(user) {
     if (isProcessingAuth) {
@@ -398,7 +382,6 @@ async function processarLogin(user) {
     isProcessingAuth = true;
 
     try {
-        // Garantir que o perfil existe
         if (window.AuthService) {
             await window.AuthService.ensureProfileExists(user);
         }
@@ -407,33 +390,38 @@ async function processarLogin(user) {
         let nome = user.user_metadata?.full_name || user.email.split('@')[0];
         let foto = user.user_metadata?.avatar_url || null;
 
-        // Buscar perfil no banco
-        if (window.DatabaseService) {
-            try {
-                const profile = await window.DatabaseService.getUserProfile(user.id);
-                if (profile) {
-                    role = profile.role || 'user';
-                    nome = profile.nome || nome;
-                    foto = profile.avatar_url || foto;
-                    console.log('[Login] Perfil encontrado, role:', role);
-                } else {
-                    console.log('[Login] Perfil não encontrado, criando...');
-                    await window.DatabaseService.ensureUserData(user.id, user.email, nome);
-                    
-                    const newProfile = await window.DatabaseService.getUserProfile(user.id);
-                    if (newProfile) {
-                        role = newProfile.role || 'user';
-                        nome = newProfile.nome || nome;
-                        foto = newProfile.avatar_url || foto;
-                        console.log('[Login] Perfil criado, role:', role);
+        // ⭐ VERIFICAÇÃO RÁPIDA PELO E-MAIL DO ADMIN
+        if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+            role = 'admin';
+            console.log('[Login] 👑 Admin detectado pelo e-mail!');
+        } else {
+            // Se não for o admin fixo, busca no banco
+            if (window.DatabaseService) {
+                try {
+                    const profile = await window.DatabaseService.getUserProfile(user.id);
+                    if (profile) {
+                        role = profile.role || 'user';
+                        nome = profile.nome || nome;
+                        foto = profile.avatar_url || foto;
+                        console.log('[Login] Perfil encontrado, role:', role);
+                    } else {
+                        console.log('[Login] Perfil não encontrado, criando...');
+                        await window.DatabaseService.ensureUserData(user.id, user.email, nome);
+                        
+                        const newProfile = await window.DatabaseService.getUserProfile(user.id);
+                        if (newProfile) {
+                            role = newProfile.role || 'user';
+                            nome = newProfile.nome || nome;
+                            foto = newProfile.avatar_url || foto;
+                            console.log('[Login] Perfil criado, role:', role);
+                        }
                     }
+                } catch(e) {
+                    console.warn('[Login] Erro ao buscar perfil:', e);
                 }
-            } catch(e) {
-                console.warn('[Login] Erro ao buscar perfil:', e);
             }
         }
 
-        // Criar objeto do usuário
         const usuario = {
             id: user.id,
             email: user.email,
@@ -445,10 +433,8 @@ async function processarLogin(user) {
             email_confirmado: true
         };
 
-        // Salvar no localStorage
         localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
 
-        // Inicializar cache
         if (window.CacheManager) {
             window.CacheManager.init();
             window.CacheManager.currentUserId = usuario.id;
@@ -461,9 +447,6 @@ async function processarLogin(user) {
 
         showMessage(`✅ Bem-vindo, ${usuario.nome}!`, false);
 
-        // ============================================
-        // 🔥 REDIRECIONAMENTO CORRIGIDO
-        // ============================================
         setTimeout(() => {
             const isMobile = ehCelular();
             
@@ -474,7 +457,6 @@ async function processarLogin(user) {
                 console.log('[Login] 🔐 Usuário admin, redirecionando para painel admin');
                 window.location.replace('../admin/index.html');
             } else {
-                // 🔥 REDIRECIONAMENTO CORRETO
                 if (isMobile) {
                     window.location.replace('../mobile-telas/index.html');
                 } else {
@@ -633,7 +615,7 @@ function showResendButton(email) {
         onmouseover="this.style.transform='scale(1.05)'"
         onmouseout="this.style.transform='scale(1)'">
             <i class="fas fa-redo"></i> Reenviar confirmação
-        </p>
+        </button>
         <p style="color: #666; font-size: 11px; margin-top: 8px;">
             Verifique também a pasta de <strong>spam</strong>
         </p>
@@ -673,11 +655,11 @@ function toggleForm() {
     } else {
         if (nomeField) nomeField.style.display = 'none';
         if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL';
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM E-MAIL';
             submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
         }
         if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
-        if (mainTitle) mainTitle.textContent = 'Painel Zero';
+        if (mainTitle) mainTitle.textContent = 'Zero Satus';
         if (mainSubtitle) mainSubtitle.textContent = 'PLATAFORMA ACADÊMICA';
         const passwordInput = document.getElementById('password');
         if (passwordInput) passwordInput.placeholder = 'Sua senha';
@@ -815,7 +797,9 @@ async function checkSessionWithRole() {
             let role = 'user';
             let nome = user.user_metadata?.full_name || user.email.split('@')[0];
             
-            if (window.DatabaseService) {
+            if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                role = 'admin';
+            } else if (window.DatabaseService) {
                 try {
                     const profile = await window.DatabaseService.getUserProfile(user.id);
                     if (profile) {
@@ -849,7 +833,6 @@ async function checkSessionWithRole() {
                                         console.log('[Login] 🔐 Admin, redirecionando para admin');
                                         window.location.replace('../admin/index.html');
                                     } else {
-                                        // 🔥 REDIRECIONAMENTO CORRETO
                                         const isMobile = ehCelular();
                                         if (isMobile) {
                                             window.location.replace('../mobile-telas/index.html');
@@ -895,7 +878,7 @@ async function checkSessionWithRole() {
                         await window.AuthService.logout();
                         localStorage.removeItem('usuarioLogado');
                         limparCamposFormulario();
-                        showMessage('✅ Sessão encerrada. Coisola tua conta dnv.', false);
+                        showMessage('✅ Sessão encerrada. Faça login novamente.', false);
                         resolve(false);
                     }
                 });
@@ -918,7 +901,7 @@ window.forcarLogout = async function() {
         }
         localStorage.clear();
         sessionStorage.clear();
-        limparTermosAceitos(); // Limpar também a aceitação dos termos
+        limparTermosAceitos();
         limparCamposFormulario();
         window.location.reload();
         showMessage('✅ Sessão limpa!', false);
@@ -931,17 +914,14 @@ window.forcarLogout = async function() {
 async function loginWithGoogle() {
     console.log('[Google] 🚀 Iniciando login com Google...');
 
-    // Validar termos antes de login com Google
     if (!validarTermos()) {
         return;
     }
 
-    // VERIFICAR SE AUTH SERVICE ESTÁ DISPONÍVEL
     if (!window.AuthService) {
         console.error('[Google] ❌ AuthService não disponível');
         showMessage('⏳ Aguarde o sistema carregar completamente...', true);
         
-        // Tenta aguardar o Supabase
         await waitForSupabase();
         
         if (!window.AuthService) {
@@ -950,7 +930,6 @@ async function loginWithGoogle() {
         }
     }
 
-    // VERIFICAR SE O CLIENTE SUPABASE ESTÁ INICIALIZADO
     if (!window.supabaseClient) {
         console.warn('[Google] ⚠️ Cliente Supabase não inicializado, tentando inicializar...');
         
@@ -958,7 +937,6 @@ async function loginWithGoogle() {
             window.SupabaseClient.initSupabase();
         }
         
-        // Aguardar um pouco
         await new Promise(resolve => setTimeout(resolve, 800));
         
         if (!window.supabaseClient) {
@@ -1001,9 +979,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Login] 🚀 Inicializando...');
     console.log('[Login] 📍 URL atual:', window.location.href);
 
-    // ============================================
-    // 🔥 AGUARDAR SUPABASE
-    // ============================================
     await waitForSupabase();
 
     if (!window.AuthService) {
@@ -1014,14 +989,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('[Login] ✅ AuthService disponível!');
 
-    // ============================================
-    // CONFIGURAR CHECKBOX DE TERMOS
-    // ============================================
     configurarCheckboxTermos();
 
-    // ============================================
-    // VERIFICAR CALLBACK DE CONFIRMAÇÃO
-    // ============================================
     const isConfirmCallback = window.AuthService.isConfirmationCallback();
     if (isConfirmCallback) {
         console.log('[Login] 🔔 Detectado callback de confirmação!');
@@ -1035,9 +1004,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ============================================
-    // VERIFICAR CALLBACK DO GOOGLE
-    // ============================================
     const isCallback = isGoogleCallback();
     if (isCallback) {
         console.log('[Google] 🔔 Detectado callback do Google!');
@@ -1050,9 +1016,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ============================================
-    // 🔥 VERIFICAR SESSÃO - MODAL CUSTOMIZADO
-    // ============================================
     const hasSession = await checkSessionWithRole();
     if (hasSession) {
         console.log('[Login] ✅ Sessão ativa encontrada - redirecionando...');
@@ -1061,9 +1024,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     limparCamposFormulario();
 
-    // ============================================
-    // EVENTOS ANTI-AUTOCOMPLETE
-    // ============================================
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const nomeInput = document.getElementById('nome');
@@ -1090,9 +1050,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => limparCamposFormulario(), 100);
     setTimeout(() => limparCamposFormulario(), 500);
 
-    // ============================================
-    // LISTENER DE AUTENTICAÇÃO
-    // ============================================
     if (!isCallback && !isConfirmCallback) {
         authListenerUnsubscribe = window.AuthService.onAuthStateChange(async (event, session) => {
             console.log('[Login] Auth state change:', event);
@@ -1114,11 +1071,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ============================================
-    // EVENTOS DA UI
-    // ============================================
-
-    // Google Login
     const googleBtn = document.getElementById('google-login-btn');
     if (googleBtn) {
         googleBtn.addEventListener('click', (e) => {
@@ -1128,13 +1080,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Email Login Form
     const emailForm = document.getElementById('auth-form');
     if (emailForm) {
         emailForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Validar termos antes de prosseguir
             if (!validarTermos()) {
                 return;
             }
@@ -1148,7 +1098,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // Marcar termos como aceitos após validação
             marcarTermosAceitos();
 
             if (isRegisterMode) {
@@ -1172,20 +1121,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Toggle Link
     const toggleLink = document.getElementById('toggle-mode-link');
     if (toggleLink) {
         toggleLink.addEventListener('click', (e) => {
             e.preventDefault();
             toggleForm();
-            // Reconfigurar checkbox após toggle
             setTimeout(configurarCheckboxTermos, 100);
         });
     }
 
-    // ============================================
-    // LIMPEZA PERIÓDICA
-    // ============================================
     let limpezaInterval = setInterval(() => {
         const email = document.getElementById('email');
         const password = document.getElementById('password');
@@ -1209,8 +1153,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    console.log('%c🔐 Painel Zero - Login com Supabase', 'color: #9333ea; font-size: 16px; font-weight: bold;');
-    console.log('%c✅ Login com MODAL CUSTOMIZADO e TERMOS DE USO!', 'color: #10b981; font-size: 14px;');
+    console.log('%c🔐 Zero Satus - Login', 'color: #9333ea; font-size: 16px; font-weight: bold;');
+    console.log('%c✅ Login com modal customizado e termos de uso!', 'color: #10b981; font-size: 14px;');
     console.log('%c💡 Use "forcarLogout()" no console para limpar a sessão', 'color: #f59e0b; font-size: 12px;');
 });
 
