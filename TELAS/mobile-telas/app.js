@@ -1,4 +1,10 @@
-// app.js - MOBILE COMPLETO E CORRIGIDO (NOTIFICAÇÕES, NOTAS, DOCUMENTOS E CACHE)
+// ============================================
+// app.js - MOBILE COMPLETO (v4)
+// ⭐ FAB da IA funcional
+// ⭐ Modo Foco → download app
+// ⭐ Documentos (Storage + Turso) via CacheManager
+// ⭐ IA com histórico na nuvem
+// ⭐ SEM gíria
 // ============================================
 
 console.log('[SPA] 🚀 Iniciando aplicação mobile...');
@@ -7,18 +13,17 @@ class App {
     constructor() {
         this.user = null;
         this.currentView = 'dashboard';
-        
-        // Mapeamento de views para módulos
+
         this.viewToModuleMap = {
-    'dashboard': 'dashboard',
-    'calendario': 'calendario',
-    'tarefas': 'tarefas',
-    'notas': 'notas',
-    'perfil': 'perfil',
-    'ia': 'ia',
-    'documentos': 'documentos',
-    'disciplinas': 'disciplinas'   // ⭐ ADICIONAR
-};
+            'dashboard': 'dashboard',
+            'calendario': 'calendario',
+            'tarefas': 'tarefas',
+            'notas': 'notas',
+            'perfil': 'perfil',
+            'ia': 'ia',
+            'documentos': 'documentos',
+            'disciplinas': 'disciplinas'
+        };
 
         this.data = {
             tasks: [],
@@ -36,14 +41,13 @@ class App {
                 fontSize: 14
             }
         };
+
         this.isLoading = false;
         this.isSaving = false;
         this.modules = {};
         this.loadedCSS = new Set();
         this.currentDate = new Date();
         this.selectedDay = this.currentDate.getDate();
-        this._supabaseReady = false;
-        this._supabaseWaitResolve = null;
         this._loadingOverlay = null;
         this._profileObserver = null;
         this._profileUpdateTimeout = null;
@@ -54,159 +58,103 @@ class App {
         this._syncRetryCount = 0;
         this._maxSyncRetries = 3;
         this._saveTimeout = null;
-        this._notificationRefreshTimeout = null;
-        this._cloudLoaded = false;
         this._dataLoadedFromCloud = false;
-        
-        // CSS por módulo
-      this.cssModules = {
-    dashboard: 'css/dashboard.css',
-    calendario: 'css/calendario.css',
-    tarefas: 'css/tarefas.css',
-    notas: 'css/notas.css',
-    perfil: 'css/perfil.css',
-    ia: 'css/ia.css',
-    documentos: 'css/documentos.css',
-    disciplinas: 'css/disciplinas.css'   // ⭐ ADICIONAR
-};
-        
+
+        this.cssModules = {
+            dashboard: 'css/dashboard.css',
+            calendario: 'css/calendario.css',
+            tarefas: 'css/tarefas.css',
+            notas: 'css/notas.css',
+            perfil: 'css/perfil.css',
+            ia: 'css/ia.css',
+            documentos: 'css/documentos.css',
+            disciplinas: 'css/disciplinas.css'
+        };
+
         this.init();
     }
-    
-    // ============================================
-    // ⭐ CRIAR OVERLAY DE LOADING
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  LOADING OVERLAY
+    // ══════════════════════════════════════════════════════
     createLoadingOverlay() {
         if (this._loadingOverlay) return;
-        
+
         this._loadingOverlay = document.createElement('div');
         this._loadingOverlay.id = 'app-loading-overlay';
         this._loadingOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
             z-index: 99999;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             transition: opacity 0.5s ease;
         `;
-        
-        // Logo/Ícone
-        const icon = document.createElement('div');
-        icon.style.cssText = `
-            font-size: 48px;
-            margin-bottom: 20px;
-            animation: pulse 1.5s ease-in-out infinite;
-        `;
-        icon.innerHTML = `<a href='https://postimages.org/' target='_blank'>
-            <img src='https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png' 
-                 border='0' 
-                 alt='logo1-removebg-preview'
-                 style='width: 120px; height: 120px; object-fit: contain;'>
-        </a>`;
 
-        // Spinner
+        const icon = document.createElement('div');
+        icon.style.cssText = `font-size: 48px; margin-bottom: 20px; animation: pulse 1.5s ease-in-out infinite;`;
+        icon.innerHTML = `<img src='https://i.postimg.cc/4y9jpb8K/logo1-removebg-preview.png' border='0' alt='logo' style='width: 120px; height: 120px; object-fit: contain;'>`;
+
         const spinner = document.createElement('div');
         spinner.style.cssText = `
-            width: 50px;
-            height: 50px;
+            width: 50px; height: 50px;
             border: 4px solid rgba(139, 92, 246, 0.2);
             border-top-color: #8b5cf6;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin-bottom: 24px;
         `;
-        
-        // Título
+
         const title = document.createElement('h2');
-        title.style.cssText = `
-            color: #fff;
-            font-size: 20px;
-            font-weight: 600;
-            margin: 0 0 8px 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        `;
+        title.style.cssText = `color: #fff; font-size: 20px; font-weight: 600; margin: 0 0 8px 0;`;
         title.textContent = 'Carregando...';
-        
-        // Subtítulo
+
         const subtitle = document.createElement('p');
-        subtitle.style.cssText = `
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 14px;
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        `;
+        subtitle.style.cssText = `color: rgba(255, 255, 255, 0.6); font-size: 14px; margin: 0;`;
         subtitle.id = 'loading-status';
         subtitle.textContent = 'Preparando seus dados...';
-        
-        // Barra de progresso
+
         const progressContainer = document.createElement('div');
         progressContainer.style.cssText = `
-            width: 200px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            margin-top: 20px;
-            overflow: hidden;
+            width: 200px; height: 4px; background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px; margin-top: 20px; overflow: hidden;
         `;
-        
+
         const progressBar = document.createElement('div');
         progressBar.id = 'loading-progress-bar';
         progressBar.style.cssText = `
-            width: 0%;
-            height: 100%;
+            width: 0%; height: 100%;
             background: linear-gradient(90deg, #8b5cf6, #6366f1);
-            border-radius: 2px;
-            transition: width 0.3s ease;
+            border-radius: 2px; transition: width 0.3s ease;
         `;
         progressContainer.appendChild(progressBar);
-        
-        // Adicionar elementos
+
         this._loadingOverlay.appendChild(icon);
         this._loadingOverlay.appendChild(spinner);
         this._loadingOverlay.appendChild(title);
         this._loadingOverlay.appendChild(subtitle);
         this._loadingOverlay.appendChild(progressContainer);
-        
-        // Adicionar CSS para animações
+
         const style = document.createElement('style');
         style.textContent = `
-            @keyframes spin {
-                to { transform: rotate(360deg); }
-            }
-            @keyframes pulse {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.1); }
-            }
+            @keyframes spin { to { transform: rotate(360deg); } }
+            @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
         `;
         this._loadingOverlay.appendChild(style);
-        
+
         document.body.appendChild(this._loadingOverlay);
     }
-    
-    // ============================================
-    // ⭐ ATUALIZAR STATUS DO LOADING
-    // ============================================
+
     updateLoadingStatus(message, progress = null) {
         const statusEl = document.getElementById('loading-status');
         if (statusEl) statusEl.textContent = message;
-        
         if (progress !== null) {
             const bar = document.getElementById('loading-progress-bar');
             if (bar) bar.style.width = Math.min(progress, 100) + '%';
         }
     }
-    
-    // ============================================
-    // ⭐ FECHAR OVERLAY DE LOADING
-    // ============================================
+
     closeLoadingOverlay() {
         if (this._loadingOverlay) {
             this._loadingOverlay.style.opacity = '0';
@@ -218,119 +166,76 @@ class App {
             }, 500);
         }
     }
-    
-    // ============================================
-    // CARREGAR CSS DINAMICAMENTE
-    // ============================================
+
     loadCSS(moduleName) {
         const cssPath = this.cssModules[moduleName];
         if (!cssPath || this.loadedCSS.has(moduleName)) return;
-        
-        console.log(`[SPA] 🎨 Carregando CSS: ${moduleName}`);
-        
+
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = cssPath;
-        link.onload = () => {
-            console.log(`[SPA] ✅ CSS carregado: ${moduleName}`);
-        };
-        link.onerror = () => {
-            console.warn(`[SPA] ⚠️ Erro ao carregar CSS: ${moduleName}`);
-        };
-        
         document.head.appendChild(link);
         this.loadedCSS.add(moduleName);
     }
-    
-    // ============================================
-    // ⭐ AGUARDAR SUPABASE FICAR PRONTO
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  SUPABASE
+    // ══════════════════════════════════════════════════════
     async waitForSupabase() {
         if (this.getSupabase()) {
             console.log('[SPA] ✅ Supabase já disponível');
             return true;
         }
-        
-        console.log('[SPA] ⏳ Aguardando Supabase inicializar...');
+
+        console.log('[SPA] ⏳ Aguardando Supabase...');
         this.updateLoadingStatus('Conectando ao servidor...', 10);
-        
+
         if (window.SupabaseClient?.initSupabase) {
-            console.log('[SPA] 🔄 Inicializando Supabase manualmente...');
             window.SupabaseClient.initSupabase();
         }
-        
+
         let attempts = 0;
-        const maxAttempts = 50;
-        
         return new Promise((resolve) => {
             const checkInterval = setInterval(() => {
                 attempts++;
                 if (this.getSupabase()) {
-                    console.log('[SPA] ✅ Supabase pronto!');
                     clearInterval(checkInterval);
                     this.updateLoadingStatus('Conectado!', 20);
                     resolve(true);
-                } else if (attempts >= maxAttempts) {
-                    console.warn('[SPA] ⚠️ Timeout aguardando Supabase - continuando offline');
+                } else if (attempts >= 50) {
                     clearInterval(checkInterval);
-                    this.updateLoadingStatus('Modo offline - usando dados locais', 20);
+                    this.updateLoadingStatus('Modo offline', 20);
                     resolve(false);
                 }
             }, 200);
         });
     }
-    
-    // ============================================
-    // GET SUPABASE CLIENT
-    // ============================================
+
     getSupabase() {
-        if (window.SupabaseClient?.getClient) {
-            return window.SupabaseClient.getClient();
-        }
-        
-        if (window.SupabaseClient?.client) {
-            return window.SupabaseClient.client;
-        }
-        
-        if (window.SupabaseClient?.supabase) {
-            return window.SupabaseClient.supabase;
-        }
-        
-        if (window.supabaseClient) {
-            return window.supabaseClient;
-        }
-        
+        if (window.SupabaseClient?.getClient) return window.SupabaseClient.getClient();
+        if (window.SupabaseClient?.client) return window.SupabaseClient.client;
+        if (window.supabaseClient) return window.supabaseClient;
         return null;
     }
-    
-    // ============================================
-    // ⭐ SETUP PROFILE OBSERVER
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  PROFILE OBSERVER
+    // ══════════════════════════════════════════════════════
     setupProfileObserver() {
         if (this._profileObserver) {
             this._profileObserver.disconnect();
-            this._profileObserver = null;
         }
-        
         if (this._profileUpdateTimeout) {
             clearTimeout(this._profileUpdateTimeout);
-            this._profileUpdateTimeout = null;
         }
-        
+
         const targetNode = document.getElementById('view-perfil');
-        if (!targetNode) {
-            console.warn('[SPA] ⚠️ Elemento view-perfil não encontrado para observer');
-            return;
-        }
-        
-        console.log('[SPA] 🔍 Configurando Profile Observer...');
-        
+        if (!targetNode) return;
+
         this._profileObserver = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    const isActive = targetNode.classList.contains('active');
-                    if (isActive) {
-                        console.log('[SPA] 🔍 View perfil ativada via observer, atualizando...');
+                    if (targetNode.classList.contains('active')) {
                         this._profileUpdateRetries = 0;
                         this.updateProfileUI();
                         this.updateProfileStats();
@@ -338,315 +243,179 @@ class App {
                 }
             }
         });
-        
+
         this._profileObserver.observe(targetNode, {
             attributes: true,
             attributeFilter: ['class']
         });
-        
-        console.log('[SPA] ✅ Profile Observer configurado com sucesso');
-        
+
         if (targetNode.classList.contains('active')) {
-            console.log('[SPA] 🔍 View perfil já está ativa, atualizando...');
             this._profileUpdateRetries = 0;
             this.updateProfileUI();
             this.updateProfileStats();
         }
     }
-    
-    // ============================================
-    // ⭐ ATUALIZAR UI DO PERFIL
-    // ============================================
-    updateProfileUI() {
-        if (!this.user) {
-            console.warn('[SPA] ⚠️ Usuário não disponível para atualizar perfil');
-            return;
-        }
 
-        if (this._profileUpdateRetries >= this._maxProfileRetries) {
-            console.log('[SPA] ⏹️ Máximo de tentativas atingido, parando atualizações');
-            return;
-        }
+    updateProfileUI() {
+        if (!this.user) return;
+        if (this._profileUpdateRetries >= this._maxProfileRetries) return;
 
         const nome = this.user.nome || this.user.displayName || this.user.email?.split('@')[0] || 'Usuário';
         const email = this.user.email || 'usuario@email.com';
         const initial = nome.charAt(0).toUpperCase();
 
-        console.log(`[SPA] 📝 Atualizando perfil (tentativa ${this._profileUpdateRetries + 1}/${this._maxProfileRetries})`);
-
-        let elementsFound = 0;
-        let elementsMissing = [];
-
-        // Atualizar elementos do perfil
         const profileName = document.getElementById('profile-name');
-        if (profileName) {
-            profileName.textContent = nome;
-            elementsFound++;
-        } else {
-            elementsMissing.push('profile-name');
-        }
+        if (profileName) profileName.textContent = nome;
 
         const profileEmail = document.getElementById('profile-email');
-        if (profileEmail) {
-            profileEmail.textContent = email;
-            elementsFound++;
-        } else {
-            elementsMissing.push('profile-email');
-        }
+        if (profileEmail) profileEmail.textContent = email;
 
         const profileInitial = document.getElementById('profile-initial');
-        if (profileInitial) {
-            profileInitial.textContent = initial;
-            elementsFound++;
-        } else {
-            console.log('[SPA] ℹ️ profile-initial não encontrado - ignorando');
-        }
+        if (profileInitial) profileInitial.textContent = initial;
 
         const avatarPreview = document.getElementById('avatar-preview');
-        if (avatarPreview) {
-            avatarPreview.textContent = initial;
-            elementsFound++;
-        } else {
-            elementsMissing.push('avatar-preview');
-        }
+        if (avatarPreview) avatarPreview.textContent = initial;
 
         const profileNameInput = document.getElementById('profile-name-input');
-        if (profileNameInput) {
-            profileNameInput.value = nome;
-            elementsFound++;
-        } else {
-            elementsMissing.push('profile-name-input');
-        }
+        if (profileNameInput) profileNameInput.value = nome;
 
         const profileEmailInput = document.getElementById('profile-email-input');
-        if (profileEmailInput) {
-            profileEmailInput.value = email;
-            elementsFound++;
-        } else {
-            elementsMissing.push('profile-email-input');
-        }
+        if (profileEmailInput) profileEmailInput.value = email;
 
         const headerName = document.getElementById('header-name');
-        if (headerName) {
-            headerName.textContent = nome.split(' ')[0];
-            elementsFound++;
-        } else {
-            elementsMissing.push('header-name');
-        }
+        if (headerName) headerName.textContent = nome.split(' ')[0];
 
-        console.log(`[SPA] 📊 Elementos encontrados: ${elementsFound}, faltando: ${elementsMissing.length}`);
-
-        const criticalMissing = elementsMissing.filter(el => 
-            el === 'profile-name' || 
-            el === 'profile-email' || 
-            el === 'profile-name-input' ||
-            el === 'profile-email-input'
-        );
-
-        if (criticalMissing.length > 0 && this._profileUpdateRetries < this._maxProfileRetries) {
-            this._profileUpdateRetries++;
-            console.warn(`[SPA] ⚠️ Elementos críticos faltando (${this._profileUpdateRetries}/${this._maxProfileRetries}):`, criticalMissing.join(', '));
-            
-            if (this._profileUpdateTimeout) {
-                clearTimeout(this._profileUpdateTimeout);
-            }
-            this._profileUpdateTimeout = setTimeout(() => {
-                this.updateProfileUI();
-            }, this._profileUpdateRetries * 300);
-        } else if (criticalMissing.length === 0) {
-            console.log('[SPA] ✅ Perfil atualizado com sucesso');
-            this._profileUpdateRetries = 0;
-        } else {
-            console.warn('[SPA] ⚠️ Não foi possível atualizar todos os elementos do perfil');
-            this._profileUpdateRetries = 0;
-        }
+        this._profileUpdateRetries++;
     }
-    
-    // ============================================
-    // ⭐ ATUALIZAR ESTATÍSTICAS DO PERFIL
-    // ============================================
+
     updateProfileStats() {
         const tarefas = this.data.tasks?.length || 0;
         const notas = this.data.notes?.length || 0;
         const eventos = this.data.calendarEvents?.length || 0;
-        
+
         const statTarefas = document.getElementById('stat-tarefas');
         if (statTarefas) statTarefas.textContent = tarefas;
-        
+
         const statNotas = document.getElementById('stat-notas');
         if (statNotas) statNotas.textContent = notas;
-        
+
         const statEventos = document.getElementById('stat-eventos');
         if (statEventos) statEventos.textContent = eventos;
     }
-    
-    // ============================================
-    // INICIALIZAÇÃO
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  INIT
+    // ══════════════════════════════════════════════════════
     async init() {
-        if (this._isInitializing) {
-            console.log('[SPA] ⏳ Já inicializando...');
-            return;
-        }
+        if (this._isInitializing) return;
         this._isInitializing = true;
-        
+
         this.createLoadingOverlay();
         this.updateLoadingStatus('Inicializando...', 5);
-        
+
         const usuarioSalvo = localStorage.getItem('usuarioLogado');
         if (!usuarioSalvo) {
             window.location.href = '../login/index.html';
             return;
         }
-        
+
         try {
             this.user = JSON.parse(usuarioSalvo);
         } catch(e) {
             window.location.href = '../login/index.html';
             return;
         }
-        
+
         console.log('[SPA] 👤 Usuário:', this.user.id);
-        console.log('[SPA] 📧 Email:', this.user.email);
-        console.log('[SPA] 📛 Nome:', this.user.nome);
-        
         this.updateLoadingStatus(`Olá, ${this.user.nome || 'Usuário'}!`, 10);
-        
-        // ⭐ GARANTIR QUE O CACHE MANAGER ESTÁ INICIALIZADO
+
+        // CacheManager
         if (window.CacheManager) {
-            console.log('[SPA] 🔄 Inicializando CacheManager...');
             window.CacheManager.init();
             window.CacheManager.currentUserId = this.user.id;
-            console.log('[SPA] ✅ CacheManager inicializado com userId:', this.user.id);
             window.dispatchEvent(new CustomEvent('cacheReady'));
+            console.log('[SPA] ✅ CacheManager inicializado com userId:', this.user.id);
         } else {
-            console.warn('[SPA] ⚠️ CacheManager não encontrado, tentando carregar...');
-            const script = document.createElement('script');
-            script.src = '/TELAS/mobile-telas/cache-manager.js';
-            script.onload = () => {
-                if (window.CacheManager) {
-                    window.CacheManager.init();
-                    window.CacheManager.currentUserId = this.user.id;
-                    console.log('[SPA] ✅ CacheManager carregado e inicializado!');
-                    window.dispatchEvent(new CustomEvent('cacheReady'));
-                }
-            };
-            script.onerror = () => {
-                console.error('[SPA] ❌ Falha ao carregar CacheManager, tentando fallback...');
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = 'cache-manager.js';
-                fallbackScript.onload = () => {
-                    if (window.CacheManager) {
-                        window.CacheManager.init();
-                        window.CacheManager.currentUserId = this.user.id;
-                        console.log('[SPA] ✅ CacheManager carregado via fallback!');
-                        window.dispatchEvent(new CustomEvent('cacheReady'));
-                    }
-                };
-                document.head.appendChild(fallbackScript);
-            };
-            document.head.appendChild(script);
+            console.warn('[SPA] ⚠️ CacheManager não encontrado!');
         }
-        
-        const nomeExibicao = this.user.nome || this.user.displayName || this.user.email?.split('@')[0] || 'Usuário';
+
+        const nomeExibicao = this.user.nome || this.user.email?.split('@')[0] || 'Usuário';
         const headerName = document.getElementById('header-name');
         if (headerName) headerName.textContent = nomeExibicao.split(' ')[0];
-        
+
         this._profileUpdateRetries = 0;
         this.updateProfileUI();
-        
+
         // Aguardar Supabase
         await this.waitForSupabase();
-        
-        // Inicializar CacheManager (garantia)
-        this.updateLoadingStatus('Inicializando cache...', 25);
-        if (window.CacheManager) {
-            window.CacheManager.init();
-            window.CacheManager.currentUserId = this.user.id;
-            console.log('[SPA] ✅ CacheManager inicializado');
-            console.log('[SPA] 📊 Status do Cache:', window.CacheManager.getStatus());
-        } else {
-            console.warn('[SPA] ⚠️ CacheManager não disponível');
-        }
-        
-        // Inicializar SyncHelper
+
+        // SyncHelper
         this.updateLoadingStatus('Inicializando sincronização...', 30);
         if (window.initSync) {
             try {
                 await window.initSync();
                 console.log('[SPA] ✅ SyncHelper inicializado');
             } catch(e) {
-                console.warn('[SPA] ⚠️ Erro ao inicializar SyncHelper:', e);
+                console.warn('[SPA] ⚠️ Erro no SyncHelper:', e);
             }
+        } else {
+            console.warn('[SPA] ⚠️ sync-helper.js não carregado!');
         }
-        
+
         // Carregar módulos
         this.updateLoadingStatus('Carregando módulos...', 35);
         this.loadModules();
-        
+
         // Carregar dados
         this.updateLoadingStatus('Carregando seus dados...', 40);
         await this.loadAllData();
-        
+
         // Atualizar perfil
         this._profileUpdateRetries = 0;
         this.updateProfileUI();
         this.updateProfileStats();
-        
-        // Configurar navegação
+
+        // Setup
         this.updateLoadingStatus('Configurando...', 85);
         this.setupNavigation();
-        
-        // Configurar eventos
         this.setupEvents();
-        
-        // Configurar observer do perfil
         this.setupProfileObserver();
-        
-        // ⭐ CONECTA O BOTÃO DA IA NA INICIALIZAÇÃO
+
         if (this.modules.ia) this.modules.ia.setupEvents();
-        
+
         // Renderizar view inicial
         this.updateLoadingStatus('Quase pronto!', 95);
-        this.showView('dashboard');
-        
-        // Atualizar badge
+        await this.showView('dashboard');
+
         this.updateBadge();
-        
-        // ⭐ FORÇAR SINCRONIZAÇÃO INICIAL COM VERIFICAÇÃO
+
+        // Sync inicial
         this.updateLoadingStatus('Sincronizando dados...', 90);
         await this.forceInitialSync();
-        
-        // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE
+
+        // Notificações
         this.updateLoadingStatus('Carregando notificações...', 92);
         await this.loadNotificationsFromSupabase();
-        
+
         // Fechar loading
         setTimeout(() => {
             this.updateLoadingStatus('Pronto!', 100);
-            setTimeout(() => {
-                this.closeLoadingOverlay();
-            }, 300);
+            setTimeout(() => this.closeLoadingOverlay(), 300);
         }, 500);
-        
+
         this._isAppReady = true;
         this._isInitializing = false;
-        console.log('[SPA] ✅ Aplicação mobile pronta!');
+        console.log('[SPA] ✅ Aplicação pronta!');
     }
-    
-    // ============================================
-    // ⭐ CARREGAR NOTIFICAÇÕES DO SUPABASE
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  NOTIFICAÇÕES
+    // ══════════════════════════════════════════════════════
     async loadNotificationsFromSupabase() {
         try {
             const client = this.getSupabase();
-            if (!client || !this.user) {
-                console.log('[SPA] ℹ️ Supabase ou usuário não disponível para carregar notificações');
-                return;
-            }
+            if (!client || !this.user) return;
 
-            console.log('[SPA] 📬 Carregando notificações do Supabase...');
-            
             const { data, error } = await client
                 .from('notifications')
                 .select('*')
@@ -670,145 +439,92 @@ class App {
                 }));
 
                 this.data.notifications = notificacoes;
-                
+
                 if (window.CacheManager) {
                     window.CacheManager.set('notifications', notificacoes, true);
                 }
-                
-                const key = `${this.user.id}_notifications`;
-                localStorage.setItem(key, JSON.stringify(notificacoes));
 
-                console.log(`[SPA] ✅ ${notificacoes.length} notificações carregadas do Supabase`);
-                
+                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(notificacoes));
+
                 this.updateBadge();
                 window.dispatchEvent(new CustomEvent('notificationsUpdated'));
-            } else {
-                console.log('[SPA] ℹ️ Nenhuma notificação encontrada no Supabase');
             }
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao carregar notificações:', error);
+            console.error('[SPA] ❌ Erro notificações:', error);
         }
     }
-    
-    // ============================================
-    // ⭐ FORÇAR SINCRONIZAÇÃO INICIAL
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  SYNC INICIAL
+    // ══════════════════════════════════════════════════════
     async forceInitialSync() {
         try {
-            console.log('[SPA] 🔄 Forçando sincronização inicial...');
-            
-            if (!window.CacheManager) {
-                console.warn('[SPA] ⚠️ CacheManager não disponível');
-                return false;
-            }
-            
+            if (!window.CacheManager) return false;
             if (!window.DatabaseService) {
-                console.warn('[SPA] ⚠️ DatabaseService não disponível, tentando inicializar...');
                 if (window.SupabaseClient?.initSupabase) {
                     await window.SupabaseClient.initSupabase();
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(r => setTimeout(r, 1000));
                 }
-                if (!window.DatabaseService) {
-                    console.error('[SPA] ❌ DatabaseService não disponível');
-                    return false;
-                }
+                if (!window.DatabaseService) return false;
             }
-            
+
             const result = await window.CacheManager.forceSync();
-            console.log('[SPA] ✅ Sincronização inicial:', result ? 'com alterações' : 'sem alterações');
-            
             await this.loadAllData();
             if (this.modules[this.currentView]) {
                 this.modules[this.currentView].render(this.data);
             }
-            
             return result;
         } catch (error) {
-            console.error('[SPA] ❌ Erro na sincronização inicial:', error);
-            
+            console.error('[SPA] ❌ Erro no sync inicial:', error);
             if (this._syncRetryCount < this._maxSyncRetries) {
                 this._syncRetryCount++;
-                console.log(`[SPA] 🔄 Tentativa ${this._syncRetryCount}/${this._maxSyncRetries} em 3s...`);
-                setTimeout(() => {
-                    this.forceInitialSync();
-                }, 3000);
+                setTimeout(() => this.forceInitialSync(), 3000);
             }
             return false;
         }
     }
-    
-    // ============================================
-    // CARREGAR MÓDULOS
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  CARREGAR MÓDULOS
+    // ══════════════════════════════════════════════════════
     loadModules() {
-        if (typeof DashboardModule !== 'undefined') {
-            this.modules.dashboard = new DashboardModule(this);
+        if (typeof DashboardModule !== 'undefined') this.modules.dashboard = new DashboardModule(this);
+        if (typeof CalendarioModule !== 'undefined') this.modules.calendario = new CalendarioModule(this);
+        if (typeof TarefasModule !== 'undefined') this.modules.tarefas = new TarefasModule(this);
+        if (typeof NotasModule !== 'undefined') this.modules.notas = new NotasModule(this);
+        if (typeof PerfilModule !== 'undefined') this.modules.perfil = new PerfilModule(this);
+        if (typeof IAModule !== 'undefined') this.modules.ia = new IAModule(this);
+        if (typeof DocumentosModule !== 'undefined') this.modules.documentos = new DocumentosModule(this);
+        if (typeof DisciplinasModule !== 'undefined') {
+            this.modules.disciplinas = new DisciplinasModule(this);
+            this.modules.disciplinas._setupEventos();
         }
-        
-        if (typeof CalendarioModule !== 'undefined') {
-            this.modules.calendario = new CalendarioModule(this);
-        }
-        
-        if (typeof TarefasModule !== 'undefined') {
-            this.modules.tarefas = new TarefasModule(this);
-        }
-        
-        if (typeof NotasModule !== 'undefined') {
-            this.modules.notas = new NotasModule(this);
-        }
-        
-        if (typeof PerfilModule !== 'undefined') {
-            this.modules.perfil = new PerfilModule(this);
-        }
-
-        if (typeof IAModule !== 'undefined') {
-             this.modules.ia = new IAModule(this);
-        }
-
-        if (typeof DocumentosModule !== 'undefined') {
-            this.modules.documentos = new DocumentosModule(this);
-            console.log('[SPA] 📁 Módulo Documentos carregado');
-        }
-          if (typeof DisciplinasModule !== 'undefined') {
-        this.modules.disciplinas = new DisciplinasModule(this);
-        this.modules.disciplinas._setupEventos();
-        console.log('[SPA] 📚 Módulo Disciplinas carregado');
-        }
-        console.log('[SPA] 📦 Módulos carregados:', Object.keys(this.modules));
+        console.log('[SPA] 📦 Módulos:', Object.keys(this.modules));
     }
-    
-    // ============================================
-    // ⭐ CARREGAR DADOS (NUVEM PRIMEIRO)
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  CARREGAR DADOS
+    // ══════════════════════════════════════════════════════
     async loadAllData(retryCount = 0) {
         if (this.isLoading) return;
         this.isLoading = true;
-        
-        console.log(`[SPA] 📊 Carregando dados... (tentativa ${retryCount + 1})`);
-        this.updateLoadingStatus(`Carregando dados... (${retryCount + 1}/5)`, 35 + (retryCount * 5));
-        
-        // ⭐ PRIMEIRO: TENTAR CARREGAR DA NUVEM
+
+        console.log(`[SPA] 📊 Carregando dados (tentativa ${retryCount + 1})`);
+        this.updateLoadingStatus('Carregando dados...', 40);
+
         let loadedFromCloud = false;
         try {
             if (window.CacheManager && window.DatabaseService) {
                 const userId = this.user?.id;
                 if (userId) {
-                    console.log('[SPA] ☁️ Tentando carregar da nuvem primeiro...');
-                    this.updateLoadingStatus('Carregando da nuvem...', 40);
-                    
-                                     const cloudData = await window.CacheManager.loadFromCloud(false);
+                    const cloudData = await window.CacheManager.loadFromCloud(false);
                     if (cloudData) {
                         loadedFromCloud = true;
                         this._dataLoadedFromCloud = true;
-                        console.log('[SPA] ✅ Dados carregados da nuvem com sucesso!');
                         this.updateLoadingStatus('Dados da nuvem carregados!', 70);
-                        
                         await this._syncDataFromCacheManager();
                         this.isLoading = false;
-                        
-                        if (this.modules.dashboard) {
-                            this.modules.dashboard.render(this.data);
-                        }
+                        if (this.modules.dashboard) this.modules.dashboard.render(this.data);
                         return;
                     }
                 }
@@ -816,8 +532,8 @@ class App {
         } catch (error) {
             console.warn('[SPA] ⚠️ Erro ao carregar da nuvem:', error);
         }
-        
-        // ⭐ SE NÃO CONSEGUIU DA NUVEM, TENTAR CACHE
+
+        // Cache
         if (!loadedFromCloud) {
             const cached = sessionStorage.getItem('app_data');
             if (cached) {
@@ -825,36 +541,28 @@ class App {
                     const data = JSON.parse(cached);
                     if (data && typeof data === 'object') {
                         this.data = { ...this.data, ...data };
-                        console.log('[SPA] 📦 Dados carregados do cache');
-                        this.updateLoadingStatus('Dados do cache carregados', 70);
+                        this.updateLoadingStatus('Dados do cache', 70);
                         this.isLoading = false;
-                        
-                        if (this.modules.dashboard) {
-                            this.modules.dashboard.render(this.data);
-                        }
+                        if (this.modules.dashboard) this.modules.dashboard.render(this.data);
                         return;
                     }
-                } catch(e) {
-                    console.warn('[SPA] ⚠️ Cache inválido, ignorando');
-                }
+                } catch(e) {}
             }
         }
-        
-        // ⭐ FALLBACK: localStorage
+
+        // localStorage
         this.loadDataFromLocalStorage();
         this.isLoading = false;
     }
-    
-    // ⭐ Sincronizar dados do CacheManager para o app
+
     async _syncDataFromCacheManager() {
         if (!window.CacheManager) return;
-        
+
         const tipos = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
-        
+
         for (const tipo of tipos) {
             const dados = window.CacheManager.get(tipo, null);
             if (dados !== null && dados !== undefined) {
-                // ⭐ PARA DOCUMENTOS: SÓ SOBRESCREVER SE TIVER DADOS
                 if (tipo === 'documentos' && Array.isArray(dados)) {
                     if (dados.length > 0 || this.data.documentos.length > 0) {
                         this.data[tipo] = dados;
@@ -862,50 +570,40 @@ class App {
                 } else if (tipo === 'notes' && Array.isArray(dados)) {
                     const filtradas = dados.filter(n => {
                         const hasTitle = n.title && n.title.trim().length > 0;
-                        const hasContent = n.content && n.content.trim().length > 0 && 
-                                          n.content !== '<br>' && 
+                        const hasContent = n.content && n.content.trim().length > 0 &&
+                                          n.content !== '<br>' &&
                                           n.content !== '<div><br></div>' &&
                                           n.content !== '<p><br></p>';
                         return hasTitle || hasContent;
                     });
                     this.data[tipo] = filtradas;
-                    if (filtradas.length > 0) {
-                        window.CacheManager.set(tipo, filtradas, true);
-                    }
+                    if (filtradas.length > 0) window.CacheManager.set(tipo, filtradas, true);
                 } else {
                     this.data[tipo] = dados;
                 }
-                console.log(`[SPA] 📊 ${tipo} sincronizado: ${Array.isArray(dados) ? dados.length : Object.keys(dados).length} itens`);
             }
         }
-        
+
         const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         dias.forEach(day => {
-            if (!this.data.weeklySchedule[day]) {
-                this.data.weeklySchedule[day] = [];
-            }
+            if (!this.data.weeklySchedule[day]) this.data.weeklySchedule[day] = [];
         });
-        
+
         if (!this.data.settings || typeof this.data.settings !== 'object') {
             this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
         }
-        
+
         sessionStorage.setItem('app_data', JSON.stringify(this.data));
     }
-    
-    // ============================================
-    // CARREGAR DO LOCALSTORAGE (FALLBACK)
-    // ============================================
+
     loadDataFromLocalStorage() {
-        console.log('[SPA] 📂 Tentando carregar do localStorage...');
         this.updateLoadingStatus('Carregando dados locais...', 60);
-        
+
         const userId = this.user.id;
         const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
-        
+
         let loaded = false;
-        let loadedCount = 0;
-        
+
         for (const type of types) {
             const key = `${userId}_${type}`;
             const data = localStorage.getItem(key);
@@ -914,262 +612,147 @@ class App {
                     const parsed = JSON.parse(data);
                     if (parsed && (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0)) {
                         if (type === 'notes' && Array.isArray(parsed)) {
-                            const filtradas = parsed.filter(n => {
+                            this.data[type] = parsed.filter(n => {
                                 const hasTitle = n.title && n.title.trim().length > 0;
-                                const hasContent = n.content && n.content.trim().length > 0 && 
-                                                  n.content !== '<br>' && 
+                                const hasContent = n.content && n.content.trim().length > 0 &&
+                                                  n.content !== '<br>' &&
                                                   n.content !== '<div><br></div>' &&
                                                   n.content !== '<p><br></p>';
                                 return hasTitle || hasContent;
                             });
-                            if (filtradas.length !== parsed.length) {
-                                console.log(`[SPA] 🧹 Removidas ${parsed.length - filtradas.length} notas fantasmas do localStorage`);
-                                this.data[type] = filtradas;
-                                localStorage.setItem(key, JSON.stringify(filtradas));
-                            } else {
-                                this.data[type] = parsed;
-                            }
                         } else {
                             this.data[type] = parsed;
                         }
                         loaded = true;
-                        loadedCount++;
-                        console.log(`[SPA] 📂 ${type} carregado do localStorage (${Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length} itens)`);
                     }
-                } catch(e) {
-                    console.warn(`[SPA] ⚠️ Erro ao carregar ${type} do localStorage`);
-                }
+                } catch(e) {}
             }
         }
-        
+
         if (!this.data.settings || typeof this.data.settings !== 'object') {
             this.data.settings = { theme: 'dark', accent: '#8b5cf6', fontSize: 14 };
         }
-        
+
         if (loaded) {
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
-            this.updateLoadingStatus(`Dados locais carregados (${loadedCount} tipos)`, 80);
-            console.log('[SPA] ✅ Dados carregados do localStorage');
-            
-            if (this.modules.dashboard) {
-                this.modules.dashboard.render(this.data);
-            }
+            this.updateLoadingStatus('Dados locais carregados', 80);
+            if (this.modules.dashboard) this.modules.dashboard.render(this.data);
         } else {
-            this.updateLoadingStatus('Nenhum dado encontrado', 70);
-            console.log('[SPA] ℹ️ Nenhum dado encontrado no localStorage - usando dados vazios');
-            
+            this.updateLoadingStatus('Sem dados locais', 70);
             const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
             dias.forEach(day => {
-                if (!this.data.weeklySchedule[day]) {
-                    this.data.weeklySchedule[day] = [];
-                }
+                if (!this.data.weeklySchedule[day]) this.data.weeklySchedule[day] = [];
             });
-            
-            if (this.modules.dashboard) {
-                this.modules.dashboard.render(this.data);
-            }
+            if (this.modules.dashboard) this.modules.dashboard.render(this.data);
         }
     }
-    
-    // ============================================
-    // ⭐ SALVAR DADOS (COM VALIDAÇÃO DE DOCUMENTOS & CORREÇÃO 5)
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  SALVAR
+    // ══════════════════════════════════════════════════════
     async saveAllData() {
         if (this.isSaving) return;
         this.isSaving = true;
-        
-        console.log('[SPA] 💾 Salvando dados...');
-        
+
         try {
-            // ⭐ FILTRAR NOTAS FANTASMAS
             if (Array.isArray(this.data.notes)) {
-                const antes = this.data.notes.length;
                 this.data.notes = this.data.notes.filter(n => {
                     const hasTitle = n.title && n.title.trim().length > 0;
-                    const hasContent = n.content && n.content.trim().length > 0 && 
-                                      n.content !== '<br>' && 
+                    const hasContent = n.content && n.content.trim().length > 0 &&
+                                      n.content !== '<br>' &&
                                       n.content !== '<div><br></div>' &&
                                       n.content !== '<p><br></p>';
                     return hasTitle || hasContent;
                 });
-                if (this.data.notes.length !== antes) {
-                    console.log(`[SPA] 🧹 Removidas ${antes - this.data.notes.length} notas fantasmas ao salvar`);
-                }
             }
-            
-            // ⭐ LIMPEZA DE DOCUMENTOS VAZIOS (URLs curtas já não ocupam espaço)
+
             if (Array.isArray(this.data.documentos)) {
-                const antes = this.data.documentos.length;
                 this.data.documentos = this.data.documentos.filter(doc => {
-                    // Só remove se faltar o nome ou o arquivo
                     if (!doc.nome || doc.nome.trim() === '') return false;
                     if (!doc.arquivo || doc.arquivo.trim() === '') return false;
-                    
-                    // Aviso (não remove) se ainda houver Base64 antigo grande
-                    if (doc.arquivo.startsWith('data:') && doc.arquivo.length > 500 * 1024) {
-                        console.warn('[SPA] ⚠️ Documento Base64 antigo grande (recomenda-se reenviar):', doc.nome);
-                    }
                     return true;
                 });
-                if (this.data.documentos.length !== antes) {
-                    console.log(`[SPA] 🧹 Removidos ${antes - this.data.documentos.length} documentos vazios`);
-                }
             }
-            
-            // Salvar no sessionStorage
+
             sessionStorage.setItem('app_data', JSON.stringify(this.data));
-            
-            // Salvar no localStorage com userId
+
             const userId = this.user.id;
             const types = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'];
-            
+
             for (const type of types) {
                 const key = `${userId}_${type}`;
                 if (this.data[type] !== undefined && this.data[type] !== null) {
                     localStorage.setItem(key, JSON.stringify(this.data[type]));
-                    
                     if (this.user.email) {
                         localStorage.setItem(`${type}_${this.user.email}`, JSON.stringify(this.data[type]));
                     }
                 }
             }
-            
-            // ⭐ SALVAR NO CACHEMANAGER COM CORREÇÃO 5 (DEBOUNCE DE SYNC)
+
             if (window.CacheManager) {
-                console.log('[SPA] 💾 Salvando no CacheManager...');
-                let savedCount = 0;
-                let failedCount = 0;
-                
                 for (const type of types) {
                     if (this.data[type] !== undefined && this.data[type] !== null) {
-                        const result = window.CacheManager.set(type, this.data[type], true);
-                        if (result) {
-                            savedCount++;
-                        } else {
-                            failedCount++;
-                            console.warn(`[SPA] ⚠️ Falha ao salvar ${type} no CacheManager`);
-                        }
+                        window.CacheManager.set(type, this.data[type], true);
                     }
                 }
-                
-                console.log(`[SPA] 📊 ${savedCount} tipos salvos, ${failedCount} falhas`);
-                
-                // ❌ NÃO FAZER forceSync imediato (O sync-helper.js já trata ciclicamente)
-                // ✅ Em vez disso, agendar um sync com Debounce de 2s para evitar duplicações
-                               if (window.CacheManager._syncTimeout) {
+
+                if (window.CacheManager._syncTimeout) {
                     clearTimeout(window.CacheManager._syncTimeout);
                 }
                 window.CacheManager._syncTimeout = setTimeout(() => {
-                    // ⭐ Só sincroniza se houver algo pendente
                     if (window.CacheManager._saveQueue.length > 0 ||
                         window.CacheManager._deleteQueue.length > 0) {
                         window.CacheManager.forceSync().catch(() => {});
                     }
-                }, 3000);   // 3s em vez de 2s
-            } else {
-                console.error('[SPA] ❌ CacheManager não disponível!');
+                }, 3000);
             }
-            
-            console.log('[SPA] ✅ Dados salvos com sucesso');
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao salvar dados:', error);
+            console.error('[SPA] ❌ Erro ao salvar:', error);
         }
-        
+
         setTimeout(() => { this.isSaving = false; }, 500);
     }
-    
-    // ============================================
-    // ⭐ DELETAR ITEM (COM SYNC)
-    // ============================================
-    async deleteItem(type, id) {
-        if (!window.CacheManager) {
-            console.error('[SPA] ❌ CacheManager não disponível para delete');
-            return false;
-        }
 
-        const userId = this.user?.id;
-        if (!userId) {
-            console.error('[SPA] ❌ Usuário não logado para delete');
-            return false;
-        }
-
-        try {
-            // Deletar localmente e na nuvem
-            const deleted = window.CacheManager.delete(type, id, true);
-            
-            if (deleted) {
-                // Atualizar dados locais
-                this.data[type] = window.CacheManager.get(type, []);
-                
-                // Forçar sync imediato
-                await window.CacheManager.forceSync();
-                
-                console.log(`[SPA] ✅ ${type} item ${id} deletado e sincronizado`);
-                return true;
-            }
-            
-            return false;
-        } catch (error) {
-            console.error(`[SPA] ❌ Erro ao deletar ${type}:`, error);
-            return false;
-        }
-    }
-    
-    // ============================================
-    // NAVEGAÇÃO
-    // ============================================
+    // ══════════════════════════════════════════════════════
+    //  NAVEGAÇÃO
+    // ══════════════════════════════════════════════════════
     setupNavigation() {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 const view = item.dataset.view;
-                if (view && view !== this.currentView) {
-                    this.showView(view);
-                }
+                if (view && view !== this.currentView) this.showView(view);
             });
         });
-        
-        document.getElementById('go-to-calendar')?.addEventListener('click', () => {
-            this.showView('calendario');
-        });
-                document.getElementById('go-to-disciplinas')?.addEventListener('click', () => {
-            this.showView('disciplinas');
-        });
-        
-        document.getElementById('go-to-tasks')?.addEventListener('click', () => {
-            this.showView('tarefas');
-        });
-        
-        document.getElementById('notification-bell-link')?.addEventListener('click', () => {
-            this.openNotifications();
-        });
+
+        document.getElementById('go-to-calendar')?.addEventListener('click', () => this.showView('calendario'));
+        document.getElementById('go-to-disciplinas')?.addEventListener('click', () => this.showView('disciplinas'));
+        document.getElementById('go-to-tasks')?.addEventListener('click', () => this.showView('tarefas'));
+        document.getElementById('notification-bell-link')?.addEventListener('click', () => this.openNotifications());
     }
-    
-    // ============================================
-    // SHOW VIEW (CORRIGIDO)
-    // ============================================
+
     async showView(viewName) {
         console.log(`[SPA] 📄 Mostrando: ${viewName}`);
-        
+
         this.loadCSS(viewName);
-        
+
         document.querySelectorAll('.view').forEach(v => {
             v.classList.remove('active');
             v.classList.add('hidden');
         });
-        
+
         const view = document.getElementById(`view-${viewName}`);
         if (!view) {
             console.warn(`[SPA] ⚠️ View ${viewName} não encontrada`);
             return;
         }
-        
+
         view.classList.remove('hidden');
         view.classList.add('active');
-        
+
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.view === viewName);
         });
-        
+
         const subtitles = {
             dashboard: 'Bem-vindo de volta 👋',
             calendario: 'Meu Calendário 📅',
@@ -1181,25 +764,21 @@ class App {
         };
         const subtitleEl = document.getElementById('header-subtitle');
         if (subtitleEl) subtitleEl.textContent = subtitles[viewName] || '';
-        
+
         if (viewName === 'perfil') {
             this._profileUpdateRetries = 0;
             this.updateProfileUI();
             this.updateProfileStats();
         }
-        
-        // ⭐ FAB da IA
+
+        // FAB
         const fabIa = document.getElementById('btn-open-ia');
-        if (fabIa) {
-            fabIa.style.display = (viewName === 'ia') ? 'none' : 'flex';
-        }
-        
+        if (fabIa) fabIa.style.display = (viewName === 'ia') ? 'none' : 'flex';
+
         const navBar = document.querySelector('.bottom-nav');
-        if (navBar) {
-            navBar.style.display = (viewName === 'ia') ? 'none' : 'flex';
-        }
-        
-        // ⭐ RENDER ASSÍNCRONO
+        if (navBar) navBar.style.display = (viewName === 'ia') ? 'none' : 'flex';
+
+        // Render
         if (this.modules[viewName]) {
             try {
                 await this.modules[viewName].render(this.data);
@@ -1207,30 +786,32 @@ class App {
                 console.error(`[SPA] ❌ Erro ao renderizar ${viewName}:`, e);
             }
         }
-        
+
         this.currentView = viewName;
     }
-    
-    // ============================================
-    // ⭐ NOTIFICAÇÕES
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  NOTIFICAÇÕES (POP-UP)
+    // ══════════════════════════════════════════════════════
     openNotifications() {
         const modal = document.getElementById('notifications-modal');
         if (modal) {
             modal.classList.add('active');
             this.renderNotificationsModal();
+        } else {
+            console.warn('[SPA] ⚠️ #notifications-modal não encontrado');
         }
     }
-    
+
     renderNotificationsModal(filter = 'all') {
         const container = document.getElementById('notifications-list-modal');
         if (!container) return;
-        
+
         let filtered = [...this.data.notifications];
         if (filter === 'unread') {
             filtered = this.data.notifications.filter(n => !n.read);
         }
-        
+
         if (filtered.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center;padding:40px;color:var(--text-secondary)">
@@ -1239,7 +820,7 @@ class App {
             `;
             return;
         }
-        
+
         let html = '';
         filtered.forEach(notif => {
             const isRead = notif.read || false;
@@ -1261,100 +842,61 @@ class App {
             `;
         });
         container.innerHTML = html;
-        
+
         container.querySelectorAll('.btn-delete-notification').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const id = btn.dataset.id;
-                await this.deleteNotification(id);
+                await this.deleteNotification(btn.dataset.id);
             });
         });
     }
-    
-    // ============================================
-    // ⭐ DELETAR NOTIFICAÇÃO INDIVIDUAL
-    // ============================================
+
     async deleteNotification(id) {
         try {
             const client = this.getSupabase();
             if (client && this.user) {
-                const { error } = await client
-                    .from('notifications')
-                    .delete()
-                    .eq('id', id)
-                    .eq('user_id', this.user.id);
-
-                if (error) {
-                    console.error('[SPA] ❌ Erro ao deletar notificação do Supabase:', error);
-                }
+                await client.from('notifications').delete().eq('id', id).eq('user_id', this.user.id);
             }
 
             this.data.notifications = this.data.notifications.filter(n => n.id != id);
-            
+
             if (this.user) {
-                const key = `${this.user.id}_notifications`;
-                localStorage.setItem(key, JSON.stringify(this.data.notifications));
+                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(this.data.notifications));
             }
-            
+
             if (window.CacheManager) {
                 window.CacheManager.set('notifications', this.data.notifications, true);
             }
-            
+
             this.updateBadge();
             this.renderNotificationsModal();
-            
-            if (this.modules.dashboard) {
-                this.modules.dashboard.renderNotifications();
-            }
-            
-            if (typeof showToast === 'function') {
-                showToast('🗑️ Notificação removida!', 'success');
-            }
-            
-            console.log('[SPA] ✅ Notificação deletada:', id);
-            
+
+            if (this.modules.dashboard) this.modules.dashboard.renderNotifications();
+
+            if (typeof showToast === 'function') showToast('🗑️ Notificação removida!', 'success');
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao deletar notificação:', error);
-            if (typeof showToast === 'function') {
-                showToast('❌ Erro ao remover notificação', 'error');
-            }
+            console.error('[SPA] ❌ Erro:', error);
         }
     }
-    
-    // ============================================
-    // ⭐ MARCAR TODAS COMO LIDAS
-    // ============================================
+
     async marcarTodasComoLidas() {
         try {
             const naoLidas = this.data.notifications.filter(n => !n.read);
             if (naoLidas.length === 0) {
-                if (typeof showToast === 'function') {
-                    showToast('✅ Todas as notificações já estão lidas!', 'info');
-                }
+                if (typeof showToast === 'function') showToast('✅ Já estão todas lidas!', 'info');
                 return;
             }
 
             const client = this.getSupabase();
             if (client && this.user) {
                 const ids = naoLidas.map(n => n.id);
-                const { error } = await client
-                    .from('notifications')
-                    .update({ read: true })
-                    .in('id', ids)
-                    .eq('user_id', this.user.id);
-
-                if (error) {
-                    console.error('[SPA] ❌ Erro ao marcar como lidas no Supabase:', error);
-                }
+                await client.from('notifications').update({ read: true }).in('id', ids).eq('user_id', this.user.id);
             }
 
-            this.data.notifications.forEach(n => {
-                if (!n.read) n.read = true;
-            });
+            this.data.notifications.forEach(n => { if (!n.read) n.read = true; });
 
             if (this.user) {
-                const key = `${this.user.id}_notifications`;
-                localStorage.setItem(key, JSON.stringify(this.data.notifications));
+                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(this.data.notifications));
             }
 
             if (window.CacheManager) {
@@ -1364,46 +906,27 @@ class App {
             this.updateBadge();
             this.renderNotificationsModal();
 
-            if (this.modules.dashboard) {
-                this.modules.dashboard.renderNotifications();
-            }
+            if (this.modules.dashboard) this.modules.dashboard.renderNotifications();
 
-            if (typeof showToast === 'function') {
-                showToast('✅ Todas as notificações marcadas como lidas!', 'success');
-            }
-
+            if (typeof showToast === 'function') showToast('✅ Todas marcadas como lidas!', 'success');
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao marcar como lidas:', error);
-            if (typeof showToast === 'function') {
-                showToast('❌ Erro ao marcar como lidas', 'error');
-            }
+            console.error('[SPA] ❌ Erro:', error);
         }
     }
-    
-    // ============================================
-    // ⭐ LIMPAR TODAS AS NOTIFICAÇÕES
-    // ============================================
+
     async limparTodasNotificacoes() {
         if (!confirm('Limpar todas as notificações?')) return;
 
         try {
             const client = this.getSupabase();
             if (client && this.user) {
-                const { error } = await client
-                    .from('notifications')
-                    .delete()
-                    .eq('user_id', this.user.id);
-
-                if (error) {
-                    console.error('[SPA] ❌ Erro ao limpar notificações do Supabase:', error);
-                }
+                await client.from('notifications').delete().eq('user_id', this.user.id);
             }
 
             this.data.notifications = [];
 
             if (this.user) {
-                const key = `${this.user.id}_notifications`;
-                localStorage.setItem(key, JSON.stringify(this.data.notifications));
+                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(this.data.notifications));
             }
 
             if (window.CacheManager) {
@@ -1413,44 +936,35 @@ class App {
             this.updateBadge();
             this.renderNotificationsModal();
 
-            if (this.modules.dashboard) {
-                this.modules.dashboard.renderNotifications();
-            }
+            if (this.modules.dashboard) this.modules.dashboard.renderNotifications();
 
-            if (typeof showToast === 'function') {
-                showToast('🗑️ Todas as notificações removidas!', 'success');
-            }
-
+            if (typeof showToast === 'function') showToast('🗑️ Notificações limpas!', 'success');
         } catch (error) {
-            console.error('[SPA] ❌ Erro ao limpar notificações:', error);
-            if (typeof showToast === 'function') {
-                showToast('❌ Erro ao limpar notificações', 'error');
-            }
+            console.error('[SPA] ❌ Erro:', error);
         }
     }
-    
-    // ============================================
-    // HELPERS
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  HELPERS
+    // ══════════════════════════════════════════════════════
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-    
+
     formatTimeAgo(timeString) {
         if (!timeString) return '';
         const now = new Date();
         const notifTime = new Date(timeString);
         const diffMins = Math.floor((now - notifTime) / 60000);
-        
         if (diffMins < 1) return 'Agora';
         if (diffMins < 60) return `Há ${diffMins} min`;
         if (diffMins < 1440) return `Há ${Math.floor(diffMins / 60)}h`;
         return notifTime.toLocaleDateString('pt-BR');
     }
-    
+
     updateBadge() {
         const badge = document.getElementById('notification-badge');
         const naoLidas = this.data.notifications.filter(n => !n.read).length;
@@ -1459,27 +973,117 @@ class App {
             badge.style.display = naoLidas > 0 ? 'flex' : 'none';
         }
     }
-    
-    // ============================================
-    // EVENTOS
-    // ============================================
+
+    // ══════════════════════════════════════════════════════
+    //  DOWNLOAD APP MESSAGE
+    // ══════════════════════════════════════════════════════
+    showDownloadAppMessage(featureName) {
+        const overlay = document.createElement('div');
+        overlay.id = 'download-app-modal';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 99999; padding: 20px;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background: var(--card-bg, #1a1d24);
+                border-radius: 20px; padding: 32px 24px; max-width: 340px; width: 100%;
+                text-align: center; border: 1px solid var(--border-color, #2d3748);
+                animation: slideUpApp 0.3s ease-out;
+            ">
+                <div style="
+                    width: 72px; height: 72px; margin: 0 auto 20px;
+                    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+                    border-radius: 20px; display: flex; align-items: center;
+                    justify-content: center; font-size: 36px;
+                ">🚀</div>
+                <h2 style="color: var(--text-primary, #fff); margin: 0 0 12px; font-size: 20px;">
+                    ${featureName}
+                </h2>
+                <p style="color: var(--text-secondary, #9ca3af); font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+                    Esta funcionalidade está disponível apenas na app Zero Satus.
+                    Baixa agora e tem acesso completo!
+                </p>
+                <a href="https://play.google.com/store/apps/details?id=com.seu.app.zero"
+                   target="_blank"
+                   style="
+                       display: flex; align-items: center; justify-content: center; gap: 8px;
+                       width: 100%; padding: 14px; text-decoration: none;
+                       background: linear-gradient(135deg, #8b5cf6, #6366f1);
+                       color: white; border-radius: 12px; font-size: 15px;
+                       font-weight: 600; margin-bottom: 10px;
+                       box-sizing: border-box;
+                   ">
+                    <ion-icon name="logo-google-playstore"></ion-icon>
+                    Baixar na Play Store
+                </a>
+                <button id="btn-cancel-download" style="
+                    width: 100%; padding: 12px; border: 1px solid var(--border-color, #2d3748);
+                    background: transparent; color: var(--text-secondary, #9ca3af);
+                    border-radius: 12px; cursor: pointer; font-size: 14px;
+                ">
+                    Agora não
+                </button>
+            </div>
+            <style>
+                @keyframes slideUpApp {
+                    from { transform: translateY(30px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            </style>
+        `;
+
+        document.body.appendChild(overlay);
+
+        document.getElementById('btn-cancel-download').onclick = () => overlay.remove();
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SETUP EVENTS
+    // ══════════════════════════════════════════════════════
     setupEvents() {
+        // ⭐ FAB DA IA
+        const btnOpenIA = document.getElementById('btn-open-ia');
+        if (btnOpenIA) {
+            btnOpenIA.addEventListener('click', () => {
+                console.log('[SPA] 🤖 Abrindo IA via FAB...');
+                this.showView('ia');
+            });
+        } else {
+            console.warn('[SPA] ⚠️ #btn-open-ia não encontrado');
+        }
+
+        // ⭐ Modo Foco → download app
+        const focusCard = document.getElementById('focus-card');
+        if (focusCard) {
+            focusCard.addEventListener('click', () => {
+                this.showDownloadAppMessage('Modo Foco');
+            });
+        }
+
+        // Notificações
         document.getElementById('notification-bell')?.addEventListener('click', () => {
             this.openNotifications();
         });
-        
+
         document.getElementById('btn-close-notifications')?.addEventListener('click', () => {
-            document.getElementById('notifications-modal').classList.remove('active');
+            document.getElementById('notifications-modal')?.classList.remove('active');
         });
-        
+
         document.getElementById('btn-mark-read')?.addEventListener('click', () => {
             this.marcarTodasComoLidas();
         });
-        
+
         document.getElementById('btn-clear-all')?.addEventListener('click', () => {
             this.limparTodasNotificacoes();
         });
-        
+
         document.querySelectorAll('.notification-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.notification-tab').forEach(t => t.classList.remove('active'));
@@ -1487,39 +1091,37 @@ class App {
                 this.renderNotificationsModal(tab.dataset.type);
             });
         });
-        
+
+        // Storage
         window.addEventListener('storage', (e) => {
             if (e.key === 'app_data' && !this.isSaving) {
                 try {
-                    const data = JSON.parse(e.newValue);
-                    this.data = data;
+                    this.data = JSON.parse(e.newValue);
                     if (this.modules[this.currentView]) {
-                        this.modules[this.currentView].render(data);
+                        this.modules[this.currentView].render(this.data);
                     }
                 } catch(e) {}
             }
         });
-        
+
+        // Cloud events
         window.addEventListener('cloudDataLoaded', () => {
-            console.log('[SPA] 📡 Dados da nuvem atualizados');
             this.loadAllData();
             if (this.modules[this.currentView]) {
                 this.modules[this.currentView].render(this.data);
             }
         });
-        
+
         window.addEventListener('forceRefresh', () => {
-            console.log('[SPA] 🔄 Forçando atualização da UI');
             if (this.modules[this.currentView]) {
                 this.modules[this.currentView].render(this.data);
             }
         });
-        
+
         ['tasks', 'notes', 'calendarEvents', 'weeklySchedule', 'disciplinas', 'notifications', 'documentos'].forEach(type => {
             window.addEventListener(`${type}Updated`, (e) => {
                 if (e.detail) {
                     this.data[type] = e.detail;
-                    console.log(`[SPA] 📡 ${type} atualizado via evento`);
                     sessionStorage.setItem('app_data', JSON.stringify(this.data));
                     if (this.modules[this.currentView]) {
                         this.modules[this.currentView].render(this.data);
@@ -1527,9 +1129,8 @@ class App {
                 }
             });
         });
-        
+
         window.addEventListener('syncCompleted', (e) => {
-            console.log('[SPA] 📡 Sincronização concluída:', e.detail);
             if (e.detail && e.detail.success) {
                 this.loadAllData();
                 if (this.modules[this.currentView]) {
@@ -1537,22 +1138,20 @@ class App {
                 }
             }
         });
-        
-       window.addEventListener('scheduleUpdated', (e) => {
-    if (e.detail) {
-        this.data.weeklySchedule = e.detail.weeklySchedule || this.data.weeklySchedule;
-        this.data.timeSlots = e.detail.timeSlots || this.data.timeSlots;
-        sessionStorage.setItem('app_data', JSON.stringify(this.data));
-        // ⭐ NÃO re-renderizar o dashboard (já o fez antes de disparar o evento)
-        // Se a view ativa for OUTRA (ex: inicio), aí sim renderiza
-        if (this.currentView !== 'dashboard' && this.modules[this.currentView]) {
-            this.modules[this.currentView].render(this.data);
-        }
-    }
-});
-        window.addEventListener('newNotification', (e) => {
-            console.log('[App] 📬 Nova notificação recebida via Realtime!');
-            
+
+        window.addEventListener('scheduleUpdated', (e) => {
+            if (e.detail) {
+                this.data.weeklySchedule = e.detail.weeklySchedule || this.data.weeklySchedule;
+                this.data.timeSlots = e.detail.timeSlots || this.data.timeSlots;
+                sessionStorage.setItem('app_data', JSON.stringify(this.data));
+                if (this.currentView !== 'dashboard' && this.modules[this.currentView]) {
+                    this.modules[this.currentView].render(this.data);
+                }
+            }
+        });
+
+        // Realtime
+        window.addEventListener('newNotification', () => {
             if (this.user && this.getSupabase()) {
                 this.getSupabase()
                     .from('notifications')
@@ -1562,7 +1161,7 @@ class App {
                     .limit(10)
                     .then(({ data, error }) => {
                         if (!error && data && data.length > 0) {
-                            const notificacoes = data.map(n => ({
+                            this.data.notifications = data.map(n => ({
                                 id: n.id,
                                 title: n.title || 'Notificação',
                                 message: n.message || '',
@@ -1570,76 +1169,28 @@ class App {
                                 read: n.read || false,
                                 time: n.created_at
                             }));
-                            
-                            this.data.notifications = notificacoes;
-                            
                             if (window.CacheManager) {
-                                window.CacheManager.set('notifications', notificacoes, true);
+                                window.CacheManager.set('notifications', this.data.notifications, true);
                             }
-                            
-                            if (this.modules.dashboard) {
-                                this.modules.dashboard.renderNotifications();
-                            }
+                            if (this.modules.dashboard) this.modules.dashboard.renderNotifications();
                             this.updateBadge();
-                            
-                            if (data.length > 0 && typeof showToast === 'function') {
-                                showToast(`📬 ${data[0].title || 'Nova notificação'}`, 'info');
-                            }
                         }
-                    })
-                    .catch(err => console.warn('[App] ⚠️ Erro ao buscar notificação:', err));
+                    });
             }
         });
 
         window.addEventListener('notificationsUpdated', () => {
-            console.log('[App] 📬 Notificações atualizadas!');
-            
-            if (this.user && this.getSupabase()) {
-                this.getSupabase()
-                    .from('notifications')
-                    .select('*')
-                    .eq('user_id', this.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(10)
-                    .then(({ data, error }) => {
-                        if (!error && data && data.length > 0) {
-                            const notificacoes = data.map(n => ({
-                                id: n.id,
-                                title: n.title || 'Notificação',
-                                message: n.message || '',
-                                type: n.type || 'info',
-                                read: n.read || false,
-                                time: n.created_at
-                            }));
-                            
-                            this.data.notifications = notificacoes;
-                            if (window.CacheManager) {
-                                window.CacheManager.set('notifications', notificacoes, true);
-                            }
-                            if (this.modules.dashboard) {
-                                this.modules.dashboard.renderNotifications();
-                            }
-                            this.updateBadge();
-                        }
-                    })
-                    .catch(err => console.warn('[App] ⚠️ Erro ao atualizar notificações:', err));
-            }
+            this.loadNotificationsFromSupabase();
         });
 
-        setTimeout(() => {
-            this.loadNotificationsFromSupabase();
-        }, 2000);
+        setTimeout(() => this.loadNotificationsFromSupabase(), 2000);
 
+        // FAB observer
         const fabIa = document.getElementById('btn-open-ia');
-        
         const observer = new MutationObserver(() => {
             const viewIa = document.getElementById('view-ia');
             if (fabIa) {
-                if (viewIa && viewIa.classList.contains('active')) {
-                    fabIa.style.display = 'none';
-                } else {
-                    fabIa.style.display = 'flex';
-                }
+                fabIa.style.display = (viewIa && viewIa.classList.contains('active')) ? 'none' : 'flex';
             }
         });
 
@@ -1650,23 +1201,19 @@ class App {
         setTimeout(() => {
             const viewIa = document.getElementById('view-ia');
             if (fabIa) {
-                if (viewIa && viewIa.classList.contains('active')) {
-                    fabIa.style.display = 'none';
-                } else {
-                    fabIa.style.display = 'flex';
-                }
+                fabIa.style.display = (viewIa && viewIa.classList.contains('active')) ? 'none' : 'flex';
             }
         }, 100);
     }
 }
 
-// ============================================
-// INICIALIZAR
-// ============================================
+// ══════════════════════════════════════════════════════
+//  INICIALIZAR
+// ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         window.app = new App();
     }, 100);
 });
 
-console.log('[SPA] ✅ app.js carregado (corrigido - sincronização automática)!');
+console.log('[SPA] ✅ app.js carregado (v4 - FAB IA funcional)');

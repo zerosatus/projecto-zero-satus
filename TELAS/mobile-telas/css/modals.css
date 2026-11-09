@@ -6,6 +6,42 @@
    GARANTIR QUE MODAIS FICAM ACIMA DA NAVEGAÇÃO
    ============================================ */
 
+   /* Adicionar em css/modals.css se faltar */
+.notifications-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15, 17, 21, 0.95);
+    z-index: 300; backdrop-filter: blur(8px);
+}
+.notifications-modal.active { display: block; animation: modalFadeIn 0.3s ease; }
+.notifications-modal-content {
+    max-width: 420px; margin: 20px auto; padding: 24px;
+    background: var(--bg-color); border-radius: 20px;
+    max-height: 90vh; overflow-y: auto;
+}
+.notifications-modal-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 16px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--border-color);
+}
+.notification-item-modal {
+    display: flex; gap: 12px; padding: 14px;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; margin-bottom: 10px;
+    align-items: flex-start;
+}
+.notification-item-modal.unread { border-color: var(--accent-purple); }
+.notification-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(139, 92, 246, 0.2);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent-purple); font-size: 1.2rem; flex-shrink: 0;
+}
+.notification-content { flex: 1; min-width: 0; }
+.notification-title { font-weight: 600; color: var(--text-primary); font-size: 0.9rem; }
+.notification-message { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
+.notification-time { font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; }
+
 /* MODAL DE EVENTO */
 .event-modal {
     display: none;

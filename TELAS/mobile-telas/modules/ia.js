@@ -1,150 +1,58 @@
 // ============================================
-// mobile-telas/modules/ia.js - MÓDULO DA IA (MOBILE / WEB)[cite: 4]
-// ⭐ HISTÓRICO CONTÍNUO (INTEGRAÇÃO NUVEM / DATABASE SERVICE)[cite: 4]
-// ⭐ ACESSO A DADOS DO USUÁRIO (APENAS LEITURA)[cite: 4]
-// ⭐ LIMITE DIÁRIO DE 15 MENSAGENS[cite: 4]
-// ⭐ MODO GÍRIA MOÇAMBICANA[cite: 4]
+// modules/ia.js - MÓDULO DA IA (PC)
+// ⭐ Histórico na nuvem (ai_conversations / ai_messages)
+// ⭐ Limite diário de 15 mensagens
+// ⭐ SEM modo gíria (igual ao Flutter)
+// ⭐ Deteta: create_note, create_document, read_document, plot_chart
+// ⭐ Usa MultiAIService (Edge Function zero-ia)
 // ============================================
-
-const IA_SPARKLES_SVG = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
-        <path d="M12 9.5q.9 4.6 5.5 5.5-4.6.9-5.5 5.5-.9-4.6-5.5-5.5 4.6-.9 5.5-5.5z"/>
-        <path d="M6.5 3.5q.6 3 3.5 3.5-2.9.6-3.5 3.5-.6-2.9-3.5-3.5 2.9-.5 3.5-3.5z"/>
-        <path d="M17.5 4.5q.5 2.5 3 3-2.5.5-3 3-.5-2.5-3-3 2.5-.5 3-3z"/>
-    </svg>`;
-
-const IA_ICONS = {
-    menu:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 17h16"/></svg>`,
-    plus:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
-    close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
-    chat:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4z"/></svg>`,
-    trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`
-};
 
 class IAModule {
     constructor(app) {
         this.app = app;
         this.name = 'ia';
         this.messages = [];
-        this._previousView = 'dashboard';
-        this._isProcessing = false;
-        this._modoGiria = false;
-        this._ultimaMensagem = '';
-        
-        // LIMITE DIÁRIO
-        this.LIMITE_DIARIO = 15;
-        this._usosHoje = 0;
-        this._dataReset = new Date().toDateString();
-        
-        // HISTÓRICO DE CONVERSAS
         this.history = [];
         this.currentHistoryId = null;
-        
-        // DADOS DO USUÁRIO
+        this._isProcessing = false;
+        this._previousView = 'inicio';
+
         this.tasks = [];
         this.notes = [];
-        this.weeklySchedule = {};
-        this.timeSlots = [];
         this.disciplinas = [];
+        this.weeklySchedule = {};
         this.notifications = [];
-        
-        console.log('[IA Mobile] 🤖 Inicializado');
-        this._resetarLimite();
+
+        console.log('[IA PC] 🤖 Módulo inicializado');
     }
 
-    // ============================================
-    // RESETAR LIMITE DIÁRIO
-    // ============================================
-    _resetarLimite() {
-        const hoje = new Date().toDateString();
-        const dataSalva = localStorage.getItem('ia_limite_data');
-        if (dataSalva !== hoje) {
-            localStorage.setItem('ia_limite_data', hoje);
-            localStorage.setItem('ia_limite_uso', '0');
-            this._usosHoje = 0;
-        }
-    }
-    
-    getUsoHoje() {
-        this._resetarLimite();
-        this._usosHoje = parseInt(localStorage.getItem('ia_limite_uso')) || 0;
-        return this._usosHoje;
-    }
-    
-    _incrementarUso() {
-        this._resetarLimite();
-        this._usosHoje++;
-        localStorage.setItem('ia_limite_uso', String(this._usosHoje));
-    }
-    
-    temLimiteDisponivel() {
-        return this.getUsoHoje() < this.LIMITE_DIARIO;
-    }
-    
-    getLimiteRestante() {
-        return Math.max(0, this.LIMITE_DIARIO - this.getUsoHoje());
-    }
-
-    // ============================================
-    // ESCAPE HTML HELPER
-    // ============================================
-    _escapeHtml(text) {
-        if (!text) return '';
-        if (this.app && typeof this.app.escapeHtml === 'function') {
-            return this.app.escapeHtml(text);
-        }
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // ============================================
-    // RENDER PRINCIPAL
-    // ============================================
+    // ══════════════════════════════════════════════════════
+    //  RENDER
+    // ══════════════════════════════════════════════════════
     async render(data) {
-        console.log('[IA Mobile] 📊 Renderizando...');
-        
         this.notifications = data.notifications || [];
         this.tasks = data.tasks || [];
         this.notes = data.notes || [];
-        this.weeklySchedule = data.weeklySchedule || {};
-        this.timeSlots = data.timeSlots || [];
         this.disciplinas = data.disciplinas || [];
-        
-        // ⭐ GARANTIR FAB E HEADER PRIMEIRO
-        this.garantirFab();
-        this.upgradeHeader();
-        this.criarPainel();
-        
-        // ⭐ CARREGAR HISTÓRICO COM TRY/CATCH
-        try {
-            await this.carregarHistorico();
-        } catch (e) {
-            console.warn('[IA Mobile] ⚠️ Erro no histórico:', e);
-            this.history = [];
-            this.messages = [];
-        }
-        
+        this.weeklySchedule = data.weeklySchedule || {};
+
+        await this.carregarHistorico();
         this.renderHistoryList();
         this.renderChat();
         this.updateBadge();
         this.setupEvents();
-        this._atualizarStatusGiria();
         this._atualizarStatusLimite();
-        
-        console.log('[IA Mobile] ✅ Renderizado!');
     }
 
-    // ============================================
-    // CARREGAR HISTÓRICO (DA NUVEM)
-    // ============================================
+    // ══════════════════════════════════════════════════════
+    //  HISTÓRICO NA NUVEM
+    // ══════════════════════════════════════════════════════
     async carregarHistorico() {
         const userId = this.app?.user?.id;
         if (!userId) { this.history = []; this.messages = []; return; }
-        
+
         try {
             if (window.DatabaseService) {
-                // ⭐ BUSCAR DA NUVEM
                 const convs = await window.DatabaseService.getAIConversations(userId);
                 this.history = convs.map(c => ({
                     id: c.id,
@@ -152,8 +60,7 @@ class IAModule {
                     createdAt: c.created_at,
                     updatedAt: c.updated_at
                 }));
-                
-                // Conversa atual: a mais recente
+
                 if (this.history.length > 0) {
                     this.currentHistoryId = this.history[0].id;
                     const msgs = await window.DatabaseService.getAIMessages(userId, this.currentHistoryId);
@@ -168,98 +75,46 @@ class IAModule {
                     this.currentHistoryId = null;
                     this.messages = [];
                 }
-                
-                // ⭐ MIGRAR histórico local antigo (se existir)
-                await this._migrarHistoricoLocal(userId);
             }
         } catch (e) {
-            console.warn('[IA] Erro ao carregar histórico da nuvem:', e);
-            // Fallback para local
-            try {
-                this.history = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]');
-                this.messages = JSON.parse(localStorage.getItem(`${userId}_ia_messages`) || '[]');
-                this.currentHistoryId = localStorage.getItem(`${userId}_ia_current`);
-            } catch (err) {
-                this.history = []; this.messages = []; this.currentHistoryId = null;
-            }
+            console.warn('[IA] Erro ao carregar histórico:', e);
+            this.history = [];
+            this.messages = [];
         }
     }
 
-    // ⭐ Migrar histórico local para a nuvem (só uma vez)
-    async _migrarHistoricoLocal(userId) {
-        try {
-            const localHistory = JSON.parse(localStorage.getItem(`${userId}_ia_history`) || '[]');
-            if (localHistory.length === 0) return;
-            
-            if (this.history.length > 0) {
-                // Já tem na nuvem, limpar local
-                localStorage.removeItem(`${userId}_ia_history`);
-                localStorage.removeItem(`${userId}_ia_messages`);
-                localStorage.removeItem(`${userId}_ia_current`);
-                return;
-            }
-            
-            console.log('[IA] 🔄 Migrando histórico local para nuvem...');
-            for (const conv of localHistory) {
-                await window.DatabaseService.saveAIConversation(userId, {
-                    id: conv.id, title: conv.title
-                });
-                for (const msg of (conv.messages || [])) {
-                    await window.DatabaseService.saveAIMessage(userId, {
-                        conversationId: conv.id,
-                        role: msg.role,
-                        content: msg.content,
-                        createdAt: msg.timestamp
-                    });
-                }
-            }
-            localStorage.removeItem(`${userId}_ia_history`);
-            localStorage.removeItem(`${userId}_ia_messages`);
-            localStorage.removeItem(`${userId}_ia_current`);
-            console.log('[IA] ✅ Histórico migrado');
-            await this.carregarHistorico();
-        } catch (e) {
-            console.warn('[IA] Erro na migração:', e);
-        }
-    }
-
-    // ============================================
-    // SALVAR CONVERSA ATUAL (NA NUVEM)
-    // ============================================
     async salvarConversaAtual() {
         const userId = this.app?.user?.id;
         if (!userId || this.messages.length === 0) return;
-        
+
         const primeira = this.messages.find(m => m.role === 'user')?.content || 'Nova conversa';
         const titulo = primeira.length > 32 ? primeira.substring(0, 32) + '…' : primeira;
-        
-        // Criar ID se não existir
+
         if (!this.currentHistoryId) {
             this.currentHistoryId = Date.now().toString();
         }
-        
-        // Guardar conversa
-        await window.DatabaseService.saveAIConversation(userId, {
-            id: this.currentHistoryId,
-            title: titulo
-        });
-        
-        // Guardar as últimas mensagens ainda não gravadas
-        const ultimas = this.messages.slice(-2);
-        for (const msg of ultimas) {
-            if (!msg._saved) {
-                await window.DatabaseService.saveAIMessage(userId, {
-                    id: `${this.currentHistoryId}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-                    conversationId: this.currentHistoryId,
-                    role: msg.role,
-                    content: msg.content,
-                    createdAt: msg.timestamp || new Date().toISOString()
-                });
-                msg._saved = true;
+
+        if (window.DatabaseService) {
+            await window.DatabaseService.saveAIConversation(userId, {
+                id: this.currentHistoryId,
+                title: titulo
+            });
+
+            const ultimas = this.messages.slice(-2);
+            for (const msg of ultimas) {
+                if (!msg._saved) {
+                    await window.DatabaseService.saveAIMessage(userId, {
+                        id: `${this.currentHistoryId}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                        conversationId: this.currentHistoryId,
+                        role: msg.role,
+                        content: msg.content,
+                        createdAt: msg.timestamp || new Date().toISOString()
+                    });
+                    msg._saved = true;
+                }
             }
         }
-        
-        // Atualizar lista local
+
         const idx = this.history.findIndex(h => h.id === this.currentHistoryId);
         if (idx !== -1) {
             this.history[idx].title = titulo;
@@ -275,32 +130,23 @@ class IAModule {
         this.renderHistoryList();
     }
 
-    // ============================================
-    // NOVA CONVERSA
-    // ============================================
     async novaConversa() {
         if (this._isProcessing) return;
-        if (this.messages.length > 0) {
-            await this.salvarConversaAtual();
-        }
+        if (this.messages.length > 0) await this.salvarConversaAtual();
         this.messages = [];
         this.currentHistoryId = null;
         this.renderChat();
         this.renderHistoryList();
-        this.fecharPainel();
     }
 
-    // ============================================
-    // SELECIONAR CONVERSA (DA NUVEM)
-    // ============================================
     async selecionarConversa(id) {
         if (this._isProcessing) return;
         if (this.messages.length > 0 && this.currentHistoryId !== id) {
             await this.salvarConversaAtual();
         }
         const userId = this.app?.user?.id;
-        if (!userId) return;
-        
+        if (!userId || !window.DatabaseService) return;
+
         try {
             const msgs = await window.DatabaseService.getAIMessages(userId, id);
             this.currentHistoryId = id;
@@ -313,21 +159,17 @@ class IAModule {
             }));
             this.renderChat();
             this.renderHistoryList();
-            this.fecharPainel();
         } catch (e) {
             console.error('[IA] Erro ao selecionar conversa:', e);
         }
     }
 
-    // ============================================
-    // EXCLUIR CONVERSA (DA NUVEM)
-    // ============================================
     async excluirConversa(id) {
         const conv = this.history.find(h => h.id === id);
         if (!confirm(`Excluir "${conv?.title || 'esta conversa'}"?`)) return;
         const userId = this.app?.user?.id;
-        if (!userId) return;
-        
+        if (!userId || !window.DatabaseService) return;
+
         await window.DatabaseService.deleteAIConversation(userId, id);
         this.history = this.history.filter(h => h.id !== id);
         if (this.currentHistoryId === id) {
@@ -338,267 +180,155 @@ class IAModule {
         this.renderHistoryList();
     }
 
-    // ============================================
-    // RENDER CHAT
-    // ============================================
+    // ══════════════════════════════════════════════════════
+    //  RENDER CHAT
+    // ══════════════════════════════════════════════════════
     renderChat() {
         const container = document.getElementById('ia-messages-container');
         if (!container) return;
-        
+
         if (this.messages.length === 0) {
             const hora = new Date().getHours();
             const saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
             const nome = this.app?.user?.nome ? this.app.user.nome.split(' ')[0] : 'estudante';
-            
-            const restante = this.getLimiteRestante();
+            const restante = window.MultiAIService?.getLimiteRestante() ?? 15;
             const pendentes = this.tasks.filter(t => !t.completed);
-            const concluidas = this.tasks.filter(t => t.completed);
-            
+
             container.innerHTML = `
                 <div class="ia-empty-state">
-                    <div class="ia-empty-orb">${IA_SPARKLES_SVG}</div>
-                    <h3>${saud}, ${this._escapeHtml(nome)}! 👋</h3>
-                    <p style="font-size:0.9rem;color:var(--text-secondary);">Como posso te ajudar hoje?</p>
-                    
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0;padding:12px;background:var(--card-bg);border-radius:12px;border:1px solid var(--border-color);width:100%;">
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-purple);">${pendentes.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Pendentes</span>
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-green);">${concluidas.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Concluídas</span>
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:var(--accent-orange);">${this.notes.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Anotações</span>
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:4px 12px;">
-                            <span style="font-weight:700;color:#60a5fa;">${this.disciplinas.length}</span>
-                            <span style="font-size:0.6rem;color:var(--text-secondary);">Disciplinas</span>
-                        </div>
+                    <div class="ia-empty-orb">✨</div>
+                    <h3>${saud}, ${this.app.escapeHtml(nome)}! 👋</h3>
+                    <p>Como posso ajudar hoje?</p>
+                    <div style="display:flex;gap:8px;justify-content:center;margin:12px 0;flex-wrap:wrap;">
+                        <span style="background:var(--card-bg);padding:4px 12px;border-radius:12px;">${pendentes.length} pendentes</span>
+                        <span style="background:var(--card-bg);padding:4px 12px;border-radius:12px;">${this.notes.length} notas</span>
+                        <span style="background:var(--card-bg);padding:4px 12px;border-radius:12px;">${this.disciplinas.length} disciplinas</span>
                     </div>
-                    
-                    <p class="ia-empty-hint">💬 Digite <strong>"fala com gíria"</strong> para ativar ou 
-                        <strong>"fala normal"</strong> para desativar</p>
-                    <p class="ia-empty-limite" id="ia-limite-status">
-                        💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje
-                    </p>
+                    <p id="ia-limite-status">💬 ${restante}/15 perguntas hoje</p>
                 </div>
             `;
-            const actions = document.getElementById('ia-quick-actions');
-            if (actions) actions.style.display = 'grid';
             return;
         }
-        
-        const actions = document.getElementById('ia-quick-actions');
-        if (actions) actions.style.display = 'none';
-        
-        let html = '';
-        this.messages.forEach((msg) => {
+
+        container.innerHTML = this.messages.map(msg => {
             const isUser = msg.role === 'user';
-            const isAI = !isUser;
-            const content = this._escapeHtml(msg.content)
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            const time = msg.time || (msg.timestamp
-                ? new Date(msg.timestamp).toLocaleTimeString()
-                : new Date().toLocaleTimeString());
-            html += `
+
+            let contentHtml = '';
+            if (msg.content === '__PLOT__' && msg.plotData) {
+                const id = `chart_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                setTimeout(() => this._renderChart(id, msg.plotData), 100);
+                contentHtml = `<div style="background:var(--card-bg);padding:12px;border-radius:12px;margin:8px 0;"><canvas id="${id}" height="200"></canvas></div>`;
+            } else {
+                contentHtml = this.app.escapeHtml(msg.content)
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            }
+
+            return `
                 <div class="ia-message ${isUser ? 'ia-message-user' : 'ia-message-ai'}">
                     <div class="ia-message-avatar">${isUser ? '👤' : '🤖'}</div>
-                    <div class="ia-message-content" ${isAI ? 'style="user-select:text;-webkit-user-select:text;"' : ''}>
-                        ${content}
-                        ${isAI ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)">📋 Copiar</span>` : ''}
+                    <div class="ia-message-content">${contentHtml}
+                        ${!isUser && msg.content !== '__PLOT__' ? `<span class="ia-copy-hint" onclick="window.copyMessage(this)">📋 Copiar</span>` : ''}
                     </div>
-                    <div class="ia-message-time">${time}</div>
+                    <div class="ia-message-time">${msg.time || ''}</div>
                 </div>
             `;
-        });
-        container.innerHTML = html;
+        }).join('');
         container.scrollTop = container.scrollHeight;
     }
 
-    // ============================================
-    // BUILD USER CONTEXT
-    // ============================================
-    buildUserContext(textoUsuario) {
-        const user = this.app.user || {};
-        
-        const tasks = this.tasks || [];
-        const pendentes = tasks.filter(t => !t.completed);
-        const concluidas = tasks.filter(t => t.completed);
-        const notes = this.notes || [];
-        const schedule = this.weeklySchedule || {};
-        const disciplinas = this.disciplinas || [];
-        
-        // Detectar comandos de gíria
-        const pediuGiria = this._usuarioPediuGiria(textoUsuario);
-        const querNormal = this._usuarioQuerNormal(textoUsuario);
-        
-        if (pediuGiria) {
-            this._modoGiria = true;
-            this._mostrarToast('🇲🇿 Modo Gíria ativado!');
-        } else if (querNormal) {
-            this._modoGiria = false;
-            this._mostrarToast('📚 Modo Normal ativado!');
+    _renderChart(canvasId, plotData) {
+        if (typeof Chart === 'undefined') {
+            console.warn('[IA] Chart.js não carregado');
+            return;
         }
-        
-        // Histórico da conversa atual
-        let historicoConversa = '';
-        if (this.messages && this.messages.length > 0) {
-            const ultimasMensagens = this.messages.slice(-10);
-            historicoConversa = '\n📜 HISTÓRICO DA CONVERSA ATUAL:\n';
-            ultimasMensagens.forEach((msg) => {
-                const role = msg.role === 'user' ? '👤 Usuário' : '🤖 Assistente';
-                const content = msg.content?.substring(0, 200) || '';
-                historicoConversa += `${role}: ${content}${msg.content?.length > 200 ? '...' : ''}\n`;
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const data = plotData.data || [];
+        const labels = data.map(p => p[0]);
+        const values = data.map(p => p[1]);
+
+        new Chart(canvas, {
+            type: plotData.type === 'bar' ? 'bar' : 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: plotData.title || 'Gráfico',
+                    data: values,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: plotData.title || 'Gráfico', color: '#fff' },
+                    legend: { labels: { color: '#fff' } }
+                },
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, title: { display: true, text: plotData.xlabel || 'x', color: '#9ca3af' } },
+                    y: { ticks: { color: '#9ca3af' }, title: { display: true, text: plotData.ylabel || 'y', color: '#9ca3af' } }
+                }
+            }
+        });
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CONTEXTO
+    // ══════════════════════════════════════════════════════
+    buildUserContext() {
+        const user = this.app.user || {};
+        const pendentes = this.tasks.filter(t => !t.completed);
+        const concluidas = this.tasks.filter(t => t.completed);
+
+        let historico = '';
+        if (this.messages.length > 0) {
+            const ultimas = this.messages.slice(-10);
+            historico = '\n📜 HISTÓRICO DA CONVERSA:\n';
+            ultimas.forEach(m => {
+                const role = m.role === 'user' ? '👤' : '🤖';
+                const content = (m.content || '').substring(0, 200);
+                historico += `${role}: ${content}${(m.content || '').length > 200 ? '...' : ''}\n`;
             });
         }
-        
-        let contexto = `
-📚 CONTEXTO COMPLETO DO ESTUDANTE - ${new Date().toLocaleString('pt-BR')}
 
-👤 PERFIL:
+        return `
+📚 CONTEXTO DO ESTUDANTE
 Nome: ${user.nome || 'Estudante'}
-Email: ${user.email || 'Não informado'}
+Email: ${user.email || ''}
+${historico}
 
-${historicoConversa}
+📋 TAREFAS: Total ${this.tasks.length}, Pendentes ${pendentes.length}, Concluídas ${concluidas.length}
+${pendentes.length > 0 ? 'Pendentes:\n' + pendentes.slice(0, 5).map((t, i) =>
+    `  ${i+1}. ${t.nome || t.title}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - ${t.date}` : ''}`
+).join('\n') : '✅ Todas concluídas!'}
 
-📋 TAREFAS:
-Total: ${tasks.length}
-Pendentes: ${pendentes.length}
-Concluídas: ${concluidas.length}
+📝 ANOTAÇÕES: ${this.notes.length}
+📚 DISCIPLINAS: ${this.disciplinas.map(d => d.nome).join(', ') || 'Nenhuma'}
 
-${pendentes.length > 0 ? '📌 TAREFAS PENDENTES:\n' + pendentes.map((t, i) => 
-    `   ${i+1}. ${t.title \vert{}\vert{} t.nome \vert{}\vert{} 'Sem título'}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
-).join('\n') : '✅ Todas as tarefas foram concluídas! 🎉'}
-
-📝 ANOTAÇÕES:
-Total: ${notes.length}
-${notes.length > 0 ? '📄 ÚLTIMAS ANOTAÇÕES:\n' + notes.slice(0, 5).map((n, i) => 
-    `   ${i+1}. ${n.title \vert{}\vert{} 'Sem título'}${n.content ? ` - ${n.content.substring(0, 60).replace(/\n/g, ' ')}` : ''}`
-).join('\n') : 'Nenhuma anotação ainda'}
-
-📚 DISCIPLINAS:
-${disciplinas.length > 0 ? disciplinas.map(d => `   - ${d.nome}`).join('\n') : 'Nenhuma disciplina cadastrada'}
-
-📅 HORÁRIO SEMANAL:
-${Object.entries(schedule).map(([dia, aulas]) => {
+📅 HORÁRIO:
+${Object.entries(this.weeklySchedule).map(([dia, aulas]) => {
     if (aulas && aulas.length > 0) {
-        return `${dia}:${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ')}`;
+        return `${dia}: ${aulas.map(a => `${a.materia} (${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''})`).join(', ')}`;
     }
     return `${dia}: Sem aulas`;
 }).join('\n')}
 
-🎯 LIMITE DIÁRIO DE MENSAGENS:
-Usadas hoje: ${this.getUsoHoje()}/${this.LIMITE_DIARIO}
-Restantes: ${this.getLimiteRestante()}
-
-INSTRUÇÕES DE ESTILO:
+INSTRUÇÕES:
+- Responde SEMPRE em português.
+- Se pedir resumo, gera JSON {"action":"create_note", ...}.
+- Se pedir documento, gera JSON {"action":"create_document", ...}.
+- Se pedir para ler documento, gera JSON {"action":"read_document", "search":"..."}.
+- Se pedir gráfico, gera JSON {"action":"plot_chart", ...}.
 `;
-        
-        if (this._modoGiria) {
-            contexto += `
-✅ MODO GÍRIA ATIVO! Use gírias moçambicanas como: broo, nice, maning, go, txuna, tamos juntos, fixe, bué, bora, magaia.
-✅ Seja descontraído, amigável e divertido.
-✅ Use emojis frequentemente 🇲🇿
-✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ MANTENHA A CONTINUIDADE DA CONVERSA.
-`;
-        } else {
-            contexto += `
-✅ MODO NORMAL ATIVO! Fale em português formal e claro.
-✅ Seja profissional, direto e objetivo.
-✅ Dê respostas completas e bem estruturadas.
-✅ SEMPRE use os dados do contexto acima para respostas personalizadas.
-✅ MANTENHA A CONTINUIDADE DA CONVERSA.
-`;
-        }
-        
-        return contexto;
     }
 
-    _usuarioPediuGiria(texto) {
-        const palavrasChave = [
-            'gíria', 'giria', 'moçambique', 'moçambicana', 'moçambicano',
-            'magaia', 'broo', 'txuna', 'maning', 'tamos juntos',
-            'fala moçambicano', 'fala com gíria', 'fala que nem eu',
-            'fala que nem magaia', 'giria moçambicana', 'gíria moçambicana',
-            'modo gíria', 'modo giria'
-        ];
-        return palavrasChave.some(palavra =>
-            texto.toLowerCase().includes(palavra.toLowerCase())
-        );
-    }
-    
-    _usuarioQuerNormal(texto) {
-        const palavrasChave = [
-            'sem gíria', 'normal', 'formal', 'sem gírias',
-            'fala normal', 'sério', 'direto', 'sem brincadeira',
-            'desativa gíria', 'desativar gíria', 'fala formal',
-            'volta ao normal', 'modo normal'
-        ];
-        return palavrasChave.some(palavra =>
-            texto.toLowerCase().includes(palavra.toLowerCase())
-        );
-    }
-
-    _mostrarToast(mensagem) {
-        if (typeof showToast === 'function') {
-            showToast(mensagem, 'info');
-        } else {
-            console.log('[IA Mobile] 📢', mensagem);
-        }
-        this._atualizarStatusGiria();
-        this._atualizarStatusLimite();
-    }
-
-    _atualizarStatusGiria() {
-        const statusEl = document.getElementById('giria-status');
-        if (statusEl) {
-            statusEl.textContent = this._modoGiria ? 'Gíria 🇲🇿' : 'Normal';
-            statusEl.style.color = this._modoGiria ? 'var(--accent-purple)' : 'var(--text-secondary)';
-        }
-        const btn = document.getElementById('btn-toggle-giria');
-        if (btn) {
-            btn.style.borderColor = this._modoGiria ? 'var(--accent-purple)' : 'var(--border-color)';
-            btn.style.background = this._modoGiria ? 'rgba(139, 92, 246, 0.15)' : 'var(--card-bg)';
-        }
-    }
-    
-    _atualizarStatusLimite() {
-        const limiteEl = document.getElementById('ia-limite-status');
-        if (!limiteEl) return;
-        
-        const restante = this.getLimiteRestante();
-        limiteEl.textContent = `💬 ${restante}/${this.LIMITE_DIARIO} perguntas hoje`;
-        limiteEl.style.color = restante < 3 ? 'var(--accent-red)' : 'var(--text-secondary)';
-    }
-
-    async toggleModoGiria() {
-        this._modoGiria = !this._modoGiria;
-        const mensagem = this._modoGiria
-            ? '🇲🇿 Modo Gíria ativado! Fala que nem magaia!'
-            : '📚 Modo Normal ativado! Fala formal.';
-        this._mostrarToast(mensagem);
-        this._atualizarStatusGiria();
-        this.messages.push({
-            role: 'assistant',
-            content: this._modoGiria
-                ? '🇲🇿 **Modo Gíria ativado!** Agora vou falar com gírias moçambicanas, broo! Tamos juntos! 😎'
-                : '📚 **Modo Normal ativado!** Agora vou falar de forma formal e profissional. Como posso ajudar?',
-            time: new Date().toLocaleTimeString(),
-            isSystem: true,
-            _saved: false
-        });
-        await this.salvarConversaAtual();
-        this.renderChat();
-    }
-
-    // ============================================
-    // ENVIAR MENSAGEM
-    // ============================================
+    // ══════════════════════════════════════════════════════
+    //  ENVIAR MENSAGEM
+    // ══════════════════════════════════════════════════════
     async sendMessage(text) {
         if (!text) {
             const input = document.getElementById('ia-input');
@@ -607,25 +337,15 @@ INSTRUÇÕES DE ESTILO:
             if (!text) return;
             input.value = '';
         }
-        
+
         if (this._isProcessing) return;
-        
-        if (!this.temLimiteDisponivel()) {
-            this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
-            this.messages.push({
-                role: 'assistant',
-                content: `⛔ Você atingiu o limite diário de ${this.LIMITE_DIARIO} mensagens. Volte amanhã para continuar!`,
-                time: new Date().toLocaleTimeString(),
-                _saved: false
-            });
-            await this.salvarConversaAtual();
-            this.renderChat();
+
+        if (!window.MultiAIService?.temLimiteDisponivel()) {
+            this._mostrarToast(`⛔ Limite diário de 15 mensagens atingido!`);
             return;
         }
-        
-        this._ultimaMensagem = text;
-        
-        // Adicionar mensagem do usuário
+
+        // Adicionar mensagem do utilizador
         this.messages.push({
             role: 'user',
             content: text,
@@ -633,39 +353,24 @@ INSTRUÇÕES DE ESTILO:
             timestamp: new Date().toISOString(),
             _saved: false
         });
-        
-        // Salvar imediatamente
+
         await this.salvarConversaAtual();
-        
         this.renderChat();
         this._isProcessing = true;
-        
+
         const container = document.getElementById('ia-messages-container');
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'ia-message ia-message-ai ia-loading';
-        loadingDiv.innerHTML = `
-            <div class="ia-message-avatar">🤖</div>
-            <div class="ia-message-content">
-                <span class="ia-dots"><span>.</span><span>.</span><span>.</span></span>
-                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:8px;">
-                    ${this._modoGiria ? 'To a pensar, broo...' : 'Processando...'}
-                </span>
-            </div>
-        `;
-        container.appendChild(loadingDiv);
+        const loading = document.createElement('div');
+        loading.className = 'ia-message ia-message-ai ia-loading';
+        loading.innerHTML = `<div class="ia-message-avatar">🤖</div><div class="ia-message-content">...</div>`;
+        container.appendChild(loading);
         container.scrollTop = container.scrollHeight;
-        
+
         try {
-            const context = this.buildUserContext(text);
-            let response;
-            const service = window.MultiAIService;
-            
-            if (service) {
-                console.log('[IA Mobile] 📤 Enviando... Modo:', this._modoGiria ? 'Gíria' : 'Normal');
-                console.log('[IA Mobile] 📊 Mensagens no histórico:', this.messages.length);
-                
-                const result = await service.sendMessage(text, context);
-                
+            const context = this.buildUserContext();
+            let response = '';
+
+            if (window.MultiAIService) {
+                const result = await window.MultiAIService.sendMessage(text, context);
                 if (result.success) {
                     response = result.text;
                     if (result.fromCache) response += '\n\n*(Resposta do cache)*';
@@ -673,13 +378,76 @@ INSTRUÇÕES DE ESTILO:
                     response = `❌ ${result.error}`;
                 }
             } else {
-                response = this._getFallbackResponse(text);
+                response = '❌ Serviço de IA indisponível. Recarrega a página.';
             }
-            
-            loadingDiv.remove();
-            this._incrementarUso();
-            
-            // Adicionar resposta da IA
+
+            loading.remove();
+
+            // Detetar intenções
+            const noteIntent = this._detectCreateNote(response);
+            const docIntent = this._detectCreateDocument(response);
+            const readIntent = this._detectReadDocument(response);
+            const plotIntent = this._detectPlotChart(response);
+
+            if (noteIntent) {
+                const clean = response.replace(/\{[\s\S]*?"action"\s*:\s*"create_note"[\s\S]*?\}/, '').trim();
+                this.messages.push({
+                    role: 'assistant',
+                    content: clean || '📝 Resumo pronto! Queres guardar?',
+                    time: new Date().toLocaleTimeString(),
+                    _saved: false
+                });
+                await this.salvarConversaAtual();
+                this.renderChat();
+                if (confirm(`Guardar resumo "${noteIntent.title}"?`)) {
+                    await this._saveNote(noteIntent);
+                }
+                return;
+            }
+
+            if (docIntent) {
+                const clean = response.replace(/\{[\s\S]*?"action"\s*:\s*"create_document"[\s\S]*?\}/, '').trim();
+                this.messages.push({
+                    role: 'assistant',
+                    content: clean || '📄 Documento pronto! Queres guardar?',
+                    time: new Date().toLocaleTimeString(),
+                    _saved: false
+                });
+                await this.salvarConversaAtual();
+                this.renderChat();
+                if (confirm(`Guardar documento "${docIntent.title}"?`)) {
+                    await this._saveDocumentToTurso(docIntent);
+                }
+                return;
+            }
+
+            if (readIntent) {
+                this.messages.push({
+                    role: 'assistant',
+                    content: `📄 A ler "${readIntent.search}"...`,
+                    time: new Date().toLocaleTimeString(),
+                    _saved: false
+                });
+                await this.salvarConversaAtual();
+                this.renderChat();
+                await this._readFromTursoAndSummarize(readIntent.search, context);
+                return;
+            }
+
+            if (plotIntent) {
+                this.messages.push({
+                    role: 'assistant',
+                    content: '__PLOT__',
+                    plotData: plotIntent,
+                    time: new Date().toLocaleTimeString(),
+                    _saved: false
+                });
+                await this.salvarConversaAtual();
+                this.renderChat();
+                return;
+            }
+
+            // Resposta normal
             this.messages.push({
                 role: 'assistant',
                 content: response,
@@ -687,22 +455,16 @@ INSTRUÇÕES DE ESTILO:
                 timestamp: new Date().toISOString(),
                 _saved: false
             });
-            
-            // Salvar conversa
             await this.salvarConversaAtual();
             this.renderChat();
             this._atualizarStatusLimite();
-            
-            if (this.getLimiteRestante() === 0) {
-                this._mostrarToast(`⛔ Limite diário de ${this.LIMITE_DIARIO} mensagens atingido!`);
-            }
-            
+
         } catch (error) {
-            console.error('[IA Mobile] ❌ Erro:', error);
-            loadingDiv.remove();
+            loading.remove();
+            console.error('[IA] ❌ Erro:', error);
             this.messages.push({
                 role: 'assistant',
-                content: '❌ Ocorreu um erro. Tenta novamente!',
+                content: '❌ Erro ao comunicar com a IA. Tenta novamente.',
                 time: new Date().toLocaleTimeString(),
                 _saved: false
             });
@@ -713,317 +475,249 @@ INSTRUÇÕES DE ESTILO:
         }
     }
 
-    // ============================================
-    // FALLBACK LOCAL
-    // ============================================
-    _getFallbackResponse(texto) {
-        const perguntas = texto.toLowerCase();
-        const pendentes = this.tasks.filter(t => !t.completed);
-        const notasCount = this.notes.length;
-        
-        if (perguntas.includes('tarefa') || perguntas.includes('dever') || perguntas.includes('pendente')) {
-            if (pendentes.length === 0) {
-                return this._modoGiria 
-                    ? '🇲🇿 Não tens tarefas pendentes, broo! Tás em dia! 🎉'
-                    : 'Você não tem tarefas pendentes. Parabéns, está em dia! 🎉';
+    // ══════════════════════════════════════════════════════
+    //  DETETORES
+    // ══════════════════════════════════════════════════════
+    _detectCreateNote(t) {
+        const m = t.match(/\{[\s\S]*?"action"\s*:\s*"create_note"[\s\S]*?\}/);
+        if (!m) return null;
+        try { return JSON.parse(m[0].replace(/```json/g, '').replace(/```/g, '').trim()); } catch (e) { return null; }
+    }
+
+    _detectCreateDocument(t) {
+        const m = t.match(/\{[\s\S]*?"action"\s*:\s*"create_document"[\s\S]*?\}/);
+        if (!m) return null;
+        try { return JSON.parse(m[0].replace(/```json/g, '').replace(/```/g, '').trim()); } catch (e) { return null; }
+    }
+
+    _detectReadDocument(t) {
+        const m = t.match(/\{[\s\S]*?"action"\s*:\s*"read_document"[\s\S]*?\}/);
+        if (!m) return null;
+        try { return JSON.parse(m[0].replace(/```json/g, '').replace(/```/g, '').trim()); } catch (e) { return null; }
+    }
+
+    _detectPlotChart(t) {
+        const m = t.match(/\{[\s\S]*?"action"\s*:\s*"plot_chart"[\s\S]*?\}/);
+        if (!m) return null;
+        try { return JSON.parse(m[0].replace(/```json/g, '').replace(/```/g, '').trim()); } catch (e) { return null; }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  AÇÕES
+    // ══════════════════════════════════════════════════════
+    async _saveNote(intent) {
+        const userId = this.app.user.id;
+        const now = new Date().toISOString();
+        const novaNota = {
+            id: Date.now().toString(),
+            title: intent.title || 'Resumo',
+            content: intent.content || '',
+            date: now,
+            dataModificacao: now
+        };
+        this.notes.unshift(novaNota);
+        this.app.data.notes = this.notes;
+
+        if (window.DatabaseService) {
+            await window.DatabaseService.saveNotes(userId, this.notes);
+        }
+        if (window.CacheManager) window.CacheManager.set('notes', this.notes, true);
+
+        if (typeof showToast === 'function') showToast('✅ Resumo guardado!', 'success');
+    }
+
+    async _saveDocumentToTurso(intent) {
+        const userId = this.app.user.id;
+        const id = Date.now().toString();
+        const title = intent.title || 'Documento IA';
+        const content = intent.content || '';
+        const format = intent.format || 'pdf';
+
+        // Guardar no Turso
+        if (window.TursoService) {
+            const ok = await window.TursoService.saveDocument({
+                id, userId, title,
+                category: intent.category || 'Trabalhos',
+                content, format
+            });
+            if (!ok) throw new Error('Falha ao guardar no Turso');
+        } else {
+            console.warn('[IA] ⚠️ TursoService não carregado — documento não guardado no Turso');
+        }
+
+        const novoDoc = {
+            id, nome: title,
+            categoria: intent.category || 'Trabalhos',
+            descricao: 'Criado pela Zero IA',
+            arquivo: 'TURSO_DB',
+            tipo: format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf',
+            nomeArquivo: `${title}.${format}`,
+            tamanho: content.length,
+            dataUpload: new Date().toISOString(),
+            storagePath: null
+        };
+
+        if (!this.app.data.documentos) this.app.data.documentos = [];
+        this.app.data.documentos.unshift(novoDoc);
+
+        if (window.DatabaseService) {
+            await window.DatabaseService.saveDocumentos(userId, this.app.data.documentos);
+        }
+        if (window.CacheManager) window.CacheManager.set('documentos', this.app.data.documentos, true);
+
+        if (typeof showToast === 'function') showToast('✅ Documento guardado!', 'success');
+    }
+
+    async _readFromTursoAndSummarize(search, context) {
+        const userId = this.app.user.id;
+
+        if (!window.TursoService) {
+            this.messages.push({
+                role: 'assistant',
+                content: '❌ TursoService indisponível. Recarrega a página.',
+                time: new Date().toLocaleTimeString(),
+                _saved: false
+            });
+            await this.salvarConversaAtual();
+            this.renderChat();
+            return;
+        }
+
+        const tursoDoc = await window.TursoService.getDocument(userId, search);
+        if (!tursoDoc) {
+            this.messages.push({
+                role: 'assistant',
+                content: `❌ Documento "${search}" não encontrado.`,
+                time: new Date().toLocaleTimeString(),
+                _saved: false
+            });
+            await this.salvarConversaAtual();
+            this.renderChat();
+            return;
+        }
+
+        const prompt = `📄 Documento: "${tursoDoc.title}"\nCONTEÚDO:\n${tursoDoc.content.substring(0, 10000)}\n---\nFaz um resumo com # e ## e adiciona o JSON de create_note.`;
+        const result = await window.MultiAIService.sendMessage(prompt, context);
+
+        if (result.success) {
+            const intent = this._detectCreateNote(result.text);
+            this.messages.push({
+                role: 'assistant',
+                content: intent ? '✅ Resumo do documento pronto!' : result.text,
+                time: new Date().toLocaleTimeString(),
+                _saved: false
+            });
+            this.renderChat();
+            if (intent && confirm(`Guardar resumo de "${tursoDoc.title}"?`)) {
+                await this._saveNote(intent);
             }
-            const lista = pendentes.map((t, i) => 
-                `${i+1}. ${t.title || t.nome}${t.subject ? ` (${t.subject})` : ''}${t.date ? ` - Entrega: ${t.date}` : ''}`
-            ).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Tens ${pendentes.length} tarefas pendentes, magaia!\n\n${lista}\n\nVai devagar, uma de cada vez. Tamos juntos! 💪`
-                : `Você tem ${pendentes.length} tarefas pendentes:\n\n${lista}\n\nRecomendo priorizar as mais urgentes.`;
         }
-        
-        if (perguntas.includes('anota') || perguntas.includes('nota')) {
-            if (notasCount === 0) {
-                return this._modoGiria
-                    ? '🇲🇿 Não tens anotações guardadas, broo! Quer criar uma? 📝'
-                    : 'Você não tem anotações salvas. Que tal criar uma? 📝';
-            }
-            const lista = this.notes.slice(0, 5).map((n, i) => 
-                `${i+1}. ${n.title || 'Sem título'}`
-            ).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Tens ${notasCount} anotações, broo!\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}\n\nQuer ver alguma? 📝`
-                : `Você tem ${notasCount} anotações salvas:\n\n${lista}${notasCount > 5 ? `\n... e mais ${notasCount - 5}` : ''}`;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  UI
+    // ══════════════════════════════════════════════════════
+    _atualizarStatusLimite() {
+        const el = document.getElementById('ia-limite-status');
+        if (!el) return;
+        const restante = window.MultiAIService?.getLimiteRestante() ?? 15;
+        el.textContent = `💬 ${restante}/15 perguntas hoje`;
+        el.style.color = restante < 3 ? '#ef4444' : 'var(--text-secondary)';
+    }
+
+    renderHistoryList() {
+        const list = document.getElementById('historyList');
+        if (!list) return;
+        if (this.history.length === 0) {
+            list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:0.85rem;">Nenhuma conversa ainda.</div>`;
+            return;
         }
-        
-        if (perguntas.includes('disciplina') || perguntas.includes('matéria')) {
-            if (this.disciplinas.length === 0) {
-                return this._modoGiria
-                    ? '🇲🇿 Nenhuma disciplina cadastrada, maning! Vai no dashboard e adiciona. 📚'
-                    : 'Nenhuma disciplina cadastrada. Vá ao dashboard e adicione suas matérias. 📚';
-            }
-            const lista = this.disciplinas.map(d => `- ${d.nome}`).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Tuas disciplinas:\n\n${lista}\n\n📚 Bora estudar!`
-                : `Suas disciplinas:\n\n${lista}`;
-        }
-        
-        if (perguntas.includes('horário') || perguntas.includes('aula') || perguntas.includes('hoje')) {
-            const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short' });
-            const diaSemana = hoje.charAt(0).toUpperCase() + hoje.slice(1);
-            const aulasHoje = this.weeklySchedule[diaSemana] || [];
-            
-            if (aulasHoje.length === 0) {
-                return this._modoGiria
-                    ? `🇲🇿 Hoje (${diaSemana}) não tens aulas, broo! Aproveita para estudar! 💪`
-                    : `Hoje (${diaSemana}) você não tem aulas agendadas. Aproveite para estudar.`;
-            }
-            const lista = aulasHoje.map(a => 
-                `${a.materia} às ${a.horaInicio}${a.horaFim ? ` - ${a.horaFim}` : ''}`
-            ).join('\n');
-            return this._modoGiria
-                ? `🇲🇿 Hoje (${diaSemana}) tens:\n\n${lista}\n\n📚 Bora estudar!`
-                : `Hoje (${diaSemana}) você tem:\n\n${lista}`;
-        }
-        
-        if (perguntas.includes('oi') || perguntas.includes('olá') || perguntas.includes('eai')) {
-            return this._modoGiria
-                ? '🇲🇿 Eai broo! Tá fixe? Como posso ajudar? Tamos juntos! 😎'
-                : 'Olá! Como posso ajudar você hoje? Estou aqui para auxiliar nos seus estudos!';
-        }
-        
-        return this._modoGiria
-            ? '🇲🇿 Boa pergunta, magaia! Tenta reformular ou me conta mais detalhes. 🤝'
-            : 'Desculpe, não entendi completamente sua pergunta. Poderia reformular ou dar mais detalhes?';
+        list.innerHTML = this.history.map(h => `
+            <div class="history-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
+                <ion-icon name="chat-bubble-outline"></ion-icon>
+                <span class="history-title">${this.app.escapeHtml(h.title)}</span>
+                <button class="history-del" data-del="${h.id}">🗑️</button>
+            </div>
+        `).join('');
+
+        list.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.history-del')) return;
+                this.selecionarConversa(item.dataset.id);
+            });
+        });
+        list.querySelectorAll('.history-del').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.excluirConversa(btn.dataset.del);
+            });
+        });
     }
 
     updateBadge() {
-        const badge = document.getElementById('notification-badge');
+        const badge = document.getElementById('notificationBadgeIA');
         if (!badge) return;
         const naoLidas = (this.notifications || []).filter(n => !n.read).length;
         badge.textContent = naoLidas > 9 ? '9+' : naoLidas;
         badge.style.display = naoLidas > 0 ? 'flex' : 'none';
     }
 
-    // ============================================
-    // SETUP EVENTS
-    // ============================================
     setupEvents() {
-        const input = document.getElementById('ia-input');
-        const sendBtn = document.getElementById('ia-send-btn');
-        const fabBtn = document.getElementById('btn-open-ia');
-        const backBtn = document.getElementById('btn-back-ia');
-        const toggleBtn = document.getElementById('btn-toggle-giria');
-
-        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
-        if (input) {
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            };
-        }
-        if (fabBtn) {
-            fabBtn.onclick = () => {
-                this._previousView = this.app.currentView;
-                this.app.showView('ia');
-                setTimeout(() => this._atualizarStatusLimite(), 500);
-            };
-        }
-        if (backBtn) {
-            backBtn.onclick = () => {
-                this.app.showView(this._previousView || 'dashboard');
-            };
-        }
-        if (toggleBtn) {
-            toggleBtn.onclick = () => {
-                this.toggleModoGiria();
-            };
-        }
-        
-        document.querySelectorAll('.ia-action-card').forEach(card => {
-            card.onclick = () => {
-                const prompt = card.dataset.prompt;
-                if (prompt) {
-                    const textoFinal = this._modoGiria
-                        ? `${prompt} (fala com gíria moçambicana)`
-                        : prompt;
-                    this.sendMessage(textoFinal);
-                }
-            };
+        document.getElementById('ia-send-btn')?.addEventListener('click', () => this.sendMessage());
+        document.getElementById('ia-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
+            }
         });
-        
-        setInterval(() => {
-            this._atualizarStatusLimite();
-        }, 30000);
-    }
+        document.getElementById('btnOpenIA')?.addEventListener('click', () => {
+            this._previousView = this.app.currentView;
+            this.app.showView('ia');
+        });
+        document.getElementById('navBackBtn')?.addEventListener('click', () => {
+            this.app.showView(this._previousView || 'inicio');
+        });
+        document.getElementById('newChatBtn')?.addEventListener('click', () => this.novaConversa());
 
-    upgradeHeader() {
-        const header = document.querySelector('#view-ia .ia-header');
-        if (!header || header.classList.contains('upgraded')) return;
-        header.classList.add('upgraded');
-
-        const backBtn = document.getElementById('btn-back-ia');
-
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'ia-menu-btn';
-        menuBtn.innerHTML = IA_ICONS.menu;
-        menuBtn.title = 'Abrir conversas';
-        menuBtn.addEventListener('click', () => this.abrirPainel());
-
-        header.insertBefore(menuBtn, header.firstChild);
-
-        if (backBtn) {
-            backBtn.style.marginLeft = 'auto';
-            header.appendChild(backBtn);
-        }
-
-        header.querySelectorAll('.ia-avatar').forEach(a => a.remove());
-    }
-
-    garantirFab() {
-        let fab = document.getElementById('btn-open-ia');
-        if (!fab) {
-            fab = document.createElement('button');
-            fab.id = 'btn-open-ia';
-            fab.className = 'fab-ia';
-            document.body.appendChild(fab);
-        }
-        if (!fab.querySelector('svg')) {
-            fab.innerHTML = `<span class="pulse"></span>${IA_SPARKLES_SVG}`;
-        }
-        fab.title = 'Assistente IA';
-        return fab;
-    }
-
-    criarPainel() {
-        if (document.getElementById('iaPainel')) return;
-
-        const nome = this.app?.user?.nome || 'Usuário';
-        const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-
-        const overlay = document.createElement('div');
-        overlay.className = 'ia-painel-overlay';
-        overlay.id = 'iaPainelOverlay';
-        overlay.addEventListener('click', () => this.fecharPainel());
-
-        const painel = document.createElement('aside');
-        painel.className = 'ia-painel';
-        painel.id = 'iaPainel';
-        painel.innerHTML = `
-            <div class="ia-painel-header">
-                <div class="ia-painel-brand">
-                    <div class="ia-painel-logo">${IA_SPARKLES_SVG}</div>
-                    <div class="ia-painel-brand-text"><strong>Satus IA</strong><small>Zero Satus</small></div>
-                </div>
-                <button class="ia-painel-close" id="iaPainelClose">${IA_ICONS.close}</button>
-            </div>
-            <button class="ia-painel-new" id="iaPainelNew">${IA_ICONS.plus} Nova conversa</button>
-            <div class="ia-painel-list" id="iaPainelList"></div>
-            <div class="ia-painel-footer">
-                <div class="ia-painel-user">
-                    <div class="ia-painel-user-avatar">${this._escapeHtml(iniciais)}</div>
-                    <div class="ia-painel-user-info">
-                        <span>${this._escapeHtml(nome)}</span>
-                        <small>Aluno • Zero Satus</small>
-                    </div>
-                </div>
-            </div>`;
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(painel);
-
-        document.getElementById('iaPainelClose').addEventListener('click', () => this.fecharPainel());
-        document.getElementById('iaPainelNew').addEventListener('click', () => this.novaConversa());
-        painel.querySelector('.ia-painel-list').addEventListener('click', (e) => {
-            const del = e.target.closest('[data-del]');
-            if (del) { this.excluirConversa(del.dataset.del); return; }
-            const item = e.target.closest('.ia-painel-item');
-            if (item) this.selecionarConversa(item.dataset.id);
+        document.querySelectorAll('.quick-chips .chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const prompt = chip.dataset.prompt;
+                if (prompt) this.sendMessage(prompt);
+            });
         });
     }
 
-    abrirPainel() {
-        this.renderHistoryList();
-        document.getElementById('iaPainel')?.classList.add('open');
-        document.getElementById('iaPainelOverlay')?.classList.add('show');
-    }
-    
-    fecharPainel() {
-        document.getElementById('iaPainel')?.classList.remove('open');
-        document.getElementById('iaPainelOverlay')?.classList.remove('show');
-    }
-
-    renderHistoryList() {
-        const list = document.getElementById('iaPainelList');
-        if (!list) return;
-        if (this.history.length === 0) {
-            list.innerHTML = `<div class="ia-painel-empty">Nenhuma conversa ainda.<br>Comece uma nova! ✨</div>`;
-            return;
-        }
-        list.innerHTML = this.history.map(h => `
-            <div class="ia-painel-item ${h.id === this.currentHistoryId ? 'active' : ''}" data-id="${h.id}">
-                ${IA_ICONS.chat}
-                <span class="ia-painel-item-title">${this._escapeHtml(h.title)}</span>
-                <button class="ia-painel-item-del" data-del="${h.id}">${IA_ICONS.trash}</button>
-            </div>`).join('');
+    _mostrarToast(msg) {
+        if (typeof showToast === 'function') showToast(msg, 'info');
     }
 }
 
-// ============================================
-// FUNÇÃO GLOBAL PARA COPIAR
-// ============================================
+// ══════════════════════════════════════════════════════
+//  COPIAR MENSAGEM
+// ══════════════════════════════════════════════════════
 window.copyMessage = function(element) {
     try {
         const messageContent = element.closest('.ia-message-content');
         if (!messageContent) return;
         const text = messageContent.textContent.replace('📋 Copiar', '').trim();
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    const originalText = element.textContent;
-                    element.textContent = '✅ Copiado!';
-                    setTimeout(() => { element.textContent = originalText; }, 2000);
-                })
-                .catch(() => { fallbackCopy(text, element); });
-        } else {
-            fallbackCopy(text, element);
+
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = element.textContent;
+                element.textContent = '✅ Copiado!';
+                setTimeout(() => { element.textContent = orig; }, 2000);
+            }).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            });
         }
-    } catch (error) {
-        console.error('[IA Mobile] Erro ao copiar:', error);
+    } catch (err) {
+        console.error('[IA PC] Erro ao copiar:', err);
     }
 };
 
-function fallbackCopy(text, element) {
-    try {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        textarea.style.top = '-1000px';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        const originalText = element.textContent;
-        element.textContent = '✅ Copiado!';
-        setTimeout(() => { element.textContent = originalText; }, 2000);
-    } catch (err) {
-        console.error('[IA Mobile] Fallback copy falhou:', err);
-    }
-}
-
-// ============================================
-// FAB ESCONDE NA TELA DE IA
-// ============================================
-(function () {
-    function atualizarFab() {
-        const fab = document.getElementById('btn-open-ia');
-        const iaAtiva = document.getElementById('view-ia')?.classList.contains('active');
-        if (fab) fab.style.display = iaAtiva ? 'none' : '';
-    }
-    const view = document.getElementById('view-ia');
-    if (view) {
-        new MutationObserver(atualizarFab).observe(view, {
-            attributes: true,
-            attributeFilter: ['class']
-        });
-    }
-    atualizarFab();
-})();
-
-console.log('[IA Mobile] ✅ Módulo atualizado com integração da NUVEM e `_saved: false`!');[cite: 4]
+console.log('[IA PC] ✅ Módulo carregado (sem gíria, alinhado com Flutter)');

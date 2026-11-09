@@ -6,7 +6,29 @@
 #view-dashboard {
     padding: 20px;
 }
-
+.focus-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    border-radius: 16px;
+    padding: 16px;
+    margin: 16px 0;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.focus-card:active { transform: scale(0.97); }
+.focus-icon {
+    width: 48px; height: 48px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 24px;
+}
+.focus-info { flex: 1; color: white; }
+.focus-info h3 { margin: 0; font-size: 15px; }
+.focus-info p { margin: 2px 0 0; font-size: 12px; opacity: 0.8; }
+.focus-card > ion-icon { color: white; font-size: 20px; }
 /* ==================== CARDS ==================== */
 .summary-cards {
     display: grid;

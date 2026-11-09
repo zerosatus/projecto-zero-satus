@@ -36,7 +36,7 @@ class InicioModule {
         this.notifications = data.notifications || [];
         this.disciplinas = data.disciplinas || [];
         this.profile = data.profile || {};
-        this.studySessions = data.studySessions || []; // ⭐ ADICIONAR
+        this.studySessions = data.studySessions || window.CacheManager.get('studySessions', []); // ⭐ ADICIONADO CONFORME SOLICITADO
         
         this.days.forEach(day => {
             if (!this.weeklySchedule[day]) this.weeklySchedule[day] = [];
@@ -62,7 +62,7 @@ class InicioModule {
         this.setupEvents();
         this.updateBadge();
         this.loadTimerState();
-        this.carregarDadosDoCache();
+        // ⭐ Chamada this.carregarDadosDoCache() removida daqui para evitar overwrite dos dados do app.js
     }
     
     exporFuncoesGlobais() {
@@ -104,23 +104,25 @@ class InicioModule {
     }
     
     carregarDadosDoCache() {
-        if (window.CacheManager) {
-            const schedule = window.CacheManager.get('weeklySchedule', {});
-            const slots = window.CacheManager.get('timeSlots', []);
-            const sessions = window.CacheManager.get('studySessions', []);
-            if (schedule && Object.keys(schedule).length > 0) {
-                this.weeklySchedule = schedule;
-                this.timeSlots = slots || ['08:00', '09:30', '11:00', '14:00', '15:30'];
-                this.renderSchedule();
-                this.renderNextClass();
-                this.renderSubjects();
-            }
-            if (sessions && sessions.length > 0) {
-                this.studySessions = sessions;
-                this.renderStats();
-                this.renderProgress();
-                this.renderStudyHours();
-            }
+        if (!window.CacheManager) return;
+        
+        const schedule = window.CacheManager.get('weeklySchedule', {});
+        const slots = window.CacheManager.get('timeSlots', []);
+        const sessions = window.CacheManager.get('studySessions', []);
+        
+        if (Object.keys(this.weeklySchedule).length === 0 && schedule && Object.keys(schedule).length > 0) {
+            this.weeklySchedule = schedule;
+            this.timeSlots = slots || ['08:00', '09:30', '11:00', '14:00', '15:30'];
+            this.renderSchedule();
+            this.renderNextClass();
+            this.renderSubjects();
+        }
+        
+        if (this.studySessions.length === 0 && sessions && sessions.length > 0) {
+            this.studySessions = sessions;
+            this.renderStats();
+            this.renderProgress();
+            this.renderStudyHours();
         }
     }
     
@@ -162,7 +164,7 @@ class InicioModule {
         const concluidas = this.tasks.filter(t => t.completed).length;
         const percentual = total > 0 ? Math.round((concluidas / total) * 100) : 0;
         
-        // ⭐ Horas do MÊS atual baseadas em studySessions reais[cite: 8]
+        // ⭐ Horas do MÊS atual baseadas em studySessions reais
         const agora = new Date();
         const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
         let segundosMes = 0;
@@ -187,7 +189,7 @@ class InicioModule {
     }
     
     renderProgress() {
-        // ⭐ Progresso semanal baseado em sessões de estudo vs meta semanal[cite: 8]
+        // ⭐ Progresso semanal baseado em sessões de estudo vs meta semanal
         const studySessions = this.studySessions || [];
         const agora = new Date();
         const inicioSemana = new Date(agora);
@@ -393,7 +395,7 @@ class InicioModule {
             chartContainer.appendChild(canvas);
         }
         
-        // ⭐ Calcular horas dos últimos 7 dias (REAL)[cite: 8]
+        // ⭐ Calcular horas dos últimos 7 dias (REAL)
         const agora = new Date();
         const dadosReais = [];
         for (let i = 6; i >= 0; i--) {
@@ -428,7 +430,7 @@ class InicioModule {
         
         ctx.clearRect(0, 0, width, height);
         
-        const maxVal = Math.max(...dados, 1); // ⭐ Evitar divisão por 0[cite: 8]
+        const maxVal = Math.max(...dados, 1); // ⭐ Evitar divisão por 0
         const larguraBarra = (width - 40) / dados.length - 4;
         
         if (!CanvasRenderingContext2D.prototype.roundRect) {
@@ -1144,7 +1146,7 @@ class InicioModule {
             });
         }
         
-        // ⭐ CLOUD DATA LOADED - COM SUPORTE A studySessions[cite: 8]
+        // ⭐ CLOUD DATA LOADED - COM SUPORTE A studySessions
         if (!window._inicioCloudListener) {
             window._inicioCloudListener = true;
             let _cloudDebounce = null;

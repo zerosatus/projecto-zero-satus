@@ -217,9 +217,20 @@
 
             // ⭐ PASSO 3: SALVAR DADOS LOCAIS NA NUVEM
             log('💾 Passo 3: Salvando dados locais na nuvem...');
+            
+            // ⭐ FORÇAR ENVIO DE DISCIPLINAS PRIMEIRO            
+            if (window.CacheManager) {                
+                const disciplinas = window.CacheManager.get('disciplinas', []);                
+                if (disciplinas.length > 0) {                    
+                    await window.CacheManager.saveToCloud('disciplinas', disciplinas, userId);                    
+                    log('✅ Disciplinas enviadas primeiro', 'success');                
+                }            
+            }
+
             const dataTypes = [
                 'tasks', 'notes', 'calendarEvents',
-                'weeklySchedule', 'timeSlots', 'notifications', 'disciplinas', 'documentos'
+                'weeklySchedule', 'timeSlots', 'notifications', 
+                'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONADO AQUI
             ];
 
             let syncCount = 0;

@@ -1,9 +1,4 @@
-// ============================================
-// app.js - SPA DO PAINEL PC (CORRIGIDO)
-// ⭐ SEM loop em disciplinasUpdated
-// ⭐ Profile nunca é sobrescrito
-// ============================================
-
+// app.js - SPA do Painel PC (Completo e Otimizado)
 console.log('[App PC] 🚀 Iniciando aplicação PC...');
 
 class App {
@@ -11,18 +6,9 @@ class App {
         this.user = null;
         this.currentView = 'inicio';
         this.data = {
-            tasks: [],
-            notes: [],
-            calendarEvents: [],
-            weeklySchedule: {},
-            timeSlots: [],
-            notifications: [],
-            disciplinas: [],
-            documentos: [],
-            studySessions: [],   // ⭐ ADICIONAR
-            studySessions: [],   // ⭐ ADICIONAR
-            profile: {},
-            settings: {}
+            tasks: [], notes: [], calendarEvents: [], weeklySchedule: {},
+            timeSlots: [], notifications: [], disciplinas: [], documentos: [],
+            studySessions: [], profile: {}, settings: {}
         };
         this.modules = {};
         this.loadedCSS = new Set();
@@ -32,41 +18,25 @@ class App {
         this._maxSyncRetries = 3;
         this.isSaving = false;
         
-       this.cssModules = {
-    'inicio': 'css/inicio.css',
-    'dashboard': 'css/dashboard.css',
-    'dashboard-page': 'css/dashboard.css',
-    'calendario': 'css/calendario.css',
-    'tarefas': 'css/tarefas.css',
-    'anotacoes': 'css/anotacoes.css',
-    'perfil': 'css/perfil.css',
-    'ia': 'css/ia.css',
-    'disciplinas': 'css/disciplinas.css',
-    'documentos': 'css/documentos.css',
-    'foco': 'css/foco.css'
-};
+        this.cssModules = {
+            'inicio': 'css/inicio.css', 'dashboard': 'css/dashboard.css',
+            'dashboard-page': 'css/dashboard.css', 'calendario': 'css/calendario.css',
+            'tarefas': 'css/tarefas.css', 'anotacoes': 'css/anotacoes.css',
+            'perfil': 'css/perfil.css', 'ia': 'css/ia.css',
+            'disciplinas': 'css/disciplinas.css', 'documentos': 'css/documentos.css',
+            'foco': 'css/foco.css'
+        };
         
         this.viewToModuleMap = {
-    'inicio': 'inicio',
-    'dashboard-page': 'dashboard',
-    'dashboard': 'dashboard',
-    'calendario': 'calendario',
-    'tarefas': 'tarefas',
-    'anotacoes': 'anotacoes',
-    'notas': 'anotacoes',
-    'perfil': 'perfil',
-    'ia': 'ia',
-    'disciplinas': 'disciplinas',
-    'documentos': 'documentos',
-    'foco': 'foco'
-};
+            'inicio': 'inicio', 'dashboard-page': 'dashboard', 'dashboard': 'dashboard',
+            'calendario': 'calendario', 'tarefas': 'tarefas', 'anotacoes': 'anotacoes',
+            'notas': 'anotacoes', 'perfil': 'perfil', 'ia': 'ia',
+            'disciplinas': 'disciplinas', 'documentos': 'documentos', 'foco': 'foco'
+        };
         
         this.init();
     }
-    
-    // ============================================
-    // LOADING OVERLAY
-    // ============================================
+
     createLoadingOverlay() {
         if (this._loadingOverlay) return;
         
@@ -174,11 +144,10 @@ class App {
         return this.user.nome || this.user.displayName || this.user.full_name || this.user.name ||
                this.user.email?.split('@')[0] || 'Usuário';
     }
-    
+
     async init() {
         if (this._isInitializing) return;
         this._isInitializing = true;
-        
         this.createLoadingOverlay();
         this.updateLoadingStatus('Inicializando...', 5);
         
@@ -188,16 +157,8 @@ class App {
             return;
         }
         
-        try {
-            this.user = JSON.parse(usuario);
-        } catch(e) {
-            window.location.href = '../login/index.html';
-            return;
-        }
-        
-        console.log('[App PC] 👤 Usuário:', this.user.email);
-        console.log('[App PC] 🆔 User ID:', this.user.id);
-        console.log('[App PC] 📛 Nome:', this.getNomeUsuario());
+        try { this.user = JSON.parse(usuario); } 
+        catch(e) { window.location.href = '../login/index.html'; return; }
         
         const nomeExibicao = this.getNomeUsuario();
         this.updateLoadingStatus(`Olá, ${nomeExibicao}!`, 10);
@@ -207,165 +168,88 @@ class App {
         this.atualizarAvatar(iniciais);
         
         if (window.CacheManager) {
-            console.log('[App PC] 🔄 Inicializando CacheManager...');
             window.CacheManager.init();
             window.CacheManager.currentUserId = this.user.id;
-            console.log('[App PC] ✅ CacheManager inicializado');
         }
-        
-        this.updateLoadingStatus('Inicializando cache...', 20);
         
         this.updateLoadingStatus('Conectando ao servidor...', 25);
         await this.waitForSupabase();
         
-        this.updateLoadingStatus('Inicializando sincronização...', 30);
+        this.updateLoadingStatus('Sincronizando...', 30);
         if (window.initSync) {
-            try {
-                await window.initSync({ force: false });
-            } catch(e) {
-                console.warn('[App PC] ⚠️ Erro no sync:', e);
-            }
+            try { await window.initSync({ force: false }); } 
+            catch(e) { console.warn('[App PC] ⚠️ Erro no sync:', e); }
         }
         
         this.updateLoadingStatus('Carregando módulos...', 40);
         this.loadModules();
         
-        this.updateLoadingStatus('Carregando dados da nuvem...', 45);
-        await this.loadDataFromCloud();
-        
-        this.updateLoadingStatus('Carregando dados locais...', 55);
+        this.updateLoadingStatus('Carregando dados...', 60);
         await this.loadData();
         
-        this.updateLoadingStatus('Configurando...', 70);
+        this.updateLoadingStatus('Configurando...', 75);
         this.setupNavigation();
-                
-        this.updateLoadingStatus('Preparando...', 80);
         this.setupEvents();
-                
-        this.updateLoadingStatus('Quase pronto!', 90);
-        // ⭐ O showView('inicio') vai chamar o dashboard.js COM os dados já prontos
+        
+        this.updateLoadingStatus('Preparando...', 85);
         this.showView('inicio');
-                
+        
         this.updateLoadingStatus('Atualizando...', 95);
         this.updateBadge();
         
-        this.updateLoadingStatus('Carregando notificações...', 96);
+        this.updateLoadingStatus('Carregando notificações...', 98);
         await this.loadNotificationsFromSupabase();
         
         this.updateLoadingStatus('Pronto!', 100);
         setTimeout(() => { this.closeLoadingOverlay(); }, 400);
-        
         this._isInitializing = false;
         console.log('[App PC] ✅ Aplicação pronta!');
     }
     
     atualizarNomeUsuario(nome) {
         if (!nome && this.user) nome = this.getNomeUsuario();
-                
         const hora = new Date().getHours();
-        let saudacao = 'Bom dia';
-        if (hora >= 12 && hora < 19) saudacao = 'Boa tarde';
-        else if (hora >= 19 || hora < 5) saudacao = 'Boa noite';
-                
+        let saudacao = hora < 12 ? 'Bom dia' : hora < 19 ? 'Boa tarde' : 'Boa noite';
         const textoHeader = `${saudacao}, ${nome.split(' ')[0]}!`;
-        const ids = ['userNameDisplay', 'userName', 'userName2', 'userName3', 
-                     'userName4', 'userName5', 'userNameIA', 'miniName',
-                     'header-name', 'profile-name'];
-                     
-        ids.forEach(id => {
+        
+        ['userNameDisplay','userName','userName2','userName3','userName4','userName5','userNameIA','miniName','header-name','profile-name'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                if (id === 'miniName' || id === 'profile-name') {
-                    el.textContent = nome;
-                } else {
-                    el.textContent = textoHeader;
-                }
+                el.textContent = (id === 'miniName' || id === 'profile-name') ? nome : textoHeader;
             }
         });
-                
+        
         const miniEmail = document.getElementById('miniEmail');
         if (miniEmail && this.user) miniEmail.textContent = this.user.email || '';
-                
         const profileEmail = document.getElementById('profileEmail');
         if (profileEmail && this.user) profileEmail.textContent = this.user.email || '';
-                
-        const iniciais = nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-        this.atualizarAvatar(iniciais);
     }
     
     atualizarAvatar(iniciais) {
-        const ids = ['userAvatar', 'userAvatar2', 'userAvatar3', 'userAvatar4', 'userAvatar5', 'userAvatarIA'];
-        ids.forEach(id => {
+        ['userAvatar','userAvatar2','userAvatar3','userAvatar4','userAvatar5','userAvatarIA'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = iniciais || 'U';
         });
     }
     
-    async carregarAvatar() {
-        if (!this.user) return;
-        const miniAvatar = document.getElementById('miniAvatar');
-        const avatarImage = document.getElementById('avatarImage');
-        
-        if (window.CacheManager) {
-            const photoUrl = await window.CacheManager.getProfilePhotoUrl();
-            if (photoUrl && (photoUrl.startsWith('data:') || photoUrl.startsWith('http'))) {
-                if (miniAvatar) miniAvatar.src = photoUrl;
-                if (avatarImage) avatarImage.src = photoUrl;
-                this.user.profilePhotoUrl = photoUrl;
-                localStorage.setItem('usuarioLogado', JSON.stringify(this.user));
-            }
-        }
-    }
-    
     async waitForSupabase() {
         if (this.getSupabase()) return true;
-        
-        if (window.SupabaseClient?.initSupabase) {
-            window.SupabaseClient.initSupabase();
-        }
-        
+        if (window.SupabaseClient?.initSupabase) window.SupabaseClient.initSupabase();
         let attempts = 0;
-        return new Promise((resolve) => {
-            const checkInterval = setInterval(() => {
+        return new Promise(resolve => {
+            const check = setInterval(() => {
                 attempts++;
-                if (this.getSupabase()) {
-                    clearInterval(checkInterval);
-                    resolve(true);
-                } else if (attempts >= 50) {
-                    clearInterval(checkInterval);
-                    resolve(false);
-                }
+                if (this.getSupabase()) { clearInterval(check); resolve(true); }
+                else if (attempts >= 50) { clearInterval(check); resolve(false); }
             }, 200);
         });
-    }
-    
-    async loadDataFromCloud() {
-        try {
-            if (!window.DatabaseService) {
-                console.warn('[App PC] ⏳ Aguardando DatabaseService...');
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            if (window.CacheManager) {
-                const result = await window.CacheManager.loadFromCloud(true);
-                return result;
-            }
-            return false;
-        } catch (error) {
-            console.error('[App PC] ❌ Erro nuvem:', error);
-            return false;
-        }
     }
     
     async loadData() {
         const usuario = localStorage.getItem('usuarioLogado');
         if (usuario) {
-            try {
-                this.data.profile = JSON.parse(usuario);
-                console.log('[App PC] 👤 Perfil carregado do localStorage');
-            } catch(e) {
-                console.warn('[App PC] ⚠️ Erro ao ler usuarioLogado:', e);
-                this.data.profile = {};
-            }
+            try { this.data.profile = JSON.parse(usuario); } 
+            catch(e) { this.data.profile = {}; }
         }
         
         if (window.CacheManager) {
@@ -377,10 +261,9 @@ class App {
             this.data.notifications = window.CacheManager.get('notifications', []);
             this.data.disciplinas = window.CacheManager.get('disciplinas', []);
             this.data.documentos = window.CacheManager.get('documentos', []);
-            this.data.studySessions = window.CacheManager.get('studySessions', []); // ⭐ ADICIONAR
+            this.data.studySessions = window.CacheManager.get('studySessions', []);
             
-            const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-            dias.forEach(day => {
+            ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].forEach(day => {
                 if (!this.data.weeklySchedule[day]) this.data.weeklySchedule[day] = [];
             });
             
@@ -393,17 +276,9 @@ class App {
                 });
             }
             
-            console.log('[App PC] 📊 Dados carregados:', {
-                tasks: this.data.tasks.length,
-                notes: this.data.notes.length,
-                disciplinas: this.data.disciplinas.length,
-                studySessions: this.data.studySessions.length // ⭐ ADICIONAR
-            });
-            
             if (this.data.profile && this.data.profile.nome) {
                 this.atualizarNomeUsuario(this.data.profile.nome);
             }
-            this.carregarAvatar();
         }
     }
     
@@ -416,24 +291,16 @@ class App {
         if (!userId) { this.isSaving = false; return; }
         
         try {
-            const KEYS_TO_SAVE = [
-                'tasks', 'notes', 'calendarEvents', 'weeklySchedule',
-                'timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions' // ⭐ ADICIONAR
-            ];
-            
+            const KEYS_TO_SAVE = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule','timeSlots', 'notifications', 'disciplinas', 'documentos', 'studySessions'];
             for (const key of KEYS_TO_SAVE) {
                 if (this.data[key] !== undefined && this.data[key] !== null) {
                     window.CacheManager.set(key, this.data[key], false);
                 }
             }
-            
             if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
             window.CacheManager._syncTimeout = setTimeout(() => {
-                if (window.CacheManager.forceSync) {
-                    window.CacheManager.forceSync().catch(() => {});
-                }
+                if (window.CacheManager.forceSync) window.CacheManager.forceSync().catch(() => {});
             }, 3000);
-            
         } catch (error) {
             console.error('[App PC] ❌ Erro ao salvar:', error);
         }
@@ -441,163 +308,24 @@ class App {
         setTimeout(() => { this.isSaving = false; }, 500);
     }
     
-    async deleteItem(type, id) {
-        if (!window.CacheManager) return false;
-        const userId = this.user?.id;
-        if (!userId) return false;
-        
-        try {
-            const deleted = window.CacheManager.delete(type, id, true);
-            if (deleted) {
-                this.data[type] = window.CacheManager.get(type, []);
-                if (window.CacheManager._syncTimeout) clearTimeout(window.CacheManager._syncTimeout);
-                window.CacheManager._syncTimeout = setTimeout(() => {
-                    window.CacheManager.forceSync().catch(() => {});
-                }, 1000);
-                window.dispatchEvent(new CustomEvent(`${type}Updated`, { detail: this.data[type] }));
-                return true;
-            }
-            return false;
-        } catch (error) {
-            console.error(`[App PC] ❌ Erro delete ${type}:`, error);
-            return false;
-        }
-    }
-    
-    async loadNotificationsFromSupabase() {
-        try {
-            const client = this.getSupabase();
-            if (!client || !this.user) return;
-
-            const { data, error } = await client
-                .from('notifications').select('*')
-                .eq('user_id', this.user.id)
-                .order('created_at', { ascending: false }).limit(50);
-
-            if (error) return;
-
-            if (data && data.length > 0) {
-                const notificacoes = data.map(n => ({
-                    id: n.id, title: n.title || 'Notificação', message: n.message || '',
-                    type: n.type || 'info', read: n.read || false, time: n.created_at
-                }));
-                this.data.notifications = notificacoes;
-                if (window.CacheManager) window.CacheManager.set('notifications', notificacoes, true);
-                localStorage.setItem(`${this.user.id}_notifications`, JSON.stringify(notificacoes));
-                this.updateBadge();
-                window.dispatchEvent(new CustomEvent('notificationsUpdated'));
-            }
-        } catch (error) {
-            console.error('[App PC] ❌ Erro notificações:', error);
-        }
-    }
-    
-    async deleteNotification(id) {
-        try {
-            const client = this.getSupabase();
-            if (client && this.user) {
-                await client.from('notifications').delete().eq('id', id).eq('user_id', this.user.id);
-            }
-            this.data.notifications = this.data.notifications.filter(n => n.id != id);
-            if (window.CacheManager) window.CacheManager.set('notifications', this.data.notifications, true);
-            this.updateBadge();
-            this.renderNotifications();
-            if (typeof showToast === 'function') showToast('🗑️ Notificação removida!', 'success');
-        } catch (error) {
-            console.error('[App PC] ❌ Erro:', error);
-        }
-    }
-    
-    async marcarTodasComoLidas() {
-        try {
-            const naoLidas = this.data.notifications.filter(n => !n.read);
-            if (naoLidas.length === 0) {
-                if (typeof showToast === 'function') showToast('✅ Já estão lidas!', 'info');
-                return;
-            }
-            const client = this.getSupabase();
-            if (client && this.user) {
-                await client.from('notifications').update({ read: true })
-                    .in('id', naoLidas.map(n => n.id)).eq('user_id', this.user.id);
-            }
-            this.data.notifications.forEach(n => { if (!n.read) n.read = true; });
-            if (window.CacheManager) window.CacheManager.set('notifications', this.data.notifications, true);
-            this.updateBadge();
-            this.renderNotifications();
-            if (typeof showToast === 'function') showToast('✅ Marcadas como lidas!', 'success');
-        } catch (error) {
-            console.error('[App PC] ❌ Erro:', error);
-        }
-    }
-    
-    async limparTodasNotificacoes() {
-        if (!confirm('Limpar todas as notificações?')) return;
-        try {
-            const client = this.getSupabase();
-            if (client && this.user) {
-                await client.from('notifications').delete().eq('user_id', this.user.id);
-            }
-            this.data.notifications = [];
-            if (window.CacheManager) window.CacheManager.set('notifications', [], true);
-            this.updateBadge();
-            this.renderNotifications();
-            if (typeof showToast === 'function') showToast('🗑️ Limpas!', 'success');
-        } catch (error) {
-            console.error('[App PC] ❌ Erro:', error);
-        }
-    }
-    
     loadModules() {
-        console.log('[App PC] 🔧 Carregando módulos...');
-        
-        if (typeof InicioModule !== 'undefined') {
-            this.modules.inicio = new InicioModule(this);
-            console.log('[App PC] ✅ InicioModule carregado');
-        } else {
-            console.error('[App PC] ❌ InicioModule NÃO definido!');
-        }
-        if (typeof DashboardModule !== 'undefined') {
-            this.modules.dashboard = new DashboardModule(this);
-        }
-        if (typeof CalendarioModule !== 'undefined') {
-            this.modules.calendario = new CalendarioModule(this);
-        }
-        if (typeof TarefasModule !== 'undefined') {
-            this.modules.tarefas = new TarefasModule(this);
-        }
-        if (typeof AnotacoesModule !== 'undefined') {
-            this.modules.anotacoes = new AnotacoesModule(this);
-        }
-        if (typeof PerfilModule !== 'undefined') {
-            this.modules.perfil = new PerfilModule(this);
-        }
-        if (typeof IaModule !== 'undefined') {
-            this.modules.ia = new IaModule(this);
-        } else if (typeof IAModule !== 'undefined') {
-            this.modules.ia = new IAModule(this);
-        }
-        if (typeof DisciplinasModule !== 'undefined') {
-            this.modules.disciplinas = new DisciplinasModule(this);
-        }
-      if (typeof DocumentosModule !== 'undefined') {
-    this.modules.documentos = new DocumentosModule(this);
-}
-if (typeof FocoModule !== 'undefined') {
-    this.modules.foco = new FocoModule(this);
-    console.log('[App PC] ✅ FocoModule carregado');
-} else {
-    console.error('[App PC] ❌ FocoModule NÃO definido! Verifique modules/foco.js');
-}
-console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
+        if (typeof InicioModule !== 'undefined') this.modules.inicio = new InicioModule(this);
+        if (typeof DashboardModule !== 'undefined') this.modules.dashboard = new DashboardModule(this);
+        if (typeof CalendarioModule !== 'undefined') this.modules.calendario = new CalendarioModule(this);
+        if (typeof TarefasModule !== 'undefined') this.modules.tarefas = new TarefasModule(this);
+        if (typeof AnotacoesModule !== 'undefined') this.modules.anotacoes = new AnotacoesModule(this);
+        if (typeof PerfilModule !== 'undefined') this.modules.perfil = new PerfilModule(this);
+        if (typeof IaModule !== 'undefined') this.modules.ia = new IaModule(this);
+        else if (typeof IAModule !== 'undefined') this.modules.ia = new IAModule(this);
+        if (typeof DisciplinasModule !== 'undefined') this.modules.disciplinas = new DisciplinasModule(this);
+        if (typeof DocumentosModule !== 'undefined') this.modules.documentos = new DocumentosModule(this);
+        if (typeof FocoModule !== 'undefined') this.modules.foco = new FocoModule(this);
     }
     
     loadCSS(moduleName) {
         const cssPath = this.cssModules[moduleName];
         if (!cssPath || this.loadedCSS.has(moduleName)) return;
-        
-        const existing = document.querySelector(`link[href="${cssPath}"]`);
-        if (existing) { this.loadedCSS.add(moduleName); return; }
-        
+        if (document.querySelector(`link[href="${cssPath}"]`)) { this.loadedCSS.add(moduleName); return; }
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = cssPath;
@@ -610,124 +338,107 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 const view = item.dataset.view;
-                if (view && view !== this.currentView) {
-                    this.showView(view);
-                }
+                if (view && view !== this.currentView) this.showView(view);
             });
         });
     }
     
     showView(viewName) {
-    console.log('[App PC] 📄 Mostrando:', viewName);
-    const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main-content');
-    const viewIA = document.getElementById('view-ia');
-    const viewFoco = document.getElementById('view-foco');
-    const btnIA = document.getElementById('btnOpenIA');
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const viewIA = document.getElementById('view-ia');
+        const viewFoco = document.getElementById('view-foco');
+        const btnIA = document.getElementById('btnOpenIA');
 
-    // Esconder sidebar para IA e FOCO (tela cheia)
-    if (viewName === 'ia' || viewName === 'foco') {
-        if (sidebar) sidebar.style.display = 'none';
-        if (mainContent) {
-            mainContent.style.marginLeft = '0';
-            mainContent.style.width = '100%';
-            mainContent.style.padding = '0';
-        }
-        if (btnIA) btnIA.style.display = 'none';
-        document.body.style.overflow = 'hidden';
-
-        if (viewName === 'ia') {
-            if (viewIA) {
-                viewIA.style.display = 'flex';
-                viewIA.style.position = 'fixed';
-                viewIA.style.top = '0';
-                viewIA.style.left = '0';
-                viewIA.style.width = '100%';
-                viewIA.style.height = '100vh';
-                viewIA.style.zIndex = '9999';
-                viewIA.style.background = 'var(--bg-color)';
-                viewIA.style.overflow = 'auto';
+        if (viewName === 'ia' || viewName === 'foco') {
+            if (sidebar) sidebar.style.display = 'none';
+            if (mainContent) {
+                mainContent.style.marginLeft = '0';
+                mainContent.style.width = '100%';
+                mainContent.style.padding = '0';
             }
-            if (viewFoco) viewFoco.style.display = 'none';
-        } else if (viewName === 'foco') {
-            if (viewFoco) {
-                viewFoco.style.display = 'block';
-                viewFoco.style.position = 'fixed';
-                viewFoco.style.top = '0';
-                viewFoco.style.left = '0';
-                viewFoco.style.width = '100vw';
-                viewFoco.style.height = '100vh';
-                viewFoco.style.zIndex = '9998';
-                viewFoco.style.overflow = 'auto';
-                viewFoco.style.background = '#0a0810';
-            }
-            if (viewIA) viewIA.style.display = 'none';
-        }
-    } else {
-        // Restaurar layout normal
-        if (sidebar) sidebar.style.display = 'flex';
-        if (mainContent) {
-            mainContent.style.marginLeft = '260px';
-            mainContent.style.width = 'calc(100% - 260px)';
-            mainContent.style.padding = '30px';
-        }
-        if (btnIA) {
-            btnIA.style.display = 'flex';
-            btnIA.style.visibility = 'visible';
-            btnIA.style.opacity = '1';
-        }
-        if (viewIA) {
-            viewIA.style.display = 'none';
-            viewIA.style.position = 'relative';
-            viewIA.style.zIndex = '1';
-            viewIA.style.overflow = 'visible';
-        }
-        if (viewFoco) {
-            viewFoco.style.display = 'none';
-            viewFoco.style.position = 'relative';
-            viewFoco.style.zIndex = '1';
-        }
-        document.body.style.overflow = '';
-    }
-
-    this.loadCSS(viewName);
-    document.querySelectorAll('.view').forEach(v => {
-        v.classList.remove('active');
-        v.classList.add('hidden');
-    });
-    const view = document.getElementById(`view-${viewName}`);
-    if (view) {
-        if (viewName !== 'ia' && viewName !== 'foco') {
-            view.style.display = 'block';
-            view.style.position = 'relative';
-            view.style.zIndex = '1';
-            view.style.overflow = 'visible';
-        }
-        view.classList.remove('hidden');
-        view.classList.add('active');
-        document.querySelectorAll('.menu-item[data-view]').forEach(item => {
-            item.classList.toggle('active', item.dataset.view === viewName);
-        });
-        const moduleName = this.viewToModuleMap[viewName];
-        if (moduleName && this.modules[moduleName]) {
-            try {
-                this.modules[moduleName].render(this.data);
-            } catch (err) {
-                console.error(`[App PC] ❌ Erro render ${moduleName}:`, err);
+            if (btnIA) btnIA.style.display = 'none';
+            document.body.style.overflow = 'hidden';
+            if (viewName === 'ia') {
+                if (viewIA) {
+                    viewIA.style.display = 'flex';
+                    viewIA.style.position = 'fixed';
+                    viewIA.style.top = '0';
+                    viewIA.style.left = '0';
+                    viewIA.style.width = '100%';
+                    viewIA.style.height = '100vh';
+                    viewIA.style.zIndex = '9999';
+                    viewIA.style.background = 'var(--bg-color)';
+                    viewIA.style.overflow = 'auto';
+                }
+                if (viewFoco) viewFoco.style.display = 'none';
+            } else if (viewName === 'foco') {
+                if (viewFoco) {
+                    viewFoco.style.display = 'block';
+                    viewFoco.style.position = 'fixed';
+                    viewFoco.style.top = '0';
+                    viewFoco.style.left = '0';
+                    viewFoco.style.width = '100vw';
+                    viewFoco.style.height = '100vh';
+                    viewFoco.style.zIndex = '9998';
+                    viewFoco.style.overflow = 'auto';
+                    viewFoco.style.background = '#0a0810';
+                }
+                if (viewIA) viewIA.style.display = 'none';
             }
         } else {
-            console.warn('[App PC] ⚠️ Módulo não encontrado:', viewName, '→', moduleName);
+            if (sidebar) sidebar.style.display = 'flex';
+            if (mainContent) {
+                mainContent.style.marginLeft = '260px';
+                mainContent.style.width = 'calc(100% - 260px)';
+                mainContent.style.padding = '30px';
+            }
+            if (btnIA) {
+                btnIA.style.display = 'flex';
+                btnIA.style.visibility = 'visible';
+                btnIA.style.opacity = '1';
+            }
+            if (viewIA) {
+                viewIA.style.display = 'none';
+                viewIA.style.position = 'relative';
+                viewIA.style.zIndex = '1';
+                viewIA.style.overflow = 'visible';
+            }
+            if (viewFoco) {
+                viewFoco.style.display = 'none';
+                viewFoco.style.position = 'relative';
+                viewFoco.style.zIndex = '1';
+            }
+            document.body.style.overflow = '';
         }
-        this.currentView = viewName;
+
+        this.loadCSS(viewName);
+        document.querySelectorAll('.view').forEach(v => { v.classList.remove('active'); v.classList.add('hidden'); });
+        const view = document.getElementById(`view-${viewName}`);
+        if (view) {
+            if (viewName !== 'ia' && viewName !== 'foco') {
+                view.style.display = 'block';
+                view.style.position = 'relative';
+                view.style.zIndex = '1';
+                view.style.overflow = 'visible';
+            }
+            view.classList.remove('hidden');
+            view.classList.add('active');
+            document.querySelectorAll('.menu-item[data-view]').forEach(item => {
+                item.classList.toggle('active', item.dataset.view === viewName);
+            });
+            const moduleName = this.viewToModuleMap[viewName];
+            if (moduleName && this.modules[moduleName]) {
+                try { this.modules[moduleName].render(this.data); } 
+                catch (err) { console.error(`[App PC] ❌ Erro render ${moduleName}:`, err); }
+            }
+            this.currentView = viewName;
+        }
     }
-}
     
     openNotifications() {
         const modal = document.getElementById('notifModal');
-        if (modal) {
-            modal.classList.add('active');
-            this.renderNotifications();
-        }
+        if (modal) { modal.classList.add('active'); this.renderNotifications(); }
     }
     
     closeNotifications() {
@@ -738,7 +449,6 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
     renderNotifications(filter = 'todas') {
         const container = document.getElementById('notifList');
         if (!container) return;
-        
         let notificacoes = this.data.notifications || [];
         if (filter === 'nao-lidas') notificacoes = notificacoes.filter(n => !n.read);
         
@@ -770,6 +480,28 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
             this.renderNotifications();
             this.updateBadge();
         }
+    }
+    
+    async marcarTodasComoLidas() {
+        const naoLidas = this.data.notifications.filter(n => !n.read);
+        if (naoLidas.length === 0) {
+            if (typeof showToast === 'function') showToast('✅ Já estão lidas!', 'info');
+            return;
+        }
+        this.data.notifications.forEach(n => { if (!n.read) n.read = true; });
+        if (window.CacheManager) window.CacheManager.set('notifications', this.data.notifications, true);
+        this.updateBadge();
+        this.renderNotifications();
+        if (typeof showToast === 'function') showToast('✅ Marcadas como lidas!', 'success');
+    }
+    
+    async limparTodasNotificacoes() {
+        if (!confirm('Limpar todas as notificações?')) return;
+        this.data.notifications = [];
+        if (window.CacheManager) window.CacheManager.set('notifications', [], true);
+        this.updateBadge();
+        this.renderNotifications();
+        if (typeof showToast === 'function') showToast('🗑️ Limpas!', 'success');
     }
     
     updateBadge() {
@@ -828,21 +560,19 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
             if (e.target === e.currentTarget) this.closeNotifications();
         });
         
-        window.addEventListener('cloudDataLoaded', () => {
-           console.log('[App PC] 📡 cloudDataLoaded recebido (ignorado para evitar sobrescrever)');
-           this.updateBadge();
-       });
-        
+        window.addEventListener('cloudDataLoaded', () => { this.updateBadge(); });
         window.addEventListener('forceRefresh', () => {
             if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
             this.updateBadge();
         });
-        
         window.addEventListener('notificationsUpdated', () => {
             if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
             this.updateBadge();
         });
-        
+        window.addEventListener('studySessionsUpdated', () => {
+            this.data.studySessions = window.CacheManager.get('studySessions', []);
+            if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
+        });
         window.addEventListener('profilePhotoUpdated', (event) => {
             if (event.detail && event.detail.photoUrl) {
                 const miniAvatar = document.getElementById('miniAvatar');
@@ -851,32 +581,15 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
                 if (avatarImage) avatarImage.src = event.detail.photoUrl;
             }
         });
-        
-        window.addEventListener('disciplinasUpdated', () => {
-            this.updateBadge();
-        });
-        
+        window.addEventListener('disciplinasUpdated', () => { this.updateBadge(); });
         window.addEventListener('documentosUpdated', () => {
             if (this.modules.documentos) this.modules.documentos.render(this.data);
         });
-        
-        document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (document.getElementById('notifModal')?.classList.contains('active')) {
-            this.closeNotifications();
-        }
-        if (this.currentView === 'ia' || this.currentView === 'foco') {
-            this.showView('inicio');
-        }
-    }
-});
-        
         window.addEventListener('newNotification', () => {
             this.loadNotificationsFromSupabase();
             this.updateBadge();
             if (this.modules[this.currentView]) this.modules[this.currentView].render(this.data);
         });
-        
         window.addEventListener('storage', (e) => {
             if (e.key && (e.key.includes('_') || e.key === 'usuarioLogado')) {
                 if (e.key === 'usuarioLogado' && e.newValue) {
@@ -890,11 +603,36 @@ console.log('[App PC] 📦 Módulos carregados:', Object.keys(this.modules));
                 this.updateBadge();
             }
         });
-        
-        setTimeout(() => {
-            const nome = this.getNomeUsuario();
-            if (nome && nome !== 'Usuário') this.atualizarNomeUsuario(nome);
-        }, 1000);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (document.getElementById('notifModal')?.classList.contains('active')) this.closeNotifications();
+                if (this.currentView === 'ia' || this.currentView === 'foco') this.showView('inicio');
+            }
+        });
+    }
+
+    async loadNotificationsFromSupabase() {
+        try {
+            const client = this.getSupabase();
+            if (!client || !this.user) return;
+            const { data, error } = await client
+                .from('notifications')
+                .select('*')
+                .eq('user_id', this.user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (error) return;
+            if (data && data.length > 0) {
+                const notificacoes = data.map(n => ({
+                    id: n.id, title: n.title || 'Notificação', message: n.message || '',
+                    type: n.type || 'info', read: n.read || false, time: n.created_at
+                }));
+                this.data.notifications = notificacoes;
+                if (window.CacheManager) window.CacheManager.set('notifications', notificacoes, true);
+                this.updateBadge();
+                window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+            }
+        } catch (error) { console.error('[App PC] ❌ Erro notificações:', error); }
     }
 }
 
