@@ -1,5 +1,5 @@
 // ==========================================
-// notifications.js - NOTIFICAÇÕES (CORRIGIDO)
+// notifications.js - NOTIFICAÇÕES (SUPABASE + APPWRITE)
 // ==========================================
 
 console.log('[Notif] 📬 Módulo de notificações carregado');
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// ENVIAR NOTIFICAÇÃO (CORRIGIDO)
+// ENVIAR NOTIFICAÇÃO (SUPABASE + APPWRITE)
 // ==========================================
 async function enviarNotificacao() {
     const btn = document.getElementById('btnEnviarNotificacao');
@@ -451,13 +451,8 @@ async function enviarNotificacao() {
         console.log('[Notif] 📤 Enviando notificação:');
         console.log('[Notif] Destino:', destinoFinal);
         console.log('[Notif] Título:', titulo);
-        console.log('[Notif] Mensagem:', mensagem);
-        console.log('[Notif] Tipo:', destino === 'todos' ? 'broadcast' : destino === 'individual' ? 'individual' : 'segmented');
-        console.log('[Notif] Ícone:', iconeSelecionado);
-        console.log('[Notif] Canais:', canais);
-        console.log('[Notif] Agendar:', agendar || 'agora');
 
-        // CHAMADA CORRIGIDA - USANDO PARÂMETROS NOMEADOS
+        // 1. SALVAR NO SUPABASE (Histórico)
         const { data, error } = await client.rpc('enviar_notificacao', {
             p_destino: destinoFinal,
             p_titulo: titulo,
@@ -477,7 +472,27 @@ async function enviarNotificacao() {
             return;
         }
 
-        console.log('[Notif] ✅ Notificação enviada:', data);
+        // 2. DISPARAR NO APPWRITE (Realtime)
+        if (window.appwriteDatabases) {
+            console.log('[Notif] ⚡ Enviando para o Appwrite Realtime...');
+            const { ID } = window.Appwrite;
+            
+            await window.appwriteDatabases.createRow(
+                window.APPWRITE_DB_ID,       
+                window.APPWRITE_TABLE_ID,    
+                ID.unique(),                 
+                {
+                    titulo: titulo,
+                    mensagem: mensagem,
+                    destino: destinoFinal,
+                    autor: autor
+                }
+            );
+            console.log('[Notif] ✅ Appwrite disparado com sucesso!');
+        } else {
+            console.warn('[Notif] ⚠️ Appwrite não inicializado. Realtime não disparado.');
+        }
+
         if (typeof showToast === 'function') showToast('✅ ' + (data || 'Notificação enviada com sucesso!'));
         
         fecharModalNotificacao();
