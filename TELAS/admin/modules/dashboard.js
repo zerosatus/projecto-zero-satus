@@ -18,7 +18,7 @@ async function monitorarServicosExtras() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY },
                 body: JSON.stringify({ prompt: 'ping', models: ['openai/gpt-oss-120b'] })
             });
-            if (resp.ok || resp.status === 400 || resp.status === 429) {
+            if (resp.ok || resp.status === 400 || resp.status === 401 || resp.status === 429) {
                 iaDot.style.background = '#10b981';
                 iaText.textContent = 'IA (Edge Function): Online';
             } else {
