@@ -148,6 +148,21 @@
                             <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
                             <span>Banco de Dados: Online</span>
                         </div>
+                        <!-- ... status-item do Supabase, Autenticação e Banco (já existentes) ... -->
+
+<!-- ⭐ NOVOS STATUS AQUI ⭐ -->
+<div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+    <span class="status-dot" id="status-ia-dot" style="width: 10px; height: 10px; background: #94a3b8; border-radius: 50%; box-shadow: 0 0 8px #94a3b8;"></span>
+    <span id="status-ia-text">IA (OpenRouter): Verificando...</span>
+</div>
+<div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+    <span class="status-dot" id="status-turso-dot" style="width: 10px; height: 10px; background: #94a3b8; border-radius: 50%; box-shadow: 0 0 8px #94a3b8;"></span>
+    <span id="status-turso-text">Turso DB: Verificando...</span>
+</div>
+<div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
+    <span class="status-dot" id="status-neon-dot" style="width: 10px; height: 10px; background: #94a3b8; border-radius: 50%; box-shadow: 0 0 8px #94a3b8;"></span>
+    <span id="status-neon-text">Neon DB: Verificando...</span>
+                        </div>
                         <div class="status-item" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-dark); border-radius: 8px;">
                             <span class="status-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
                             <span id="lastSyncStatus">Última sincronização: Carregando...</span>
