@@ -5,6 +5,82 @@
 console.log('[Dashboard] 📊 Carregando dashboard...');
 
 // ==========================================
+// MONITORAR STATUS DOS SERVIÇOS EXTRAS
+// ==========================================
+async function monitorarServicosExtras() {
+    // 1. Verificar IA (OpenRouter / Edge Function)
+    const iaDot = document.getElementById('status-ia-dot');
+    const iaText = document.getElementById('status-ia-text');
+    if (iaDot && iaText) {
+        try {
+            const resp = await fetch('https://yqxtfnnjjpoitbmtcxjd.supabase.co/functions/v1/zero-ia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY },
+                body: JSON.stringify({ prompt: 'ping', models: ['openai/gpt-oss-120b'] })
+            });
+            if (resp.ok || resp.status === 400 || resp.status === 429) {
+                iaDot.style.background = '#10b981';
+                iaText.textContent = 'IA (Edge Function): Online';
+            } else {
+                throw new Error('Offline');
+            }
+        } catch (e) {
+            iaDot.style.background = '#ef4444';
+            iaText.textContent = 'IA (Edge Function): Erro';
+        }
+    }
+
+    // 2. Verificar Turso (via HTTP REST do Turso)
+    const tursoDot = document.getElementById('status-turso-dot');
+    const tursoText = document.getElementById('status-turso-text');
+    if (tursoDot && tursoText) {
+        try {
+            const TURSO_URL = 'https://zerosatusdb-zerosatus.aws-eu-central-1.turso.io/v2/pipeline';
+            const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTMxODE0MTQsImlkIjoiMDFhMTdmNDUtOGEwMS03NTk4LTg4Y2MtNWQwNjg5ZmQxY2ZkIiwia2lkIjoiN2xJODlYb0xiS1AzVmhqOV9nSzVSZ2ZCX0hZUTgwZ01HMnBheXF6LVZYUSIsInJpZCI6ImRjMGNlYzc0LWEyZWYtNDU4Yy04MmU4LTk4MmY4NTQ3ZTQwZCJ9.p1iXQQTKfYAyNMgOz0EaC_ZqyHrkzFZq9hYwHa7hAX_eAtfXnwLNPP-9iWCeu4LbJELYVyh5L14FrbO908umAQ';
+                        
+            const resp = await fetch(TURSO_URL, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${TURSO_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requests: [{ type: 'execute', stmt: { sql: 'SELECT 1' } }, { type: 'close' }] })
+            });
+                        
+            if (resp.ok) {
+                tursoDot.style.background = '#10b981';
+                tursoText.textContent = 'Turso DB: Online';
+            } else {
+                throw new Error('Offline');
+            }
+        } catch (e) {
+            tursoDot.style.background = '#ef4444';
+            tursoText.textContent = 'Turso DB: Erro';
+        }
+    }
+
+    // 3. Verificar Neon (via Proxy / Edge Function)
+    const neonDot = document.getElementById('status-neon-dot');
+    const neonText = document.getElementById('status-neon-text');
+    if (neonDot && neonText) {
+        try {
+            const resp = await fetch('https://yqxtfnnjjpoitbmtcxjd.supabase.co/functions/v1/neon-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.SUPABASE_ANON_KEY },
+                body: JSON.stringify({ action: 'ping' })
+            });
+                        
+            if (resp.ok) {
+                neonDot.style.background = '#10b981';
+                neonText.textContent = 'Neon DB: Online';
+            } else {
+                throw new Error('Offline');
+            }
+        } catch (e) {
+            neonDot.style.background = '#ef4444';
+            neonText.textContent = 'Neon DB: Erro';
+        }
+    }
+}
+
+// ==========================================
 // CARREGAR ESTATÍSTICAS DO DASHBOARD
 // ==========================================
 async function loadDashboardStats() {
@@ -69,6 +145,9 @@ async function loadDashboardStats() {
 
         // Carregar atividades recentes
         await loadRecentActivities();
+
+        // ⭐ NOVO: Monitorar serviços extras
+        await monitorarServicosExtras();
 
     } catch (error) {
         console.error('[Dashboard] ❌ Erro ao carregar estatísticas:', error);
@@ -433,5 +512,6 @@ window.loadDashboardStats = loadDashboardStats;
 window.loadRecentActivities = loadRecentActivities;
 window.buscarAtividadesDiretamente = buscarAtividadesDiretamente;
 window.formatarDataRelativa = formatarDataRelativa;
+window.monitorarServicosExtras = monitorarServicosExtras;
 
 console.log('[Dashboard] ✅ dashboard.js carregado!');

@@ -477,7 +477,8 @@ async function enviarNotificacao() {
             console.log('[Notif] ⚡ Enviando para o Appwrite Realtime...');
             const { ID } = window.Appwrite;
             
-            await window.appwriteDatabases.createRow(
+            // ⭐ CORREÇÃO: Usando createDocument para SDK v16
+            await window.appwriteDatabases.createDocument(
                 window.APPWRITE_DB_ID,       
                 window.APPWRITE_TABLE_ID,    
                 ID.unique(),                 
