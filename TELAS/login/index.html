@@ -3,32 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0b0b10">
     <title>Painel Zero - Login e Cadastro</title>
     <link rel="icon" href="/imagem/favicon.png" type="image/png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+
+<!-- Fundo com gradiente e brilhos -->
+<div class="bg" aria-hidden="true">
+    <div class="glow glow-top"></div>
+    <div class="glow glow-bottom"></div>
+</div>
+
 <div class="container">
+
+    <!-- Logótipo e títulos -->
     <div class="logo-section">
         <div class="logo">
-             <img src="../../imagem/logo1.png" alt="Painel Zero Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 16px;">
+            <img src="../../imagem/logo1.png" alt="Painel Zero Logo"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <i class="fas fa-graduation-cap logo-fallback"></i>
         </div>
         <h1 id="main-title">Zero Satus</h1>
         <p class="subtitle" id="main-subtitle">PLATAFORMA ACADÊMICA</p>
     </div>
 
+    <!-- Cartão principal -->
     <div class="login-container">
+
+        <!-- Alternador Entrar / Criar conta -->
+        <div class="mode-switch" role="tablist">
+            <button type="button" class="mode-tab active" id="tab-login" role="tab" aria-selected="true">Entrar</button>
+            <button type="button" class="mode-tab" id="tab-register" role="tab" aria-selected="false">Criar conta</button>
+        </div>
+
         <button type="button" class="btn-google" id="google-login-btn">
-            <i class="fab fa-google"></i>
-            ENTRAR COM GOOGLE
+            <span class="g-logo">G</span>
+            Entrar com Google
         </button>
 
         <div class="divider">
             <span>ou</span>
         </div>
 
-        <!-- FORMULÁRIO COM CAMPOS FALSOS PARA AUTOCMPLETE -->
+        <!-- FORMULÁRIO COM CAMPOS FALSOS PARA AUTOCOMPLETE -->
         <form id="auth-form" autocomplete="off">
             <!-- Campos falsos para enganar autocomplete do navegador -->
             <input type="text" style="display:none" aria-hidden="true" tabindex="-1">
@@ -41,69 +61,74 @@
                 <input type="password" name="fakepassword" id="fakepassword" tabindex="-1" autocomplete="off">
             </div>
 
-            <div id="nome-field" class="input-group" style="display: none;">
-                <input type="text" id="nome" placeholder="Coloca teu nome completo"
-                       autocomplete="off"
-                       autocorrect="off"
-                       autocapitalize="off"
-                       spellcheck="false"
-                       data-lpignore="true"
-                       data-1p-ignore="true">
+            <!-- Nome (só aparece no cadastro) -->
+            <div id="nome-field" class="nome-field" aria-hidden="true">
+                <div class="nome-field-inner">
+                    <div class="field">
+                        <i class="far fa-user field-icon"></i>
+                        <input type="text" id="nome" placeholder="Coloca teu nome completo"
+                               autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="words"
+                               spellcheck="false"
+                               tabindex="-1"
+                               data-lpignore="true"
+                               data-1p-ignore="true">
+                    </div>
+                </div>
             </div>
+
             <div class="input-group">
-                <input type="email" id="email"
-                       autocomplete="off"
-                       autocorrect="off"
-                       autocapitalize="off"
-                       spellcheck="false"
-                       data-lpignore="true"
-                       data-1p-ignore="true"
-                       placeholder="Coloca teu@email.com" required>
+                <div class="field">
+                    <i class="far fa-envelope field-icon"></i>
+                    <input type="email" id="email"
+                           autocomplete="off"
+                           autocorrect="off"
+                           autocapitalize="off"
+                           spellcheck="false"
+                           data-lpignore="true"
+                           data-1p-ignore="true"
+                           placeholder="Coloca teu@email.com" required>
+                </div>
             </div>
-            <div class="input-group">
-                <input type="password" id="password"
-                       autocomplete="new-password"
-                       data-lpignore="true"
-                       data-1p-ignore="true"
-                       placeholder="bomba tua senha" required>
+
+            <div class="input-group" style="margin-bottom: 0;">
+                <div class="field has-toggle">
+                    <i class="fas fa-lock field-icon"></i>
+                    <input type="password" id="password"
+                           autocomplete="new-password"
+                           data-lpignore="true"
+                           data-1p-ignore="true"
+                           placeholder="bomba tua senha" required>
+                    <button type="button" class="toggle-password" id="toggle-password" aria-label="Mostrar ou ocultar senha">
+                        <i class="far fa-eye-slash"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- 🔥 CHECKBOX DE TERMOS DE USO -->
-            <div class="input-group" style="margin-bottom: 16px;">
-                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; color: #94a3b8; font-size: 13px;">
-                    <input type="checkbox" id="aceitar-termos" style="
-                        width: 18px;
-                        height: 18px;
-                        min-width: 18px;
-                        margin-top: 2px;
-                        accent-color: #9333ea;
-                        cursor: pointer;
-                        border-radius: 4px;
-                        transition: all 0.2s ease;
-                    ">
-                    <span>
-                        Li e concordo com os 
-                        <a href="../../termos.html" target="_blank" style="color: #9333ea; text-decoration: underline; font-weight: 600;">
-                            Termos de Uso e Condições
-                        </a>
-                        <span style="color: #ef4444; font-weight: 700;">*</span>
-                    </span>
-                </label>
-            </div>
+            <label class="terms">
+                <input type="checkbox" id="aceitar-termos">
+                <span class="terms-text">
+                    Li e concordo com os
+                    <a href="../../termos.html" target="_blank">Termos de Uso e Condições</a>
+                    <span class="required">*</span>
+                </span>
+            </label>
 
             <button type="submit" class="btn-primary" id="submit-btn">
-                <i class="fas fa-sign-in-alt"></i> ENTRAR COM EMAIL
+                <i class="fas fa-sign-in-alt"></i> ENTRAR COM E-MAIL
             </button>
         </form>
 
         <div class="register-link">
-            <a href="#" id="toggle-mode-link">Não tem conta? Cria uma e entra</a>
+            <a href="#" id="toggle-mode-link">Não tem conta? Cadastre-se</a>
         </div>
+    </div>
 
-        <div class="info-text">
-            <i class="fas fa-shield-alt"></i>
-            Fica de boa, ninguém vai ver tua cena
-        </div>
+    <div class="info-text">
+        <i class="fas fa-shield-alt"></i>
+        Fica de boa, ninguém vai ver tua cena
     </div>
 </div>
 
@@ -120,7 +145,7 @@
 
 <!-- SERVIÇOS - ORDEM CORRIGIDA -->
 <script src="../mobile-telas/supabase-client.js"></script>     <!-- PRIMEIRO -->
-<script src="../mobile-telas/database-service.js"></script> 
+<script src="../mobile-telas/database-service.js"></script>
 <script src="../mobile-telas/init-supabase.js"></script>   <!-- DEPOIS -->
 <script src="../mobile-telas/realtime-sync.js"></script>
 <script src="../mobile-telas/cache-manager.js"></script>

@@ -7,6 +7,7 @@ let isProcessingAuth = false;
 let isCheckingSession = false;
 let tentativasLogin = 0;
 const MAX_TENTATIVAS_LOGIN = 3;
+const GOOGLE_BTN_HTML = '<span class="g-logo">G</span> Entrar com Google';
 
 // ============================================
 // CONSTANTES DE TERMOS E ADMIN
@@ -23,13 +24,16 @@ function ehCelular() {
         || window.innerWidth <= 768;
 }
 
+let toastTimer = null;
+
 function showMessage(message, isError = false, duration = 4000) {
     const toast = document.getElementById('toast');
     if (!toast) return;
     toast.textContent = message;
-    toast.style.backgroundColor = isError ? '#dc2626' : '#10b981';
+    toast.classList.toggle('error', !!isError);
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), duration);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
 function setLoading(button, isLoading) {
@@ -181,16 +185,6 @@ function configurarCheckboxTermos() {
                 
                 const badge = document.createElement('span');
                 badge.className = 'termos-badge';
-                badge.style.cssText = `
-                    background: #10b981;
-                    color: white;
-                    font-size: 10px;
-                    padding: 2px 10px;
-                    border-radius: 20px;
-                    margin-left: 8px;
-                    font-weight: 600;
-                    display: inline-block;
-                `;
                 badge.textContent = '✓ ACEITO';
                 span.appendChild(badge);
             }
@@ -233,127 +227,56 @@ function validarTermos() {
 // ============================================
 // 🔥 MODAL CUSTOMIZADO DE CONTINUAR
 // ============================================
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
 function mostrarModalContinuar(usuario, callback) {
     console.log('[Login] Mostrando modal de continuar para:', usuario.email);
-    
+
     const modalExistente = document.getElementById('modal-continuar');
     if (modalExistente) modalExistente.remove();
-    
+
+    const isAdmin = usuario.role === 'admin';
+    const roleIcon = isAdmin ? 'fa-crown' : 'fa-user';
+    const roleText = isAdmin ? 'Administrador' : 'Usuário';
+
     const overlay = document.createElement('div');
     overlay.id = 'modal-continuar';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(10px);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        animation: fadeIn 0.3s ease;
-    `;
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: #1e293b;
-        border-radius: 16px;
-        padding: 40px;
-        max-width: 420px;
-        width: 90%;
-        border: 1px solid rgba(147, 51, 234, 0.3);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-        text-align: center;
-        animation: slideUp 0.3s ease;
-    `;
-    
-    const roleEmoji = usuario.role === 'admin' ? '👑' : '👤';
-    const roleText = usuario.role === 'admin' ? 'Administrador' : 'Usuário';
-    
-    modal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;">${roleEmoji}</div>
-        <h2 style="color: white; font-size: 22px; margin-bottom: 8px;">Olá, ${usuario.nome || 'Usuário'}!</h2>
-        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 4px;">
-            <i class="fas fa-envelope" style="color: #9333ea;"></i> ${usuario.email}
-        </p>
-        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">
-            <span style="background: ${usuario.role === 'admin' ? '#9333ea' : '#334155'}; 
-                         padding: 4px 12px; 
-                         border-radius: 20px; 
-                         color: white;
-                         font-size: 12px;">
-                ${roleText}
-            </span>
-        </p>
-        <p style="color: #cbd5e1; font-size: 16px; margin-bottom: 24px;">
-            Você já está logado. Deseja continuar na plataforma?
-        </p>
-        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-            <button id="btn-continuar-sim" style="
-                background: linear-gradient(135deg, #9333ea, #7c3aed);
-                border: none;
-                color: white;
-                padding: 12px 32px;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                flex: 1;
-                min-width: 120px;
-            "
-            onmouseover="this.style.transform='scale(1.05)'"
-            onmouseout="this.style.transform='scale(1)'">
-                <i class="fas fa-check"></i> Continuar
-            </button>
-            <button id="btn-continuar-nao" style="
-                background: transparent;
-                border: 1px solid #ef4444;
-                color: #ef4444;
-                padding: 12px 32px;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                flex: 1;
-                min-width: 120px;
-            "
-            onmouseover="this.style.background='rgba(239,68,68,0.1)'"
-            onmouseout="this.style.background='transparent'">
-                <i class="fas fa-sign-out-alt"></i> Sair
-            </button>
+    overlay.className = 'modal-overlay';
+
+    overlay.innerHTML = `
+        <div class="modal-card">
+            <div class="modal-avatar"><i class="fas ${roleIcon}" style="color:#fff;"></i></div>
+            <h2>Olá, ${escapeHtml(usuario.nome || 'Usuário')}!</h2>
+            <p class="modal-email"><i class="far fa-envelope"></i> ${escapeHtml(usuario.email)}</p>
+            <span class="role-pill ${isAdmin ? 'admin' : ''}">${roleText}</span>
+            <p class="modal-question">Você já está logado. Deseja continuar na plataforma?</p>
+            <div class="modal-actions">
+                <button type="button" id="btn-continuar-sim" class="btn-modal-yes">
+                    <i class="fas fa-check"></i> Continuar
+                </button>
+                <button type="button" id="btn-continuar-nao" class="btn-modal-no">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
         </div>
     `;
-    
-    overlay.appendChild(modal);
+
     document.body.appendChild(overlay);
-    
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    `;
-    document.head.appendChild(style);
-    
+
     document.getElementById('btn-continuar-sim').addEventListener('click', () => {
         overlay.remove();
         callback(true);
     });
-    
+
     document.getElementById('btn-continuar-nao').addEventListener('click', () => {
         overlay.remove();
         callback(false);
     });
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             overlay.remove();
@@ -595,30 +518,13 @@ function showResendButton(email) {
 
     const div = document.createElement('div');
     div.id = 'resend-container';
-    div.style.cssText = 'margin-top: 15px; text-align: center; padding: 10px; background: rgba(147, 51, 234, 0.1); border-radius: 8px;';
+    div.className = 'resend-box';
     div.innerHTML = `
-        <p style="color: #aaa; font-size: 12px; margin-bottom: 8px;">
-            <i class="fas fa-envelope" style="color: #9333ea;"></i>
-            Não recebeu o e-mail?
-        </p>
-        <button id="resend-email-btn" style="
-            background: linear-gradient(135deg, #9333ea, #7c3aed);
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-            padding: 8px 20px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        "
-        onmouseover="this.style.transform='scale(1.05)'"
-        onmouseout="this.style.transform='scale(1)'">
+        <p><i class="far fa-envelope"></i> Não recebeu o e-mail?</p>
+        <button type="button" id="resend-email-btn" class="btn-resend">
             <i class="fas fa-redo"></i> Reenviar confirmação
         </button>
-        <p style="color: #666; font-size: 11px; margin-top: 8px;">
-            Verifique também a pasta de <strong>spam</strong>
-        </p>
+        <p class="hint">Verifique também a pasta de <strong>spam</strong></p>
     `;
     container.appendChild(div);
 
@@ -633,36 +539,50 @@ function showResendButton(email) {
 function toggleForm() {
     isRegisterMode = !isRegisterMode;
     const nomeField = document.getElementById('nome-field');
+    const nomeInput = document.getElementById('nome');
     const submitBtn = document.getElementById('submit-btn');
     const toggleLink = document.getElementById('toggle-mode-link');
     const mainTitle = document.getElementById('main-title');
     const mainSubtitle = document.getElementById('main-subtitle');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const passwordInput = document.getElementById('password');
 
     const resendContainer = document.getElementById('resend-container');
     if (resendContainer) resendContainer.remove();
 
-    if (isRegisterMode) {
-        if (nomeField) nomeField.style.display = 'block';
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> CRIAR CONTA';
-            submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        }
-        if (toggleLink) toggleLink.innerHTML = 'Já tem conta? Faça login';
-        if (mainTitle) mainTitle.textContent = 'Criar Conta';
-        if (mainSubtitle) mainSubtitle.textContent = 'CADASTRE-SE GRATUITAMENTE';
-        const passwordInput = document.getElementById('password');
-        if (passwordInput) passwordInput.placeholder = 'Senha (min 6 caracteres)';
-    } else {
-        if (nomeField) nomeField.style.display = 'none';
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR COM E-MAIL';
-            submitBtn.style.background = 'linear-gradient(135deg, #9333ea, #7c3aed)';
-        }
-        if (toggleLink) toggleLink.innerHTML = 'Não tem conta? Cadastre-se';
-        if (mainTitle) mainTitle.textContent = 'Zero Satus';
-        if (mainSubtitle) mainSubtitle.textContent = 'PLATAFORMA ACADÊMICA';
-        const passwordInput = document.getElementById('password');
-        if (passwordInput) passwordInput.placeholder = 'Sua senha';
+    // Abas Entrar / Criar conta
+    if (tabLogin && tabRegister) {
+        tabLogin.classList.toggle('active', !isRegisterMode);
+        tabRegister.classList.toggle('active', isRegisterMode);
+        tabLogin.setAttribute('aria-selected', String(!isRegisterMode));
+        tabRegister.setAttribute('aria-selected', String(isRegisterMode));
+    }
+
+    // Campo do nome entra/sai com animação
+    if (nomeField) {
+        nomeField.classList.toggle('open', isRegisterMode);
+        nomeField.setAttribute('aria-hidden', String(!isRegisterMode));
+    }
+    if (nomeInput) nomeInput.tabIndex = isRegisterMode ? 0 : -1;
+
+    // Botão principal (verde no cadastro)
+    if (submitBtn) {
+        submitBtn.classList.toggle('is-register', isRegisterMode);
+        submitBtn.innerHTML = isRegisterMode
+            ? '<i class="fas fa-user-plus"></i> CRIAR CONTA'
+            : '<i class="fas fa-sign-in-alt"></i> ENTRAR COM E-MAIL';
+    }
+
+    if (toggleLink) {
+        toggleLink.innerHTML = isRegisterMode ? 'Já tem conta? Faça login' : 'Não tem conta? Cadastre-se';
+    }
+    if (mainTitle) mainTitle.textContent = isRegisterMode ? 'Criar Conta' : 'Zero Satus';
+    if (mainSubtitle) {
+        mainSubtitle.textContent = isRegisterMode ? 'CADASTRE-SE GRATUITAMENTE' : 'PLATAFORMA ACADÊMICA';
+    }
+    if (passwordInput) {
+        passwordInput.placeholder = isRegisterMode ? 'Senha (min 6 caracteres)' : 'Sua senha';
     }
 
     limparCamposFormulario();
@@ -949,7 +869,7 @@ async function loginWithGoogle() {
         const googleBtn = document.getElementById('google-login-btn');
         if (googleBtn) {
             googleBtn.disabled = true;
-            googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REDIRECIONANDO...';
+            googleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Redirecionando...';
         }
 
         console.log('[Google] ✅ Chamando AuthService.loginWithGoogle()');
@@ -957,7 +877,7 @@ async function loginWithGoogle() {
 
         if (googleBtn) {
             googleBtn.disabled = false;
-            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
+            googleBtn.innerHTML = GOOGLE_BTN_HTML;
         }
 
     } catch (error) {
@@ -967,7 +887,7 @@ async function loginWithGoogle() {
         const googleBtn = document.getElementById('google-login-btn');
         if (googleBtn) {
             googleBtn.disabled = false;
-            googleBtn.innerHTML = '<i class="fab fa-google"></i> ENTRAR COM GOOGLE';
+            googleBtn.innerHTML = GOOGLE_BTN_HTML;
         }
     }
 }
@@ -1118,6 +1038,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await loginWithEmail(email, password);
                 setLoading(submitBtn, false);
             }
+        });
+    }
+
+    // Abas Entrar / Criar conta
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    if (tabLogin) {
+        tabLogin.addEventListener('click', () => {
+            if (isRegisterMode) {
+                toggleForm();
+                setTimeout(configurarCheckboxTermos, 100);
+            }
+        });
+    }
+    if (tabRegister) {
+        tabRegister.addEventListener('click', () => {
+            if (!isRegisterMode) {
+                toggleForm();
+                setTimeout(configurarCheckboxTermos, 100);
+            }
+        });
+    }
+
+    // Mostrar / ocultar senha
+    const togglePasswordBtn = document.getElementById('toggle-password');
+    if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener('click', () => {
+            const show = passwordInput.type === 'password';
+            passwordInput.type = show ? 'text' : 'password';
+            const icon = togglePasswordBtn.querySelector('i');
+            if (icon) icon.className = show ? 'far fa-eye' : 'far fa-eye-slash';
         });
     }
 
