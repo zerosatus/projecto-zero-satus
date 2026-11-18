@@ -200,6 +200,22 @@ class App {
         this.updateLoadingStatus('Carregando notificações...', 98);
         await this.loadNotificationsFromSupabase();
         
+        // Iniciar realtime (notificações em tempo real)
+        try {
+            if (typeof window.startRealtime === 'function' && this.user?.id) {
+                await window.startRealtime(this.user.id);
+                console.log('[App PC] ✅ Realtime iniciado');
+            } else if (window.CacheManager && typeof window.CacheManager.startRealtimeSync === 'function') {
+                window.CacheManager.startRealtimeSync();
+            } else if (window.RealtimeSyncManager && this.user?.id) {
+                window.RealtimeSyncManager.init(this.user.id);
+            } else {
+                console.warn('[App PC] ⚠️ Realtime não disponível');
+            }
+        } catch (e) {
+            console.warn('[App PC] ⚠️ Erro ao iniciar realtime:', e);
+        }
+        
         this.updateLoadingStatus('Pronto!', 100);
         setTimeout(() => { this.closeLoadingOverlay(); }, 400);
         this._isInitializing = false;
@@ -279,6 +295,33 @@ class App {
             if (this.data.profile && this.data.profile.nome) {
                 this.atualizarNomeUsuario(this.data.profile.nome);
             }
+            
+            // Escutar atualizações do CacheManager (ex.: loadFromCloud terminou depois)
+            if (!this._cacheListenersSetup) {
+                this._cacheListenersSetup = true;
+                const keys = ['tasks', 'notes', 'calendarEvents', 'weeklySchedule',
+                              'timeSlots', 'notifications', 'disciplinas',
+                              'documentos', 'studySessions'];
+                keys.forEach(key => {
+                    window.CacheManager.addListener(key, (newData) => {
+                        if (key === 'weeklySchedule' && newData) {
+                            ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].forEach(day => {
+                                if (!newData[day]) newData[day] = [];
+                            });
+                        }
+                        this.data[key] = newData;
+                        clearTimeout(this._cacheRenderTimer);
+                        this._cacheRenderTimer = setTimeout(() => {
+                            if (this.modules[this.currentView]) {
+                                try { this.modules[this.currentView].render(this.data); }
+                                catch (e) { /* silencioso */ }
+                            }
+                            this.updateBadge();
+                        }, 150);
+                    });
+                });
+                console.log('[App PC] ✅ Listeners do CacheManager configurados');
+            }
         }
     }
     
@@ -320,6 +363,10 @@ class App {
         if (typeof DisciplinasModule !== 'undefined') this.modules.disciplinas = new DisciplinasModule(this);
         if (typeof DocumentosModule !== 'undefined') this.modules.documentos = new DocumentosModule(this);
         if (typeof FocoModule !== 'undefined') this.modules.foco = new FocoModule(this);
+        
+        if (!this.modules.ia) {
+            console.warn('[App PC] ⚠️ IaModule não carregado — funcionalidade IA limitada');
+        }
     }
     
     loadCSS(moduleName) {
@@ -513,9 +560,9 @@ class App {
     }
     
     escapeHtml(text) {
-        if (!text) return '';
+        if (text === null || text === undefined) return '';
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
     }
     
@@ -535,7 +582,7 @@ class App {
             if (confirm('Deseja sair?')) {
                 localStorage.removeItem('usuarioLogado');
                 if (window.CacheManager) window.CacheManager.logout();
-                window.location.href = 'login/index.html';
+                window.location.href = '../login/index.html';
             }
         });
         
@@ -609,6 +656,15 @@ class App {
                 if (this.currentView === 'ia' || this.currentView === 'foco') this.showView('inicio');
             }
         });
+        
+        // Fallback: polling de notificações a cada 60s (caso o realtime falhe)
+        if (!this._notifPollingTimer) {
+            this._notifPollingTimer = setInterval(() => {
+                if (this.user?.id && document.visibilityState === 'visible') {
+                    this.loadNotificationsFromSupabase();
+                }
+            }, 60000);
+        }
     }
 
     async loadNotificationsFromSupabase() {
