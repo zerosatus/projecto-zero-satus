@@ -397,6 +397,19 @@ class App {
         this.updateLoadingStatus('Carregando notificações...', 92);
         await this.loadNotificationsFromSupabase();
 
+        // Realtime (notificações em tempo real)
+        try {
+            if (window.CacheManager && typeof window.CacheManager.startRealtimeSync === 'function') {
+                window.CacheManager.startRealtimeSync();
+            } else if (window.RealtimeSyncManager && this.user?.id) {
+                window.RealtimeSyncManager.init(this.user.id);
+            } else {
+                console.warn('[SPA] ⚠️ RealtimeSyncManager não disponível');
+            }
+        } catch (e) {
+            console.warn('[SPA] ⚠️ Erro ao iniciar realtime:', e);
+        }
+
         // Fechar loading
         setTimeout(() => {
             this.updateLoadingStatus('Pronto!', 100);

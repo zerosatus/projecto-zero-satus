@@ -11,6 +11,12 @@
     
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ========================================== -->
+    <!-- SCRIPTS BASE (ORDEM IMPORTA)               -->
+    <!-- ========================================== -->
+    <script src="../logger.js"></script>
+    <script src="storage-keys.js"></script>
     
     <!-- ========================================== -->
     <!-- CSS MÓDULOS                               -->
@@ -1234,7 +1240,6 @@ const checkInterval = setInterval(() => {
 }, 500);
 </script>
 <!-- Módulos JavaScript -->
- <script src="../sync-helper.js"></script> 
 <script src="modules/disciplinas.js"></script>
 <script src="modules/dashboard.js"></script>
 <script src="modules/calendario.js"></script>
@@ -1573,6 +1578,9 @@ window.testIA = async (pergunta) => {
 };
 
 console.log('[IA-Service] ✅ Serviço carregado! (Edge Function zero-ia, sem gíria)');</script>
+
+<!-- Realtime (notificações em tempo real) -->
+<script src="../realtime-sync.js"></script>
 
 <!-- App Principal -->
 <script src="app.js"></script>
