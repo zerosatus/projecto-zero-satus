@@ -531,6 +531,7 @@ function criarDatabaseService(client) {
                 return (data || []).map(task => ({
                     id: task.id ? String(task.id) : null, nome: task.title, descricao: task.description,
                     disciplina: task.subject, prioridade: task.priority, prazo: task.date,
+                    time: task.time || '',
                     completed: task.completed || false, favorita: task.favorita || false,
                     subtasks: task.subtasks || [], dataCriacao: task.created_at,
                     dataConclusao: task.completed ? task.updated_at : null
@@ -555,6 +556,7 @@ function criarDatabaseService(client) {
                         subject: task.disciplina || task.subject || 'geral',
                         priority: task.prioridade || task.priority || 'media',
                         date: task.prazo || task.date || null,
+                        time: task.time || null,
                         completed: task.completed || false, favorita: task.favorita || false,
                         subtasks: task.subtasks || [],
                         created_at: task.dataCriacao || task.created_at || new Date().toISOString(),
@@ -688,7 +690,8 @@ function criarDatabaseService(client) {
                 if (error) return [];
                 return (data || []).map(doc => ({
                     id: doc.id ? String(doc.id) : null, nome: doc.nome,
-                    categoria: doc.categoria || 'Outros', descricao: doc.descricao || '',
+                    categoria: doc.categoria || 'Outros', disciplina: doc.disciplina || null,
+                    descricao: doc.descricao || '',
                     arquivo: doc.arquivo || '', tipo: doc.tipo || 'application/octet-stream',
                     nomeArquivo: doc.nome_arquivo || doc.nome, tamanho: doc.tamanho || 0,
                     dataUpload: doc.data_upload || doc.created_at, storagePath: doc.storage_path || null
@@ -710,7 +713,8 @@ function criarDatabaseService(client) {
                     return {
                         id: doc.id ? String(doc.id) : generateId(),
                         user_id: userId, nome: doc.nome || 'Documento',
-                        categoria: doc.categoria || 'Outros', descricao: doc.descricao || '',
+                        categoria: doc.categoria || 'Outros', disciplina: doc.disciplina || null,
+                        descricao: doc.descricao || '',
                         arquivo: conteudoParaSalvar, tipo: doc.tipo || 'application/octet-stream',
                         nome_arquivo: doc.nomeArquivo || doc.nome, tamanho: doc.tamanho || 0,
                         storage_path: doc.storagePath || null,
@@ -1004,9 +1008,11 @@ function criarDatabaseService(client) {
                 const { data, error } = await client.from('study_sessions').select('*').eq('user_id', userId).order('inicio', { ascending: false });
                 if (error) return [];
                 return (data || []).map(s => ({
-                    id: String(s.id), user_id: s.user_id, disciplina: s.disciplina,
-                    duracaoSegundos: s.duracao_segundos, tipo: s.tipo,
-                    inicio: s.inicio, fim: s.fim, concluida: s.concluida, metaSegundos: s.meta_segundos
+                    id: String(s.id), user_id: s.user_id, userId: s.user_id,
+                    disciplina: s.disciplina,
+                    duracaoSegundos: s.duracao_segundos, duracao_segundos: s.duracao_segundos,
+                    tipo: s.tipo, inicio: s.inicio, fim: s.fim, concluida: s.concluida,
+                    metaSegundos: s.meta_segundos, meta_segundos: s.meta_segundos
                 }));
             } catch (e) { return []; }
         },
@@ -1015,11 +1021,20 @@ function criarDatabaseService(client) {
             const client = window.supabaseClient || initSupabase();
             if (!client) return false;
             try {
+                const userId = session.userId || session.user_id;
+                const duracao = session.duracaoSegundos ?? session.duracao_segundos;
+                const meta = session.metaSegundos ?? session.meta_segundos;
+
+                if (!userId) {
+                    console.warn('[Supabase] ⚠️ saveStudySession sem userId');
+                    return false;
+                }
+
                 const { error } = await client.from('study_sessions').upsert({
-                    id: String(session.id), user_id: session.user_id,
-                    disciplina: session.disciplina, duracao_segundos: session.duracaoSegundos,
+                    id: String(session.id), user_id: userId,
+                    disciplina: session.disciplina, duracao_segundos: duracao,
                     tipo: session.tipo, inicio: session.inicio, fim: session.fim,
-                    concluida: session.concluida, meta_segundos: session.metaSegundos
+                    concluida: session.concluida, meta_segundos: meta
                 }, { onConflict: 'id' });
                 return !error;
             } catch (e) { return false; }

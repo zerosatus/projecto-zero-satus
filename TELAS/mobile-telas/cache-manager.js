@@ -305,7 +305,13 @@ class SimpleCacheManager {
                 case 'notifications': result = await window.DatabaseService.saveNotifications(userId, value); break;
                 case 'disciplinas': result = await window.DatabaseService.saveDisciplinas(userId, value); break;
                 case 'studySessions':
-                    for (const session of value) { await window.DatabaseService.saveStudySession(session); }
+                    for (const session of value) {
+                        // Normalizar para o formato que o DatabaseService espera
+                        await window.DatabaseService.saveStudySession({
+                            ...session,
+                            userId: session.userId || session.user_id || userId
+                        });
+                    }
                     result = true;
                     break;
                 case 'documentos': result = await window.DatabaseService.saveDocumentos(userId, value); break;
