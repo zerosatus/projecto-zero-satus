@@ -46,8 +46,16 @@
             im.decoding = 'async'; im.src = u;
         }));
     }
+    // As fontes só são pedidas quando o texto que as usa é desenhado; document.fonts.ready pode resolver ANTES disso e as
+    // posições seriam calculadas com a fonte de substituição. Pedimos explicitamente as faces usadas e esperamos por elas.
+    var FONTS = ['400 1em Inter', '500 1em Inter', '600 1em Inter', '700 1em Inter', '600 1em Fraunces', 'italic 400 1em Fraunces', 'italic 600 1em Fraunces'];
     var fontsReady = function () {
-        var p = (document.fonts && document.fonts.ready) ? Promise.race([document.fonts.ready, new Promise(function (r) { setTimeout(r, 4000); })]) : Promise.resolve();
+        var p = Promise.resolve();
+        if (document.fonts && document.fonts.load) {
+            var all = Promise.all(FONTS.map(function (f) { return document.fonts.load(f).catch(function () {}); }))
+                .then(function () { return document.fonts.ready; });
+            p = Promise.race([all, new Promise(function (r) { setTimeout(r, 4000); })]);
+        }
         return track(p);
     };
 
@@ -64,10 +72,59 @@
         .then(function () { return load('js/mobile/mkit.js'); })
         .then(function () { return Promise.all(MOBILE.map(function (u) { return load(u); })); });
 
+    /* ---------- depois de arrancar: manter as posições do ScrollTrigger sempre certas ---------- */
+    function wireRefresh() {
+        if (wireRefresh.done) return; wireRefresh.done = true;
+        // o overlay sai (scrollbar clássica volta, scroll desbloqueia) · load completo · fontes tardias
+        window.addEventListener('zs:revealed', function () { ZS.refresh(0); });
+        if (document.readyState !== 'complete') window.addEventListener('load', function () { ZS.refresh(0); }, { once: true });
+        else ZS.refresh(0);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { ZS.refresh(0); });
+        if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function () { ZS.refresh(100); });
+        // regresso pelo histórico / bfcache: a página volta "congelada" com medidas antigas
+        window.addEventListener('pageshow', function (e) { if (e.persisted) { ZS.refresh(0); ZS.refresh(400); } });
+        // iOS: após rodar o ecrã as dimensões demoram a estabilizar
+        window.addEventListener('orientationchange', function () { ZS.refresh(350); ZS.refresh(900); });
+        // largura do documento mudou sem evento de resize (p. ex. aparece a barra de scroll quando o loader sai)
+        if (window.ResizeObserver) {
+            var lw = document.documentElement.clientWidth, lh = document.documentElement.scrollHeight;
+            new ResizeObserver(function () {
+                var w = document.documentElement.clientWidth, h = document.documentElement.scrollHeight;
+                if (Math.abs(w - lw) > 1 || Math.abs(h - lh) > 2) { lw = w; lh = h; ZS.refresh(120); }
+            }).observe(document.documentElement);
+        }
+    }
+
+    /* ---------- imagens dos capítulos seguintes: descarregar com antecedência, por ordem ----------
+       As peças voam de fora do ecrã (transform), por isso o loading="lazy" só as pedia quando já estavam a entrar em cena e
+       apareciam vazias — sobretudo em redes lentas e no Safari, que antecipa menos que o Chrome. Só o modo ativo. */
+    function warmImages() {
+        var c = navigator.connection || {};
+        if (c.saveData || /(^|-)2g$/.test(c.effectiveType || '')) return;      // poupar dados: fica o lazy nativo
+        var mobile = window.matchMedia(ZS.query.mobile).matches, queue = [];
+        [].slice.call(document.querySelectorAll('.zs-chapter')).forEach(function (ch) {
+            [].slice.call(ch.querySelectorAll('img[loading="lazy"]')).forEach(function (im) {
+                if (im.closest('.zs-static')) return;
+                if (!!im.closest('.zm') !== mobile) return;
+                queue.push(im);
+            });
+        });
+        var i = 0, idle = window.requestIdleCallback || function (f) { return setTimeout(f, 80); };
+        (function next() {
+            var n = 0;
+            while (i < queue.length && n < 4) {
+                var im = queue[i++]; n++;
+                im.loading = 'eager';
+                if (!im.complete) { var p = new Image(); p.decoding = 'async'; p.src = im.currentSrc || im.src; }
+            }
+            if (i < queue.length) idle(next, { timeout: 600 });
+        })();
+    }
+
     // GSAP e ScrollTrigger têm de estar prontos antes de arrancar; a página só se revela com tudo montado
     Promise.all([chain, Promise.all(imgs.map(preload)), fontsReady()])
         .then(function () {
-            function go() { ZS.start(gsap, ScrollTrigger); }
+            function go() { ZS.start(gsap, ScrollTrigger); wireRefresh(); setTimeout(warmImages, 400); }
             return L ? L.finish(go) : go();
         })
         .catch(function (err) {

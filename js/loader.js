@@ -5,14 +5,19 @@
      ZSLoader.finish(fn)  tudo pronto: completa, chama fn() (arranque das animações) e abre o portal
      ZSLoader.skip()      revela já a página
    Regras: a barra só reflete tarefas realmente concluídas (sem percentagens inventadas); não se prolonga a espera além do
-   mínimo necessário para o logótipo se desenhar; nunca fica preso (aviso aos 7 s, saída forçada aos 14 s); botão "Saltar". */
+   mínimo necessário para o logótipo se desenhar; nunca fica preso (aviso aos 7 s, saída forçada aos 14 s); botão "Saltar".
+
+   IMPORTANTE (correção): o ecrã de carregamento (overlay) e o arranque do motor de animações são DOIS estados independentes.
+   Sair do overlay (botão, Esc, 14 s) nunca pode "gastar" o arranque do motor: o motor arranca sempre, assim que estiver
+   pronto, quer o overlay já tenha saído ou não. Antes, uma saída antecipada marcava o motor como arrancado sem o ter feito,
+   e a página ficava estática até o visitante atualizar. */
 (function () {
     'use strict';
     var html = document.documentElement, el = document.getElementById('zs-loader');
     if (!el) { window.ZSLoader = null; return; }
     var rm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var seen = false; try { seen = sessionStorage.getItem('zs-intro') === '1'; } catch (e) {}
-    var t0 = Date.now(), total = 0, done = 0, started = false, out = false, startFn = null, msgTimer = null, warn = null, hard = null;
+    var t0 = Date.now(), total = 0, done = 0, started = false, ready = false, out = false, startFn = null, msgTimer = null, warn = null, hard = null;
     var msgs = [].slice.call(el.querySelectorAll('.zs-ld__msg span')), mi = 0;
     if (!(window.CSS && 'registerProperty' in CSS)) el.classList.add('no-reg');
 
@@ -32,11 +37,18 @@
     }, 7000);
     hard = setTimeout(function () { reveal(); }, 14000);
 
+    // arranque do motor: uma única vez, e só quando o motor declarou que está pronto (finish)
+    function startEngine() {
+        if (started || !ready) return;
+        started = true;
+        try { if (startFn) startFn(); }
+        catch (e) { console.warn('[ZS] arranque:', e && e.message); html.classList.remove('zs-pending'); }
+    }
+    // retira só o overlay (não decide nada sobre o motor)
     function reveal() {
         if (out) return; out = true;
         clearInterval(msgTimer); clearTimeout(warn); clearTimeout(hard);
-        // arranque das animações da página já com o portal a abrir
-        if (!started) { started = true; try { if (startFn) startFn(); } catch (e) { console.warn('[ZS] arranque:', e && e.message); html.classList.remove('zs-pending'); } }
+        startEngine();   // se o motor já está pronto, arranca com o portal a abrir; se não, arranca mais tarde (finish)
         el.classList.add('is-out'); el.setAttribute('aria-busy', 'false');
         try { sessionStorage.setItem('zs-intro', '1'); } catch (e) {}
         var fin = function () { if (!el.parentNode) return; el.parentNode.removeChild(el); html.classList.remove('zs-loading'); window.dispatchEvent(new Event('zs:revealed')); };
@@ -47,19 +59,11 @@
         expect: function (n) { total += n; setP(); },
         tick: function () { done++; setP(); },
         finish: function (fn) {
-            startFn = fn;
-            // já se saltou/revelou (botão, Esc ou 14 s): arranca as animações assim que estiverem prontas
-            if (out) {
-                if (!started) {
-                    started = true;
-                    // se o visitante já está a ler a versão estática, não trocar de modo a meio do scroll
-                    if (window.pageYOffset > 120) { html.classList.remove('zs-pending'); return Promise.resolve(); }
-                    try { if (fn) fn(); } catch (e) { html.classList.remove('zs-pending'); }
-                }
-                return Promise.resolve();
-            }
+            startFn = fn; ready = true;
+            // o visitante já saiu do overlay (botão, Esc ou 14 s): o motor arranca agora que está pronto
+            if (out) { startEngine(); return Promise.resolve(); }
             return new Promise(function (resolve) {
-                var minShow = rm ? 200 : (seen ? 350 : 1250);               // só o necessário para o logótipo se desenhar
+                var minShow = rm ? 200 : (seen ? 1500 : 3000);              // a coreografia do loader dura ~2,7 s: tem de se ver completa
                 var wait = Math.max(0, minShow - (Date.now() - t0));
                 setTimeout(function () {
                     if (out) return resolve();

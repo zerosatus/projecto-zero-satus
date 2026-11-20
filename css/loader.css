@@ -9,7 +9,8 @@
 .zs-loader { display: none; position: fixed; inset: 0; z-index: 99999; align-items: center; justify-content: center; overflow: hidden; color: #f5f3ff;
     background: #07060d; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; --p: 0; --lav: #c4b5fd; --vio: #8b5cf6; }
 html.zs-loading .zs-loader { display: flex; }
-html.zs-loading { overflow: hidden; }
+/* scrollbar-gutter: a barra de scroll clássica (Windows/Linux) não pode aparecer/desaparecer quando o loader sai: mudaria a largura depois de as posições terem sido calculadas */
+html.zs-loading { overflow: hidden; scrollbar-gutter: stable; }
 .zs-ld__bg { position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(60% 55% at 50% 46%, rgba(139, 92, 246, 0.24), transparent 70%), radial-gradient(70% 50% at 85% 100%, rgba(56, 189, 248, 0.1), transparent 70%), radial-gradient(60% 50% at 8% 0%, rgba(236, 72, 153, 0.1), transparent 70%); }
 .zs-ld__bg::after { content: ''; position: absolute; inset: 0; opacity: 0.5;

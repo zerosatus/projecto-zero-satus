@@ -10,9 +10,9 @@ window.ZS_SOCIAL = {
     networks: [
         { id: 'facebook',  label: 'Facebook',  url: 'https://www.facebook.com/profile.php?id=61595732445070&locale=pt_BR' },
         { id: 'x',         label: 'X',         url: 'https://x.com/zerosatus' },
-        { id: 'instagram', label: 'Instagram', url: '' },   // ← colar aqui o link quando existir
-        { id: 'tiktok',    label: 'TikTok',    url: '' },   // ← idem
-        { id: 'youtube',   label: 'YouTube',   url: '' },   // ← idem
-        { id: 'pinterest', label: 'Pinterest', url: '' }    // ← idem
+        { id: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/zerosatus/' },
+        { id: 'tiktok',    label: 'TikTok',    url: 'https://www.tiktok.com/@zerosatus' },
+        { id: 'youtube',   label: 'YouTube',   url: 'https://www.youtube.com/channel/UC7_b7ULn1qWJ0q6LdKM4t9A' },
+        { id: 'pinterest', label: 'Pinterest', url: 'https://pin.it/5DZ1X4THB' }
     ]
 };

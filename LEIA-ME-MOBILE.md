@@ -65,3 +65,18 @@ Os ecrãs vêm das capturas Android reais (28/10 e 06/11/2026). Mostram os valor
 - Onde aparecem: rodapé (logótipo, descrição, email, redes, direitos) e capítulo Contacto (desktop: ícones em cascata quando o convite final surge; mobile: painel inferior com ícones que entram em sequência).
 - Sem JavaScript ficam visíveis o email, o Facebook e o X (versão básica no HTML).
 - Os ícones usam o Font Awesome que a página já carrega; o X é um SVG próprio. Cada botão tem também o nome por baixo.
+
+---
+
+# Arranque fiável das animações (correção de 14/11/2026)
+
+**Causas encontradas**
+1. `js/loader.js`: sair do ecrã de carregamento (14 s, "Saltar", Esc) marcava o motor como "já arrancado" sem o ter arrancado. Em rede lenta, as animações nunca começavam até atualizar a página (já em cache, tudo ia rápido).
+2. `index.html`: o Font Awesome (CDN) no `<head>` bloqueava o desenho da página e todos os scripts; os scripts do Supabase/PWA (síncronos) corriam antes do `main.js` e atrasavam o arranque.
+3. O head removia o estado "pending" aos 15 s e deixava a versão estática definitiva.
+4. Posições calculadas com `html{overflow:hidden}` (loader), sem barra de scroll, e sem novo `refresh()` depois (Windows com barra clássica); fontes pedidas tarde (`document.fonts.ready` resolvia cedo).
+5. iOS: a barra de endereços do Safari disparava `ScrollTrigger.refresh()` a meio do scroll. Imagens `loading="lazy"` das peças que entram por transform chegavam tarde.
+
+**Correções**: overlay e motor passaram a estados independentes; scripts do scrollytelling antes dos de terceiros; Font Awesome sem bloqueio; `ZS.load` com timeout (25 s), sem duplicados e com `?v=`; fontes pedidas explicitamente; `ZS.refresh()` agrupado (loader a sair, load, fontes, pageshow/bfcache, orientationchange, ResizeObserver); `ignoreMobileResize`; `scrollbar-gutter: stable`; pré-carregamento ordenado das imagens do modo ativo. Ao mudar a versão, atualizar `ZS.version` (env.js) e o `?v=` dos preloads no `index.html`.
+
+**Ajuste de 20/11/2026:** (1) o loader tem agora duração mínima de 3 s na primeira visita da sessão e 1,5 s nas seguintes, para a coreografia se ver completa (antes, com o arranque mais rápido, era cortada); (2) os ícones das redes sociais passaram a SVG embutido (`js/ui/social.js` e HTML), sem depender do Font Awesome.

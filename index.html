@@ -2,7 +2,14 @@
 <html lang="pt-BR">
 <head>
     <!-- Estado inicial do palco: peças escondidas até o motor arrancar; se falhar, versão estática -->
-    <script>document.documentElement.classList.add('zs-pending','zs-loading');setTimeout(function(){document.documentElement.classList.remove('zs-pending')},15000);setTimeout(function(){var e=document.getElementById('zs-loader');if(e&&e.parentNode)e.parentNode.removeChild(e);document.documentElement.classList.remove('zs-loading','zs-pending')},17000);</script>
+    <script>
+    /* Estado inicial: peças escondidas até o motor arrancar. O overlay de carregamento tem saída garantida (17 s); o estado
+       "pending" (mesmo layout do estado ativo, por isso sem saltos) só é abandonado aos 45 s, e só se o motor ainda não
+       arrancou — falhas reais (script em falta, timeout de 25 s) já são tratadas em js/main.js com a versão estática. */
+    (function(){var h=document.documentElement;h.classList.add('zs-pending','zs-loading');
+    setTimeout(function(){var e=document.getElementById('zs-loader');if(e&&e.parentNode)e.parentNode.removeChild(e);h.classList.remove('zs-loading')},17000);
+    setTimeout(function(){if(!h.classList.contains('zs-live'))h.classList.remove('zs-pending')},45000);})();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     
@@ -43,7 +50,11 @@
     <link rel="canonical" href="https://zerosatus.vercel.app/">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font Awesome (CDN): carregado sem bloquear. Um <link rel="stylesheet"> normal bloqueia o desenho da página e a execução
+         de todos os scripts seguintes até a CDN responder; com a CDN lenta ou bloqueada, o ecrã de carregamento (e as animações)
+         só apareciam ao fim de muitos segundos. Os ícones surgem assim que o CSS chega. -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     <link rel="stylesheet" href="style.css">
     <!-- Redesign (camadas novas, carregadas depois do style.css) -->
     <link rel="stylesheet" href="css/tokens.css">
@@ -63,8 +74,8 @@
     <link rel="stylesheet" href="css/mobile.css" media="(max-width: 899px)">
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-latin-600-normal.woff2" crossorigin>
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-latin-400-normal.woff2" crossorigin>
-    <link rel="preload" as="script" href="js/vendor/gsap.min.js">
-    <link rel="preload" as="script" href="js/vendor/ScrollTrigger.min.js">
+    <link rel="preload" as="script" href="js/vendor/gsap.min.js?v=20261121">
+    <link rel="preload" as="script" href="js/vendor/ScrollTrigger.min.js?v=20261121">
     
     <!-- PWA Manifest (otimizado para PC) -->
     <link rel="manifest" href="/manifest-pc.json">
@@ -596,10 +607,10 @@
                     <li><span class="zs-contacts__plain"><i class="fas fa-location-dot" aria-hidden="true"></i><span>Chimoio, Moçambique</span></span></li>
                     <li><a data-social-email href="mailto:suportezerosatus@gmail.com"><i class="fas fa-envelope" aria-hidden="true"></i><span class="t">suportezerosatus@gmail.com</span></a></li>
                 </ul>
-                <div class="zs-social zs-social--close zs-rv" data-social-list="close" aria-label="Redes sociais do Zero Satus"><a class="zs-soc" href="https://www.facebook.com/profile.php?id=61595732445070&amp;locale=pt_BR" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><i class="fab fa-facebook-f" aria-hidden="true"></i></span><span class="zs-soc__t">Facebook</span></a><a class="zs-soc" href="https://x.com/zerosatus" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span><span class="zs-soc__t">X</span></a></div>
+                <div class="zs-social zs-social--close zs-rv" data-social-list="close" aria-label="Redes sociais do Zero Satus"><a class="zs-soc" href="https://www.facebook.com/profile.php?id=61595732445070&amp;locale=pt_BR" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 8.5V6.9c0-.7.2-1.2 1.2-1.2H17V2.2C16.7 2.2 15.6 2 14.4 2 11.8 2 10 3.6 10 6.4v2.1H7v3.8h3V22h4v-9.7h2.9l.5-3.8z"/></svg></span><span class="zs-soc__t">Facebook</span></a><a class="zs-soc" href="https://x.com/zerosatus" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span><span class="zs-soc__t">X</span></a></div>
             </div>
             <div class="zs-static-close"></div>
-                    <div class="zm zm--contact" data-next="" data-nn="" data-nt=""><div class="zm-bg" aria-hidden="true"></div><div class="zm-num" aria-hidden="true">07</div><div class="zm-wrap"><div class="zm-copy zm-copy--c"><span class="zm-kick">Zero Satus</span><h2 class="zm-h"><span class="zm-line"><span>A tua jornada</span></span><span class="zm-line"><span><em>académica</em></span></span><span class="zm-line"><span>começa aqui.</span></span></h2><p class="zm-lead">Experimenta a plataforma completa para organizar tarefas, calendário, anotações e foco, num só lugar.</p></div><div class="zm-scene" aria-hidden="true"><div class="zm-phone zm-phone--fan" data-id="c-l"><i class="zm-phone__b"></i><div class="zm-screen"><img src="assets/m/s-st1.webp" width="1062" height="2027" alt="" loading="lazy" decoding="async"></div></div><div class="zm-phone zm-phone--fan" data-id="c-r"><i class="zm-phone__b"></i><div class="zm-screen"><img src="assets/m/s-ini.webp" width="1062" height="2027" alt="" loading="lazy" decoding="async"></div></div><div class="zm-phone zm-phone--fan" data-id="c-m"><i class="zm-phone__b"></i><div class="zm-screen"><img src="assets/m/s-timer.webp" width="1062" height="2027" alt="" loading="lazy" decoding="async"></div></div></div><div class="zm-dock"><div class="zm-cta"><a class="zm-btn zm-btn--p" href="TELAS/login/index.html"><i class="fas fa-rocket" aria-hidden="true"></i> Começar Agora</a><a class="zm-btn zm-btn--g" href="TELAS/login/index.html">Entrar</a></div><div class="zs-social zs-social--dock" data-social-list="dock" aria-label="Redes sociais do Zero Satus"><a class="zs-soc" href="https://www.facebook.com/profile.php?id=61595732445070&amp;locale=pt_BR" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><i class="fab fa-facebook-f" aria-hidden="true"></i></span><span class="zs-soc__t">Facebook</span></a><a class="zs-soc" href="https://x.com/zerosatus" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span><span class="zs-soc__t">X</span></a></div><ul class="zm-contacts" aria-label="Contactos e ligações"><li><a data-social-email href="mailto:suportezerosatus@gmail.com"><i class="fas fa-envelope" aria-hidden="true"></i><span class="t">suportezerosatus@gmail.com</span></a></li><li><a href="https://zero-satus.en.uptodown.com/android" rel="noopener"><i class="fab fa-android" aria-hidden="true"></i><span>Descarregar para Android</span></a></li><li><a href="blog.html"><i class="fas fa-book-open" aria-hidden="true"></i><span>Blog</span></a></li><li><span><i class="fas fa-location-dot" aria-hidden="true"></i><span>Chimoio, Moçambique</span></span></li></ul></div></div><i class="zm-iris" aria-hidden="true"></i></div>
+                    <div class="zm zm--contact" data-next="" data-nn="" data-nt=""><div class="zm-bg" aria-hidden="true"></div><div class="zm-num" aria-hidden="true">07</div><div class="zm-wrap"><div class="zm-copy zm-copy--c"><span class="zm-kick">Zero Satus</span><h2 class="zm-h"><span class="zm-line"><span>A tua jornada</span></span><span class="zm-line"><span><em>académica</em></span></span><span class="zm-line"><span>começa aqui.</span></span></h2><p class="zm-lead">Experimenta a plataforma completa para organizar tarefas, calendário, anotações e foco, num só lugar.</p></div><div class="zm-scene" aria-hidden="true"><div class="zm-phone zm-phone--fan" data-id="c-l"><i class="zm-phone__b"></i><div class="zm-screen"><img src="assets/m/s-st1.webp" width="1062" height="2027" alt="" loading="lazy" decoding="async"></div></div><div class="zm-phone zm-phone--fan" data-id="c-r"><i class="zm-phone__b"></i><div class="zm-screen"><img src="assets/m/s-ini.webp" width="1062" height="2027" alt="" loading="lazy" decoding="async"></div></div><div class="zm-phone zm-phone--fan" data-id="c-m"><i class="zm-phone__b"></i><div class="zm-screen"><img src="assets/m/s-timer.webp" width="1062" height="2027" alt="" loading="lazy" decoding="async"></div></div></div><div class="zm-dock"><div class="zm-cta"><a class="zm-btn zm-btn--p" href="TELAS/login/index.html"><i class="fas fa-rocket" aria-hidden="true"></i> Começar Agora</a><a class="zm-btn zm-btn--g" href="TELAS/login/index.html">Entrar</a></div><div class="zs-social zs-social--dock" data-social-list="dock" aria-label="Redes sociais do Zero Satus"><a class="zs-soc" href="https://www.facebook.com/profile.php?id=61595732445070&amp;locale=pt_BR" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 8.5V6.9c0-.7.2-1.2 1.2-1.2H17V2.2C16.7 2.2 15.6 2 14.4 2 11.8 2 10 3.6 10 6.4v2.1H7v3.8h3V22h4v-9.7h2.9l.5-3.8z"/></svg></span><span class="zs-soc__t">Facebook</span></a><a class="zs-soc" href="https://x.com/zerosatus" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span><span class="zs-soc__t">X</span></a></div><ul class="zm-contacts" aria-label="Contactos e ligações"><li><a data-social-email href="mailto:suportezerosatus@gmail.com"><i class="fas fa-envelope" aria-hidden="true"></i><span class="t">suportezerosatus@gmail.com</span></a></li><li><a href="https://zero-satus.en.uptodown.com/android" rel="noopener"><i class="fab fa-android" aria-hidden="true"></i><span>Descarregar para Android</span></a></li><li><a href="blog.html"><i class="fas fa-book-open" aria-hidden="true"></i><span>Blog</span></a></li><li><span><i class="fas fa-location-dot" aria-hidden="true"></i><span>Chimoio, Moçambique</span></span></li></ul></div></div><i class="zm-iris" aria-hidden="true"></i></div>
         </div>
     </section>
 
@@ -616,7 +627,7 @@
             </div>
             <div class="zs-footer__col">
                 <h3>Redes sociais</h3>
-                <div class="zs-social zs-social--footer" data-social-list="footer"><a class="zs-soc" href="https://www.facebook.com/profile.php?id=61595732445070&amp;locale=pt_BR" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><i class="fab fa-facebook-f" aria-hidden="true"></i></span><span class="zs-soc__t">Facebook</span></a><a class="zs-soc" href="https://x.com/zerosatus" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span><span class="zs-soc__t">X</span></a></div>
+                <div class="zs-social zs-social--footer" data-social-list="footer"><a class="zs-soc" href="https://www.facebook.com/profile.php?id=61595732445070&amp;locale=pt_BR" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 8.5V6.9c0-.7.2-1.2 1.2-1.2H17V2.2C16.7 2.2 15.6 2 14.4 2 11.8 2 10 3.6 10 6.4v2.1H7v3.8h3V22h4v-9.7h2.9l.5-3.8z"/></svg></span><span class="zs-soc__t">Facebook</span></a><a class="zs-soc" href="https://x.com/zerosatus" target="_blank" rel="noopener noreferrer"><span class="zs-soc__i"><svg class="zs-soc__svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span><span class="zs-soc__t">X</span></a></div>
             </div>
             <small>&copy; 2026 Zero Plataforma Acadêmica. Todos os direitos reservados.</small>
         </div>
@@ -631,6 +642,22 @@
         <i class="fas fa-check-circle"></i>
         <span id="toastMessage">Operação realizada!</span>
     </div>
+
+    <!-- ============================================ -->
+    <!-- SCROLLYTELLING + SCRIPT PRINCIPAL
+         Ficam ANTES dos scripts de terceiros (Supabase, PWA…): esses são síncronos e, numa rede lenta ou com a CDN bloqueada,
+         seguravam o arranque das animações durante muito tempo. O conteúdo da página já está todo acima. -->
+    <!-- ============================================ -->
+    <!-- 5. Script Principal -->
+    <script src="script.js"></script>
+    <!-- Scrollytelling (GSAP, motor e cenas desktop/mobile carregados por js/main.js) -->
+    <script src="js/social-config.js"></script>
+    <script src="js/ui/social.js"></script>
+    <script src="js/core/env.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/ui/depoimentos.js"></script>
+    <script src="js/ui/rail.js"></script>
+
 
     <!-- ============================================ -->
     <!-- 🔥 SCRIPTS - ORDEM IMPORTANTE -->
@@ -657,16 +684,6 @@
     <script src="pc-pwa/notification-pc.js"></script>
     <script src="pc-pwa/task-notifier.js"></script>
     
-    <!-- 5. Script Principal -->
-    <script src="script.js"></script>
-
-    <!-- 6. Scrollytelling (carrega GSAP e cenas só em desktop) -->
-    <script src="js/social-config.js"></script>
-    <script src="js/ui/social.js"></script>
-    <script src="js/core/env.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/ui/depoimentos.js" defer></script>
-    <script src="js/ui/rail.js" defer></script>
 
     <!-- ============================================ -->
     <!-- 🔥 CONTROLADOR DO BOTÃO "VER DEMO" (SÓ MOBILE) -->
